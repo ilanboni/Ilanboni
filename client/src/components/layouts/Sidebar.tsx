@@ -66,6 +66,7 @@ export default function Sidebar({ className }: SidebarProps) {
         <SidebarLink to="/clients" icon="fas fa-users">Clienti</SidebarLink>
         <SidebarLink to="/properties" icon="fas fa-building">Immobili</SidebarLink>
         <SidebarLink to="/appointments" icon="fas fa-calendar-alt">Appuntamenti</SidebarLink>
+        <SidebarLink to="/communications" icon="fas fa-comments">Comunicazioni</SidebarLink>
         <SidebarLink to="/tasks" icon="fas fa-tasks">Task e Alert</SidebarLink>
         
         <div className="px-4 mt-6 mb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">

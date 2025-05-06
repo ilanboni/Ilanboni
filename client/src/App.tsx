@@ -11,6 +11,7 @@ import ClientsPage from "@/pages/clients/index";
 import ClientsByTypePage from "@/pages/clients/[type]";
 import PropertiesPage from "@/pages/properties/index";
 import AppointmentsPage from "@/pages/appointments/index";
+import CommunicationsPage from "@/pages/communications/index";
 import TasksPage from "@/pages/tasks/index";
 import AnalyticsPage from "@/pages/analytics/index";
 
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/clients/:type" component={ClientsByTypePage} />
       <Route path="/properties" component={PropertiesPage} />
       <Route path="/appointments" component={AppointmentsPage} />
+      <Route path="/communications" component={CommunicationsPage} />
       <Route path="/tasks" component={TasksPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route component={NotFound} />
