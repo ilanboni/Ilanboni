@@ -1,0 +1,130 @@
+1. Obiettivo del gestionale
+Realizzare un’applicazione web per la gestione integrata di clienti (compratori e venditori), immobili e appuntamenti, dotata di un motore di matching automatico, notifiche WhatsApp e gestione task/alert per follow-up, oltre a un modulo di analisi delle ricerche di mercato.
+
+2. Architettura e stack suggerito
+Frontend: React (oppure Vue) con componenti modulabili per schede, liste e dashboard.
+
+Backend: Node.js + Express (o Python + Flask/Django), RESTful API.
+
+Database: PostgreSQL (relazionale per query complesse) o MongoDB (documentale); Replit DB per prototipi leggeri.
+
+Integrazioni:
+
+WhatsApp API (Twilio, MessageBird o simili) per invio automatico link immobili.
+
+Mappe (Leaflet/OpenStreetMap o Google Maps) per disegno poligoni di ricerca.
+
+Task scheduler (cron interno o libreria Agenda.js) per alert e promemoria.
+
+3. Ruoli Utente
+Agente / Amministratore
+
+Crea e gestisce schede clienti e immobili.
+
+Visualizza report analytics.
+
+Flag “Immobile acquisito” su immobili pluricondivisi.
+
+Staff di Supporto
+
+Monitora alert di mancata risposta.
+
+Gestisce follow-up assegnati.
+
+4. Modello Dati Principale
+Entità	Campi chiave
+Cliente	id, tipo (Compratore/Venditore), intestazione, nome, cognome, telefono, mail*, religione, compleanno, contratto (Affitto/Vendita), …
+Compratore (esteso)	poligonoRicerca (geoJSON), mqMinimi, prezzoMax, urgenza, rating, noteRicerca, linkRicerca
+Venditore (esteso)	indirizzoImmobile, mq, prezzoRichiesto, rating, linkImmobile, noteImmobile
+Immobile	id, indirizzo, mq, prezzo, tipologia, linkSito, stato (libero, in trattativa, acquisito), …
+Appuntamento	id, idCliente, idImmobile, dataOra, tipo (visita/telefonata), feedback, note
+ImmobilePluriCondiviso	id, datiImmobile, agenzieCoinvolte[], flagAcquisito (bool)
+Task/Alert	id, tipo (follow-up, mancataRisposta), idCliente, idImmobile, scadenza, assegnatoA, stato
+
+* Il campo “mail” può supportare più indirizzi contattabili.
+
+5. Funzionalità Chiave
+5.1 Scheda Clienti
+Viste filtrabili per compratori e venditori.
+
+Form dinamico che mostri solo campi rilevanti in base al tipo.
+
+Salvataggio geometria poligono con tool di disegno sulla mappa.
+
+Rating a stelle e urgenza con slider.
+
+Link diretto a ricerche avanzate (lista immobili che combaciano).
+
+5.2 Scheda Immobili
+Elenco dettagliato con stato e link al sito.
+
+Storico appuntamenti e feedback per ciascun immobile.
+
+Sezione “Immobile pluricondiviso”:
+
+Non invio link fino a flag “acquisito”.
+
+Visualizzazione lista clienti interessati.
+
+Bottone “Flag acquisito” per promuoverlo in portafoglio.
+
+5.3 Matching & Notifiche
+Ogni volta che si crea o si aggiorna un immobile, il sistema:
+
+Filtra i compratori il cui poligono/parametri combaciano.
+
+Invia automaticamente via WhatsApp il link del sito.
+
+Se non arriva conferma di lettura/richiesta entro X ore/giorni →
+
+Genera alert “mancata risposta” e crea un task di follow-up assegnato all’agente.
+
+I task compaiono in una dashboard “Promemoria” con scadenze e priorità.
+
+5.4 Gestione Appuntamenti & Feedback
+Per ogni cliente:
+
+Lista di immobili visitati, con data, tipo appuntamento e feedback (testo libero o selezione rapida).
+
+Per ogni immobile:
+
+Lista di appuntamenti clienti, con feedback aggregato.
+
+Report periodici su tasso di conversione visite → offerte.
+
+5.5 Analisi Ricerche & Suggerimenti
+Aggregazione delle ricerche compratori per zona, mq, fascia di prezzo.
+
+Cruscotto grafico che mostra le fasce di prezzo più richieste e superfici più popolari.
+
+Suggerimento automatico di target immobili di concorrenti:
+
+“Cerca in [zona A] immobili da 70–90 mq tra 150 k–200 k”.
+
+Possibilità di esportare lista di immobili di terze agenzie (inserire manualmente o via scraping/API).
+
+6. Workflow di Lavoro
+Inserimento cliente → completa scheda compratore/venditore.
+
+Disegno poligono e impostazione parametri di ricerca.
+
+Inserimento/aggiornamento immobile → scatta matching + WhatsApp.
+
+Monitoraggio risposte → alert + task se non risponde.
+
+Appuntamenti → registrazione visita e feedback.
+
+Acquisizione immobili pluri-condivisi → flag e apertura invii link.
+
+Analisi periodica → report e nuove strategie di acquisizione.
+
+7. Aspetti Non Funzionali e Scalabilità
+Sicurezza: HTTPS, crittografia dati sensibili, autenticazione JWT/OAuth.
+
+Performance: indexing DB su geodati e ricerche, caching di query frequenti.
+
+Manutenibilità: codice modulare, test automatici (unit + integrazione).
+
+Backup e recupero: snapshot giornalieri del database.
+
+UI/UX: interfaccia responsiva, onboarding guidato, tooltips e validazione form.
