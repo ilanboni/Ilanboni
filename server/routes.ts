@@ -1,7 +1,11 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCommunicationSchema } from "@shared/schema";
+import { 
+  insertCommunicationSchema, 
+  insertPropertySchema, 
+  insertSharedPropertySchema
+} from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -174,6 +178,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("[GET /api/clients/without-recent-communication]", error);
       res.status(500).json({ error: "Errore durante il recupero dei clienti senza comunicazioni recenti" });
+    }
+  });
+  
+  // API per gli immobili
+  
+  // Ottieni tutti gli immobili
+  app.get("/api/properties", async (req: Request, res: Response) => {
+    try {
+      // Filtraggio opzionale
+      const filters: { status?: string; search?: string } = {};
+      
+      if (req.query.status) {
+        filters.status = req.query.status as string;
+      }
+      
+      if (req.query.search) {
+        filters.search = req.query.search as string;
+      }
+      
+      const properties = await storage.getProperties(filters);
+      res.json(properties);
+    } catch (error) {
+      console.error("[GET /api/properties]", error);
+      res.status(500).json({ error: "Errore durante il recupero degli immobili" });
+    }
+  });
+  
+  // Ottieni un immobile specifico
+  app.get("/api/properties/:id", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const property = await storage.getPropertyWithDetails(propertyId);
+      
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      res.json(property);
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dell'immobile" });
+    }
+  });
+  
+  // Crea un nuovo immobile
+  app.post("/api/properties", async (req: Request, res: Response) => {
+    try {
+      // Valida i dati in ingresso
+      const result = insertPropertySchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Dati immobile non validi", 
+          details: result.error.format() 
+        });
+      }
+      
+      const newProperty = await storage.createProperty(result.data);
+      res.status(201).json(newProperty);
+    } catch (error) {
+      console.error("[POST /api/properties]", error);
+      res.status(500).json({ error: "Errore durante la creazione dell'immobile" });
+    }
+  });
+  
+  // Aggiorna un immobile esistente
+  app.patch("/api/properties/:id", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      const updatedProperty = await storage.updateProperty(propertyId, req.body);
+      res.json(updatedProperty);
+    } catch (error) {
+      console.error(`[PATCH /api/properties/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento dell'immobile" });
+    }
+  });
+  
+  // Elimina un immobile
+  app.delete("/api/properties/:id", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      await storage.deleteProperty(propertyId);
+      res.status(204).send();
+    } catch (error) {
+      console.error(`[DELETE /api/properties/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante l'eliminazione dell'immobile" });
+    }
+  });
+  
+  // API per proprietà condivise
+  
+  // Crea una proprietà condivisa
+  app.post("/api/properties/shared", async (req: Request, res: Response) => {
+    try {
+      // Valida i dati in ingresso
+      const result = insertSharedPropertySchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Dati condivisione non validi", 
+          details: result.error.format() 
+        });
+      }
+      
+      const newSharedProperty = await storage.createSharedProperty(result.data);
+      res.status(201).json(newSharedProperty);
+    } catch (error) {
+      console.error("[POST /api/properties/shared]", error);
+      res.status(500).json({ error: "Errore durante la creazione della condivisione dell'immobile" });
     }
   });
   

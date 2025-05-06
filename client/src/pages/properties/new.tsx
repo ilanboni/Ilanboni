@@ -434,7 +434,7 @@ export default function NewPropertyPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">Non specificata</SelectItem>
+                                <SelectItem value="non_specificata">Non specificata</SelectItem>
                                 <SelectItem value="A4">A4</SelectItem>
                                 <SelectItem value="A3">A3</SelectItem>
                                 <SelectItem value="A2">A2</SelectItem>
