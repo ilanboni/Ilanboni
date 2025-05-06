@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { ClientType, ClientWithDetails } from "@/types";
+import { ClientType } from "@/types";
+import { ClientWithDetails } from "@shared/schema";
 import ClientCard from "@/components/clients/ClientCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,113 +42,35 @@ export default function ClientsPage() {
   const { data: clients, isLoading, isError, refetch } = useQuery({
     queryKey: ['/api/clients', clientTypeFilter, searchQuery, sortOrder],
     queryFn: async () => {
-      // This would be replaced with real API call
-      const mockClients: ClientWithDetails[] = [
-        {
-          id: 1,
-          type: "buyer",
-          salutation: "dott",
-          firstName: "Marco",
-          lastName: "Bianchi",
-          isFriend: true,
-          phone: "+39 123 456 7890",
-          email: "marco.bianchi@example.com",
-          religion: "christian",
-          contractType: "sale",
-          createdAt: "2023-05-15T10:30:00Z",
-          updatedAt: "2023-06-20T15:45:00Z",
-          buyer: {
-            id: 1,
-            clientId: 1,
-            minSize: 80,
-            maxPrice: 350000,
-            urgency: 4,
-            rating: 5,
-            searchNotes: "Cerca appartamento in zona centrale con terrazzo"
-          }
-        },
-        {
-          id: 2,
-          type: "seller",
-          salutation: "sig.ra",
-          firstName: "Laura",
-          lastName: "Rossi",
-          isFriend: false,
-          phone: "+39 333 123 4567",
-          email: "laura.rossi@example.com",
-          birthday: "1975-08-22",
-          contractType: "sale",
-          createdAt: "2023-04-10T09:15:00Z",
-          updatedAt: "2023-05-05T11:20:00Z",
-          seller: {
-            id: 1,
-            clientId: 2,
-            propertyId: 1
-          },
-          properties: [
-            {
-              id: 1,
-              address: "Via Roma, 45",
-              city: "Milano",
-              size: 120,
-              price: 420000,
-              type: "apartment",
-              status: "available"
-            }
-          ]
-        },
-        {
-          id: 3,
-          type: "buyer",
-          salutation: "ing",
-          firstName: "Giovanni",
-          lastName: "Verdi",
-          isFriend: false,
-          phone: "+39 345 678 9012",
-          email: "giovanni.verdi@example.com",
-          religion: "none",
-          contractType: "rent",
-          createdAt: "2023-06-05T14:00:00Z",
-          updatedAt: "2023-06-05T14:00:00Z",
-          buyer: {
-            id: 2,
-            clientId: 3,
-            minSize: 60,
-            maxPrice: 1200,
-            urgency: 3,
-            rating: 4,
-            searchNotes: "Cerca appartamento in affitto, preferibilmente già arredato"
-          }
+      try {
+        // Usa la vera API per ottenere i clienti
+        const params = new URLSearchParams();
+        if (clientTypeFilter !== "all") {
+          params.append("type", clientTypeFilter);
         }
-      ];
-      
-      // Filter by type
-      let filteredClients = mockClients;
-      if (clientTypeFilter !== "all") {
-        filteredClients = mockClients.filter(client => client.type === clientTypeFilter);
+        if (searchQuery) {
+          params.append("search", searchQuery);
+        }
+        
+        const url = `/api/clients${params.toString() ? `?${params.toString()}` : ''}`;
+        const response = await apiRequest('GET', url);
+        
+        let clients = Array.isArray(response) ? response : [];
+        
+        // Ordina i risultati
+        if (sortOrder === "newest") {
+          clients.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        } else if (sortOrder === "oldest") {
+          clients.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        } else if (sortOrder === "name") {
+          clients.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
+        }
+        
+        return clients;
+      } catch (error) {
+        console.error("Errore nel recupero dei clienti:", error);
+        return [];
       }
-      
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        filteredClients = filteredClients.filter(client => 
-          client.firstName.toLowerCase().includes(query) || 
-          client.lastName.toLowerCase().includes(query) || 
-          client.email?.toLowerCase().includes(query) || 
-          client.phone.toLowerCase().includes(query)
-        );
-      }
-      
-      // Sort
-      if (sortOrder === "newest") {
-        filteredClients.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      } else if (sortOrder === "oldest") {
-        filteredClients.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      } else if (sortOrder === "name") {
-        filteredClients.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
-      }
-      
-      return filteredClients;
     }
   });
   
@@ -162,8 +85,8 @@ export default function ClientsPage() {
   
   const handleDeleteClient = async (client: ClientWithDetails) => {
     try {
-      // This would be a real API call
-      // await apiRequest('DELETE', `/api/clients/${client.id}`);
+      // Chiama la vera API per eliminare il cliente
+      await apiRequest('DELETE', `/api/clients/${client.id}`);
       
       toast({
         title: "Cliente eliminato",
