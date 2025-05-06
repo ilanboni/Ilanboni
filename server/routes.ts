@@ -177,6 +177,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint per ottenere le attività di un cliente
+  app.get("/api/clients/:id/tasks", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const tasks = await storage.getTasksByClientId(clientId);
+      res.json(tasks);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/tasks]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle attività del cliente" });
+    }
+  });
+
+  // Endpoint per ottenere le attività di un immobile
+  app.get("/api/properties/:id/tasks", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const tasks = await storage.getTasksByPropertyId(propertyId);
+      res.json(tasks);
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}/tasks]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle attività dell'immobile" });
+    }
+  });
+
   // Altri endpoint API esistenti
 
   const httpServer = createServer(app);
