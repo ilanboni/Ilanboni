@@ -41,7 +41,7 @@ export default function ClientsByTypePage() {
       const url = isEditMode ? `/api/clients/${clientId}` : '/api/clients';
       return apiRequest(method, url, data);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       // Invalidate clients query to refetch the list
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       
@@ -53,8 +53,20 @@ export default function ClientsByTypePage() {
           : "Il nuovo cliente è stato creato con successo.",
       });
       
-      // Navigate back to clients list
-      navigate("/clients");
+      if (isNewClient) {
+        // Se è un nuovo cliente, reindirizza in base al tipo
+        const newClientId = response.id;
+        if (clientType === "buyer") {
+          // Reindirizza alla pagina della ricerca immobili per il compratore
+          navigate(`/clients/${newClientId}/search`);
+        } else if (clientType === "seller") {
+          // Reindirizza alla pagina di creazione immobile per il venditore
+          navigate(`/properties/new?sellerId=${newClientId}`);
+        }
+      } else {
+        // Se è una modifica, torna alla lista clienti
+        navigate("/clients");
+      }
     },
     onError: (error) => {
       toast({
@@ -67,6 +79,8 @@ export default function ClientsByTypePage() {
   
   // Handle form submission
   const handleSubmit = (data: any) => {
+    // Aggiorna il tipo di cliente prima di inviare
+    setClientType(data.type as ClientType);
     saveClientMutation.mutate(data);
   };
   
