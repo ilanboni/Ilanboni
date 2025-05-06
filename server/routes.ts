@@ -4,7 +4,10 @@ import { storage } from "./storage";
 import { 
   insertCommunicationSchema, 
   insertPropertySchema, 
-  insertSharedPropertySchema
+  insertSharedPropertySchema,
+  insertClientSchema,
+  insertBuyerSchema,
+  insertSellerSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -341,6 +344,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[GET /api/properties/${req.params.id}/tasks]`, error);
       res.status(500).json({ error: "Errore durante il recupero delle attività dell'immobile" });
+    }
+  });
+
+  // API per la gestione dei clienti
+  
+  // Ottieni tutti i clienti (con filtri opzionali)
+  app.get("/api/clients", async (req: Request, res: Response) => {
+    try {
+      // Filtraggio opzionale
+      const filters: { type?: string; search?: string } = {};
+      
+      if (req.query.type) {
+        filters.type = req.query.type as string;
+      }
+      
+      if (req.query.search) {
+        filters.search = req.query.search as string;
+      }
+      
+      const clients = await storage.getClients(filters);
+      res.json(clients);
+    } catch (error) {
+      console.error("[GET /api/clients]", error);
+      res.status(500).json({ error: "Errore durante il recupero dei clienti" });
+    }
+  });
+  
+  // Ottieni un cliente specifico con dettagli completi
+  app.get("/api/clients/:id", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const client = await storage.getClientWithDetails(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      res.json(client);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante il recupero del cliente" });
+    }
+  });
+  
+  // Crea un nuovo cliente
+  app.post("/api/clients", async (req: Request, res: Response) => {
+    try {
+      // Valida i dati in ingresso
+      const result = insertClientSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Dati cliente non validi", 
+          details: result.error.format() 
+        });
+      }
+      
+      const newClient = await storage.createClient(result.data);
+      res.status(201).json(newClient);
+    } catch (error) {
+      console.error("[POST /api/clients]", error);
+      res.status(500).json({ error: "Errore durante la creazione del cliente" });
+    }
+  });
+  
+  // Aggiorna un cliente esistente
+  app.patch("/api/clients/:id", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      const updatedClient = await storage.updateClient(clientId, req.body);
+      res.json(updatedClient);
+    } catch (error) {
+      console.error(`[PATCH /api/clients/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento del cliente" });
+    }
+  });
+  
+  // Elimina un cliente
+  app.delete("/api/clients/:id", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      await storage.deleteClient(clientId);
+      res.status(204).send();
+    } catch (error) {
+      console.error(`[DELETE /api/clients/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante l'eliminazione del cliente" });
+    }
+  });
+  
+  // API per acquirenti
+  
+  // Crea un nuovo acquirente per un cliente
+  app.post("/api/buyers", async (req: Request, res: Response) => {
+    try {
+      // Valida i dati in ingresso
+      const result = insertBuyerSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Dati acquirente non validi", 
+          details: result.error.format() 
+        });
+      }
+      
+      const newBuyer = await storage.createBuyer(result.data);
+      res.status(201).json(newBuyer);
+    } catch (error) {
+      console.error("[POST /api/buyers]", error);
+      res.status(500).json({ error: "Errore durante la creazione dell'acquirente" });
+    }
+  });
+  
+  // Aggiorna un acquirente
+  app.patch("/api/buyers/:id", async (req: Request, res: Response) => {
+    try {
+      const buyerId = parseInt(req.params.id);
+      if (isNaN(buyerId)) {
+        return res.status(400).json({ error: "ID acquirente non valido" });
+      }
+      
+      const buyer = await storage.getBuyer(buyerId);
+      if (!buyer) {
+        return res.status(404).json({ error: "Acquirente non trovato" });
+      }
+      
+      const updatedBuyer = await storage.updateBuyer(buyerId, req.body);
+      res.json(updatedBuyer);
+    } catch (error) {
+      console.error(`[PATCH /api/buyers/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento dell'acquirente" });
+    }
+  });
+  
+  // API per venditori
+  
+  // Crea un nuovo venditore per un cliente
+  app.post("/api/sellers", async (req: Request, res: Response) => {
+    try {
+      // Valida i dati in ingresso
+      const result = insertSellerSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Dati venditore non validi", 
+          details: result.error.format() 
+        });
+      }
+      
+      const newSeller = await storage.createSeller(result.data);
+      res.status(201).json(newSeller);
+    } catch (error) {
+      console.error("[POST /api/sellers]", error);
+      res.status(500).json({ error: "Errore durante la creazione del venditore" });
+    }
+  });
+  
+  // Aggiorna un venditore
+  app.patch("/api/sellers/:id", async (req: Request, res: Response) => {
+    try {
+      const sellerId = parseInt(req.params.id);
+      if (isNaN(sellerId)) {
+        return res.status(400).json({ error: "ID venditore non valido" });
+      }
+      
+      const seller = await storage.getSeller(sellerId);
+      if (!seller) {
+        return res.status(404).json({ error: "Venditore non trovato" });
+      }
+      
+      const updatedSeller = await storage.updateSeller(sellerId, req.body);
+      res.json(updatedSeller);
+    } catch (error) {
+      console.error(`[PATCH /api/sellers/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento del venditore" });
     }
   });
 
