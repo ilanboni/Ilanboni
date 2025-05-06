@@ -39,7 +39,8 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { RELIGIONS, SALUTATIONS } from "@/lib/constants";
-import { ClientType, ClientWithDetails } from "@/types";
+import { ClientType } from "@/types";
+import { ClientWithDetails } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import MapSelector from "../maps/MapSelector";
 
