@@ -61,6 +61,8 @@ export const properties = pgTable("properties", {
   type: text("type").notNull(), // apartment, house, villa, etc.
   bedrooms: integer("bedrooms"),
   bathrooms: integer("bathrooms"),
+  yearBuilt: integer("year_built"),
+  energyClass: text("energy_class"),
   description: text("description"),
   status: text("status").default("available"), // available, pending, sold
   isShared: boolean("is_shared").default(false), // if shared with other agencies

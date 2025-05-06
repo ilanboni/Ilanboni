@@ -48,8 +48,15 @@ export default function NewPropertyPage() {
     isAcquired: z.boolean().default(false),
   });
   
-  // Define form
-  const form = useForm<z.infer<typeof formSchema>>({
+  // Define form with explicit typing
+  const form = useForm<z.infer<typeof insertPropertySchema> & {
+    isShared: boolean;
+    agencyName?: string;
+    contactPerson?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    isAcquired: boolean;
+  }>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       type: "apartment",
@@ -76,24 +83,40 @@ export default function NewPropertyPage() {
       const { isShared, agencyName, contactPerson, contactPhone, contactEmail, isAcquired, ...propertyData } = data;
       
       // Send property data to the API
-      const result = await apiRequest("/api/properties", {
+      const response = await fetch("/api/properties", {
         method: "POST",
-        data: propertyData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(propertyData),
       });
+      
+      if (!response.ok) {
+        throw new Error("Failed to create property");
+      }
+      
+      const result = await response.json();
       
       // If property is shared, create shared property record
       if (isShared && result && agencyName) {
-        await apiRequest("/api/properties/shared", {
+        const sharedResponse = await fetch("/api/properties/shared", {
           method: "POST",
-          data: {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
             propertyId: result.id,
             agencyName,
             contactPerson: contactPerson || null,
             contactPhone: contactPhone || null,
             contactEmail: contactEmail || null,
             isAcquired: isAcquired || false,
-          },
+          }),
         });
+        
+        if (!sharedResponse.ok) {
+          console.warn("Failed to create shared property data");
+        }
       }
       
       return result;
@@ -379,7 +402,7 @@ export default function NewPropertyPage() {
                                 type="number" 
                                 placeholder="2000" 
                                 {...field}
-                                value={field.value || ""}
+                                value={field.value === null ? "" : field.value}
                                 onChange={(e) => {
                                   const value = e.target.value ? parseInt(e.target.value) : null;
                                   field.onChange(value);
@@ -469,6 +492,7 @@ export default function NewPropertyPage() {
                               placeholder="Descrizione dettagliata dell'immobile" 
                               className="h-32 resize-y" 
                               {...field}
+                              value={field.value || ""}
                             />
                           </FormControl>
                           <FormDescription>
