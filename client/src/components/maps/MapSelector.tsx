@@ -2,6 +2,28 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { GeoPolygon } from "@/types";
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-draw';
+import 'leaflet-draw/dist/leaflet.draw.css';
+
+// Extend Leaflet namespace for TypeScript
+declare global {
+  namespace L {
+    namespace Draw {
+      const Event: {
+        CREATED: string;
+        EDITED: string;
+        DELETED: string;
+      };
+    }
+    namespace Control {
+      class Draw extends L.Control {
+        constructor(options?: any);
+      }
+    }
+  }
+}
 
 interface MapSelectorProps {
   value?: any;
@@ -24,36 +46,12 @@ export default function MapSelector({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   
   useEffect(() => {
-    // Only initialize if leaflet is available
-    if (!window.L) {
-      const linkElement = document.createElement('link');
-      linkElement.rel = 'stylesheet';
-      linkElement.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css';
-      document.head.appendChild(linkElement);
-      
-      const scriptElement = document.createElement('script');
-      scriptElement.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js';
-      scriptElement.onload = () => {
-        // Load Leaflet Draw after Leaflet
-        const drawScriptElement = document.createElement('script');
-        drawScriptElement.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js';
-        drawScriptElement.onload = () => setIsMapLoaded(true);
-        document.head.appendChild(drawScriptElement);
-        
-        const drawCssElement = document.createElement('link');
-        drawCssElement.rel = 'stylesheet';
-        drawCssElement.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css';
-        document.head.appendChild(drawCssElement);
-      };
-      document.head.appendChild(scriptElement);
-      return;
-    } else {
-      setIsMapLoaded(true);
-    }
+    // We already imported Leaflet and Leaflet-Draw via imports
+    setIsMapLoaded(true);
   }, []);
   
   useEffect(() => {
-    if (!isMapLoaded || !mapRef.current || !window.L) return;
+    if (!isMapLoaded || !mapRef.current) return;
     
     // Initialize map if it doesn't exist
     if (!mapInstanceRef.current) {
