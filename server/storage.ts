@@ -7,6 +7,7 @@ import {
   sharedProperties, type SharedProperty, type InsertSharedProperty,
   appointments, type Appointment, type InsertAppointment,
   tasks, type Task, type InsertTask,
+  communications, type Communication, type InsertCommunication,
   marketInsights, type MarketInsight, type InsertMarketInsight,
   type ClientWithDetails, type PropertyWithDetails
 } from "@shared/schema";
@@ -132,6 +133,7 @@ export class MemStorage implements IStorage {
     this.sharedPropertyStore = new Map();
     this.appointmentStore = new Map();
     this.taskStore = new Map();
+    this.communicationStore = new Map();
     this.marketInsightStore = new Map();
     
     this.userIdCounter = 1;
@@ -142,6 +144,7 @@ export class MemStorage implements IStorage {
     this.sharedPropertyIdCounter = 1;
     this.appointmentIdCounter = 1;
     this.taskIdCounter = 1;
+    this.communicationIdCounter = 1;
     this.marketInsightIdCounter = 1;
     
     // Add some initial data for testing
@@ -278,6 +281,30 @@ export class MemStorage implements IStorage {
       clientWithDetails.tasks = tasks;
     }
     
+    // Add communications
+    const communications = Array.from(this.communicationStore.values()).filter(
+      (communication) => communication.clientId === client.id
+    );
+    if (communications.length > 0) {
+      clientWithDetails.communications = communications;
+      
+      // Add last communication
+      const sortedComms = [...communications].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      if (sortedComms.length > 0) {
+        clientWithDetails.lastCommunication = sortedComms[0];
+        
+        // Calculate days since last communication
+        const now = new Date();
+        const lastCommDate = new Date(sortedComms[0].createdAt);
+        const diffTime = Math.abs(now.getTime() - lastCommDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        clientWithDetails.daysSinceLastCommunication = diffDays;
+      }
+    }
+    
     return clientWithDetails;
   }
   
@@ -339,6 +366,11 @@ export class MemStorage implements IStorage {
       Array.from(this.taskStore.values())
         .filter((task) => task.clientId === id)
         .forEach((task) => this.taskStore.delete(task.id));
+      
+      // Delete related communications
+      Array.from(this.communicationStore.values())
+        .filter((communication) => communication.clientId === id)
+        .forEach((communication) => this.communicationStore.delete(communication.id));
     }
     
     return this.clientStore.delete(id);
@@ -456,6 +488,23 @@ export class MemStorage implements IStorage {
       propertyWithDetails.appointments = appointments;
     }
     
+    // Add communications related to this property
+    const communications = Array.from(this.communicationStore.values()).filter(
+      (communication) => communication.propertyId === property.id
+    );
+    if (communications.length > 0) {
+      propertyWithDetails.communications = communications;
+      
+      // Add last communication
+      const sortedComms = [...communications].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      if (sortedComms.length > 0) {
+        propertyWithDetails.lastCommunication = sortedComms[0];
+      }
+    }
+    
     // Find interested clients
     const interestedClients: ClientWithDetails[] = [];
     
@@ -547,6 +596,11 @@ export class MemStorage implements IStorage {
     Array.from(this.taskStore.values())
       .filter((task) => task.propertyId === id)
       .forEach((task) => this.taskStore.delete(task.id));
+    
+    // Delete related communications
+    Array.from(this.communicationStore.values())
+      .filter((communication) => communication.propertyId === id)
+      .forEach((communication) => this.communicationStore.delete(communication.id));
     
     // Update seller references
     Array.from(this.sellerStore.values())
@@ -749,6 +803,119 @@ export class MemStorage implements IStorage {
   
   async deleteTask(id: number): Promise<boolean> {
     return this.taskStore.delete(id);
+  }
+  
+  // Communication methods
+  async getCommunication(id: number): Promise<Communication | undefined> {
+    return this.communicationStore.get(id);
+  }
+  
+  async getCommunications(filters?: { type?: string; status?: string }): Promise<Communication[]> {
+    let communications = Array.from(this.communicationStore.values());
+    
+    if (filters) {
+      if (filters.type && filters.type !== "all") {
+        communications = communications.filter((comm) => comm.type === filters.type);
+      }
+      
+      if (filters.status && filters.status !== "all") {
+        communications = communications.filter((comm) => comm.status === filters.status);
+      }
+    }
+    
+    // Add client and property details
+    return communications.map(comm => {
+      const extendedComm: any = { ...comm };
+      
+      if (comm.clientId) {
+        const client = this.clientStore.get(comm.clientId);
+        if (client) {
+          extendedComm.client = client;
+        }
+      }
+      
+      if (comm.propertyId) {
+        const property = this.propertyStore.get(comm.propertyId);
+        if (property) {
+          extendedComm.property = property;
+        }
+      }
+      
+      return extendedComm;
+    });
+  }
+  
+  async getCommunicationsByClientId(clientId: number): Promise<Communication[]> {
+    return Array.from(this.communicationStore.values())
+      .filter((comm) => comm.clientId === clientId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getCommunicationsByPropertyId(propertyId: number): Promise<Communication[]> {
+    return Array.from(this.communicationStore.values())
+      .filter((comm) => comm.propertyId === propertyId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getLastCommunicationByClientId(clientId: number): Promise<Communication | undefined> {
+    const communications = await this.getCommunicationsByClientId(clientId);
+    return communications.length > 0 ? communications[0] : undefined;
+  }
+  
+  async createCommunication(communication: InsertCommunication): Promise<Communication> {
+    const id = this.communicationIdCounter++;
+    const newCommunication: Communication = {
+      ...communication,
+      id,
+      createdAt: new Date()
+    };
+    
+    this.communicationStore.set(id, newCommunication);
+    return newCommunication;
+  }
+  
+  async updateCommunication(id: number, data: Partial<InsertCommunication>): Promise<Communication | undefined> {
+    const existingCommunication = this.communicationStore.get(id);
+    if (!existingCommunication) return undefined;
+    
+    const updatedCommunication = { ...existingCommunication, ...data };
+    this.communicationStore.set(id, updatedCommunication);
+    return updatedCommunication;
+  }
+  
+  async deleteCommunication(id: number): Promise<boolean> {
+    return this.communicationStore.delete(id);
+  }
+  
+  async getClientsWithoutRecentCommunication(days: number, minRating: number): Promise<ClientWithDetails[]> {
+    const clients = Array.from(this.clientStore.values());
+    const result: ClientWithDetails[] = [];
+    
+    for (const client of clients) {
+      const buyer = await this.getBuyerByClientId(client.id);
+      // Check if client has high priority rating
+      if (buyer && buyer.rating && buyer.rating >= minRating) {
+        // Get last communication
+        const lastComm = await this.getLastCommunicationByClientId(client.id);
+        
+        // If no communication or last communication is older than specified days
+        if (!lastComm || this.isDaysOlderThan(lastComm.createdAt, days)) {
+          const clientWithDetails = await this.getClientWithDetails(client.id);
+          if (clientWithDetails) {
+            result.push(clientWithDetails);
+          }
+        }
+      }
+    }
+    
+    return result;
+  }
+  
+  private isDaysOlderThan(date: Date, days: number): boolean {
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - new Date(date).getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > days;
   }
   
   // Market insight methods
