@@ -9,7 +9,9 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import ClientsPage from "@/pages/clients/index";
 import ClientsByTypePage from "@/pages/clients/[type]";
+import ClientDetailPage from "@/pages/clients/[id]";
 import PropertiesPage from "@/pages/properties/index";
+import PropertyDetailPage from "@/pages/properties/[id]";
 import AppointmentsPage from "@/pages/appointments/index";
 import CommunicationsPage from "@/pages/communications/index";
 import CommunicationDetailPage from "@/pages/communications/[id]";
@@ -24,8 +26,10 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/clients" component={ClientsPage} />
-      <Route path="/clients/:type" component={ClientsByTypePage} />
+      <Route path="/clients/type/:type" component={ClientsByTypePage} />
+      <Route path="/clients/:id" component={ClientDetailPage} />
       <Route path="/properties" component={PropertiesPage} />
+      <Route path="/properties/:id" component={PropertyDetailPage} />
       <Route path="/appointments" component={AppointmentsPage} />
       <Route path="/communications" component={CommunicationsPage} />
       <Route path="/communications/new" component={CommunicationNewPage} />
