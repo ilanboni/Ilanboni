@@ -4,23 +4,14 @@ import { cn } from "@/lib/utils";
 import { GeoPolygon } from "@/types";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-draw';
-import 'leaflet-draw/dist/leaflet.draw.css';
 
-// Extend Leaflet namespace for TypeScript
+// Aggiungiamo proprietà window per evitare errori TypeScript
 declare global {
-  namespace L {
-    namespace Draw {
-      const Event: {
-        CREATED: string;
-        EDITED: string;
-        DELETED: string;
+  interface Window {
+    L: typeof L & {
+      Control: {
+        Draw: any;
       };
-    }
-    namespace Control {
-      class Draw extends L.Control {
-        constructor(options?: any);
-      }
     }
   }
 }
@@ -46,12 +37,29 @@ export default function MapSelector({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   
   useEffect(() => {
-    // We already imported Leaflet and Leaflet-Draw via imports
-    setIsMapLoaded(true);
+    // Carica dinamicamente Leaflet-draw
+    if (!document.getElementById('leaflet-draw-css')) {
+      const linkElement = document.createElement('link');
+      linkElement.id = 'leaflet-draw-css';
+      linkElement.rel = 'stylesheet';
+      linkElement.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css';
+      document.head.appendChild(linkElement);
+    }
+    
+    if (!window.L || !window.L.Control || !window.L.Control.Draw) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js';
+      script.onload = () => {
+        setIsMapLoaded(true);
+      };
+      document.head.appendChild(script);
+    } else {
+      setIsMapLoaded(true);
+    }
   }, []);
   
   useEffect(() => {
-    if (!isMapLoaded || !mapRef.current) return;
+    if (!isMapLoaded || !mapRef.current || !window.L) return;
     
     // Initialize map if it doesn't exist
     if (!mapInstanceRef.current) {
@@ -68,8 +76,8 @@ export default function MapSelector({
       mapInstanceRef.current.addLayer(drawnItemsRef.current);
       
       // Initialize draw control
-      if (!readOnly) {
-        drawControlRef.current = new L.Control.Draw({
+      if (!readOnly && window.L.Control.Draw) {
+        drawControlRef.current = new window.L.Control.Draw({
           draw: {
             marker: false,
             circlemarker: false,
@@ -97,8 +105,15 @@ export default function MapSelector({
         });
         mapInstanceRef.current.addControl(drawControlRef.current);
         
+        // Define draw events constants
+        const drawEvents = {
+          CREATED: 'draw:created',
+          EDITED: 'draw:edited',
+          DELETED: 'draw:deleted'
+        };
+        
         // Handle draw events
-        mapInstanceRef.current.on(L.Draw.Event.CREATED, function(e: any) {
+        mapInstanceRef.current.on(drawEvents.CREATED, function(e: any) {
           const layer = e.layer;
           
           // Add layer to feature group
@@ -115,7 +130,7 @@ export default function MapSelector({
           }
         });
         
-        mapInstanceRef.current.on(L.Draw.Event.EDITED, function() {
+        mapInstanceRef.current.on(drawEvents.EDITED, function() {
           // Update form when shapes are edited
           const geoJSON = drawnItemsRef.current.toGeoJSON();
           if (geoJSON.features.length > 0) {
@@ -127,7 +142,7 @@ export default function MapSelector({
           }
         });
         
-        mapInstanceRef.current.on(L.Draw.Event.DELETED, function() {
+        mapInstanceRef.current.on(drawEvents.DELETED, function() {
           // Clear form value when all shapes are deleted
           if (drawnItemsRef.current.getLayers().length === 0) {
             onChange(undefined);
