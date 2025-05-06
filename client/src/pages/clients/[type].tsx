@@ -24,6 +24,11 @@ export default function ClientsByTypePage() {
   // For edit mode, fetch the client data
   const { data: client, isLoading: isLoadingClient } = useQuery({
     queryKey: ['/api/clients', clientId],
+    // Quando in modalità modifica, usiamo l'API per ottenere i dati del cliente
+    queryFn: async () => {
+      if (!clientId) return null;
+      return apiRequest('GET', `/api/clients/${clientId}`);
+    },
     enabled: isEditMode && !!clientId
   });
   

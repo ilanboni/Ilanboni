@@ -232,7 +232,7 @@ export default function NewPropertyPage() {
                             <FormLabel>Stato*</FormLabel>
                             <Select
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              defaultValue={field.value || undefined}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -426,7 +426,7 @@ export default function NewPropertyPage() {
                             <FormLabel>Classe energetica</FormLabel>
                             <Select
                               onValueChange={field.onChange}
-                              value={field.value || ""}
+                              value={field.value || undefined}
                             >
                               <FormControl>
                                 <SelectTrigger>
