@@ -110,6 +110,22 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// Client communications
+export const communications = pgTable("communications", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  type: text("type").notNull(), // email, call, whatsapp, property_sent, meeting, etc.
+  subject: text("subject").notNull(),
+  content: text("content"),
+  direction: text("direction").notNull(), // inbound, outbound
+  createdBy: integer("created_by").references(() => users.id),
+  needsFollowUp: boolean("needs_follow_up").default(false),
+  followUpDate: date("follow_up_date"),
+  status: text("status").default("pending"), // pending, completed, no-response
+  createdAt: timestamp("created_at").defaultNow()
+});
+
 // Analytics for market insights
 export const marketInsights = pgTable("market_insights", {
   id: serial("id").primaryKey(),
@@ -134,6 +150,7 @@ export const insertPropertySchema = createInsertSchema(properties).omit({ id: tr
 export const insertSharedPropertySchema = createInsertSchema(sharedProperties).omit({ id: true });
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true });
+export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, createdAt: true });
 export const insertMarketInsightSchema = createInsertSchema(marketInsights).omit({ id: true, createdAt: true });
 
 // Export types
@@ -161,6 +178,9 @@ export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 
+export type Communication = typeof communications.$inferSelect;
+export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
+
 export type MarketInsight = typeof marketInsights.$inferSelect;
 export type InsertMarketInsight = z.infer<typeof insertMarketInsightSchema>;
 
@@ -171,10 +191,15 @@ export type ClientWithDetails = Client & {
   appointments?: Appointment[];
   properties?: Property[];
   tasks?: Task[];
+  communications?: Communication[];
+  lastCommunication?: Communication;
+  daysSinceLastCommunication?: number;
 };
 
 export type PropertyWithDetails = Property & {
   sharedDetails?: SharedProperty;
   appointments?: Appointment[];
   interestedClients?: ClientWithDetails[];
+  communications?: Communication[];
+  lastCommunication?: Communication;
 };

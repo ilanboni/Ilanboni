@@ -66,6 +66,17 @@ export interface IStorage {
   updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<Appointment | undefined>;
   deleteAppointment(id: number): Promise<boolean>;
   
+  // Communication methods
+  getCommunication(id: number): Promise<Communication | undefined>;
+  getCommunications(filters?: { type?: string; status?: string }): Promise<Communication[]>;
+  getCommunicationsByClientId(clientId: number): Promise<Communication[]>;
+  getCommunicationsByPropertyId(propertyId: number): Promise<Communication[]>;
+  getLastCommunicationByClientId(clientId: number): Promise<Communication | undefined>;
+  createCommunication(communication: InsertCommunication): Promise<Communication>;
+  updateCommunication(id: number, data: Partial<InsertCommunication>): Promise<Communication | undefined>;
+  deleteCommunication(id: number): Promise<boolean>;
+  getClientsWithoutRecentCommunication(days: number, minRating: number): Promise<ClientWithDetails[]>;
+  
   // Task methods
   getTask(id: number): Promise<Task | undefined>;
   getTasks(filters?: { status?: string; type?: string }): Promise<Task[]>;
@@ -98,6 +109,7 @@ export class MemStorage implements IStorage {
   private sharedPropertyStore: Map<number, SharedProperty>;
   private appointmentStore: Map<number, Appointment>;
   private taskStore: Map<number, Task>;
+  private communicationStore: Map<number, Communication>;
   private marketInsightStore: Map<number, MarketInsight>;
   
   private userIdCounter: number;
@@ -108,6 +120,7 @@ export class MemStorage implements IStorage {
   private sharedPropertyIdCounter: number;
   private appointmentIdCounter: number;
   private taskIdCounter: number;
+  private communicationIdCounter: number;
   private marketInsightIdCounter: number;
   
   constructor() {
