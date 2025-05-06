@@ -26,9 +26,9 @@ export default function Sidebar({ className }: SidebarProps) {
     children: React.ReactNode 
   }) => (
     <Link href={to}>
-      <a
+      <div
         className={cn(
-          "flex items-center px-4 py-3 text-sm font-medium",
+          "flex items-center px-4 py-3 text-sm font-medium cursor-pointer",
           isActive(to)
             ? "text-primary-700 bg-primary-50 border-l-4 border-primary-600"
             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -40,7 +40,7 @@ export default function Sidebar({ className }: SidebarProps) {
           isActive(to) ? "text-primary-600" : "text-gray-400"
         )}></i>
         <span>{children}</span>
-      </a>
+      </div>
     </Link>
   );
 

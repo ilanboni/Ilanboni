@@ -243,16 +243,16 @@ export default function CommunicationsPage() {
                         </TableCell>
                         <TableCell>
                           <Link href={`/clients/${comm.clientId}`}>
-                            <a className="text-primary-700 hover:underline">
+                            <div className="text-primary-700 hover:underline cursor-pointer">
                               Cliente #{comm.clientId}
-                            </a>
+                            </div>
                           </Link>
                         </TableCell>
                         <TableCell className="font-medium">
                           <Link href={`/communications/${comm.id}`}>
-                            <a className="hover:text-primary-700">
+                            <div className="hover:text-primary-700 cursor-pointer">
                               {comm.subject}
-                            </a>
+                            </div>
                           </Link>
                         </TableCell>
                         <TableCell>{getStatusBadge(comm.status)}</TableCell>

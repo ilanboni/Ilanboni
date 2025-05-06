@@ -243,7 +243,9 @@ export default function CommunicationDetailPage() {
                       <div className="flex justify-center pt-2">
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/clients/${client.id}`}>
-                            Vedi profilo completo
+                            <div className="px-2 py-1">
+                              Vedi profilo completo
+                            </div>
                           </Link>
                         </Button>
                       </div>
@@ -290,7 +292,9 @@ export default function CommunicationDetailPage() {
                         <div className="flex justify-center pt-2">
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/properties/${property.id}`}>
-                              Vedi dettagli immobile
+                              <div className="px-2 py-1">
+                                Vedi dettagli immobile
+                              </div>
                             </Link>
                           </Button>
                         </div>
