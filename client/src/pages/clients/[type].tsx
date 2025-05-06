@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -24,81 +24,16 @@ export default function ClientsByTypePage() {
   // For edit mode, fetch the client data
   const { data: client, isLoading: isLoadingClient } = useQuery({
     queryKey: ['/api/clients', clientId],
-    queryFn: async () => {
-      if (!clientId) return null;
-      
-      // This would be replaced with a real API call
-      // In a real app, we would fetch the client from the server
-      const mockClients: ClientWithDetails[] = [
-        {
-          id: 1,
-          type: "buyer",
-          salutation: "dott",
-          firstName: "Marco",
-          lastName: "Bianchi",
-          isFriend: true,
-          phone: "+39 123 456 7890",
-          email: "marco.bianchi@example.com",
-          religion: "christian",
-          contractType: "sale",
-          createdAt: "2023-05-15T10:30:00Z",
-          updatedAt: "2023-06-20T15:45:00Z",
-          buyer: {
-            id: 1,
-            clientId: 1,
-            minSize: 80,
-            maxPrice: 350000,
-            urgency: 4,
-            rating: 5,
-            searchNotes: "Cerca appartamento in zona centrale con terrazzo"
-          }
-        },
-        {
-          id: 2,
-          type: "seller",
-          salutation: "sig.ra",
-          firstName: "Laura",
-          lastName: "Rossi",
-          isFriend: false,
-          phone: "+39 333 123 4567",
-          email: "laura.rossi@example.com",
-          birthday: "1975-08-22",
-          contractType: "sale",
-          createdAt: "2023-04-10T09:15:00Z",
-          updatedAt: "2023-05-05T11:20:00Z",
-          seller: {
-            id: 1,
-            clientId: 2,
-            propertyId: 1
-          }
-        }
-      ];
-      
-      const foundClient = mockClients.find(c => c.id === clientId);
-      if (foundClient) {
-        setClientType(foundClient.type as ClientType);
-        return foundClient;
-      }
-      
-      return null;
-    },
     enabled: isEditMode && !!clientId
   });
   
   // Create mutation for saving client data
   const saveClientMutation = useMutation({
     mutationFn: async (data: any) => {
-      // This would be replaced with a real API call
-      // const method = isEditMode ? 'PUT' : 'POST';
-      // const url = isEditMode ? `/api/clients/${clientId}` : '/api/clients';
-      // return apiRequest(method, url, data);
-      
-      // For now, just simulate a successful API call
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ success: true, data });
-        }, 1000);
-      });
+      // Usa API reali per salvare i dati del cliente
+      const method = isEditMode ? 'PATCH' : 'POST';
+      const url = isEditMode ? `/api/clients/${clientId}` : '/api/clients';
+      return apiRequest(method, url, data);
     },
     onSuccess: () => {
       // Invalidate clients query to refetch the list
