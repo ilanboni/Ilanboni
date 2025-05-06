@@ -1,18 +1,38 @@
-import { useParams, Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { format } from "date-fns";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
-import { Communication, ClientWithDetails, Property } from "@shared/schema";
+import { format } from "date-fns";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  type Communication,
+  type Client,
+  type Property
+} from "@shared/schema";
 
 export default function CommunicationDetailPage() {
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   // Fetch communication details
   const { data: communication, isLoading } = useQuery<Communication>({
@@ -20,44 +40,49 @@ export default function CommunicationDetailPage() {
     enabled: !isNaN(id),
   });
   
-  // Fetch client details if clientId is available
-  const { data: client } = useQuery<ClientWithDetails>({
+  // Fetch client details
+  const { data: client } = useQuery<Client>({
     queryKey: ["/api/clients", communication?.clientId],
     enabled: !!communication?.clientId,
   });
   
-  // Fetch property details if propertyId is available
+  // Fetch property details if available
   const { data: property } = useQuery<Property>({
     queryKey: ["/api/properties", communication?.propertyId],
     enabled: !!communication?.propertyId,
   });
-
-  // Handle invalid id or loading state
-  if (isNaN(id) || (isLoading && !communication)) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[70vh]">
-        <div className="text-6xl text-gray-300 mb-4">
-          <i className="fas fa-search"></i>
-        </div>
-        <h1 className="text-2xl font-semibold text-gray-700 mb-4">
-          {isLoading ? "Caricamento in corso..." : "Comunicazione non trovata"}
-        </h1>
-        <p className="text-gray-500 mb-6">
-          {isLoading
-            ? "Attendere mentre carichiamo i dati."
-            : "La comunicazione che stai cercando non esiste o è stata rimossa."
-          }
-        </p>
-        <Button asChild>
-          <Link href="/communications">
-            <i className="fas fa-arrow-left mr-2"></i> Torna alle comunicazioni
-          </Link>
-        </Button>
-      </div>
-    );
-  }
   
-  // Get communication type badge color
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/communications/${id}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+      
+      // Show success message
+      toast({
+        title: "Comunicazione eliminata",
+        description: "La comunicazione è stata eliminata con successo",
+      });
+      
+      // Redirect to communications list
+      setLocation("/communications");
+    },
+    onError: (error: any) => {
+      console.error("Error deleting communication:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore durante l'eliminazione della comunicazione",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Get type badge
   const getTypeBadge = (type: string) => {
     switch (type) {
       case "email":
@@ -75,7 +100,7 @@ export default function CommunicationDetailPage() {
     }
   };
   
-  // Get status badge color
+  // Get status badge
   const getStatusBadge = (status: string | null) => {
     if (!status) return null;
     
@@ -93,46 +118,113 @@ export default function CommunicationDetailPage() {
     }
   };
   
-  // Get direction icon and text
-  const getDirectionDisplay = (direction: string) => {
-    return direction === "inbound" 
-      ? <span className="flex items-center"><i className="fas fa-arrow-down text-green-600 mr-2"></i> In entrata</span>
-      : <span className="flex items-center"><i className="fas fa-arrow-up text-blue-600 mr-2"></i> In uscita</span>;
+  // Get direction indicator
+  const getDirectionIndicator = (direction: string) => {
+    if (direction === "inbound") {
+      return (
+        <div className="flex items-center text-green-600">
+          <i className="fas fa-arrow-down mr-1.5"></i>
+          <span>In entrata (dal cliente)</span>
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex items-center text-blue-600">
+          <i className="fas fa-arrow-up mr-1.5"></i>
+          <span>In uscita (verso il cliente)</span>
+        </div>
+      );
+    }
   };
+  
+  // Loading state
+  if (isNaN(id) || (isLoading && !communication)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh]">
+        <div className="text-6xl text-gray-300 mb-4">
+          {isLoading ? (
+            <i className="fas fa-spinner animate-spin"></i>
+          ) : (
+            <i className="fas fa-search"></i>
+          )}
+        </div>
+        <h1 className="text-2xl font-semibold text-gray-700 mb-4">
+          {isLoading ? "Caricamento in corso..." : "Comunicazione non trovata"}
+        </h1>
+        <p className="text-gray-500 mb-6">
+          {isLoading
+            ? "Attendere mentre carichiamo i dati."
+            : "La comunicazione che stai cercando non esiste o è stata rimossa."
+          }
+        </p>
+        <Button asChild>
+          <Link href="/communications">
+            <div className="px-2 py-1">
+              <i className="fas fa-arrow-left mr-2"></i> Torna alle comunicazioni
+            </div>
+          </Link>
+        </Button>
+      </div>
+    );
+  }
   
   return (
     <>
       <Helmet>
         <title>{communication?.subject || "Dettaglio comunicazione"} | Gestionale Immobiliare</title>
-        <meta name="description" content={`Dettagli della comunicazione: ${communication?.subject}`} />
+        <meta name="description" content="Visualizza i dettagli della comunicazione nel sistema di gestione immobiliare" />
       </Helmet>
       
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" size="icon" asChild>
-              <Link href="/communications">
-                <i className="fas fa-arrow-left"></i>
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">{communication?.subject}</h1>
-              <div className="flex items-center mt-1 text-sm text-gray-500 space-x-2">
-                <span>{format(new Date(communication?.createdAt || new Date()), "PPP", { locale: it })}</span>
-                <span>•</span>
-                <span>ID: {communication?.id}</span>
-              </div>
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center">
+              Dettaglio Comunicazione
+              <span className="ml-3">
+                {communication && getTypeBadge(communication.type)}
+              </span>
+              <span className="ml-2">
+                {communication?.status && getStatusBadge(communication.status)}
+              </span>
+            </h1>
+            <p className="text-gray-500 mt-1">
+              {communication && formatDistanceToNow(new Date(communication.createdAt), {
+                addSuffix: true,
+                locale: it,
+              })}
+            </p>
           </div>
           
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
             <Button 
               variant="outline" 
-              className="gap-1"
-              onClick={() => setLocation(`/communications/${id}/edit`)}
+              asChild
             >
-              <i className="fas fa-edit"></i>
-              <span>Modifica</span>
+              <Link href="/communications">
+                <div className="px-2 py-1">
+                  <i className="fas fa-arrow-left mr-2"></i> Indietro
+                </div>
+              </Link>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              asChild
+              className="gap-2"
+            >
+              <Link href={`/communications/${id}/edit`}>
+                <i className="fas fa-edit"></i>
+                <span>Modifica</span>
+              </Link>
+            </Button>
+            
+            <Button 
+              variant="destructive" 
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="gap-2"
+            >
+              <i className="fas fa-trash"></i>
+              <span>Elimina</span>
             </Button>
           </div>
         </div>
@@ -140,177 +232,178 @@ export default function CommunicationDetailPage() {
         <Separator />
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Main info */}
-          <div className="col-span-2">
+          <div className="md:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle>Dettagli comunicazione</CardTitle>
+                <CardTitle>{communication?.subject}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Tipo</h3>
-                    <div className="flex items-center text-base">
-                      {getTypeBadge(communication?.type || "")}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Direzione</h3>
-                    <div className="flex items-center text-base">
-                      {getDirectionDisplay(communication?.direction || "")}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Stato</h3>
-                    <div className="flex items-center text-base">
-                      {getStatusBadge(communication?.status)}
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Contenuto</h3>
-                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-                    {communication?.content ? (
-                      <div className="whitespace-pre-wrap">{communication.content}</div>
-                    ) : (
-                      <p className="text-gray-400 italic">Nessun contenuto</p>
-                    )}
-                  </div>
-                </div>
-                
-                {communication?.needsFollowUp && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start space-x-3">
-                    <div className="text-red-500 mt-1">
-                      <i className="fas fa-exclamation-circle"></i>
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-red-800">Richiede follow-up</h3>
-                      {communication?.followUpDate && (
-                        <p className="text-red-700 text-sm mt-1">
-                          Data follow-up: {format(new Date(communication.followUpDate), "PPP", { locale: it })}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Side panel */}
-          <div>
-            <div className="space-y-6">
-              {/* Client info */}
-              <Card className="overflow-hidden">
-                <CardHeader className="bg-gray-50 pb-3">
-                  <CardTitle className="text-base">
-                    <i className="fas fa-user mr-2"></i> Informazioni Cliente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  {client ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                          <i className="fas fa-user"></i>
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{client.firstName} {client.lastName}</h3>
-                          <p className="text-sm text-gray-500">{client.type === "buyer" ? "Acquirente" : "Venditore"}</p>
-                        </div>
-                      </div>
-                      
-                      <Separator />
-                      
-                      <div className="grid grid-cols-1 gap-2 text-sm">
-                        {client.email && (
-                          <div className="flex items-center">
-                            <i className="fas fa-envelope w-5 text-gray-400"></i>
-                            <span className="ml-2">{client.email}</span>
-                          </div>
-                        )}
-                        {client.phone && (
-                          <div className="flex items-center">
-                            <i className="fas fa-phone-alt w-5 text-gray-400"></i>
-                            <span className="ml-2">{client.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex justify-center pt-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/clients/${client.id}`}>
-                            <div className="px-2 py-1">
-                              Vedi profilo completo
-                            </div>
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="py-4 text-center text-gray-500">
-                      <p className="text-sm">
-                        {communication?.clientId 
-                          ? "Caricamento informazioni cliente..." 
-                          : "Nessun cliente associato"}
-                      </p>
+              <CardContent>
+                <div className="space-y-4">
+                  {communication?.direction && (
+                    <div className="mb-4 font-medium">
+                      {getDirectionIndicator(communication.direction)}
                     </div>
                   )}
+                  
+                  {communication?.content ? (
+                    <div className="whitespace-pre-line text-gray-700">
+                      {communication.content}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic">Nessun contenuto disponibile</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Follow-up Info */}
+            {communication?.needsFollowUp && (
+              <Card className="mt-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-red-600 flex items-center">
+                    <i className="fas fa-exclamation-circle mr-2"></i>
+                    Follow-up richiesto
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center">
+                    <span className="mr-2 font-medium">Data prevista:</span>
+                    {communication.followUpDate ? (
+                      <span>
+                        {format(new Date(communication.followUpDate), "dd/MM/yyyy")}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500 italic">Data non specificata</span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
-              
-              {/* Property info (if related to a property) */}
-              {(communication?.propertyId || property) && (
-                <Card className="overflow-hidden">
-                  <CardHeader className="bg-gray-50 pb-3">
-                    <CardTitle className="text-base">
-                      <i className="fas fa-home mr-2"></i> Immobile Correlato
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    {property ? (
-                      <div className="space-y-3">
-                        <div>
-                          <h3 className="font-medium">{property.address}</h3>
-                          <p className="text-sm text-gray-500">{property.city}</p>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-500">Prezzo:</span>{" "}
-                            <span className="font-semibold">€{property.price.toLocaleString()}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Dimensione:</span>{" "}
-                            <span className="font-semibold">{property.size} m²</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-center pt-2">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/properties/${property.id}`}>
-                              <div className="px-2 py-1">
-                                Vedi dettagli immobile
-                              </div>
-                            </Link>
-                          </Button>
-                        </div>
+            )}
+          </div>
+          
+          {/* Sidebar with details */}
+          <div>
+            {/* Client Info */}
+            <Card className="mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Informazioni Cliente</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {client ? (
+                    <>
+                      <div>
+                        <span className="font-medium block text-gray-500 text-sm">Nome</span>
+                        <span>{client.firstName} {client.lastName}</span>
                       </div>
+                      <div>
+                        <span className="font-medium block text-gray-500 text-sm">Email</span>
+                        <span>{client.email || "Non disponibile"}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium block text-gray-500 text-sm">Telefono</span>
+                        <span>{client.phone || "Non disponibile"}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-gray-500 italic py-2">
+                      Caricamento informazioni cliente...
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+              <CardFooter className="pt-0 pb-3">
+                {client && (
+                  <Link href={`/clients/${client.id}`}>
+                    <Button variant="link" className="p-0 h-auto">
+                      Vai alla scheda cliente
+                      <i className="fas fa-arrow-right ml-2"></i>
+                    </Button>
+                  </Link>
+                )}
+              </CardFooter>
+            </Card>
+            
+            {/* Property Info if available */}
+            {communication?.propertyId && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Immobile Correlato</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {property ? (
+                      <>
+                        <div>
+                          <span className="font-medium block text-gray-500 text-sm">Indirizzo</span>
+                          <span>{property.address}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium block text-gray-500 text-sm">Città</span>
+                          <span>{property.city}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium block text-gray-500 text-sm">Tipologia</span>
+                          <span>{property.type}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium block text-gray-500 text-sm">Prezzo</span>
+                          <span>€ {property.price.toLocaleString()}</span>
+                        </div>
+                      </>
                     ) : (
-                      <div className="py-4 text-center text-gray-500">
-                        <p className="text-sm">Caricamento dettagli immobile...</p>
+                      <div className="text-gray-500 italic py-2">
+                        Caricamento informazioni immobile...
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="pt-0 pb-3">
+                  {property && (
+                    <Link href={`/properties/${property.id}`}>
+                      <Button variant="link" className="p-0 h-auto">
+                        Vai alla scheda immobile
+                        <i className="fas fa-arrow-right ml-2"></i>
+                      </Button>
+                    </Link>
+                  )}
+                </CardFooter>
+              </Card>
+            )}
           </div>
         </div>
       </div>
+      
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sei sicuro di voler eliminare questa comunicazione?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione non può essere annullata. La comunicazione sarà eliminata
+              permanentemente dal sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate()}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <span className="animate-spin mr-2">
+                    <i className="fas fa-spinner"></i>
+                  </span>
+                  Eliminazione...
+                </>
+              ) : (
+                <>Elimina</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -12,6 +12,10 @@ import ClientsByTypePage from "@/pages/clients/[type]";
 import PropertiesPage from "@/pages/properties/index";
 import AppointmentsPage from "@/pages/appointments/index";
 import CommunicationsPage from "@/pages/communications/index";
+import CommunicationDetailPage from "@/pages/communications/[id]";
+import CommunicationEditPage from "@/pages/communications/[id]/edit";
+import CommunicationNewPage from "@/pages/communications/new";
+import WhatsAppSenderPage from "@/pages/communications/whatsapp";
 import TasksPage from "@/pages/tasks/index";
 import AnalyticsPage from "@/pages/analytics/index";
 
@@ -24,6 +28,10 @@ function Router() {
       <Route path="/properties" component={PropertiesPage} />
       <Route path="/appointments" component={AppointmentsPage} />
       <Route path="/communications" component={CommunicationsPage} />
+      <Route path="/communications/new" component={CommunicationNewPage} />
+      <Route path="/communications/whatsapp" component={WhatsAppSenderPage} />
+      <Route path="/communications/:id/edit" component={CommunicationEditPage} />
+      <Route path="/communications/:id" component={CommunicationDetailPage} />
       <Route path="/tasks" component={TasksPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route component={NotFound} />
