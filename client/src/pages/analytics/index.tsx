@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Helmet } from "react-helmet";
 import { CITY_AREAS, PRICE_RANGES, SIZE_RANGES } from "@/lib/constants";
 import { MarketAnalytics } from "@/types";
+import HeatMap from "@/components/maps/HeatMap";
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState("month");
@@ -321,6 +322,26 @@ export default function AnalyticsPage() {
             )}
           </CardContent>
         </Card>
+      </div>
+      
+      {/* Map Heatmap */}
+      <div className="mb-6">
+        {isLoading ? (
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-[450px] w-full" />
+            </CardContent>
+          </Card>
+        ) : (
+          <HeatMap 
+            // Campione di dati per la mappa di calore - normalmente verrebbero dai dati reali
+            data={[]}
+          />
+        )}
       </div>
       
       {/* Market Insights Panel */}
