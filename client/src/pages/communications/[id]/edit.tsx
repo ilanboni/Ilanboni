@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLocation, Link } from "wouter";
+import { useState, useEffect } from "react";
+import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -30,17 +30,26 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
   insertCommunicationSchema, 
+  type Communication,
   type InsertCommunication,
   type Client,
   type Property
 } from "@shared/schema";
 import { z } from "zod";
 
-export default function NewCommunicationPage() {
+export default function EditCommunicationPage() {
+  const params = useParams<{ id: string }>();
+  const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
+  
+  // Fetch communication details
+  const { data: communication, isLoading: isLoadingCommunication } = useQuery<Communication>({
+    queryKey: ["/api/communications", id],
+    enabled: !isNaN(id),
+  });
   
   // Fetch clients for dropdown
   const { data: clients } = useQuery<Client[]>({
@@ -87,32 +96,54 @@ export default function NewCommunicationPage() {
     },
   });
   
-  // Create mutation
-  const createMutation = useMutation({
+  // Update form with communication data when loaded
+  useEffect(() => {
+    if (communication) {
+      form.reset({
+        clientId: communication.clientId,
+        type: communication.type,
+        subject: communication.subject,
+        content: communication.content || "",
+        direction: communication.direction,
+        status: communication.status || "new",
+        propertyId: communication.propertyId,
+        createdBy: communication.createdBy,
+        needsFollowUp: communication.needsFollowUp || false,
+        followUpDate: communication.followUpDate,
+      });
+      
+      setSelectedClientId(communication.clientId);
+      setSelectedPropertyId(communication.propertyId);
+    }
+  }, [communication, form]);
+  
+  // Update mutation
+  const updateMutation = useMutation({
     mutationFn: async (data: InsertCommunication) => {
-      return apiRequest("/api/communications", {
-        method: "POST",
+      return apiRequest(`/api/communications/${id}`, {
+        method: "PATCH",
         data,
       });
     },
     onSuccess: () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/communications", id] });
       
       // Show success message
       toast({
-        title: "Comunicazione creata",
-        description: "La comunicazione è stata creata con successo",
+        title: "Comunicazione aggiornata",
+        description: "La comunicazione è stata aggiornata con successo",
       });
       
-      // Redirect to communications list
-      setLocation("/communications");
+      // Redirect to communication details
+      setLocation(`/communications/${id}`);
     },
     onError: (error: any) => {
-      console.error("Error creating communication:", error);
+      console.error("Error updating communication:", error);
       toast({
         title: "Errore",
-        description: error.message || "Si è verificato un errore durante la creazione della comunicazione",
+        description: error.message || "Si è verificato un errore durante l'aggiornamento della comunicazione",
         variant: "destructive",
       });
     },
@@ -120,7 +151,7 @@ export default function NewCommunicationPage() {
   
   // Form submission handler
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    createMutation.mutate(data);
+    updateMutation.mutate(data);
   };
   
   // Handle client selection change
@@ -142,24 +173,55 @@ export default function NewCommunicationPage() {
     }
   };
   
+  // Handle loading state
+  if (isNaN(id) || (isLoadingCommunication && !communication)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh]">
+        <div className="text-6xl text-gray-300 mb-4">
+          {isLoadingCommunication ? (
+            <i className="fas fa-spinner animate-spin"></i>
+          ) : (
+            <i className="fas fa-search"></i>
+          )}
+        </div>
+        <h1 className="text-2xl font-semibold text-gray-700 mb-4">
+          {isLoadingCommunication ? "Caricamento in corso..." : "Comunicazione non trovata"}
+        </h1>
+        <p className="text-gray-500 mb-6">
+          {isLoadingCommunication
+            ? "Attendere mentre carichiamo i dati."
+            : "La comunicazione che stai cercando non esiste o è stata rimossa."
+          }
+        </p>
+        <Button asChild>
+          <Link href="/communications">
+            <div className="px-2 py-1">
+              <i className="fas fa-arrow-left mr-2"></i> Torna alle comunicazioni
+            </div>
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+  
   return (
     <>
       <Helmet>
-        <title>Nuova Comunicazione | Gestionale Immobiliare</title>
-        <meta name="description" content="Crea una nuova comunicazione con un cliente" />
+        <title>Modifica Comunicazione | Gestionale Immobiliare</title>
+        <meta name="description" content="Modifica una comunicazione con un cliente" />
       </Helmet>
       
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Nuova Comunicazione</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Modifica Comunicazione</h1>
             <p className="text-gray-500 mt-1">
-              Crea una nuova comunicazione con un cliente
+              Modifica i dettagli della comunicazione
             </p>
           </div>
           <Button 
             variant="outline" 
-            onClick={() => setLocation("/communications")}
+            onClick={() => setLocation(`/communications/${id}`)}
             className="gap-2"
           >
             <i className="fas fa-times"></i>
@@ -422,15 +484,15 @@ export default function NewCommunicationPage() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => setLocation("/communications")}
+                    onClick={() => setLocation(`/communications/${id}`)}
                   >
                     Annulla
                   </Button>
                   <Button 
                     type="submit"
-                    disabled={createMutation.isPending}
+                    disabled={updateMutation.isPending}
                   >
-                    {createMutation.isPending ? (
+                    {updateMutation.isPending ? (
                       <>
                         <span className="animate-spin mr-2">
                           <i className="fas fa-spinner"></i>
@@ -438,7 +500,7 @@ export default function NewCommunicationPage() {
                         Salvataggio...
                       </>
                     ) : (
-                      <>Salva comunicazione</>
+                      <>Salva modifiche</>
                     )}
                   </Button>
                 </div>

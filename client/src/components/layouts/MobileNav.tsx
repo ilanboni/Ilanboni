@@ -36,13 +36,13 @@ function NavItem({ to, icon, label }: NavItemProps) {
 
   return (
     <Link href={to}>
-      <a className={cn(
-        "flex flex-col items-center py-3 px-4",
+      <div className={cn(
+        "flex flex-col items-center py-3 px-4 cursor-pointer",
         active ? "text-primary-600" : "text-gray-500"
       )}>
         <i className={`${icon} text-lg`}></i>
         <span className="text-xs mt-1">{label}</span>
-      </a>
+      </div>
     </Link>
   );
 }

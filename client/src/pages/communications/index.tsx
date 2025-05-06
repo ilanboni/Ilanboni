@@ -39,10 +39,10 @@ export default function CommunicationsPage() {
   // Apply filters and search to communications
   const filteredCommunications = communications?.filter((comm) => {
     // Filter by type
-    if (filterType && comm.type !== filterType) return false;
+    if (filterType && filterType !== "all" && comm.type !== filterType) return false;
     
     // Filter by status
-    if (filterStatus && comm.status !== filterStatus) return false;
+    if (filterStatus && filterStatus !== "all" && comm.status !== filterStatus) return false;
     
     // Search in subject or content
     if (searchQuery) {
@@ -148,7 +148,7 @@ export default function CommunicationsPage() {
                     <SelectValue placeholder="Tipo comunicazione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutti i tipi</SelectItem>
+                    <SelectItem value="all">Tutti i tipi</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
                     <SelectItem value="phone">Telefono</SelectItem>
                     <SelectItem value="whatsapp">WhatsApp</SelectItem>
@@ -167,7 +167,7 @@ export default function CommunicationsPage() {
                     <SelectValue placeholder="Stato" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutti gli stati</SelectItem>
+                    <SelectItem value="all">Tutti gli stati</SelectItem>
                     <SelectItem value="new">Nuovo</SelectItem>
                     <SelectItem value="ongoing">In corso</SelectItem>
                     <SelectItem value="completed">Completato</SelectItem>
