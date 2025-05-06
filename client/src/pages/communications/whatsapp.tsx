@@ -177,7 +177,7 @@ export default function WhatsAppSenderPage() {
               <CardHeader>
                 <CardTitle>Nuovo Messaggio WhatsApp</CardTitle>
                 <CardDescription>
-                  Componi un messaggio da inviare via WhatsApp
+                  Invia messaggi direttamente via WhatsApp Business API
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -322,27 +322,76 @@ export default function WhatsAppSenderPage() {
             
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Suggerimenti</CardTitle>
+                <CardTitle className="text-lg">Modelli di messaggi</CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Mantieni i messaggi brevi e professionali</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Includi il tuo nome e l'agenzia all'inizio del messaggio</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Evita di inviare messaggi fuori dagli orari d'ufficio</span>
-                  </li>
-                  <li className="flex items-start">
-                    <i className="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>Usa un linguaggio chiaro, evitando abbreviazioni eccessive</span>
-                  </li>
-                </ul>
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600 mb-3">
+                    Clicca su un modello per inserirlo nel campo del messaggio:
+                  </p>
+                  
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-left font-normal p-3 h-auto"
+                      onClick={() => {
+                        form.setValue("message", "Buongiorno, sono [Nome Agente] di Immobiliare XYZ. Volevo contattarla per discutere la sua ricerca immobiliare. Possiamo fissare un appuntamento in agenzia?");
+                      }}
+                    >
+                      <div>
+                        <p className="font-medium mb-1 text-primary-600">Primo contatto</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          Buongiorno, sono [Nome Agente] di Immobiliare XYZ. Volevo contattarla per discutere la sua ricerca immobiliare...
+                        </p>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-left font-normal p-3 h-auto"
+                      onClick={() => {
+                        form.setValue("message", "Salve, abbiamo appena inserito un immobile che potrebbe interessarle, in base ai criteri da lei indicati. Si tratta di [descrizione breve]. Posso inviarle maggiori informazioni?");
+                      }}
+                    >
+                      <div>
+                        <p className="font-medium mb-1 text-primary-600">Nuova proprietà</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          Salve, abbiamo appena inserito un immobile che potrebbe interessarle...
+                        </p>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-left font-normal p-3 h-auto"
+                      onClick={() => {
+                        form.setValue("message", "Gentile cliente, le confermo l'appuntamento per il giorno [DATA] alle [ORA] presso [LUOGO]. Mi contatti in caso di imprevisti. Cordiali saluti, [Nome Agente]");
+                      }}
+                    >
+                      <div>
+                        <p className="font-medium mb-1 text-primary-600">Conferma appuntamento</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          Gentile cliente, le confermo l'appuntamento per il giorno...
+                        </p>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-left font-normal p-3 h-auto"
+                      onClick={() => {
+                        form.setValue("message", "Buongiorno, volevo informarla che il proprietario ha risposto alla sua offerta per l'immobile in [INDIRIZZO]. Possiamo parlarne quando preferisce. A presto, [Nome Agente]");
+                      }}
+                    >
+                      <div>
+                        <p className="font-medium mb-1 text-primary-600">Risposta offerta</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          Buongiorno, volevo informarla che il proprietario ha risposto alla sua offerta...
+                        </p>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
