@@ -16,7 +16,7 @@ export default function ClientsByTypePage() {
   
   // Determine if we're creating a new client or editing an existing one
   const isNewClient = params.type === "new";
-  const isEditMode = params.type.startsWith("edit/");
+  const isEditMode = params.type && params.type.startsWith("edit/");
   const clientId = isEditMode ? parseInt(params.type.replace("edit/", "")) : null;
   
   // Set appropriate client type based on URL or default to "buyer" for new clients
