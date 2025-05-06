@@ -163,6 +163,186 @@ export class MemStorage implements IStorage {
       avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=200&h=200"
     });
     
+    // Add sample clients
+    const client1 = this.createClient({
+      type: "buyer",
+      salutation: "Sig.",
+      firstName: "Mario",
+      lastName: "Bianchi",
+      phone: "345-1234567",
+      email: "mario.bianchi@example.com",
+      isFriend: false,
+      religion: "catholic",
+      birthday: "1985-06-15",
+      contractType: "exclusive",
+      notes: "Cliente interessato a appartamenti in centro città. Ha un budget definito e cerca qualcosa di pronto da abitare.",
+    });
+    
+    const client2 = this.createClient({
+      type: "seller",
+      salutation: "Sig.ra",
+      firstName: "Laura",
+      lastName: "Verdi",
+      phone: "348-7654321",
+      email: "laura.verdi@example.com",
+      isFriend: true,
+      religion: null,
+      birthday: "1978-03-22",
+      contractType: "standard",
+      notes: "Proprietaria di un appartamento in zona residenziale. Motivata a vendere entro 6 mesi.",
+    });
+    
+    // Add sample properties
+    const property1 = this.createProperty({
+      type: "apartment",
+      address: "Via Roma 123",
+      city: "Milano",
+      size: 95,
+      price: 320000,
+      bedrooms: 2,
+      bathrooms: 1,
+      yearBuilt: 2005,
+      energyClass: "B",
+      description: "Bellissimo appartamento ristrutturato in zona centrale, vicino a servizi e trasporti. Secondo piano con ascensore, riscaldamento autonomo, aria condizionata.",
+      status: "available",
+      externalLink: "https://example.com/property/123",
+      location: null,
+    });
+    
+    const property2 = this.createProperty({
+      type: "house",
+      address: "Via Dante 45",
+      city: "Milano",
+      size: 150,
+      price: 480000,
+      bedrooms: 3,
+      bathrooms: 2,
+      yearBuilt: 1998,
+      energyClass: "C",
+      description: "Villetta a schiera su due livelli con giardino privato e box auto. Zona tranquilla e ben servita.",
+      status: "available",
+      externalLink: null,
+      location: null,
+    });
+    
+    // Associate client2 as seller of property2
+    this.createSeller({
+      id: 1,
+      clientId: client2.id,
+      propertyId: property2.id,
+    });
+    
+    // Create buyer profile for client1
+    this.createBuyer({
+      id: 1,
+      clientId: client1.id,
+      minSize: 80,
+      maxPrice: 350000,
+      searchArea: null,
+      urgency: 4,
+      rating: 4,
+      searchNotes: "Cerca appartamento con 2+ camere da letto, preferibilmente con balcone o terrazzo.",
+    });
+    
+    // Add sample communications
+    this.createCommunication({
+      type: "whatsapp",
+      direction: "outbound",
+      clientId: client1.id,
+      subject: "Primo contatto",
+      content: "Buongiorno Sig. Bianchi, sono Marco Rossi dell'agenzia immobiliare. Volevo contattarla per discutere le sue esigenze riguardo la ricerca di un immobile. Quando possiamo fissare un appuntamento?",
+      status: "completed",
+      createdBy: 1,
+      propertyId: null,
+      needsFollowUp: false,
+      followUpDate: null,
+    });
+    
+    this.createCommunication({
+      type: "whatsapp",
+      direction: "inbound",
+      clientId: client1.id,
+      subject: "Risposta primo contatto",
+      content: "Buongiorno, grazie per il messaggio. Sarei disponibile per un appuntamento in agenzia giovedì pomeriggio. Va bene?",
+      status: "completed",
+      createdBy: null,
+      propertyId: null,
+      needsFollowUp: false,
+      followUpDate: null,
+    });
+    
+    this.createCommunication({
+      type: "whatsapp",
+      direction: "outbound",
+      clientId: client2.id,
+      subject: "Aggiornamento vendita",
+      content: "Buongiorno Sig.ra Verdi, volevo informarla che abbiamo alcuni potenziali acquirenti interessati a visitare il suo immobile. Possiamo organizzare una visita per domani?",
+      status: "completed",
+      createdBy: 1,
+      propertyId: property2.id,
+      needsFollowUp: true,
+      followUpDate: "2023-11-25",
+    });
+    
+    // Add sample appointments
+    this.createAppointment({
+      date: "2023-11-20",
+      time: "15:30",
+      type: "meeting",
+      clientId: client1.id,
+      propertyId: 0,
+      notes: "Primo incontro in agenzia per discutere le esigenze del cliente",
+      status: "completed",
+      feedback: "Cliente molto interessato, ha definito bene le sue esigenze",
+      createdAt: new Date("2023-11-18"),
+    });
+    
+    this.createAppointment({
+      date: "2023-11-22",
+      time: "10:00",
+      type: "visit",
+      clientId: client1.id,
+      propertyId: property1.id,
+      notes: "Visita all'appartamento in Via Roma",
+      status: "completed",
+      feedback: "Cliente interessato, ma preoccupato per il prezzo. Valuta di fare un'offerta.",
+      createdAt: new Date("2023-11-19"),
+    });
+    
+    this.createAppointment({
+      date: "2023-11-25",
+      time: "16:00",
+      type: "visit",
+      clientId: client1.id,
+      propertyId: property2.id,
+      notes: "Visita alla villetta in Via Dante",
+      status: "scheduled",
+      feedback: null,
+      createdAt: new Date("2023-11-23"),
+    });
+    
+    // Add sample tasks
+    this.createTask({
+      type: "follow_up",
+      title: "Richiamare Sig. Bianchi per feedback dopo visita",
+      dueDate: "2023-11-24",
+      clientId: client1.id,
+      description: "Chiedere impressioni sulla visita in Via Roma e se è interessato a fare un'offerta",
+      status: "pending",
+      propertyId: property1.id,
+      assignedTo: 1,
+    });
+    
+    this.createTask({
+      type: "document",
+      title: "Preparare documentazione per Sig.ra Verdi",
+      dueDate: "2023-11-26",
+      clientId: client2.id,
+      description: "Preparare i documenti necessari per la vendita dell'immobile",
+      status: "pending",
+      propertyId: property2.id,
+      assignedTo: 1,
+    });
     // Add sample clients, properties, appointments, tasks, etc.
     // This would be populated in a real implementation
   }
