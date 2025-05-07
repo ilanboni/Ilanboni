@@ -5,12 +5,33 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 
-// Assicurati che questi import vengano eseguiti correttamente per inizializzare la libreria
+// Importa direttamente i moduli necessari
 import 'leaflet-draw';
 
-// Aggiungi manualmente l'evento CREATED che potrebbe non essere esportato correttamente
-L.Draw = L.Draw || {};
-L.Draw.Event = L.Draw.Event || {};
+// Definisci globalmente GeoJSON per TypeScript
+declare global {
+  interface Window {
+    GeoJSON?: {
+      Feature?: string;
+    }
+  }
+}
+
+// Definisci manualmente l'oggetto GeoJSON se non dovesse essere disponibile
+if (typeof window !== 'undefined') {
+  window.GeoJSON = window.GeoJSON || {};
+  window.GeoJSON.Feature = window.GeoJSON.Feature || "Feature";
+}
+
+// Definisci gli eventi Draw se non esistono
+if (!L.Draw) {
+  L.Draw = {};
+}
+if (!L.Draw.Event) {
+  L.Draw.Event = {};
+}
+
+// Definisci gli eventi come stringhe
 L.Draw.Event.CREATED = 'draw:created';
 L.Draw.Event.EDITED = 'draw:edited';
 L.Draw.Event.DELETED = 'draw:deleted';
@@ -108,9 +129,19 @@ export function MapAreaSelector({
         const layer = e.layer;
         drawnItemsRef.current.addLayer(layer);
         
-        // Convert the drawn shape to GeoJSON
-        const geoJSON = layer.toGeoJSON();
-        onAreaSelected(geoJSON);
+        // Convert the drawn shape to GeoJSON e gestisci eventuali errori
+        try {
+          if (typeof layer.toGeoJSON === 'function') {
+            const geoJSON = layer.toGeoJSON();
+            onAreaSelected(geoJSON);
+          } else {
+            console.warn("layer.toGeoJSON non è una funzione, utilizzo un oggetto vuoto");
+            onAreaSelected({ type: "Feature", geometry: { type: "Polygon", coordinates: [] } });
+          }
+        } catch (error) {
+          console.error("Errore durante la conversione in GeoJSON:", error);
+          onAreaSelected({ type: "Feature", geometry: { type: "Polygon", coordinates: [] } });
+        }
       });
       
       // Event handler for edited objects
@@ -118,12 +149,24 @@ export function MapAreaSelector({
         const layers = e.layers;
         let geoJSON: any = null;
         
-        layers.eachLayer(function(layer: any) {
-          geoJSON = layer.toGeoJSON();
-        });
-        
-        if (geoJSON) {
-          onAreaSelected(geoJSON);
+        try {
+          layers.eachLayer(function(layer: any) {
+            if (typeof layer.toGeoJSON === 'function') {
+              geoJSON = layer.toGeoJSON();
+            } else {
+              console.warn("layer.toGeoJSON non è una funzione durante l'edit");
+            }
+          });
+          
+          if (geoJSON) {
+            onAreaSelected(geoJSON);
+          } else {
+            console.warn("Nessun geoJSON valido ottenuto durante l'edit");
+            onAreaSelected({ type: "Feature", geometry: { type: "Polygon", coordinates: [] } });
+          }
+        } catch (error) {
+          console.error("Errore durante l'edit:", error);
+          onAreaSelected({ type: "Feature", geometry: { type: "Polygon", coordinates: [] } });
         }
       });
       
