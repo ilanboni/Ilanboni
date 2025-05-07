@@ -42,7 +42,7 @@ import { RELIGIONS, SALUTATIONS } from "@/lib/constants";
 import { ClientType } from "@/types";
 import { ClientWithDetails } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { MapSelector } from "../maps/MapSelector";
+import { MapAreaSelector } from "../maps/MapAreaSelector";
 
 // Schema definition for client form
 const clientFormSchema = z.object({
@@ -539,9 +539,9 @@ export default function ClientForm({
                     <FormLabel>Area geografica di ricerca</FormLabel>
                     <FormControl>
                       <div className="h-[350px] mt-2 rounded-md border">
-                        <MapSelector 
-                          initialLocation={field.value}
-                          onLocationSelected={(location) => field.onChange(location)} 
+                        <MapAreaSelector 
+                          initialArea={field.value}
+                          onAreaSelected={(area) => field.onChange(area)} 
                         />
                       </div>
                     </FormControl>

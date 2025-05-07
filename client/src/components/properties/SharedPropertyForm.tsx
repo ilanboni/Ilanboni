@@ -198,10 +198,12 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
             <MapSelector
               initialLocation={locationData}
               onLocationSelected={(location) => setLocationData(location)}
+              address={form.getValues("address") + ", " + form.getValues("city")}
+              autoGeocode={true}
             />
           </div>
           <FormDescription>
-            Seleziona la posizione esatta dell'immobile sulla mappa (facoltativo)
+            La posizione viene geocodificata automaticamente in base all'indirizzo inserito
           </FormDescription>
         </Card>
 
