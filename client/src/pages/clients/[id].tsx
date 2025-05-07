@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -39,6 +40,7 @@ export default function ClientDetailPage() {
   const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
@@ -313,12 +315,10 @@ export default function ClientDetailPage() {
             <Button 
               variant="outline" 
               className="gap-2 border-green-600 text-green-600 hover:bg-green-50"
-              asChild
+              onClick={() => setIsWhatsAppModalOpen(true)}
             >
-              <Link href={`/communications/whatsapp?clientId=${id}`}>
-                <i className="fab fa-whatsapp"></i>
-                <span>WhatsApp</span>
-              </Link>
+              <i className="fab fa-whatsapp"></i>
+              <span>WhatsApp</span>
             </Button>
           </div>
         </div>
@@ -1138,6 +1138,13 @@ export default function ClientDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* WhatsApp Modal */}
+      <WhatsAppModal 
+        isOpen={isWhatsAppModalOpen} 
+        onClose={() => setIsWhatsAppModalOpen(false)} 
+        client={client}
+      />
     </>
   );
 }

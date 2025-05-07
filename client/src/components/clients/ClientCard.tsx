@@ -38,6 +38,7 @@ import {
   MessageSquare, 
   Star 
 } from "lucide-react";
+import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
 import { 
   formatCurrency, 
   formatDate, 
@@ -62,6 +63,7 @@ export default function ClientCard({
   compact = false,
 }: ClientCardProps) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   
   // Format salutation for display
   const formatSalutation = (salutation: string): string => {
@@ -213,7 +215,7 @@ export default function ClientCard({
                 <DropdownMenuItem onClick={() => onEdit(client)}>
                   <Edit className="mr-2 h-4 w-4" /> Modifica
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onSendWhatsApp(client)}>
+                <DropdownMenuItem onClick={() => setIsWhatsAppModalOpen(true)}>
                   <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -340,7 +342,7 @@ export default function ClientCard({
             variant="default" 
             size="sm" 
             className="bg-green-600 hover:bg-green-700" 
-            onClick={() => onSendWhatsApp(client)}
+            onClick={() => setIsWhatsAppModalOpen(true)}
           >
             <i className="fab fa-whatsapp mr-2"></i> WhatsApp
           </Button>
