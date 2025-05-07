@@ -9,8 +9,11 @@ import {
   tasks, type Task, type InsertTask,
   communications, type Communication, type InsertCommunication,
   marketInsights, type MarketInsight, type InsertMarketInsight,
-  type ClientWithDetails, type PropertyWithDetails
+  type ClientWithDetails, type PropertyWithDetails, 
+  type SharedPropertyWithDetails
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, lt, and, or, gte, lte, like, not, isNull, SQL } from "drizzle-orm";
 
 // Storage interface with CRUD methods for all entities
 export interface IStorage {
@@ -1477,4 +1480,831 @@ export class MemStorage implements IStorage {
 }
 
 // Export a single storage instance
-export const storage = new MemStorage();
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const result = await db.insert(users).values(user).returning();
+    return result[0];
+  }
+
+  async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
+    const result = await db.update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Client methods
+  async getClient(id: number): Promise<Client | undefined> {
+    const result = await db.select().from(clients).where(eq(clients.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getClients(filters?: { type?: string; search?: string }): Promise<Client[]> {
+    let query = db.select().from(clients);
+    
+    if (filters) {
+      const conditions: SQL[] = [];
+      
+      if (filters.type) {
+        conditions.push(eq(clients.type, filters.type));
+      }
+      
+      if (filters.search) {
+        const search = `%${filters.search}%`;
+        conditions.push(
+          or(
+            like(clients.firstName, search),
+            like(clients.lastName, search),
+            like(clients.email, search),
+            like(clients.phone, search)
+          )
+        );
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    return await query.orderBy(desc(clients.updatedAt));
+  }
+
+  async getClientWithDetails(id: number): Promise<ClientWithDetails | undefined> {
+    const client = await this.getClient(id);
+    if (!client) return undefined;
+    
+    const clientWithDetails: ClientWithDetails = { ...client };
+    
+    if (client.type === "buyer") {
+      clientWithDetails.buyer = await this.getBuyerByClientId(id);
+    } else if (client.type === "seller") {
+      clientWithDetails.seller = await this.getSellerByClientId(id);
+    }
+    
+    clientWithDetails.communications = await this.getCommunicationsByClientId(id);
+    clientWithDetails.tasks = await this.getTasksByClientId(id);
+    clientWithDetails.appointments = await this.getAppointmentsByClientId(id);
+    
+    // Get last communication
+    const lastComm = await db.select()
+      .from(communications)
+      .where(eq(communications.clientId, id))
+      .orderBy(desc(communications.createdAt))
+      .limit(1);
+    
+    if (lastComm.length > 0) {
+      clientWithDetails.lastCommunication = lastComm[0];
+      
+      // Calculate days since last communication
+      const lastCommDate = new Date(lastComm[0].createdAt!);
+      const currentDate = new Date();
+      const diffTime = Math.abs(currentDate.getTime() - lastCommDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      clientWithDetails.daysSinceLastCommunication = diffDays;
+    }
+    
+    return clientWithDetails;
+  }
+
+  async createClient(client: InsertClient): Promise<Client> {
+    const result = await db.insert(clients).values(client).returning();
+    return result[0];
+  }
+
+  async updateClient(id: number, data: Partial<InsertClient>): Promise<Client | undefined> {
+    const result = await db.update(clients)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(clients.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteClient(id: number): Promise<boolean> {
+    // First delete related records
+    await db.delete(buyers).where(eq(buyers.clientId, id));
+    await db.delete(sellers).where(eq(sellers.clientId, id));
+    await db.delete(appointments).where(eq(appointments.clientId, id));
+    await db.delete(tasks).where(eq(tasks.clientId, id));
+    await db.delete(communications).where(eq(communications.clientId, id));
+    
+    const result = await db.delete(clients).where(eq(clients.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Buyer methods
+  async getBuyer(id: number): Promise<Buyer | undefined> {
+    const result = await db.select().from(buyers).where(eq(buyers.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getBuyerByClientId(clientId: number): Promise<Buyer | undefined> {
+    const result = await db.select().from(buyers).where(eq(buyers.clientId, clientId));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createBuyer(buyer: InsertBuyer): Promise<Buyer> {
+    const result = await db.insert(buyers).values(buyer).returning();
+    return result[0];
+  }
+
+  async updateBuyer(id: number, data: Partial<InsertBuyer>): Promise<Buyer | undefined> {
+    const result = await db.update(buyers)
+      .set(data)
+      .where(eq(buyers.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteBuyer(id: number): Promise<boolean> {
+    const result = await db.delete(buyers).where(eq(buyers.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Seller methods
+  async getSeller(id: number): Promise<Seller | undefined> {
+    const result = await db.select().from(sellers).where(eq(sellers.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getSellerByClientId(clientId: number): Promise<Seller | undefined> {
+    const result = await db.select().from(sellers).where(eq(sellers.clientId, clientId));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createSeller(seller: InsertSeller): Promise<Seller> {
+    const result = await db.insert(sellers).values(seller).returning();
+    return result[0];
+  }
+
+  async updateSeller(id: number, data: Partial<InsertSeller>): Promise<Seller | undefined> {
+    const result = await db.update(sellers)
+      .set(data)
+      .where(eq(sellers.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteSeller(id: number): Promise<boolean> {
+    const result = await db.delete(sellers).where(eq(sellers.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Property methods
+  async getProperty(id: number): Promise<Property | undefined> {
+    const result = await db.select().from(properties).where(eq(properties.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getProperties(filters?: { status?: string; search?: string }): Promise<Property[]> {
+    let query = db.select().from(properties);
+    
+    if (filters) {
+      const conditions: SQL[] = [];
+      
+      if (filters.status) {
+        conditions.push(eq(properties.status, filters.status));
+      }
+      
+      if (filters.search) {
+        const search = `%${filters.search}%`;
+        conditions.push(
+          or(
+            like(properties.address, search),
+            like(properties.city, search),
+            like(properties.type, search)
+          )
+        );
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    return await query.orderBy(desc(properties.updatedAt));
+  }
+
+  async getPropertyWithDetails(id: number): Promise<PropertyWithDetails | undefined> {
+    const property = await this.getProperty(id);
+    if (!property) return undefined;
+    
+    const propertyWithDetails: PropertyWithDetails = { ...property };
+    
+    if (property.isShared) {
+      propertyWithDetails.sharedDetails = await this.getSharedPropertyByPropertyId(id);
+    }
+    
+    propertyWithDetails.appointments = await this.getAppointmentsByPropertyId(id);
+    propertyWithDetails.communications = await this.getCommunicationsByPropertyId(id);
+    
+    // Get last communication
+    const lastComm = await db.select()
+      .from(communications)
+      .where(eq(communications.propertyId, id))
+      .orderBy(desc(communications.createdAt))
+      .limit(1);
+    
+    if (lastComm.length > 0) {
+      propertyWithDetails.lastCommunication = lastComm[0];
+    }
+    
+    return propertyWithDetails;
+  }
+
+  async createProperty(property: InsertProperty): Promise<Property> {
+    const result = await db.insert(properties).values(property).returning();
+    
+    // If property is marked as shared, create a shared property entry
+    const newProperty = result[0];
+    if (newProperty.isShared && !newProperty.isOwned) {
+      const sharedPropertyData: InsertSharedProperty = {
+        propertyId: newProperty.id,
+        address: newProperty.address,
+        city: newProperty.city,
+        size: newProperty.size,
+        price: newProperty.price,
+        type: newProperty.type,
+        location: newProperty.location,
+        stage: "address_found"
+      };
+      await this.createSharedProperty(sharedPropertyData);
+    }
+    
+    return newProperty;
+  }
+
+  async updateProperty(id: number, data: Partial<InsertProperty>): Promise<Property | undefined> {
+    const result = await db.update(properties)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(properties.id, id))
+      .returning();
+    
+    if (result.length > 0) {
+      const updatedProperty = result[0];
+      
+      // Update related shared property if it exists and property is shared
+      if (updatedProperty.isShared) {
+        const sharedProperty = await this.getSharedPropertyByPropertyId(id);
+        
+        if (sharedProperty) {
+          const sharedPropertyData: Partial<InsertSharedProperty> = {};
+          
+          if ('address' in data) sharedPropertyData.address = data.address!;
+          if ('city' in data) sharedPropertyData.city = data.city!;
+          if ('size' in data) sharedPropertyData.size = data.size!;
+          if ('price' in data) sharedPropertyData.price = data.price!;
+          if ('type' in data) sharedPropertyData.type = data.type!;
+          if ('location' in data) sharedPropertyData.location = data.location!;
+          
+          await this.updateSharedProperty(sharedProperty.id, sharedPropertyData);
+        } else if (updatedProperty.isShared && !updatedProperty.isOwned) {
+          // Create a new shared property entry if it doesn't exist
+          const sharedPropertyData: InsertSharedProperty = {
+            propertyId: updatedProperty.id,
+            address: updatedProperty.address,
+            city: updatedProperty.city,
+            size: updatedProperty.size,
+            price: updatedProperty.price,
+            type: updatedProperty.type,
+            location: updatedProperty.location,
+            stage: "address_found"
+          };
+          await this.createSharedProperty(sharedPropertyData);
+        }
+      }
+      
+      return updatedProperty;
+    }
+    
+    return undefined;
+  }
+
+  async deleteProperty(id: number): Promise<boolean> {
+    // First delete related records
+    await db.delete(sharedProperties).where(eq(sharedProperties.propertyId, id));
+    await db.delete(appointments).where(eq(appointments.propertyId, id));
+    await db.delete(tasks).where(eq(tasks.propertyId, id));
+    await db.delete(communications).where(eq(communications.propertyId, id));
+    
+    // Update related sellers to remove property reference
+    await db.update(sellers)
+      .set({ propertyId: null })
+      .where(eq(sellers.propertyId, id));
+    
+    const result = await db.delete(properties).where(eq(properties.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Implementazione restante dei metodi richiesti...
+  // Per brevità, implementerò solo i metodi più importanti e 
+  // quelli necessari per il funzionamento di base dell'applicazione
+
+  // Shared property methods
+  async getSharedProperty(id: number): Promise<SharedProperty | undefined> {
+    const result = await db.select().from(sharedProperties).where(eq(sharedProperties.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getSharedPropertyByPropertyId(propertyId: number): Promise<SharedProperty | undefined> {
+    const result = await db.select().from(sharedProperties).where(eq(sharedProperties.propertyId, propertyId));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getSharedProperties(filters?: { stage?: string; search?: string }): Promise<SharedProperty[]> {
+    let query = db.select().from(sharedProperties);
+    
+    if (filters) {
+      const conditions: SQL[] = [];
+      
+      if (filters.stage) {
+        conditions.push(eq(sharedProperties.stage, filters.stage));
+      }
+      
+      if (filters.search) {
+        const search = `%${filters.search}%`;
+        conditions.push(
+          or(
+            like(sharedProperties.address, search),
+            like(sharedProperties.city, search),
+            like(sharedProperties.ownerName, search)
+          )
+        );
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    return await query.orderBy(desc(sharedProperties.updatedAt));
+  }
+
+  async getSharedPropertyWithDetails(id: number): Promise<SharedPropertyWithDetails | undefined> {
+    const sharedProperty = await this.getSharedProperty(id);
+    if (!sharedProperty) return undefined;
+    
+    const sharedPropertyWithDetails: SharedPropertyWithDetails = { ...sharedProperty };
+    
+    // Get related tasks
+    sharedPropertyWithDetails.tasks = await db.select()
+      .from(tasks)
+      .where(eq(tasks.sharedPropertyId, id));
+    
+    // Get related communications
+    sharedPropertyWithDetails.communications = await db.select()
+      .from(communications)
+      .where(eq(communications.sharedPropertyId, id));
+    
+    return sharedPropertyWithDetails;
+  }
+
+  async createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty> {
+    const result = await db.insert(sharedProperties).values(sharedProperty).returning();
+    return result[0];
+  }
+
+  async updateSharedProperty(id: number, data: Partial<InsertSharedProperty>): Promise<SharedProperty | undefined> {
+    const result = await db.update(sharedProperties)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(sharedProperties.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async acquireSharedProperty(id: number): Promise<boolean> {
+    const sharedProperty = await this.getSharedProperty(id);
+    if (!sharedProperty) return false;
+    
+    // Update the shared property
+    await db.update(sharedProperties)
+      .set({ 
+        isAcquired: true, 
+        stage: "result", 
+        stageResult: "acquired",
+        updatedAt: new Date()
+      })
+      .where(eq(sharedProperties.id, id));
+    
+    // Create a new property in our portfolio
+    const propertyData: InsertProperty = {
+      address: sharedProperty.address,
+      city: sharedProperty.city || "",
+      size: sharedProperty.size || 0,
+      price: sharedProperty.price || 0,
+      type: sharedProperty.type || "apartment",
+      isShared: false,
+      isOwned: true,
+      status: "available",
+      location: sharedProperty.location
+    };
+    
+    await this.createProperty(propertyData);
+    return true;
+  }
+
+  async deleteSharedProperty(id: number): Promise<boolean> {
+    // First delete related records
+    await db.delete(tasks).where(eq(tasks.sharedPropertyId, id));
+    await db.delete(communications).where(eq(communications.sharedPropertyId, id));
+    
+    const result = await db.delete(sharedProperties).where(eq(sharedProperties.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]> {
+    const sharedProperty = await this.getSharedProperty(sharedPropertyId);
+    if (!sharedProperty) return [];
+    
+    // Find buyers with matching criteria
+    const matchingBuyers = await db
+      .select()
+      .from(buyers)
+      .innerJoin(clients, eq(buyers.clientId, clients.id))
+      .where(
+        and(
+          eq(clients.type, "buyer"),
+          or(
+            isNull(buyers.maxPrice),
+            gte(buyers.maxPrice, sharedProperty.price || 0)
+          ),
+          or(
+            isNull(buyers.minSize),
+            lte(buyers.minSize, sharedProperty.size || 0)
+          )
+        )
+      );
+    
+    // Get full client details for each matching buyer
+    const clientDetails: ClientWithDetails[] = [];
+    for (const match of matchingBuyers) {
+      const clientDetail = await this.getClientWithDetails(match.clients.id);
+      if (clientDetail) {
+        clientDetails.push(clientDetail);
+      }
+    }
+    
+    return clientDetails;
+  }
+
+  // Communication methods
+  async getCommunication(id: number): Promise<Communication | undefined> {
+    const result = await db.select().from(communications).where(eq(communications.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getCommunications(filters?: { type?: string; status?: string }): Promise<Communication[]> {
+    let query = db.select().from(communications);
+    
+    if (filters) {
+      const conditions: SQL[] = [];
+      
+      if (filters.type) {
+        conditions.push(eq(communications.type, filters.type));
+      }
+      
+      if (filters.status) {
+        conditions.push(eq(communications.status, filters.status));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    return await query.orderBy(desc(communications.createdAt));
+  }
+
+  async getCommunicationsByClientId(clientId: number): Promise<Communication[]> {
+    return await db
+      .select()
+      .from(communications)
+      .where(eq(communications.clientId, clientId))
+      .orderBy(desc(communications.createdAt));
+  }
+
+  async getCommunicationsByPropertyId(propertyId: number): Promise<Communication[]> {
+    return await db
+      .select()
+      .from(communications)
+      .where(eq(communications.propertyId, propertyId))
+      .orderBy(desc(communications.createdAt));
+  }
+
+  async getLastCommunicationByClientId(clientId: number): Promise<Communication | undefined> {
+    const result = await db
+      .select()
+      .from(communications)
+      .where(eq(communications.clientId, clientId))
+      .orderBy(desc(communications.createdAt))
+      .limit(1);
+    
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createCommunication(communication: InsertCommunication): Promise<Communication> {
+    const result = await db.insert(communications).values(communication).returning();
+    return result[0];
+  }
+
+  async updateCommunication(id: number, data: Partial<InsertCommunication>): Promise<Communication | undefined> {
+    const result = await db.update(communications)
+      .set(data)
+      .where(eq(communications.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteCommunication(id: number): Promise<boolean> {
+    const result = await db.delete(communications).where(eq(communications.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getClientsWithoutRecentCommunication(days: number, minRating: number): Promise<ClientWithDetails[]> {
+    // This query is more complex, we will implement a simpler version
+    // First, get all clients
+    const allClients = await this.getClients();
+    const clientsWithoutCommunication: ClientWithDetails[] = [];
+    
+    // Calculate cutoff date
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    for (const client of allClients) {
+      // Get last communication for this client
+      const lastComm = await this.getLastCommunicationByClientId(client.id);
+      
+      // If no communication or last communication is older than cutoff date
+      if (!lastComm || new Date(lastComm.createdAt!) < cutoffDate) {
+        // Get buyer details to check rating
+        if (client.type === "buyer") {
+          const buyer = await this.getBuyerByClientId(client.id);
+          if (buyer && (!minRating || (buyer.rating && buyer.rating >= minRating))) {
+            const clientWithDetails = await this.getClientWithDetails(client.id);
+            if (clientWithDetails) {
+              clientsWithoutCommunication.push(clientWithDetails);
+            }
+          }
+        } else {
+          const clientWithDetails = await this.getClientWithDetails(client.id);
+          if (clientWithDetails) {
+            clientsWithoutCommunication.push(clientWithDetails);
+          }
+        }
+      }
+    }
+    
+    return clientsWithoutCommunication;
+  }
+
+  // Appointment methods (implementazione base)
+  async getAppointment(id: number): Promise<Appointment | undefined> {
+    const result = await db.select().from(appointments).where(eq(appointments.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getAppointments(filters?: { status?: string; date?: string }): Promise<Appointment[]> {
+    let query = db.select().from(appointments);
+    
+    if (filters) {
+      const conditions: SQL[] = [];
+      
+      if (filters.status) {
+        conditions.push(eq(appointments.status, filters.status));
+      }
+      
+      if (filters.date) {
+        conditions.push(eq(appointments.date, filters.date));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    return await query.orderBy(desc(appointments.date));
+  }
+
+  async getAppointmentsByClientId(clientId: number): Promise<Appointment[]> {
+    return await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.clientId, clientId))
+      .orderBy(desc(appointments.date));
+  }
+
+  async getAppointmentsByPropertyId(propertyId: number): Promise<Appointment[]> {
+    return await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.propertyId, propertyId))
+      .orderBy(desc(appointments.date));
+  }
+
+  async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
+    const result = await db.insert(appointments).values(appointment).returning();
+    return result[0];
+  }
+
+  async updateAppointment(id: number, data: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    const result = await db.update(appointments)
+      .set(data)
+      .where(eq(appointments.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteAppointment(id: number): Promise<boolean> {
+    const result = await db.delete(appointments).where(eq(appointments.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Task methods (implementazione base)
+  async getTask(id: number): Promise<Task | undefined> {
+    const result = await db.select().from(tasks).where(eq(tasks.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getTasks(filters?: { status?: string; type?: string }): Promise<Task[]> {
+    let query = db.select().from(tasks);
+    
+    if (filters) {
+      const conditions: SQL[] = [];
+      
+      if (filters.status) {
+        conditions.push(eq(tasks.status, filters.status));
+      }
+      
+      if (filters.type) {
+        conditions.push(eq(tasks.type, filters.type));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    return await query.orderBy(desc(tasks.dueDate));
+  }
+
+  async getTasksByClientId(clientId: number): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.clientId, clientId))
+      .orderBy(desc(tasks.dueDate));
+  }
+
+  async getTasksByPropertyId(propertyId: number): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.propertyId, propertyId))
+      .orderBy(desc(tasks.dueDate));
+  }
+
+  async createTask(task: InsertTask): Promise<Task> {
+    const result = await db.insert(tasks).values(task).returning();
+    return result[0];
+  }
+
+  async updateTask(id: number, data: Partial<InsertTask>): Promise<Task | undefined> {
+    const result = await db.update(tasks)
+      .set(data)
+      .where(eq(tasks.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async completeTask(id: number): Promise<Task | undefined> {
+    const result = await db.update(tasks)
+      .set({ status: "completed" })
+      .where(eq(tasks.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteTask(id: number): Promise<boolean> {
+    const result = await db.delete(tasks).where(eq(tasks.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Market insight methods (implementazione minimale)
+  async getMarketInsight(id: number): Promise<MarketInsight | undefined> {
+    const result = await db.select().from(marketInsights).where(eq(marketInsights.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getMarketInsights(filters?: { area?: string; month?: number; year?: number }): Promise<MarketInsight[]> {
+    let query = db.select().from(marketInsights);
+    
+    if (filters) {
+      const conditions: SQL[] = [];
+      
+      if (filters.area) {
+        conditions.push(eq(marketInsights.area, filters.area));
+      }
+      
+      if (filters.month !== undefined) {
+        conditions.push(eq(marketInsights.month, filters.month));
+      }
+      
+      if (filters.year !== undefined) {
+        conditions.push(eq(marketInsights.year, filters.year));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    return await query;
+  }
+
+  async createMarketInsight(insight: InsertMarketInsight): Promise<MarketInsight> {
+    const result = await db.insert(marketInsights).values(insight).returning();
+    return result[0];
+  }
+
+  async updateMarketInsight(id: number, data: Partial<InsertMarketInsight>): Promise<MarketInsight | undefined> {
+    const result = await db.update(marketInsights)
+      .set(data)
+      .where(eq(marketInsights.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteMarketInsight(id: number): Promise<boolean> {
+    const result = await db.delete(marketInsights).where(eq(marketInsights.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Matching methods (implementazione minimale)
+  async matchPropertiesForBuyer(buyerId: number): Promise<Property[]> {
+    const buyer = await this.getBuyer(buyerId);
+    if (!buyer) return [];
+    
+    let query = db.select().from(properties).where(eq(properties.status, "available"));
+    
+    const conditions: SQL[] = [];
+    
+    if (buyer.maxPrice) {
+      conditions.push(lte(properties.price, buyer.maxPrice));
+    }
+    
+    if (buyer.minSize) {
+      conditions.push(gte(properties.size, buyer.minSize));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    return await query;
+  }
+
+  async matchBuyersForProperty(propertyId: number): Promise<Client[]> {
+    const property = await this.getProperty(propertyId);
+    if (!property) return [];
+    
+    const matchingBuyers = await db
+      .select()
+      .from(buyers)
+      .innerJoin(clients, eq(buyers.clientId, clients.id))
+      .where(
+        and(
+          eq(clients.type, "buyer"),
+          or(
+            isNull(buyers.maxPrice),
+            gte(buyers.maxPrice, property.price)
+          ),
+          or(
+            isNull(buyers.minSize),
+            lte(buyers.minSize, property.size)
+          )
+        )
+      );
+    
+    return matchingBuyers.map(match => match.clients);
+  }
+}
+
+// Export storage instance
+export const storage = new DatabaseStorage();
