@@ -627,8 +627,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Cliente non trovato" });
       }
       
-      const updatedClient = await storage.updateClient(clientId, req.body);
-      res.json(updatedClient);
+      // Aggiorna i dati base del cliente
+      const clientData = { ...req.body };
+      delete clientData.buyer; // Rimuovi i dati del buyer dai dati del cliente
+      
+      const updatedClient = await storage.updateClient(clientId, clientData);
+      
+      // Se è un compratore e ci sono dati di preferenze, aggiorna anche quelli
+      if (client.type === 'buyer' && req.body.buyer) {
+        try {
+          // Verifica se esiste già un record di buyer
+          const existingBuyer = await storage.getBuyerByClientId(clientId);
+          
+          if (existingBuyer) {
+            // Aggiorna buyer esistente
+            await storage.updateBuyer(existingBuyer.id, {
+              searchArea: req.body.buyer.searchArea,
+              minSize: req.body.buyer.minSize || null,
+              maxPrice: req.body.buyer.maxPrice || null,
+              urgency: req.body.buyer.urgency || 3,
+              rating: req.body.buyer.rating || 3,
+              searchNotes: req.body.buyer.searchNotes || null
+            });
+          } else {
+            // Crea un nuovo buyer
+            await storage.createBuyer({
+              clientId: clientId,
+              searchArea: req.body.buyer.searchArea || null,
+              minSize: req.body.buyer.minSize || null,
+              maxPrice: req.body.buyer.maxPrice || null,
+              urgency: req.body.buyer.urgency || 3,
+              rating: req.body.buyer.rating || 3,
+              searchNotes: req.body.buyer.searchNotes || null
+            });
+          }
+        } catch (buyerError) {
+          console.error(`[PATCH /api/clients/${clientId}] Error updating buyer preferences:`, buyerError);
+          // Non blocchiamo l'aggiornamento del cliente se fallisce l'aggiornamento del buyer
+        }
+      }
+      
+      // Ottieni i dati aggiornati completi
+      const updatedClientWithDetails = await storage.getClientWithDetails(clientId);
+      res.json(updatedClientWithDetails);
     } catch (error) {
       console.error(`[PATCH /api/clients/${req.params.id}]`, error);
       res.status(500).json({ error: "Errore durante l'aggiornamento del cliente" });
