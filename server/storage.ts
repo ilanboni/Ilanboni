@@ -26,6 +26,7 @@ export interface IStorage {
   
   // Client methods
   getClient(id: number): Promise<Client | undefined>;
+  getClientByPhone(phone: string): Promise<Client | undefined>;
   getClients(filters?: { type?: string; search?: string }): Promise<Client[]>;
   getClientWithDetails(id: number): Promise<ClientWithDetails | undefined>;
   createClient(client: InsertClient): Promise<Client>;
@@ -395,6 +396,17 @@ export class MemStorage implements IStorage {
   // Client methods
   async getClient(id: number): Promise<Client | undefined> {
     return this.clientStore.get(id);
+  }
+  
+  async getClientByPhone(phone: string): Promise<Client | undefined> {
+    // Normalizza il numero di telefono rimuovendo spazi, trattini e il prefisso + iniziale
+    const normalizedPhone = phone.replace(/[\s\-\+]/g, '');
+    
+    // Cerca il cliente per numero di telefono normalizzato
+    return Array.from(this.clientStore.values()).find(client => {
+      const clientPhone = client.phone?.replace(/[\s\-\+]/g, '') || '';
+      return clientPhone === normalizedPhone;
+    });
   }
   
   async getClients(filters?: { type?: string; search?: string }): Promise<Client[]> {
@@ -1520,6 +1532,18 @@ export class DatabaseStorage implements IStorage {
   // Client methods
   async getClient(id: number): Promise<Client | undefined> {
     const result = await db.select().from(clients).where(eq(clients.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+  
+  async getClientByPhone(phone: string): Promise<Client | undefined> {
+    // Normalizza il numero di telefono rimuovendo spazi, trattini e il prefisso + iniziale
+    const normalizedPhone = phone.replace(/[\s\-\+]/g, '');
+    
+    // Cerca il cliente usando LIKE con il numero normalizzato
+    const result = await db.select().from(clients).where(
+      like(clients.phone, `%${normalizedPhone}%`)
+    );
+    
     return result.length > 0 ? result[0] : undefined;
   }
 
