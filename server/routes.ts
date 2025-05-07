@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
@@ -11,6 +11,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { summarizeText } from "./lib/openai";
+import { getUltraMsgClient } from "./lib/ultramsg";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API per la gestione delle comunicazioni
@@ -105,7 +106,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const newCommunication = await storage.createCommunication(validationResult.data);
+      const communicationData = validationResult.data;
+      
+      // Se è un tipo generico che non è un'azione preconfigurata, genera il riassunto con AI
+      const preconfiguredTypes = ['property_sent', 'property_visit', 'contract_signed', 'offer_accepted', 'offer_rejected'];
+      if (communicationData.content && !preconfiguredTypes.includes(communicationData.type)) {
+        try {
+          // Genera il riassunto utilizzando OpenAI
+          const summary = await summarizeText(communicationData.content);
+          communicationData.summary = summary;
+        } catch (aiError) {
+          console.error("Errore nella generazione del riassunto AI:", aiError);
+          // Non bloccare la creazione della comunicazione se il riassunto fallisce
+        }
+      }
+      
+      const newCommunication = await storage.createCommunication(communicationData);
       res.status(201).json(newCommunication);
     } catch (error) {
       console.error("[POST /api/communications]", error);
@@ -137,7 +153,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const updatedCommunication = await storage.updateCommunication(id, validationResult.data);
+      const updateData = validationResult.data;
+      
+      // Se è stato aggiornato il contenuto e non è un'azione preconfigurata, rigenera il riassunto
+      const preconfiguredTypes = ['property_sent', 'property_visit', 'contract_signed', 'offer_accepted', 'offer_rejected'];
+      const currentType = updateData.type || communication.type;
+      
+      if (updateData.content && !preconfiguredTypes.includes(currentType)) {
+        try {
+          // Genera il riassunto utilizzando OpenAI
+          const summary = await summarizeText(updateData.content);
+          updateData.summary = summary;
+        } catch (aiError) {
+          console.error("Errore nella generazione del riassunto AI durante l'aggiornamento:", aiError);
+          // Non bloccare l'aggiornamento della comunicazione se il riassunto fallisce
+        }
+      }
+      
+      const updatedCommunication = await storage.updateCommunication(id, updateData);
       res.json(updatedCommunication);
     } catch (error) {
       console.error(`[PATCH /api/communications/${req.params.id}]`, error);
