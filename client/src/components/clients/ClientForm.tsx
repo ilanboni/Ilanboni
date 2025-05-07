@@ -42,7 +42,7 @@ import { RELIGIONS, SALUTATIONS } from "@/lib/constants";
 import { ClientType } from "@/types";
 import { ClientWithDetails } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { MapAreaSelector } from "../maps/MapAreaSelector";
+import { SimpleAreaSelector } from "../maps/SimpleAreaSelector";
 
 // Schema definition for client form
 const clientFormSchema = z.object({
@@ -540,7 +540,7 @@ export default function ClientForm({
                     <FormControl>
                       <div className="h-[350px] mt-2 rounded-md border">
                         <div className="relative w-full h-full">
-                          <MapAreaSelector 
+                          <SimpleAreaSelector 
                             initialArea={field.value}
                             onAreaSelected={(area) => field.onChange(area)} 
                             className="w-full h-full"
