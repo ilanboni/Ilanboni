@@ -64,6 +64,51 @@ export default function ClientDetailPage() {
     enabled: !isNaN(id),
   });
   
+  // Fetch matching properties (per client compratori)
+  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
+    queryKey: ["/api/clients", id, "matching-properties"],
+    enabled: !isNaN(id) && client?.type === "buyer",
+    queryFn: async () => {
+      const response = await fetch(`/api/clients/${id}/matching-properties`);
+      if (!response.ok) {
+        if (response.status === 400) {
+          return []; // Il cliente non è un compratore
+        }
+        throw new Error('Errore nel caricamento degli immobili compatibili');
+      }
+      return response.json();
+    }
+  });
+  
+  // Fetch matching shared properties
+  const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
+    queryKey: ["/api/clients", id, "matching-shared-properties"],
+    enabled: !isNaN(id) && client?.type === "buyer",
+    queryFn: async () => {
+      const response = await fetch(`/api/clients/${id}/matching-shared-properties`);
+      if (!response.ok) {
+        if (response.status === 400) {
+          return []; // Il cliente non è un compratore
+        }
+        throw new Error('Errore nel caricamento delle proprietà condivise compatibili');
+      }
+      return response.json();
+    }
+  });
+  
+  // Fetch properties sent to client
+  const { data: sentProperties, isLoading: isSentPropertiesLoading } = useQuery({
+    queryKey: ["/api/clients", id, "sent-properties"],
+    enabled: !isNaN(id),
+    queryFn: async () => {
+      const response = await fetch(`/api/clients/${id}/sent-properties`);
+      if (!response.ok) {
+        throw new Error('Errore nel caricamento degli immobili inviati');
+      }
+      return response.json();
+    }
+  });
+  
   // Loading state
   if (isClientLoading || isNaN(id)) {
     return (
@@ -277,11 +322,18 @@ export default function ClientDetailPage() {
         </div>
         
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 md:w-[600px]">
+          <TabsList className="grid grid-cols-7 md:w-[960px]">
             <TabsTrigger value="overview">Panoramica</TabsTrigger>
             <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
             <TabsTrigger value="appointments">Appuntamenti</TabsTrigger>
             <TabsTrigger value="tasks">Note e Attività</TabsTrigger>
+            {client?.type === 'buyer' && (
+              <>
+                <TabsTrigger value="matching-properties">Immobili compatibili</TabsTrigger>
+                <TabsTrigger value="matching-shared">Possibili immobili</TabsTrigger>
+              </>
+            )}
+            <TabsTrigger value="sent-properties">Immobili inviati</TabsTrigger>
           </TabsList>
           
           {/* Overview Tab */}
@@ -740,6 +792,343 @@ export default function ClientDetailPage() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Immobili Compatibili Tab */}
+          <TabsContent value="matching-properties" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle>Immobili Compatibili</CardTitle>
+                  <CardDescription>Immobili che corrispondono alle preferenze del cliente</CardDescription>
+                </div>
+                <Button 
+                  variant="outline"
+                  className="gap-2"
+                  asChild
+                >
+                  <Link href={`/clients/${id}/search`}>
+                    <i className="fas fa-search"></i>
+                    <span>Ricerca Avanzata</span>
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isMatchingPropertiesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : !matchingProperties || matchingProperties.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-5xl mb-4">
+                      <i className="fas fa-home"></i>
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">Nessun immobile compatibile</h3>
+                    <p>
+                      Non ci sono immobili che corrispondono alle preferenze del cliente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {matchingProperties.map((property) => (
+                      <Card key={property.id} className="overflow-hidden">
+                        <div className="aspect-video relative bg-gray-100">
+                          {property.images && property.images.length > 0 ? (
+                            <img 
+                              src={property.images[0]} 
+                              alt={property.title} 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-gray-400">
+                              <i className="fas fa-home text-4xl"></i>
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge className="bg-primary-900/80 text-white">
+                              € {property.price?.toLocaleString() || "N/D"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-semibold text-lg line-clamp-1">
+                                <Link href={`/properties/${property.id}`} className="hover:text-primary-600">
+                                  {property.title}
+                                </Link>
+                              </h3>
+                              <p className="text-sm text-gray-600 line-clamp-1">{property.address}</p>
+                            </div>
+                            <Badge variant={property.status === "available" ? "success" : "outline"}>
+                              {property.status === "available" ? "Disponibile" : property.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex justify-between mt-3 text-sm">
+                            <div>
+                              <span className="font-medium">{property.size} m²</span>
+                              <span className="mx-1">•</span>
+                              <span>{property.bedrooms || 0} cam.</span>
+                              <span className="mx-1">•</span>
+                              <span>{property.bathrooms || 0} bagni</span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 flex justify-between">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs"
+                              asChild
+                            >
+                              <Link href={`/properties/${property.id}`}>
+                                <i className="fas fa-info-circle mr-1"></i> Dettagli
+                              </Link>
+                            </Button>
+                            
+                            <Button 
+                              variant="default" 
+                              size="sm" 
+                              className="text-xs"
+                              asChild
+                            >
+                              <Link href={`/communications/whatsapp?clientId=${id}&propertyId=${property.id}`}>
+                                <i className="fab fa-whatsapp mr-1"></i> Invia
+                              </Link>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Possibili Immobili (Proprietà Condivise) Tab */}
+          <TabsContent value="matching-shared" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle>Possibili Immobili</CardTitle>
+                  <CardDescription>Proprietà condivise che potrebbero interessare il cliente</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isMatchingSharedPropertiesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : !matchingSharedProperties || matchingSharedProperties.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-5xl mb-4">
+                      <i className="fas fa-building"></i>
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">Nessuna proprietà condivisa</h3>
+                    <p>
+                      Non ci sono proprietà condivise compatibili con le preferenze del cliente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {matchingSharedProperties.map((property) => (
+                      <Card key={property.id} className="overflow-hidden">
+                        <div className="aspect-video relative bg-gray-100">
+                          {property.images && property.images.length > 0 ? (
+                            <img 
+                              src={property.images[0]} 
+                              alt={property.title} 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-gray-400">
+                              <i className="fas fa-building text-4xl"></i>
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge className="bg-primary-900/80 text-white">
+                              € {property.price?.toLocaleString() || "N/D"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-semibold text-lg line-clamp-1">
+                                <Link href={`/properties/shared/${property.id}`} className="hover:text-primary-600">
+                                  {property.title}
+                                </Link>
+                              </h3>
+                              <p className="text-sm text-gray-600 line-clamp-1">{property.address}</p>
+                            </div>
+                            <Badge variant="outline" className={
+                              property.stage === "identified" ? "border-blue-400 text-blue-600" :
+                              property.stage === "contacted" ? "border-amber-400 text-amber-600" :
+                              property.stage === "visited" ? "border-green-400 text-green-600" :
+                              property.stage === "negotiating" ? "border-purple-400 text-purple-600" :
+                              "border-gray-400 text-gray-600"
+                            }>
+                              {property.stage === "identified" ? "Identificato" :
+                               property.stage === "contacted" ? "Contattato" :
+                               property.stage === "visited" ? "Visitato" :
+                               property.stage === "negotiating" ? "In Trattativa" :
+                               property.stage}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex justify-between mt-3 text-sm">
+                            <div>
+                              <span className="font-medium">{property.size} m²</span>
+                              {property.bedrooms && (
+                                <>
+                                  <span className="mx-1">•</span>
+                                  <span>{property.bedrooms} cam.</span>
+                                </>
+                              )}
+                              {property.bathrooms && (
+                                <>
+                                  <span className="mx-1">•</span>
+                                  <span>{property.bathrooms} bagni</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 flex justify-between">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs"
+                              asChild
+                            >
+                              <Link href={`/properties/shared/${property.id}`}>
+                                <i className="fas fa-info-circle mr-1"></i> Dettagli
+                              </Link>
+                            </Button>
+                            
+                            <Button 
+                              variant="default" 
+                              size="sm" 
+                              className="text-xs"
+                              asChild
+                            >
+                              <Link href={`/communications/whatsapp?clientId=${id}&sharedPropertyId=${property.id}`}>
+                                <i className="fab fa-whatsapp mr-1"></i> Invia
+                              </Link>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Immobili Inviati Tab */}
+          <TabsContent value="sent-properties" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle>Immobili Inviati</CardTitle>
+                  <CardDescription>Immobili presentati al cliente in precedenza</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isSentPropertiesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : !sentProperties || sentProperties.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-5xl mb-4">
+                      <i className="fas fa-paper-plane"></i>
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">Nessun immobile inviato</h3>
+                    <p>
+                      Non ci sono immobili inviati a questo cliente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {sentProperties.map((property) => (
+                      <Card key={property.id} className="overflow-hidden">
+                        <div className="aspect-video relative bg-gray-100">
+                          {property.images && property.images.length > 0 ? (
+                            <img 
+                              src={property.images[0]} 
+                              alt={property.title} 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-gray-400">
+                              <i className="fas fa-home text-4xl"></i>
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2">
+                            <Badge className="bg-primary-900/80 text-white">
+                              € {property.price?.toLocaleString() || "N/D"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-semibold text-lg line-clamp-1">
+                                <Link href={`/properties/${property.id}`} className="hover:text-primary-600">
+                                  {property.title}
+                                </Link>
+                              </h3>
+                              <p className="text-sm text-gray-600 line-clamp-1">{property.address}</p>
+                            </div>
+                            <Badge variant={property.status === "available" ? "success" : "outline"}>
+                              {property.status === "available" ? "Disponibile" : property.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex justify-between mt-3 text-sm">
+                            <div>
+                              <span className="font-medium">{property.size} m²</span>
+                              <span className="mx-1">•</span>
+                              <span>{property.bedrooms || 0} cam.</span>
+                              <span className="mx-1">•</span>
+                              <span>{property.bathrooms || 0} bagni</span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 flex justify-between">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs"
+                              asChild
+                            >
+                              <Link href={`/properties/${property.id}`}>
+                                <i className="fas fa-info-circle mr-1"></i> Dettagli
+                              </Link>
+                            </Button>
+                            
+                            <Button 
+                              variant="default" 
+                              size="sm" 
+                              className="text-xs"
+                              asChild
+                            >
+                              <Link href={`/communications/whatsapp?clientId=${id}&propertyId=${property.id}`}>
+                                <i className="fab fa-whatsapp mr-1"></i> Invia di nuovo
+                              </Link>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 )}
               </CardContent>

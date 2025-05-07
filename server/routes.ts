@@ -184,6 +184,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint per ottenere gli immobili che corrispondono alle preferenze di un cliente acquirente
+  app.get("/api/clients/:id/matching-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      if (client.type !== 'buyer') {
+        return res.status(400).json({ error: "Solo i clienti compratori hanno matching properties" });
+      }
+      
+      const buyer = await storage.getBuyerByClientId(clientId);
+      if (!buyer) {
+        return res.status(404).json({ error: "Dati acquirente non trovati" });
+      }
+      
+      // Recupera immobili che corrispondono alle preferenze
+      const matchingProperties = await storage.matchPropertiesForBuyer(buyer.id);
+      res.json(matchingProperties);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/matching-properties]`, error);
+      res.status(500).json({ error: "Errore durante il recupero degli immobili compatibili" });
+    }
+  });
+  
+  // Endpoint per ottenere le proprietà condivise che corrispondono alle preferenze di un cliente
+  app.get("/api/clients/:id/matching-shared-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      if (client.type !== 'buyer') {
+        return res.status(400).json({ error: "Solo i clienti compratori hanno matching properties" });
+      }
+      
+      const buyer = await storage.getBuyerByClientId(clientId);
+      if (!buyer) {
+        return res.status(404).json({ error: "Dati acquirente non trovati" });
+      }
+      
+      // Recupera proprietà condivise compatibili
+      // Qui implementiamo un approccio semplificato - in un'app reale potremmo avere una query più ottimizzata
+      const allSharedProperties = await storage.getSharedProperties({});
+      
+      // Filtra le proprietà in base ai criteri dell'acquirente
+      const matchingProperties = allSharedProperties.filter(property => {
+        // Controlla dimensioni
+        if (buyer.minSize && (!property.size || property.size < buyer.minSize)) {
+          return false;
+        }
+        
+        // Controlla prezzo
+        if (buyer.maxPrice && (!property.price || property.price > buyer.maxPrice)) {
+          return false;
+        }
+        
+        return true;
+      });
+      
+      res.json(matchingProperties);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/matching-shared-properties]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà condivise compatibili" });
+    }
+  });
+  
+  // Endpoint per ottenere gli immobili inviati a un cliente
+  app.get("/api/clients/:id/sent-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      // In questa versione semplificata, considera gli immobili inviati
+      // quelli menzionati nelle comunicazioni con il cliente
+      const communications = await storage.getCommunicationsByClientId(clientId);
+      
+      // Ottiene tutti gli immobili menzionati nelle comunicazioni
+      const propertyIds = Array.from(
+        new Set(
+          communications
+            .filter(c => c.propertyId !== null)
+            .map(c => c.propertyId)
+        )
+      );
+      
+      // Recupera i dettagli degli immobili
+      const sentProperties = [];
+      for (const propertyId of propertyIds) {
+        if (propertyId) {
+          const property = await storage.getProperty(propertyId);
+          if (property) {
+            sentProperties.push(property);
+          }
+        }
+      }
+      
+      res.json(sentProperties);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/sent-properties]`, error);
+      res.status(500).json({ error: "Errore durante il recupero degli immobili inviati" });
+    }
+  });
+  
   // API per gli immobili
   
   // Ottieni tutti gli immobili
