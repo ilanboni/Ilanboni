@@ -399,14 +399,46 @@ export class MemStorage implements IStorage {
   }
   
   async getClientByPhone(phone: string): Promise<Client | undefined> {
+    console.log("[STORAGE] Ricerca cliente per telefono:", phone);
+    
     // Normalizza il numero di telefono rimuovendo spazi, trattini e il prefisso + iniziale
-    const normalizedPhone = phone.replace(/[\s\-\+]/g, '');
+    let normalizedPhone = phone.replace(/[\s\-\+]/g, '');
+    
+    // Rimuovi anche eventuali prefissi internazionali (es. 39 per Italia)
+    // Se il numero inizia con prefisso Italia (39), rimuovilo
+    if (normalizedPhone.startsWith('39') && normalizedPhone.length > 10) {
+      normalizedPhone = normalizedPhone.substring(2);
+    }
+    
+    console.log("[STORAGE] Telefono normalizzato:", normalizedPhone);
     
     // Cerca il cliente per numero di telefono normalizzato
-    return Array.from(this.clientStore.values()).find(client => {
-      const clientPhone = client.phone?.replace(/[\s\-\+]/g, '') || '';
+    const client = Array.from(this.clientStore.values()).find(client => {
+      let clientPhone = client.phone?.replace(/[\s\-\+]/g, '') || '';
+      
+      // Rimuovi anche dal numero del cliente eventuali prefissi internazionali
+      if (clientPhone.startsWith('39') && clientPhone.length > 10) {
+        clientPhone = clientPhone.substring(2);
+      }
+      
+      // Log per debug
+      console.log("[STORAGE] Confronto: ", 
+                 { clientId: client.id, 
+                   clientName: `${client.firstName} ${client.lastName}`, 
+                   clientPhone, 
+                   normalizedPhone,
+                   match: clientPhone === normalizedPhone });
+      
       return clientPhone === normalizedPhone;
     });
+    
+    if (client) {
+      console.log("[STORAGE] Cliente trovato:", client.id, client.firstName, client.lastName);
+    } else {
+      console.log("[STORAGE] Nessun cliente trovato con il numero:", normalizedPhone);
+    }
+    
+    return client;
   }
   
   async getClients(filters?: { type?: string; search?: string }): Promise<Client[]> {

@@ -140,24 +140,34 @@ export class UltraMsgClient {
    */
   async processIncomingWebhook(webhookData: any): Promise<Communication | null> {
     try {
+      console.log("[ULTRAMSG] Elaborazione webhook:", JSON.stringify(webhookData, null, 2));
+      
       // Verifica che sia un messaggio in arrivo e non un messaggio inviato da noi
       if (webhookData.event_type !== 'message' || webhookData.from_me) {
+        console.log("[ULTRAMSG] Webhook ignorato: non è un messaggio in arrivo o è stato inviato da noi", {
+          event_type: webhookData.event_type,
+          from_me: webhookData.from_me
+        });
         return null;
       }
 
       // Estrai il numero di telefono
       const phone = webhookData.from?.replace(/^\+/, '');
       if (!phone) {
-        console.warn('Numero di telefono mancante nel webhook');
+        console.warn('[ULTRAMSG] Numero di telefono mancante nel webhook');
         return null;
       }
+      
+      console.log("[ULTRAMSG] Ricerca cliente con numero di telefono:", phone);
       
       // Cerca il cliente in base al numero di telefono
       const client = await storage.getClientByPhone(phone);
       if (!client) {
-        console.warn(`Ricevuto messaggio da numero non registrato: ${phone}`);
+        console.warn(`[ULTRAMSG] Messaggio da numero non registrato: ${phone}`);
         return null;
       }
+      
+      console.log("[ULTRAMSG] Cliente trovato:", client.id, client.firstName, client.lastName);
 
       // Estrai il contenuto del messaggio
       const messageContent = webhookData.body || '';
