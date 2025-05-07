@@ -4,7 +4,16 @@ import { cn } from "@/lib/utils";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
+
+// Assicurati che questi import vengano eseguiti correttamente per inizializzare la libreria
 import 'leaflet-draw';
+
+// Aggiungi manualmente l'evento CREATED che potrebbe non essere esportato correttamente
+L.Draw = L.Draw || {};
+L.Draw.Event = L.Draw.Event || {};
+L.Draw.Event.CREATED = 'draw:created';
+L.Draw.Event.EDITED = 'draw:edited';
+L.Draw.Event.DELETED = 'draw:deleted';
 
 // Add window properties to avoid TypeScript errors
 declare global {
@@ -43,7 +52,13 @@ export function MapAreaSelector({
   }, []);
   
   useEffect(() => {
-    if (!isMapLoaded || !isDrawLoaded || !mapRef.current || !window.L || !window.L.Control.Draw) return;
+    if (!isMapLoaded || !isDrawLoaded || !mapRef.current) return;
+    
+    // Assicuriamoci che Leaflet sia correttamente caricato
+    if (!window.L) {
+      console.error("Leaflet non è disponibile");
+      return;
+    }
     
     // Initialize map if it doesn't exist
     if (!mapInstanceRef.current) {
