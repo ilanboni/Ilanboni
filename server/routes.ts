@@ -530,6 +530,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Recupera le preferenze di ricerca per un cliente compratore
+  app.get("/api/clients/:id/preferences", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      if (client.type !== 'buyer') {
+        return res.status(400).json({ error: "Solo i clienti compratori hanno preferenze di ricerca" });
+      }
+      
+      // Recupera le preferenze di ricerca dal database
+      const preferences = await storage.getBuyerPreferences(clientId);
+      
+      if (!preferences) {
+        return res.status(404).json({ error: "Nessuna preferenza di ricerca trovata per questo cliente" });
+      }
+      
+      res.json(preferences);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/preferences]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle preferenze di ricerca" });
+    }
+  });
+  
   // Crea un nuovo cliente
   app.post("/api/clients", async (req: Request, res: Response) => {
     try {

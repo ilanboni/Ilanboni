@@ -39,6 +39,22 @@ export default function ClientsByTypePage() {
     enabled: isEditMode && !!clientId
   });
   
+  // Per i clienti compratori in modalità modifica, recuperiamo anche i dati di ricerca
+  const { data: buyerPreferences, isLoading: isLoadingPreferences } = useQuery({
+    queryKey: ['/api/clients', clientId, 'preferences'],
+    queryFn: async () => {
+      if (!clientId) return null;
+      try {
+        const response = await apiRequest('GET', `/api/clients/${clientId}/preferences`);
+        return await response.json();
+      } catch (error) {
+        console.error("Errore nel recupero preferenze:", error);
+        return null;
+      }
+    },
+    enabled: isEditMode && !!clientId && client?.type === 'buyer'
+  });
+  
   // Create mutation for saving client data
   const saveClientMutation = useMutation({
     mutationFn: async (data: any) => {
