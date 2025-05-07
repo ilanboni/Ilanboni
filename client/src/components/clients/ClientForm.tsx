@@ -683,4 +683,4 @@ export default function ClientForm({
   );
 }
 
-// Using the imported MapAreaSelector component from maps folder
+// Using the imported SimpleAreaSelector component from maps folder
