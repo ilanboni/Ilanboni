@@ -84,9 +84,6 @@ export function SimpleAreaSelector({
           console.error("Errore nel caricamento dell'area iniziale:", error);
         }
       }
-      
-      // Aggiungi l'evento click alla mappa per aggiungere punti al poligono
-      mapInstanceRef.current.on('click', handleMapClick);
     }
     
     // Imposta il flag di caricamento
@@ -107,9 +104,31 @@ export function SimpleAreaSelector({
     };
   }, [initialArea]);
   
+  // Aggiungi o rimuovi l'evento click quando isDrawing cambia
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    
+    // Rimuovi prima l'evento per evitare di aggiungerne multipli
+    mapInstanceRef.current.off('click', handleMapClick);
+    
+    // Aggiungi l'evento solo se stiamo disegnando
+    if (isDrawing) {
+      console.log("Modalità disegno attivata - click sulla mappa per aggiungere punti");
+      mapInstanceRef.current.on('click', handleMapClick);
+    }
+    
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.off('click', handleMapClick);
+      }
+    };
+  }, [isDrawing]);
+  
   // Funzione per gestire il click sulla mappa
   const handleMapClick = (e: L.LeafletMouseEvent) => {
     if (!isDrawing || !mapInstanceRef.current) return;
+    
+    console.log("Click sulla mappa rilevato!", e.latlng);
     
     // Aggiungi un marker alla posizione del click
     const marker = L.marker(e.latlng).addTo(mapInstanceRef.current);
