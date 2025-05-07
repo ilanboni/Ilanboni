@@ -137,6 +137,7 @@ export const communications = pgTable("communications", {
   type: text("type").notNull(), // email, call, whatsapp, property_sent, meeting, etc.
   subject: text("subject").notNull(),
   content: text("content"),
+  summary: text("summary"), // riassunto AI-generato
   direction: text("direction").notNull(), // inbound, outbound
   createdBy: integer("created_by").references(() => users.id),
   needsFollowUp: boolean("needs_follow_up").default(false),

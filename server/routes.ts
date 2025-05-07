@@ -10,6 +10,7 @@ import {
   insertSellerSchema
 } from "@shared/schema";
 import { z } from "zod";
+import { summarizeText } from "./lib/openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API per la gestione delle comunicazioni
