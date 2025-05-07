@@ -35,6 +35,7 @@ export interface IStorage {
   // Buyer methods
   getBuyer(id: number): Promise<Buyer | undefined>;
   getBuyerByClientId(clientId: number): Promise<Buyer | undefined>;
+  getBuyerPreferences(clientId: number): Promise<Buyer | undefined>;
   createBuyer(buyer: InsertBuyer): Promise<Buyer>;
   updateBuyer(id: number, data: Partial<InsertBuyer>): Promise<Buyer | undefined>;
   deleteBuyer(id: number): Promise<boolean>;
@@ -572,6 +573,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.buyerStore.values()).find(
       (buyer) => buyer.clientId === clientId
     );
+  }
+  
+  async getBuyerPreferences(clientId: number): Promise<Buyer | undefined> {
+    // In MemStorage, this is the same as getBuyerByClientId
+    return this.getBuyerByClientId(clientId);
   }
   
   async createBuyer(buyer: InsertBuyer): Promise<Buyer> {
@@ -1618,6 +1624,11 @@ export class DatabaseStorage implements IStorage {
   async getBuyerByClientId(clientId: number): Promise<Buyer | undefined> {
     const result = await db.select().from(buyers).where(eq(buyers.clientId, clientId));
     return result.length > 0 ? result[0] : undefined;
+  }
+  
+  async getBuyerPreferences(clientId: number): Promise<Buyer | undefined> {
+    // For now, this is the same as getBuyerByClientId in this implementation
+    return this.getBuyerByClientId(clientId);
   }
 
   async createBuyer(buyer: InsertBuyer): Promise<Buyer> {
