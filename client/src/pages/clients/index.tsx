@@ -54,8 +54,9 @@ export default function ClientsPage() {
         
         const url = `/api/clients${params.toString() ? `?${params.toString()}` : ''}`;
         const response = await apiRequest('GET', url);
+        const data = await response.json();
         
-        let clients = Array.isArray(response) ? response : [];
+        let clients = Array.isArray(data) ? data : [];
         
         // Ordina i risultati
         if (sortOrder === "newest") {
