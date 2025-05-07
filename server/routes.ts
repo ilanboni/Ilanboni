@@ -1027,7 +1027,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verifica se è una notifica di messaggio valida
       const webhookData = req.body;
       
+      console.log("[WEBHOOK] Ricezione webhook WhatsApp:", JSON.stringify(webhookData, null, 2));
+      
       if (!webhookData || !webhookData.event_type) {
+        console.error("[WEBHOOK] Formato webhook non valido:", webhookData);
         return res.status(400).json({ error: "Formato webhook non valido" });
       }
       
@@ -1041,6 +1044,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const communication = await ultraMsgClient.processIncomingWebhook(webhookData);
           
           if (communication) {
+            console.log("[WEBHOOK] Comunicazione salvata:", communication);
+            
             // Crea un task per il follow-up se necessario
             if (communication.needsFollowUp) {
               const dueDate = new Date();
@@ -1062,6 +1067,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               message: "Webhook elaborato con successo",
               communication
             });
+          } else {
+            console.warn("[WEBHOOK] Nessuna comunicazione creata");
           }
         } catch (processError: any) {
           console.error("[POST /api/whatsapp/webhook] Errore nel processare il messaggio:", processError);
@@ -1074,6 +1081,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[POST /api/whatsapp/webhook]", error);
       // Rispondi sempre con 200 per confermare la ricezione (anche in caso di errore)
       res.status(200).json({ success: true });
+    }
+  });
+  
+  // Endpoint di test per simulare la ricezione di un messaggio WhatsApp
+  app.post("/api/whatsapp/test-webhook", async (req: Request, res: Response) => {
+    try {
+      const { clientId, message } = req.body;
+      
+      if (!clientId || !message) {
+        return res.status(400).json({ 
+          error: "Dati mancanti", 
+          details: "clientId e message sono campi obbligatori" 
+        });
+      }
+      
+      const client = await storage.getClient(parseInt(clientId));
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      if (!client.phone) {
+        return res.status(400).json({ error: "Il cliente non ha un numero di telefono registrato" });
+      }
+      
+      // Crea un mock del payload del webhook UltraMsg
+      const mockWebhookData = {
+        event_type: "message",
+        from_me: false,
+        from: client.phone,
+        to: "123456789", // Numero dell'agente
+        body: message,
+        media_url: "",
+        mime_type: "text/plain"
+      };
+      
+      // Elabora il webhook simulato
+      const ultraMsgClient = getUltraMsgClient();
+      const communication = await ultraMsgClient.processIncomingWebhook(mockWebhookData);
+      
+      if (communication) {
+        return res.status(201).json({
+          success: true,
+          message: "Messaggio di test ricevuto e salvato con successo",
+          communication
+        });
+      } else {
+        return res.status(500).json({ 
+          error: "Errore durante l'elaborazione del messaggio di test",
+          details: "Il messaggio non è stato salvato correttamente"
+        });
+      }
+    } catch (error: any) {
+      console.error("[POST /api/whatsapp/test-webhook]", error);
+      res.status(500).json({ 
+        error: "Errore durante la simulazione del messaggio WhatsApp", 
+        details: error.message || "Errore sconosciuto" 
+      });
     }
   });
 
