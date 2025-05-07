@@ -18,12 +18,25 @@ export default function ClientsByTypePage() {
   // Determine if we're creating a new client or editing an existing one
   const isNewClient = params.type === "new";
   const isEditMode = params.type && (
-    params.type.startsWith("edit/") || // Modalità legacy URL (retrocompatibilità)
+    params.type.startsWith("edit") || // Modalità legacy URL (retrocompatibilità)
     params.id // Nuova modalità route
   );
-  const clientId = isEditMode 
-    ? (params.id ? parseInt(params.id) : parseInt(params.type.replace("edit/", "")))
-    : null;
+  
+  // Estrai l'ID cliente
+  let clientId: number | null = null;
+  if (isEditMode) {
+    if (params.id) {
+      clientId = parseInt(params.id);
+    } else if (params.type.startsWith("edit/")) {
+      clientId = parseInt(params.type.replace("edit/", ""));
+    } else if (params.type.startsWith("edit")) {
+      // Gestisci URL come /clients/edit123
+      const idPart = params.type.replace("edit", "");
+      if (idPart && !isNaN(parseInt(idPart))) {
+        clientId = parseInt(idPart);
+      }
+    }
+  }
   
   // Set appropriate client type based on URL or default to "buyer" for new clients
   const [clientType, setClientType] = useState<ClientType>("buyer");
@@ -94,7 +107,43 @@ export default function ClientsByTypePage() {
   const handleSubmit = (data: any) => {
     // Aggiorna il tipo di cliente prima di inviare
     setClientType(data.type as ClientType);
-    saveClientMutation.mutate(data);
+    
+    // Prepara i dati per l'invio
+    const clientData: any = {
+      type: data.type,
+      salutation: data.salutation,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      isFriend: data.isFriend,
+      email: data.email,
+      phone: data.phone,
+      religion: data.religion,
+      birthday: data.birthday,
+      contractType: data.contractType,
+      notes: data.notes
+    };
+    
+    // Aggiungi i dati specifici in base al tipo di cliente
+    if (data.type === 'buyer') {
+      clientData.buyer = {
+        searchArea: data.searchArea,
+        minSize: data.minSize,
+        maxPrice: data.maxPrice,
+        urgency: data.urgency,
+        rating: data.rating,
+        searchNotes: data.searchNotes
+      };
+    } else if (data.type === 'seller') {
+      clientData.seller = {
+        propertyAddress: data.propertyAddress,
+        propertySize: data.propertySize,
+        propertyPrice: data.propertyPrice,
+        propertyNotes: data.propertyNotes
+      };
+    }
+    
+    // Invia i dati formattati
+    saveClientMutation.mutate(clientData);
   };
   
   // Handle cancel button click
