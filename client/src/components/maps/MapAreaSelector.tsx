@@ -5,52 +5,57 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 
-// Importa direttamente i moduli necessari
+// Importa direttamente il plugin di disegno
 import 'leaflet-draw';
 
-// Definisci costanti per GeoJSON per evitare riferimenti a window.GeoJSON
-const GEOJSON_FEATURE_TYPE = "Feature";
-const GEOJSON_POLYGON_TYPE = "Polygon";
-const DEFAULT_EMPTY_GEOJSON = { 
-  type: GEOJSON_FEATURE_TYPE, 
+// Bypass completo di GeoJSON.Feature con un oggetto personalizzato
+interface CustomGeoJSON {
+  type: string;
+  geometry: {
+    type: string;
+    coordinates: any[][];
+  };
+  properties?: Record<string, any>;
+}
+
+// Crea un oggetto GeoJSON vuoto da usare come fallback
+const DEFAULT_EMPTY_GEOJSON: CustomGeoJSON = { 
+  type: "Feature", 
   geometry: { 
-    type: GEOJSON_POLYGON_TYPE, 
+    type: "Polygon", 
     coordinates: [] 
-  } 
+  },
+  properties: {} 
 };
 
-// Definisci gli eventi Draw come costanti
-const DRAW_EVENT_CREATED = 'draw:created';
-const DRAW_EVENT_EDITED = 'draw:edited';
-const DRAW_EVENT_DELETED = 'draw:deleted';
+// Definisci gli eventi come costanti e non dipendere da L.Draw.Event
+const DRAW_CREATED = 'draw:created';
+const DRAW_EDITED = 'draw:edited';
+const DRAW_DELETED = 'draw:deleted';
 
-// Assegna gli eventi a L.Draw per compatibilità
-if (!L.Draw) {
-  (L as any).Draw = {};
-}
-if (!L.Draw.Event) {
-  (L.Draw as any).Event = {};
-}
-
-// Usa le costanti invece di stringhe hard-coded
-(L.Draw.Event as any).CREATED = DRAW_EVENT_CREATED;
-(L.Draw.Event as any).EDITED = DRAW_EVENT_EDITED;
-(L.Draw.Event as any).DELETED = DRAW_EVENT_DELETED;
-
-// TypeScript definitions
+// Definisci l'interfaccia per gli oggetti draw
 interface DrawEvent {
   layers: any;
   layer: any;
 }
 
-// Add window properties to avoid TypeScript errors
+// Estendi l'interfaccia di Leaflet per rendere disponibili i metodi di Draw 
+// senza dipendere da definizioni globali
 declare global {
   namespace L {
+    // Evita problemi con Draw.Event 
     namespace Draw {
-      namespace Event {
-        const CREATED: string;
-        const EDITED: string;
-        const DELETED: string;
+      const Event: {
+        CREATED: string;
+        EDITED: string;
+        DELETED: string;
+      };
+    }
+    
+    // Aggiungi Control.Draw che altrimenti manca
+    namespace Control {
+      class Draw extends L.Control {
+        constructor(options: any);
       }
     }
   }
@@ -134,7 +139,7 @@ export function MapAreaSelector({
       mapInstanceRef.current.addControl(drawControlRef.current);
       
       // Event handler for drawn objects
-      mapInstanceRef.current.on(L.Draw.Event.CREATED, function(e: any) {
+      mapInstanceRef.current.on(DRAW_CREATED, function(e: any) {
         const layer = e.layer;
         drawnItemsRef.current.addLayer(layer);
         
@@ -154,7 +159,7 @@ export function MapAreaSelector({
       });
       
       // Event handler for edited objects
-      mapInstanceRef.current.on(L.Draw.Event.EDITED, function(e: any) {
+      mapInstanceRef.current.on(DRAW_EDITED, function(e: any) {
         const layers = e.layers;
         let geoJSON: any = null;
         
@@ -180,7 +185,7 @@ export function MapAreaSelector({
       });
       
       // Event handler for deleted objects
-      mapInstanceRef.current.on(L.Draw.Event.DELETED, function() {
+      mapInstanceRef.current.on(DRAW_DELETED, function() {
         if (drawnItemsRef.current.getLayers().length === 0) {
           onAreaSelected(null);
         }
@@ -225,9 +230,9 @@ export function MapAreaSelector({
     return () => {
       // Remove event listeners
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.off(L.Draw.Event.CREATED);
-        mapInstanceRef.current.off(L.Draw.Event.EDITED);
-        mapInstanceRef.current.off(L.Draw.Event.DELETED);
+        mapInstanceRef.current.off(DRAW_CREATED);
+        mapInstanceRef.current.off(DRAW_EDITED);
+        mapInstanceRef.current.off(DRAW_DELETED);
       }
     };
   }, [isMapLoaded, isDrawLoaded, initialArea, onAreaSelected]);
