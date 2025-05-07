@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Client } from "@/types/schema";
+import { type ClientWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
 interface WhatsAppModalProps {
   isOpen: boolean;
   onClose: () => void;
-  client: Client | null;
+  client: ClientWithDetails | null;
 }
 
 // Form validation schema
