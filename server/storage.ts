@@ -1221,6 +1221,259 @@ export class MemStorage implements IStorage {
     
     return matchedClients;
   }
+
+  // Implementazione metodi per le proprietà condivise
+  async getSharedProperty(id: number): Promise<SharedProperty | undefined> {
+    return this.sharedPropertyStore.get(id);
+  }
+  
+  async getSharedPropertyByPropertyId(propertyId: number): Promise<SharedProperty | undefined> {
+    return Array.from(this.sharedPropertyStore.values()).find(
+      (sp) => sp.propertyId === propertyId
+    );
+  }
+
+  async getSharedProperties(filters?: { stage?: string; search?: string }): Promise<SharedProperty[]> {
+    let sharedProperties = Array.from(this.sharedPropertyStore.values());
+    
+    if (filters) {
+      if (filters.stage) {
+        sharedProperties = sharedProperties.filter(sp => sp.stage === filters.stage);
+      }
+      
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        sharedProperties = sharedProperties.filter(sp => 
+          sp.address.toLowerCase().includes(searchTerm) ||
+          (sp.city && sp.city.toLowerCase().includes(searchTerm)) ||
+          (sp.ownerName && sp.ownerName.toLowerCase().includes(searchTerm))
+        );
+      }
+    }
+    
+    return sharedProperties;
+  }
+  
+  async getSharedPropertyWithDetails(id: number): Promise<SharedPropertyWithDetails | undefined> {
+    const sharedProperty = await this.getSharedProperty(id);
+    if (!sharedProperty) return undefined;
+    
+    // Get tasks associated with this shared property
+    const tasks = Array.from(this.taskStore.values()).filter(
+      task => task.sharedPropertyId === id
+    );
+    
+    // Get communications associated with this shared property
+    const communications = Array.from(this.communicationStore.values()).filter(
+      comm => comm.sharedPropertyId === id
+    );
+    
+    // Get potential matching buyers
+    const matchingBuyers: ClientWithDetails[] = [];
+    if (sharedProperty.matchBuyers && sharedProperty.size && sharedProperty.price) {
+      // Find potential buyers based on basic criteria
+      const buyers = Array.from(this.buyerStore.values());
+      for (const buyer of buyers) {
+        if (
+          (!buyer.minSize || sharedProperty.size >= buyer.minSize) &&
+          (!buyer.maxPrice || sharedProperty.price <= buyer.maxPrice)
+        ) {
+          const client = await this.getClientWithDetails(buyer.clientId);
+          if (client) {
+            matchingBuyers.push(client);
+          }
+        }
+      }
+    }
+    
+    // Combine all activities (tasks and communications) to find the latest
+    const allActivities = [...tasks, ...communications];
+    allActivities.sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+    
+    const lastActivity = allActivities.length > 0 ? allActivities[0] : undefined;
+    
+    return {
+      ...sharedProperty,
+      tasks,
+      communications,
+      lastActivity,
+      matchingBuyers
+    };
+  }
+  
+  async createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty> {
+    const id = this.sharedPropertyIdCounter++;
+    const newSharedProperty: SharedProperty = { 
+      id, 
+      ...sharedProperty,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.sharedPropertyStore.set(id, newSharedProperty);
+    return newSharedProperty;
+  }
+  
+  async updateSharedProperty(id: number, data: Partial<InsertSharedProperty>): Promise<SharedProperty | undefined> {
+    const existingSharedProperty = await this.getSharedProperty(id);
+    if (!existingSharedProperty) return undefined;
+    
+    const updatedSharedProperty: SharedProperty = {
+      ...existingSharedProperty,
+      ...data,
+      updatedAt: new Date()
+    };
+    
+    this.sharedPropertyStore.set(id, updatedSharedProperty);
+    return updatedSharedProperty;
+  }
+  
+  async acquireSharedProperty(id: number): Promise<boolean> {
+    const sharedProperty = await this.getSharedProperty(id);
+    if (!sharedProperty) return false;
+    
+    // Mark property as acquired
+    const updatedProperty = await this.updateSharedProperty(id, {
+      isAcquired: true,
+      stage: 'result',
+      stageResult: 'acquired'
+    });
+    
+    if (!updatedProperty) return false;
+    
+    // If we have owner info, create a new client (seller) 
+    if (sharedProperty.ownerName) {
+      const nameParts = sharedProperty.ownerName.split(' ');
+      const firstName = nameParts[0] || 'Nome';
+      const lastName = nameParts.slice(1).join(' ') || 'Cognome';
+      
+      // Create client
+      const client = await this.createClient({
+        type: 'seller',
+        salutation: 'Sig.',
+        firstName,
+        lastName,
+        phone: sharedProperty.ownerPhone || '',
+        email: sharedProperty.ownerEmail || '',
+        notes: sharedProperty.ownerNotes || '',
+        isFriend: false,
+        contractType: 'standard'
+      });
+      
+      // Create/update property information
+      const propertyData: InsertProperty = {
+        address: sharedProperty.address,
+        city: sharedProperty.city || 'Sconosciuta',
+        type: sharedProperty.type || 'apartment',
+        size: sharedProperty.size || 0,
+        price: sharedProperty.price || 0,
+        bedrooms: 0,
+        bathrooms: 0,
+        description: '',
+        status: 'available',
+        isShared: false,
+        isOwned: true,
+        location: sharedProperty.location,
+      };
+      
+      let property;
+      if (sharedProperty.propertyId) {
+        // Update existing property
+        property = await this.updateProperty(sharedProperty.propertyId, propertyData);
+      } else {
+        // Create new property
+        property = await this.createProperty(propertyData);
+      }
+      
+      if (property) {
+        // Associate client as seller with this property
+        await this.createSeller({
+          clientId: client.id,
+          propertyId: property.id
+        });
+        
+        // Copy tasks and communications to the new property/client
+        const tasks = Array.from(this.taskStore.values()).filter(
+          task => task.sharedPropertyId === id
+        );
+        
+        for (const task of tasks) {
+          await this.createTask({
+            ...task,
+            propertyId: property.id,
+            clientId: client.id,
+            sharedPropertyId: undefined
+          });
+        }
+        
+        const communications = Array.from(this.communicationStore.values()).filter(
+          comm => comm.sharedPropertyId === id
+        );
+        
+        for (const comm of communications) {
+          await this.createCommunication({
+            ...comm,
+            propertyId: property.id,
+            clientId: client.id,
+            sharedPropertyId: undefined
+          });
+        }
+        
+        // If matchBuyers is true, automatically send property to matching buyers
+        if (sharedProperty.matchBuyers) {
+          const matchingBuyers = await this.getMatchingBuyersForSharedProperty(id);
+          
+          for (const buyer of matchingBuyers) {
+            // Create a communication for each matching buyer
+            await this.createCommunication({
+              clientId: buyer.id,
+              propertyId: property.id,
+              type: 'property_sent',
+              subject: 'Nuovo immobile corrispondente ai tuoi criteri',
+              content: `Gentile ${buyer.firstName},\nAbbiamo appena acquisito un immobile che potrebbe interessarti: ${property.address} (${property.size}mq a ${property.price}€).`,
+              direction: 'outbound',
+              status: 'pending',
+              needsFollowUp: true,
+              followUpDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days from now
+              createdBy: 1,
+            });
+          }
+        }
+      }
+    }
+    
+    return true;
+  }
+  
+  async deleteSharedProperty(id: number): Promise<boolean> {
+    return this.sharedPropertyStore.delete(id);
+  }
+  
+  async getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]> {
+    const sharedProperty = await this.getSharedProperty(sharedPropertyId);
+    if (!sharedProperty || !sharedProperty.size || !sharedProperty.price) {
+      return [];
+    }
+    
+    const matchingBuyers: ClientWithDetails[] = [];
+    
+    // Find potential buyers based on criteria
+    const buyers = Array.from(this.buyerStore.values());
+    for (const buyer of buyers) {
+      if (
+        (!buyer.minSize || sharedProperty.size >= buyer.minSize) &&
+        (!buyer.maxPrice || sharedProperty.price <= buyer.maxPrice)
+      ) {
+        const client = await this.getClientWithDetails(buyer.clientId);
+        if (client) {
+          matchingBuyers.push(client);
+        }
+      }
+    }
+    
+    return matchingBuyers;
+  }
 }
 
 // Export a single storage instance

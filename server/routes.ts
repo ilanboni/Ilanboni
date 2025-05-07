@@ -294,8 +294,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API per proprietà condivise
   
+  // Get shared properties with optional filters
+  app.get("/api/shared-properties", async (req: Request, res: Response) => {
+    try {
+      const { stage, search } = req.query;
+      
+      const filters: { stage?: string; search?: string } = {};
+      if (stage) filters.stage = stage as string;
+      if (search) filters.search = search as string;
+      
+      const sharedProperties = await storage.getSharedProperties(filters);
+      res.json(sharedProperties);
+    } catch (error) {
+      console.error("[GET /api/shared-properties]", error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà condivise" });
+    }
+  });
+  
+  // Get shared property details
+  app.get("/api/shared-properties/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const sharedProperty = await storage.getSharedPropertyWithDetails(id);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      res.json(sharedProperty);
+    } catch (error) {
+      console.error(`[GET /api/shared-properties/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante il recupero della proprietà condivisa" });
+    }
+  });
+  
   // Crea una proprietà condivisa
-  app.post("/api/properties/shared", async (req: Request, res: Response) => {
+  app.post("/api/shared-properties", async (req: Request, res: Response) => {
     try {
       // Valida i dati in ingresso
       const result = insertSharedPropertySchema.safeParse(req.body);
@@ -310,8 +347,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newSharedProperty = await storage.createSharedProperty(result.data);
       res.status(201).json(newSharedProperty);
     } catch (error) {
-      console.error("[POST /api/properties/shared]", error);
-      res.status(500).json({ error: "Errore durante la creazione della condivisione dell'immobile" });
+      console.error("[POST /api/shared-properties]", error);
+      res.status(500).json({ error: "Errore durante la creazione della proprietà condivisa" });
+    }
+  });
+  
+  // Update shared property
+  app.patch("/api/shared-properties/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const sharedProperty = await storage.getSharedProperty(id);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      // Validate the update data
+      const result = insertSharedPropertySchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Dati aggiornamento non validi", 
+          details: result.error.format() 
+        });
+      }
+      
+      const updatedSharedProperty = await storage.updateSharedProperty(id, result.data);
+      res.json(updatedSharedProperty);
+    } catch (error) {
+      console.error(`[PATCH /api/shared-properties/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento della proprietà condivisa" });
+    }
+  });
+  
+  // Acquire a shared property
+  app.post("/api/shared-properties/:id/acquire", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const sharedProperty = await storage.getSharedProperty(id);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      const success = await storage.acquireSharedProperty(id);
+      if (!success) {
+        return res.status(500).json({ error: "Errore durante l'acquisizione della proprietà condivisa" });
+      }
+      
+      res.json({ success: true, message: "Proprietà acquisita con successo" });
+    } catch (error) {
+      console.error(`[POST /api/shared-properties/${req.params.id}/acquire]`, error);
+      res.status(500).json({ error: "Errore durante l'acquisizione della proprietà condivisa" });
+    }
+  });
+  
+  // Delete shared property
+  app.delete("/api/shared-properties/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const sharedProperty = await storage.getSharedProperty(id);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      const success = await storage.deleteSharedProperty(id);
+      if (!success) {
+        return res.status(500).json({ error: "Errore durante l'eliminazione della proprietà condivisa" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error(`[DELETE /api/shared-properties/${req.params.id}]`, error);
+      res.status(500).json({ error: "Errore durante l'eliminazione della proprietà condivisa" });
+    }
+  });
+  
+  // Get matching buyers for a shared property
+  app.get("/api/shared-properties/:id/matching-buyers", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const sharedProperty = await storage.getSharedProperty(id);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      const matchingBuyers = await storage.getMatchingBuyersForSharedProperty(id);
+      res.json(matchingBuyers);
+    } catch (error) {
+      console.error(`[GET /api/shared-properties/${req.params.id}/matching-buyers]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei compratori corrispondenti" });
     }
   });
   
