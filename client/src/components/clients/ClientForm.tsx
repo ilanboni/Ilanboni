@@ -539,10 +539,13 @@ export default function ClientForm({
                     <FormLabel>Area geografica di ricerca</FormLabel>
                     <FormControl>
                       <div className="h-[350px] mt-2 rounded-md border">
-                        <MapAreaSelector 
-                          initialArea={field.value}
-                          onAreaSelected={(area) => field.onChange(area)} 
-                        />
+                        <div className="relative w-full h-full">
+                          <MapAreaSelector 
+                            initialArea={field.value}
+                            onAreaSelected={(area) => field.onChange(area)} 
+                            className="w-full h-full"
+                          />
+                        </div>
                       </div>
                     </FormControl>
                     <FormMessage />

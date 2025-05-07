@@ -70,8 +70,14 @@ export function MapAreaSelector({
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(mapInstanceRef.current);
       
-      // Initialize feature group for drawn items
-      drawnItemsRef.current = new L.FeatureGroup();
+      // Initialize feature group for drawn items - assicuriamoci che FeatureGroup sia disponibile
+      // Se L.FeatureGroup non esiste, utilizziamo L.LayerGroup come fallback
+      if (L.FeatureGroup) {
+        drawnItemsRef.current = new L.FeatureGroup();
+      } else {
+        console.warn("L.FeatureGroup non disponibile, utilizzo L.LayerGroup");
+        drawnItemsRef.current = new L.LayerGroup();
+      }
       mapInstanceRef.current.addLayer(drawnItemsRef.current);
       
       // Initialize draw control
@@ -138,10 +144,16 @@ export function MapAreaSelector({
         drawnItemsRef.current.clearLayers();
         
         // Add the polygon from GeoJSON
-        const layer = L.geoJSON(parsedArea);
-        layer.eachLayer((l) => {
-          drawnItemsRef.current.addLayer(l);
-        });
+        try {
+          const layer = L.geoJSON(parsedArea);
+          if (layer) {
+            layer.eachLayer((l) => {
+              drawnItemsRef.current.addLayer(l);
+            });
+          }
+        } catch (error) {
+          console.error("Errore nel caricamento del GeoJSON:", error);
+        }
         
         // Fit map to the bounds of the area
         if (drawnItemsRef.current.getBounds().isValid()) {
