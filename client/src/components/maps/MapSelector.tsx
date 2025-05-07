@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Search } from "lucide-react";
 
 // Add window properties to avoid TypeScript errors
 declare global {
@@ -19,18 +21,24 @@ interface MapSelectorProps {
   initialLocation?: { lat?: number; lng?: number } | null;
   onLocationSelected: (location: { lat: number; lng: number } | null) => void;
   className?: string;
+  address?: string;
+  autoGeocode?: boolean;
 }
 
 export function MapSelector({
   initialLocation,
   onLocationSelected,
-  className
+  className,
+  address,
+  autoGeocode = false
 }: MapSelectorProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(address || "");
+  const [isSearching, setIsSearching] = useState(false);
   
   useEffect(() => {
     // Load Leaflet-draw dynamically
@@ -53,6 +61,13 @@ export function MapSelector({
       setIsMapLoaded(true);
     }
   }, []);
+  
+  // Effetto per geocodificare automaticamente un indirizzo quando viene fornito e autoGeocode è true
+  useEffect(() => {
+    if (isMapLoaded && autoGeocode && address && address.trim() !== "" && mapInstanceRef.current) {
+      geocodeAddress(address);
+    }
+  }, [isMapLoaded, autoGeocode, address]);
   
   useEffect(() => {
     if (!isMapLoaded || !mapRef.current || !window.L) return;
@@ -120,8 +135,85 @@ export function MapSelector({
     }
   };
   
+  const geocodeAddress = async (addressToGeocode: string) => {
+    if (!addressToGeocode.trim()) return;
+    
+    setIsSearching(true);
+    
+    try {
+      // Use Nominatim for geocoding
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressToGeocode)}`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const location = {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
+        };
+        
+        // Remove existing marker if any
+        if (markerRef.current && mapInstanceRef.current) {
+          mapInstanceRef.current.removeLayer(markerRef.current);
+        }
+        
+        // Add new marker
+        markerRef.current = L.marker([location.lat, location.lng]).addTo(mapInstanceRef.current);
+        
+        // Update location
+        onLocationSelected(location);
+        
+        // Center map on marker
+        mapInstanceRef.current.setView([location.lat, location.lng], 16);
+      } else {
+        console.log("Indirizzo non trovato");
+      }
+    } catch (error) {
+      console.error("Errore nella geocodifica:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    geocodeAddress(searchQuery);
+  };
+  
   return (
     <div className={cn("relative", className)}>
+      <div className="absolute top-2 left-2 right-2 z-[400] bg-white rounded shadow-sm flex">
+        <div className="flex flex-1">
+          <Input
+            type="text"
+            placeholder="Cerca indirizzo..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="rounded-r-none border-r-0"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSearch(e);
+              }
+            }}
+          />
+          <Button 
+            type="button" 
+            variant="default" 
+            className="rounded-l-none px-3"
+            disabled={isSearching}
+            onClick={handleSearch}
+          >
+            {isSearching ? (
+              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+      
       <div ref={mapRef} className="h-full min-h-[250px] rounded-md z-0" />
       
       <div className="absolute bottom-2 right-2 z-[400]">
@@ -146,8 +238,8 @@ export function MapSelector({
       )}
       
       {isMapLoaded && (
-        <div className="absolute top-2 left-2 z-[400] bg-white p-2 rounded shadow-sm text-xs text-gray-600">
-          Clicca sulla mappa per selezionare la posizione dell'immobile
+        <div className="absolute top-16 left-2 z-[400] bg-white p-2 rounded shadow-sm text-xs text-gray-600">
+          Cerca un indirizzo o clicca sulla mappa per selezionare la posizione
         </div>
       )}
     </div>

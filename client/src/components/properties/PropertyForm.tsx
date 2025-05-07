@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,7 +10,8 @@ import {
   FormField, 
   FormItem, 
   FormLabel, 
-  FormMessage 
+  FormMessage,
+  FormDescription
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { PropertyWithDetails } from "@/types";
 import { PROPERTY_TYPES, CITY_AREAS } from "@/lib/constants";
-import MapLocationSelector from "../maps/MapLocationSelector";
+import { MapSelector } from "../maps/MapSelector";
 
 // Schema for property form
 const propertyFormSchema = z.object({
@@ -380,12 +381,17 @@ export default function PropertyForm({
                     <FormLabel>Posizione sulla mappa</FormLabel>
                     <FormControl>
                       <div className="h-[350px] mt-2 rounded-md border">
-                        <MapLocationSelector 
-                          value={field.value}
-                          onChange={field.onChange} 
+                        <MapSelector 
+                          initialLocation={field.value}
+                          onLocationSelected={field.onChange}
+                          address={form.getValues("address") + ", " + form.getValues("city")}
+                          autoGeocode={true}
                         />
                       </div>
                     </FormControl>
+                    <FormDescription>
+                      La posizione viene geocodificata automaticamente in base all'indirizzo inserito
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -531,18 +537,4 @@ export default function PropertyForm({
   );
 }
 
-// Basic Map Location Selector Component - would be replaced with actual implementation
-function MapLocationSelector({ value, onChange }: { value: any, onChange: (value: any) => void }) {
-  return (
-    <div className="flex items-center justify-center h-full bg-gray-100 text-center p-4">
-      <div>
-        <p className="text-gray-500 mb-4">
-          Qui verrà caricata la mappa per selezionare la posizione dell'immobile.
-        </p>
-        <p className="text-sm text-gray-400">
-          Clicca sulla mappa per indicare la posizione esatta dell'immobile.
-        </p>
-      </div>
-    </div>
-  );
-}
+
