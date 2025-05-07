@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -44,6 +45,7 @@ export function SimpleAreaSelector({
   
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [searchAddress, setSearchAddress] = useState("");
   
   // Inizializza la mappa
   useEffect(() => {
@@ -220,10 +222,82 @@ export function SimpleAreaSelector({
     onAreaSelected(null);
   };
   
+  // Funzione per cercare un indirizzo
+  const searchForAddress = async () => {
+    if (!searchAddress || !mapInstanceRef.current) return;
+    
+    try {
+      // Utilizziamo Nominatim, il servizio di geocoding di OpenStreetMap
+      const query = encodeURIComponent(searchAddress);
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`);
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        // Prendiamo il primo risultato
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lon = parseFloat(result.lon);
+        
+        // Centra la mappa sui risultati
+        mapInstanceRef.current.setView([lat, lon], 15);
+        
+        // Opzionalmente, aggiungi un marker temporaneo per mostrare il punto trovato
+        const marker = L.marker([lat, lon]).addTo(mapInstanceRef.current);
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.removeLayer(marker);
+          }
+        }, 5000); // Rimuovi il marker dopo 5 secondi
+      } else {
+        alert("Indirizzo non trovato. Prova con un'altra query.");
+      }
+    } catch (error) {
+      console.error("Errore nella ricerca dell'indirizzo:", error);
+      alert("Si è verificato un errore durante la ricerca dell'indirizzo. Riprova.");
+    }
+  };
+  
   return (
     <div className={cn("relative", className)}>
+      {/* Box di ricerca indirizzo */}
+      <div className="absolute top-2 left-2 z-[400] bg-white p-2 rounded shadow-md w-[calc(100%-4rem)] max-w-md flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Input
+            type="text"
+            placeholder="Cerca un indirizzo (es. Via Roma, Milano)"
+            value={searchAddress}
+            onChange={(e) => setSearchAddress(e.target.value)}
+            className="flex-1 text-sm h-8"
+            onKeyDown={(e) => e.key === 'Enter' && searchForAddress()}
+          />
+          <Button 
+            type="button" 
+            variant="default" 
+            size="sm"
+            onClick={searchForAddress}
+            className="h-8 px-3"
+          >
+            Cerca
+          </Button>
+        </div>
+        
+        {isDrawing && (
+          <div className="text-xs text-gray-600 px-1">
+            Clicca sulla mappa per aggiungere punti all'area
+          </div>
+        )}
+        
+        {!isDrawing && (
+          <div className="text-xs text-gray-600 px-1">
+            Clicca "Inizia disegno" per delimitare un'area
+          </div>
+        )}
+      </div>
+      
+      {/* Mappa */}
       <div ref={mapRef} className="h-full min-h-[250px] rounded-md z-0" />
       
+      {/* Pulsanti di controllo */}
       <div className="absolute bottom-2 right-2 z-[400] flex gap-2">
         <Button 
           type="button" 
@@ -246,24 +320,13 @@ export function SimpleAreaSelector({
         </Button>
       </div>
       
+      {/* Indicatore di caricamento */}
       {!isMapLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-70 rounded-md">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
             <p className="mt-2 text-sm text-gray-600">Caricamento mappa...</p>
           </div>
-        </div>
-      )}
-      
-      {isMapLoaded && isDrawing && (
-        <div className="absolute top-2 left-2 z-[400] bg-white p-2 rounded shadow-sm text-xs text-gray-600">
-          Clicca sulla mappa per aggiungere punti all'area
-        </div>
-      )}
-      
-      {isMapLoaded && !isDrawing && (
-        <div className="absolute top-2 left-2 z-[400] bg-white p-2 rounded shadow-sm text-xs text-gray-600">
-          Clicca "Inizia disegno" per delimitare un'area
         </div>
       )}
     </div>
