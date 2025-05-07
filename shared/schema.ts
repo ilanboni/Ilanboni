@@ -77,11 +77,26 @@ export const properties = pgTable("properties", {
 export const sharedProperties = pgTable("shared_properties", {
   id: serial("id").primaryKey(),
   propertyId: integer("property_id").notNull().references(() => properties.id),
-  agencyName: text("agency_name").notNull(),
-  contactPerson: text("contact_person"),
-  contactPhone: text("contact_phone"),
-  contactEmail: text("contact_email"),
-  isAcquired: boolean("is_acquired").default(false)
+  address: text("address").notNull(),
+  city: text("city"),
+  size: integer("size"),
+  price: integer("price"),
+  type: text("type"), // apartment, house, villa, etc.
+  ownerName: text("owner_name"),
+  ownerPhone: text("owner_phone"),
+  ownerEmail: text("owner_email"),
+  ownerNotes: text("owner_notes"),
+  agency1Link: text("agency1_link"),
+  agency2Link: text("agency2_link"),
+  agency3Link: text("agency3_link"),
+  rating: integer("rating").default(3), // 1-5 scale of importance/quality
+  stage: text("stage").default("address_found"), // address_found, owner_found, owner_contact_found, owner_contacted, result
+  stageResult: text("stage_result"), // acquired, rejected, pending
+  isAcquired: boolean("is_acquired").default(false),
+  matchBuyers: boolean("match_buyers").default(false), // whether to match with buyers
+  location: jsonb("location"), // lat/lng
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
 });
 
 // Appointments
@@ -106,6 +121,7 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   clientId: integer("client_id").references(() => clients.id),
   propertyId: integer("property_id").references(() => properties.id),
+  sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
   dueDate: date("due_date").notNull(),
   status: text("status").default("pending"), // pending, completed, cancelled
   assignedTo: integer("assigned_to").references(() => users.id),
@@ -115,8 +131,9 @@ export const tasks = pgTable("tasks", {
 // Client communications
 export const communications = pgTable("communications", {
   id: serial("id").primaryKey(),
-  clientId: integer("client_id").notNull().references(() => clients.id),
+  clientId: integer("client_id").references(() => clients.id),
   propertyId: integer("property_id").references(() => properties.id),
+  sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
   type: text("type").notNull(), // email, call, whatsapp, property_sent, meeting, etc.
   subject: text("subject").notNull(),
   content: text("content"),
@@ -204,4 +221,11 @@ export type PropertyWithDetails = Property & {
   interestedClients?: ClientWithDetails[];
   communications?: Communication[];
   lastCommunication?: Communication;
+};
+
+export type SharedPropertyWithDetails = SharedProperty & {
+  tasks?: Task[];
+  communications?: Communication[];
+  lastActivity?: Communication | Task;
+  matchingBuyers?: ClientWithDetails[];
 };

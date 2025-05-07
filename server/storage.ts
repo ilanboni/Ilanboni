@@ -54,9 +54,13 @@ export interface IStorage {
   // Shared property methods
   getSharedProperty(id: number): Promise<SharedProperty | undefined>;
   getSharedPropertyByPropertyId(propertyId: number): Promise<SharedProperty | undefined>;
+  getSharedProperties(filters?: { stage?: string; search?: string }): Promise<SharedProperty[]>;
+  getSharedPropertyWithDetails(id: number): Promise<SharedPropertyWithDetails | undefined>;
   createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty>;
   updateSharedProperty(id: number, data: Partial<InsertSharedProperty>): Promise<SharedProperty | undefined>;
+  acquireSharedProperty(id: number): Promise<boolean>;
   deleteSharedProperty(id: number): Promise<boolean>;
+  getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]>;
   
   // Appointment methods
   getAppointment(id: number): Promise<Appointment | undefined>;
