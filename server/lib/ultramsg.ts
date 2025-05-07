@@ -146,7 +146,11 @@ export class UltraMsgClient {
       }
 
       // Estrai il numero di telefono
-      const phone = webhookData.from.replace(/^\+/, '');
+      const phone = webhookData.from?.replace(/^\+/, '');
+      if (!phone) {
+        console.warn('Numero di telefono mancante nel webhook');
+        return null;
+      }
       
       // Cerca il cliente in base al numero di telefono
       const client = await storage.getClientByPhone(phone);

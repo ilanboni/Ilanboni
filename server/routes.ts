@@ -965,6 +965,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API per WhatsApp con UltraMsg
+  
+  // Endpoint per inviare messaggi WhatsApp tramite UltraMsg
+  app.post("/api/whatsapp/send", async (req: Request, res: Response) => {
+    try {
+      const { clientId, message, priority } = req.body;
+      
+      if (!clientId || !message) {
+        return res.status(400).json({ 
+          error: "Dati mancanti", 
+          details: "clientId e message sono campi obbligatori" 
+        });
+      }
+      
+      // Ottieni il cliente
+      const client = await storage.getClient(parseInt(clientId));
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      if (!client.phone) {
+        return res.status(400).json({ error: "Il cliente non ha un numero di telefono registrato" });
+      }
+      
+      try {
+        // Ottieni il client di UltraMsg
+        const ultraMsgClient = getUltraMsgClient();
+        
+        // Invia il messaggio e salvalo nel database
+        const communication = await ultraMsgClient.sendAndStoreCommunication(
+          client.id, 
+          client.phone, 
+          message
+        );
+        
+        res.status(201).json({
+          success: true,
+          message: "Messaggio WhatsApp inviato con successo",
+          communication
+        });
+      } catch (apiError: any) {
+        console.error("[POST /api/whatsapp/send] Errore API UltraMsg:", apiError);
+        res.status(500).json({ 
+          error: "Errore durante l'invio del messaggio WhatsApp", 
+          details: apiError.message || "Errore API sconosciuto" 
+        });
+      }
+    } catch (error: any) {
+      console.error("[POST /api/whatsapp/send]", error);
+      res.status(500).json({ 
+        error: "Errore durante l'invio del messaggio WhatsApp", 
+        details: error.message || "Errore sconosciuto" 
+      });
+    }
+  });
+  
+  // Webhook per ricevere messaggi WhatsApp tramite UltraMsg
+  app.post("/api/whatsapp/webhook", async (req: Request, res: Response) => {
+    try {
+      // Verifica se è una notifica di messaggio valida
+      const webhookData = req.body;
+      
+      if (!webhookData || !webhookData.event_type) {
+        return res.status(400).json({ error: "Formato webhook non valido" });
+      }
+      
+      // Elabora solo gli eventi di tipo "message"
+      if (webhookData.event_type === "message" && !webhookData.from_me) {
+        try {
+          // Ottieni il client di UltraMsg
+          const ultraMsgClient = getUltraMsgClient();
+          
+          // Processa il messaggio in arrivo
+          const communication = await ultraMsgClient.processIncomingWebhook(webhookData);
+          
+          if (communication) {
+            // Crea un task per il follow-up se necessario
+            if (communication.needsFollowUp) {
+              const dueDate = new Date();
+              dueDate.setDate(dueDate.getDate() + 1); // Scadenza: domani
+              
+              await storage.createTask({
+                type: "follow_up",
+                title: "Rispondere al messaggio WhatsApp",
+                description: `Rispondere al messaggio WhatsApp del cliente: "${communication.summary}"`,
+                clientId: communication.clientId,
+                status: "pending",
+                dueDate: dueDate.toISOString().split('T')[0],
+                assignedTo: 1 // Assegnato all'agente predefinito
+              });
+            }
+            
+            return res.status(200).json({
+              success: true,
+              message: "Webhook elaborato con successo",
+              communication
+            });
+          }
+        } catch (processError: any) {
+          console.error("[POST /api/whatsapp/webhook] Errore nel processare il messaggio:", processError);
+        }
+      }
+      
+      // Rispondi sempre con 200 per confermare la ricezione (anche se non elaborato)
+      res.status(200).json({ success: true });
+    } catch (error: any) {
+      console.error("[POST /api/whatsapp/webhook]", error);
+      // Rispondi sempre con 200 per confermare la ricezione (anche in caso di errore)
+      res.status(200).json({ success: true });
+    }
+  });
+
   // Altri endpoint API esistenti
 
   const httpServer = createServer(app);
