@@ -316,7 +316,7 @@ export default function ClientCard({
               <div className="text-sm font-medium mt-1">
                 {formatCurrency(client.properties[0].price)}
               </div>
-              {client.seller.rating && (
+              {client.seller && 'rating' in client.seller && client.seller.rating && (
                 <div className="mt-2">
                   {renderRating(client.seller.rating)}
                 </div>
