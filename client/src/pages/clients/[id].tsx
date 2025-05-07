@@ -141,8 +141,10 @@ export default function ClientDetailPage() {
   }
   
   // Get name initials for avatar
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (firstName: string | null | undefined, lastName: string | null | undefined) => {
+    const firstInitial = firstName && firstName.length > 0 ? firstName.charAt(0) : '';
+    const lastInitial = lastName && lastName.length > 0 ? lastName.charAt(0) : '';
+    return `${firstInitial}${lastInitial}`.toUpperCase();
   };
   
   // Format client type
