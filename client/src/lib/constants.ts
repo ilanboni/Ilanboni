@@ -127,14 +127,12 @@ export const RELIGIONS = [
 
 // Salutations for clients
 export const SALUTATIONS = [
-  { value: "dott", label: "Dott." },
-  { value: "dott.ssa", label: "Dott.ssa" },
-  { value: "sig", label: "Sig." },
-  { value: "sig.ra", label: "Sig.ra" },
-  { value: "ing", label: "Ing." },
-  { value: "avv", label: "Avv." },
-  { value: "prof", label: "Prof." },
-  { value: "prof.ssa", label: "Prof.ssa" }
+  { value: "egr_dott", label: "Egr. Dott." },
+  { value: "gentma_sigra", label: "Gent.ma Sig.ra" },
+  { value: "egr_avvto", label: "Egr. Avv.to" },
+  { value: "caro", label: "Caro" },
+  { value: "cara", label: "Cara" },
+  { value: "ciao", label: "Ciao" }
 ];
 
 // Task priorities

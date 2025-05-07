@@ -73,14 +73,12 @@ export default function RecentClients() {
 
   const formatSalutation = (salutation: string): string => {
     switch (salutation) {
-      case "dott": return "Dott.";
-      case "dott.ssa": return "Dott.ssa";
-      case "sig": return "Sig.";
-      case "sig.ra": return "Sig.ra";
-      case "ing": return "Ing.";
-      case "avv": return "Avv.";
-      case "prof": return "Prof.";
-      case "prof.ssa": return "Prof.ssa";
+      case "egr_dott": return "Egr. Dott.";
+      case "gentma_sigra": return "Gent.ma Sig.ra";
+      case "egr_avvto": return "Egr. Avv.to";
+      case "caro": return "Caro";
+      case "cara": return "Cara";
+      case "ciao": return "Ciao";
       default: return "";
     }
   };
