@@ -540,8 +540,8 @@ export default function ClientForm({
                     <FormControl>
                       <div className="h-[350px] mt-2 rounded-md border">
                         <MapSelector 
-                          value={field.value}
-                          onChange={field.onChange} 
+                          initialLocation={field.value}
+                          onLocationSelected={(location) => field.onChange(location)} 
                         />
                       </div>
                     </FormControl>
