@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { ClientType } from "@/types";
-import { ClientWithDetails } from "@shared/schema";
+import type { ClientType } from "@/types";
+import type { ClientWithDetails } from "@shared/schema";
 import ClientCard from "@/components/clients/ClientCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,7 +82,8 @@ export default function ClientsPage() {
   };
   
   const handleViewClient = (client: ClientWithDetails) => {
-    setClientToView(client);
+    // Invece di mostrare il modal, navigiamo alla pagina di dettaglio completa
+    navigate(`/clients/${client.id}`);
   };
   
   const handleDeleteClient = async (client: ClientWithDetails) => {

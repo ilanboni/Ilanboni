@@ -23,7 +23,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClientWithDetails, ClientType } from "@/types";
+import type { ClientType } from "@/types";
+import type { ClientWithDetails } from "@shared/schema";
 import { 
   User, 
   Phone, 
@@ -157,7 +158,7 @@ export default function ClientCard({
             variant="outline" 
             onClick={() => onView(client)}
           >
-            Dettagli
+            Visualizza completo
           </Button>
         </CardFooter>
       </Card>
@@ -327,7 +328,7 @@ export default function ClientCard({
       
       <CardFooter className="flex justify-between">
         <Button variant="outline" size="sm" onClick={() => onView(client)}>
-          <Eye className="mr-2 h-4 w-4" /> Dettagli
+          <Eye className="mr-2 h-4 w-4" /> Scheda completa
         </Button>
         
         <div className="flex space-x-2">
