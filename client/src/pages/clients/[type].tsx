@@ -105,6 +105,9 @@ export default function ClientsByTypePage() {
   
   // Handle form submission
   const handleSubmit = (data: any) => {
+    // Log dei dati ricevuti dal form per debug
+    console.log("Dati form ricevuti:", data);
+    
     // Aggiorna il tipo di cliente prima di inviare
     setClientType(data.type as ClientType);
     
@@ -127,20 +130,23 @@ export default function ClientsByTypePage() {
     if (data.type === 'buyer') {
       clientData.buyer = {
         searchArea: data.searchArea,
-        minSize: data.minSize,
-        maxPrice: data.maxPrice,
-        urgency: data.urgency,
-        rating: data.rating,
-        searchNotes: data.searchNotes
+        minSize: data.minSize ? Number(data.minSize) : null,
+        maxPrice: data.maxPrice ? Number(data.maxPrice) : null,
+        urgency: data.urgency ? Number(data.urgency) : 3,
+        rating: data.rating ? Number(data.rating) : 3,
+        searchNotes: data.searchNotes || ""
       };
     } else if (data.type === 'seller') {
       clientData.seller = {
         propertyAddress: data.propertyAddress,
-        propertySize: data.propertySize,
-        propertyPrice: data.propertyPrice,
-        propertyNotes: data.propertyNotes
+        propertySize: data.propertySize ? Number(data.propertySize) : 0,
+        propertyPrice: data.propertyPrice ? Number(data.propertyPrice) : 0,
+        propertyNotes: data.propertyNotes || ""
       };
     }
+    
+    // Log dei dati formattati per debug
+    console.log("Dati inviati al server:", clientData);
     
     // Invia i dati formattati
     saveClientMutation.mutate(clientData);

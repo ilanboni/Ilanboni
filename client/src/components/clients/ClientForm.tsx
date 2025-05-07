@@ -93,6 +93,10 @@ export default function ClientForm({
     initialData?.type as ClientType || "buyer"
   );
   
+  // Debug info
+  console.log("ClientForm - initialData:", initialData);
+  console.log("ClientForm - buyerPreferences:", buyerPreferences);
+  
   // Form initialization
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
@@ -109,14 +113,18 @@ export default function ClientForm({
       contractType: initialData.contractType as "rent" | "sale" | undefined,
       notes: initialData.notes || "",
       // Buyer fields - prima utilizza le preferenze separate, poi fallback sui dati cliente
-      searchArea: buyerPreferences?.searchArea || initialData.buyer?.searchArea || undefined,
-      minSize: buyerPreferences?.minSize || initialData.buyer?.minSize || undefined,
-      maxPrice: buyerPreferences?.maxPrice || initialData.buyer?.maxPrice || undefined,
-      urgency: buyerPreferences?.urgency || initialData.buyer?.urgency || 3,
-      rating: buyerPreferences?.rating || initialData.buyer?.rating || 3,
+      searchArea: buyerPreferences?.searchArea || initialData.buyer?.searchArea || null,
+      minSize: buyerPreferences?.minSize !== undefined ? Number(buyerPreferences.minSize) : 
+             initialData.buyer?.minSize !== undefined ? Number(initialData.buyer.minSize) : null,
+      maxPrice: buyerPreferences?.maxPrice !== undefined ? Number(buyerPreferences.maxPrice) : 
+              initialData.buyer?.maxPrice !== undefined ? Number(initialData.buyer.maxPrice) : null,
+      urgency: buyerPreferences?.urgency !== undefined ? Number(buyerPreferences.urgency) : 
+              initialData.buyer?.urgency !== undefined ? Number(initialData.buyer.urgency) : 3,
+      rating: buyerPreferences?.rating !== undefined ? Number(buyerPreferences.rating) : 
+             initialData.buyer?.rating !== undefined ? Number(initialData.buyer.rating) : 3,
       searchNotes: buyerPreferences?.searchNotes || initialData.buyer?.searchNotes || "",
-      // Seller fields - we would need to extend the interface to include these
-      propertyAddress: "",
+      // Seller fields - necessario estendere l'interfaccia per includere questi
+      propertyAddress: initialData.seller?.propertyId?.toString() || "",
       propertySize: 0,
       propertyPrice: 0,
       propertyNotes: ""
@@ -133,11 +141,11 @@ export default function ClientForm({
       contractType: undefined,
       notes: "",
       // Default buyer values - utilizza le preferenze separate se disponibili
-      searchArea: buyerPreferences?.searchArea || undefined,
-      minSize: buyerPreferences?.minSize || undefined,
-      maxPrice: buyerPreferences?.maxPrice || undefined,
-      urgency: buyerPreferences?.urgency || 3,
-      rating: buyerPreferences?.rating || 3,
+      searchArea: buyerPreferences?.searchArea || null,
+      minSize: buyerPreferences?.minSize !== undefined ? Number(buyerPreferences.minSize) : null,
+      maxPrice: buyerPreferences?.maxPrice !== undefined ? Number(buyerPreferences.maxPrice) : null,
+      urgency: buyerPreferences?.urgency !== undefined ? Number(buyerPreferences.urgency) : 3,
+      rating: buyerPreferences?.rating !== undefined ? Number(buyerPreferences.rating) : 3,
       searchNotes: buyerPreferences?.searchNotes || "",
       // Default seller values
       propertyAddress: "",
@@ -146,6 +154,9 @@ export default function ClientForm({
       propertyNotes: ""
     }
   });
+  
+  // Log per debug
+  console.log("ClientForm - form default values:", form.formState.defaultValues);
   
   // Update form when tab changes
   const handleTabChange = (type: ClientType) => {
