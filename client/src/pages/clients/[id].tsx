@@ -82,7 +82,7 @@ export default function ClientDetailPage() {
   
   // Fetch matching shared properties
   const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
-    queryKey: ["/api/clients", id, "matching-shared-properties"],
+    queryKey: [`/api/clients/${id}/matching-shared-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
     queryFn: async () => {
       const response = await fetch(`/api/clients/${id}/matching-shared-properties`);
@@ -98,7 +98,7 @@ export default function ClientDetailPage() {
   
   // Fetch properties sent to client
   const { data: sentProperties, isLoading: isSentPropertiesLoading } = useQuery({
-    queryKey: ["/api/clients", id, "sent-properties"],
+    queryKey: [`/api/clients/${id}/sent-properties`],
     enabled: !isNaN(id),
     queryFn: async () => {
       const response = await fetch(`/api/clients/${id}/sent-properties`);
