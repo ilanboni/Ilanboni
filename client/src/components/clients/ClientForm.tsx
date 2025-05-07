@@ -42,7 +42,7 @@ import { RELIGIONS, SALUTATIONS } from "@/lib/constants";
 import { ClientType } from "@/types";
 import { ClientWithDetails } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import MapSelector from "../maps/MapSelector";
+import { MapSelector } from "../maps/MapSelector";
 
 // Schema definition for client form
 const clientFormSchema = z.object({

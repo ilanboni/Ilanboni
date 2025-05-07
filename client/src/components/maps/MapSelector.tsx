@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { GeoPolygon } from "@/types";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Aggiungiamo proprietà window per evitare errori TypeScript
+// Add window properties to avoid TypeScript errors
 declare global {
   interface Window {
     L: typeof L & {
@@ -17,27 +16,24 @@ declare global {
 }
 
 interface MapSelectorProps {
-  value?: any;
-  onChange: (value: any) => void;
+  initialLocation?: { lat?: number; lng?: number } | null;
+  onLocationSelected: (location: { lat: number; lng: number } | null) => void;
   className?: string;
-  readOnly?: boolean;
 }
 
-export default function MapSelector({
-  value,
-  onChange,
-  className,
-  readOnly = false
+export function MapSelector({
+  initialLocation,
+  onLocationSelected,
+  className
 }: MapSelectorProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
-  const drawControlRef = useRef<any>(null);
-  const drawnItemsRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
   
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   
   useEffect(() => {
-    // Carica dinamicamente Leaflet-draw
+    // Load Leaflet-draw dynamically
     if (!document.getElementById('leaflet-draw-css')) {
       const linkElement = document.createElement('link');
       linkElement.id = 'leaflet-draw-css';
@@ -63,113 +59,43 @@ export default function MapSelector({
     
     // Initialize map if it doesn't exist
     if (!mapInstanceRef.current) {
-      // Set default view to Milan, Italy
-      mapInstanceRef.current = L.map(mapRef.current).setView([45.4642, 9.1900], 12);
+      // Set default view to Milan, Italy or use initial location
+      const initialCenter = initialLocation 
+        ? [initialLocation.lat || 45.4642, initialLocation.lng || 9.1900] 
+        : [45.4642, 9.1900];
+      
+      mapInstanceRef.current = L.map(mapRef.current).setView(initialCenter, 13);
       
       // Add base tile layer
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(mapInstanceRef.current);
       
-      // Initialize feature group for drawn items
-      drawnItemsRef.current = new L.FeatureGroup();
-      mapInstanceRef.current.addLayer(drawnItemsRef.current);
-      
-      // Initialize draw control
-      if (!readOnly && window.L.Control.Draw) {
-        drawControlRef.current = new window.L.Control.Draw({
-          draw: {
-            marker: false,
-            circlemarker: false,
-            circle: false,
-            rectangle: true,
-            polyline: false,
-            polygon: {
-              allowIntersection: false,
-              showArea: true,
-              drawError: {
-                color: '#e1e100',
-                message: '<strong>Errore:</strong> Il poligono non può intersecare se stesso!'
-              },
-              shapeOptions: {
-                color: '#3b82f6'
-              }
-            }
-          },
-          edit: {
-            featureGroup: drawnItemsRef.current,
-            poly: {
-              allowIntersection: false
-            }
-          }
-        });
-        mapInstanceRef.current.addControl(drawControlRef.current);
+      // Setup click handler to set marker
+      mapInstanceRef.current.on('click', function(e: any) {
+        const { lat, lng } = e.latlng;
         
-        // Define draw events constants
-        const drawEvents = {
-          CREATED: 'draw:created',
-          EDITED: 'draw:edited',
-          DELETED: 'draw:deleted'
-        };
+        // Remove existing marker if any
+        if (markerRef.current) {
+          mapInstanceRef.current.removeLayer(markerRef.current);
+        }
         
-        // Handle draw events
-        mapInstanceRef.current.on(drawEvents.CREATED, function(e: any) {
-          const layer = e.layer;
-          
-          // Add layer to feature group
-          drawnItemsRef.current.addLayer(layer);
-          
-          // Get GeoJSON and update form
-          const geoJSON = drawnItemsRef.current.toGeoJSON();
-          if (geoJSON.features.length > 0) {
-            onChange({
-              type: 'Feature',
-              properties: { name: 'Search Area' },
-              geometry: geoJSON.features[0].geometry
-            });
-          }
-        });
+        // Add new marker
+        markerRef.current = L.marker([lat, lng]).addTo(mapInstanceRef.current);
         
-        mapInstanceRef.current.on(drawEvents.EDITED, function() {
-          // Update form when shapes are edited
-          const geoJSON = drawnItemsRef.current.toGeoJSON();
-          if (geoJSON.features.length > 0) {
-            onChange({
-              type: 'Feature',
-              properties: { name: 'Search Area' },
-              geometry: geoJSON.features[0].geometry
-            });
-          }
-        });
-        
-        mapInstanceRef.current.on(drawEvents.DELETED, function() {
-          // Clear form value when all shapes are deleted
-          if (drawnItemsRef.current.getLayers().length === 0) {
-            onChange(undefined);
-          }
-        });
-      }
+        // Update location
+        onLocationSelected({ lat, lng });
+      });
     }
     
-    // Load existing value if available
-    if (value && drawnItemsRef.current) {
-      // Clear existing layers
-      drawnItemsRef.current.clearLayers();
-      
-      try {
-        // Add layer from GeoJSON
-        const layer = L.geoJSON(value);
-        layer.eachLayer((l: any) => {
-          drawnItemsRef.current.addLayer(l);
-        });
-        
-        // Fit bounds to show the polygon
-        if (drawnItemsRef.current.getBounds().isValid()) {
-          mapInstanceRef.current.fitBounds(drawnItemsRef.current.getBounds());
-        }
-      } catch (error) {
-        console.error("Error loading GeoJSON data:", error);
+    // Add initial marker if location is provided
+    if (initialLocation && initialLocation.lat && initialLocation.lng) {
+      if (markerRef.current) {
+        mapInstanceRef.current.removeLayer(markerRef.current);
       }
+      
+      markerRef.current = L.marker([initialLocation.lat, initialLocation.lng]).addTo(mapInstanceRef.current);
+      mapInstanceRef.current.setView([initialLocation.lat, initialLocation.lng], 15);
     }
     
     // Fix map rendering issue
@@ -180,16 +106,17 @@ export default function MapSelector({
     // Cleanup function
     return () => {
       // Only remove controls and event listeners, keep map instance
-      if (drawControlRef.current && mapInstanceRef.current) {
-        mapInstanceRef.current.removeControl(drawControlRef.current);
+      if (markerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(markerRef.current);
       }
     };
-  }, [isMapLoaded, value, onChange, readOnly]);
+  }, [isMapLoaded, initialLocation, onLocationSelected]);
   
-  const handleClearSelection = () => {
-    if (drawnItemsRef.current) {
-      drawnItemsRef.current.clearLayers();
-      onChange(undefined);
+  const handleClearLocation = () => {
+    if (markerRef.current && mapInstanceRef.current) {
+      mapInstanceRef.current.removeLayer(markerRef.current);
+      markerRef.current = null;
+      onLocationSelected(null);
     }
   };
   
@@ -197,19 +124,17 @@ export default function MapSelector({
     <div className={cn("relative", className)}>
       <div ref={mapRef} className="h-full min-h-[250px] rounded-md z-0" />
       
-      {!readOnly && (
-        <div className="absolute bottom-2 right-2 z-[400]">
-          <Button 
-            type="button" 
-            variant="secondary" 
-            size="sm"
-            onClick={handleClearSelection}
-            className="bg-white"
-          >
-            Cancella selezione
-          </Button>
-        </div>
-      )}
+      <div className="absolute bottom-2 right-2 z-[400]">
+        <Button 
+          type="button" 
+          variant="secondary" 
+          size="sm"
+          onClick={handleClearLocation}
+          className="bg-white"
+        >
+          Cancella posizione
+        </Button>
+      </div>
       
       {!isMapLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-70 rounded-md">
@@ -220,9 +145,9 @@ export default function MapSelector({
         </div>
       )}
       
-      {isMapLoaded && !readOnly && (
+      {isMapLoaded && (
         <div className="absolute top-2 left-2 z-[400] bg-white p-2 rounded shadow-sm text-xs text-gray-600">
-          Utilizza gli strumenti di disegno per definire l'area di ricerca
+          Clicca sulla mappa per selezionare la posizione dell'immobile
         </div>
       )}
     </div>

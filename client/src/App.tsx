@@ -14,6 +14,9 @@ import ClientPropertySearchPage from "@/pages/clients/[id]/search";
 import PropertiesPage from "@/pages/properties/index";
 import PropertyDetailPage from "@/pages/properties/[id]";
 import NewPropertyPage from "@/pages/properties/new";
+import SharedPropertiesPage from "@/pages/properties/shared/index";
+import SharedPropertyDetailPage from "@/pages/properties/shared/[id]";
+import NewSharedPropertyPage from "@/pages/properties/shared/new";
 import AppointmentsPage from "@/pages/appointments/index";
 import CommunicationsPage from "@/pages/communications/index";
 import CommunicationDetailPage from "@/pages/communications/[id]";
@@ -34,6 +37,9 @@ function Router() {
       <Route path="/clients/:id" component={ClientDetailPage} />
       <Route path="/properties" component={PropertiesPage} />
       <Route path="/properties/new" component={NewPropertyPage} />
+      <Route path="/properties/shared" component={SharedPropertiesPage} />
+      <Route path="/properties/shared/new" component={NewSharedPropertyPage} />
+      <Route path="/properties/shared/:id" component={SharedPropertyDetailPage} />
       <Route path="/properties/:id" component={PropertyDetailPage} />
       <Route path="/appointments" component={AppointmentsPage} />
       <Route path="/communications" component={CommunicationsPage} />
