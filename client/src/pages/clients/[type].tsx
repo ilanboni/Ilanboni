@@ -7,6 +7,7 @@ import { ClientWithDetails } from "@shared/schema";
 import ClientForm from "@/components/clients/ClientForm";
 import { apiRequest } from "@/lib/queryClient";
 import { Helmet } from "react-helmet";
+import { useClientPreferences } from "@/hooks/useClientPreferences";
 
 export default function ClientsByTypePage() {
   const params = useParams();
@@ -40,20 +41,9 @@ export default function ClientsByTypePage() {
   });
   
   // Per i clienti compratori in modalità modifica, recuperiamo anche i dati di ricerca
-  const { data: buyerPreferences, isLoading: isLoadingPreferences } = useQuery({
-    queryKey: ['/api/clients', clientId, 'preferences'],
-    queryFn: async () => {
-      if (!clientId) return null;
-      try {
-        const response = await apiRequest('GET', `/api/clients/${clientId}/preferences`);
-        return await response.json();
-      } catch (error) {
-        console.error("Errore nel recupero preferenze:", error);
-        return null;
-      }
-    },
-    enabled: isEditMode && !!clientId && client?.type === 'buyer'
-  });
+  const { data: buyerPreferences, isLoading: isLoadingPreferences } = useClientPreferences(
+    isEditMode && !!clientId && client?.type === 'buyer' ? clientId : undefined
+  );
   
   // Create mutation for saving client data
   const saveClientMutation = useMutation({
@@ -174,6 +164,7 @@ export default function ClientsByTypePage() {
       {/* Client Form */}
       <ClientForm
         initialData={client}
+        buyerPreferences={buyerPreferences}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         isSubmitting={saveClientMutation.isPending}

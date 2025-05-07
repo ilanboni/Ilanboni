@@ -75,6 +75,7 @@ type ClientFormValues = z.infer<typeof clientFormSchema>;
 
 interface ClientFormProps {
   initialData?: ClientWithDetails;
+  buyerPreferences?: { searchArea?: any; minSize?: number; maxPrice?: number; urgency?: number; rating?: number; searchNotes?: string };
   onSubmit: (data: ClientFormValues) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
@@ -82,6 +83,7 @@ interface ClientFormProps {
 
 export default function ClientForm({ 
   initialData, 
+  buyerPreferences,
   onSubmit, 
   onCancel, 
   isSubmitting = false 
@@ -106,13 +108,13 @@ export default function ClientForm({
       birthday: initialData.birthday ? new Date(initialData.birthday) : undefined,
       contractType: initialData.contractType as "rent" | "sale" | undefined,
       notes: initialData.notes || "",
-      // Buyer fields
-      searchArea: initialData.buyer?.searchArea || undefined,
-      minSize: initialData.buyer?.minSize || undefined,
-      maxPrice: initialData.buyer?.maxPrice || undefined,
-      urgency: initialData.buyer?.urgency || 3,
-      rating: initialData.buyer?.rating || 3,
-      searchNotes: initialData.buyer?.searchNotes || "",
+      // Buyer fields - prima utilizza le preferenze separate, poi fallback sui dati cliente
+      searchArea: buyerPreferences?.searchArea || initialData.buyer?.searchArea || undefined,
+      minSize: buyerPreferences?.minSize || initialData.buyer?.minSize || undefined,
+      maxPrice: buyerPreferences?.maxPrice || initialData.buyer?.maxPrice || undefined,
+      urgency: buyerPreferences?.urgency || initialData.buyer?.urgency || 3,
+      rating: buyerPreferences?.rating || initialData.buyer?.rating || 3,
+      searchNotes: buyerPreferences?.searchNotes || initialData.buyer?.searchNotes || "",
       // Seller fields - we would need to extend the interface to include these
       propertyAddress: "",
       propertySize: 0,
@@ -130,13 +132,13 @@ export default function ClientForm({
       birthday: undefined,
       contractType: undefined,
       notes: "",
-      // Default buyer values
-      searchArea: undefined,
-      minSize: undefined,
-      maxPrice: undefined,
-      urgency: 3,
-      rating: 3,
-      searchNotes: "",
+      // Default buyer values - utilizza le preferenze separate se disponibili
+      searchArea: buyerPreferences?.searchArea || undefined,
+      minSize: buyerPreferences?.minSize || undefined,
+      maxPrice: buyerPreferences?.maxPrice || undefined,
+      urgency: buyerPreferences?.urgency || 3,
+      rating: buyerPreferences?.rating || 3,
+      searchNotes: buyerPreferences?.searchNotes || "",
       // Default seller values
       propertyAddress: "",
       propertySize: 0,
