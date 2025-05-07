@@ -640,26 +640,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Se è un compratore e ci sono dati di preferenze, aggiorna anche quelli
       if (client.type === 'buyer' && req.body.buyer) {
         try {
+          // Log dei dati ricevuti dal client per il buyer
+          console.log(`[PATCH /api/clients/${clientId}] Dati buyer ricevuti:`, JSON.stringify(req.body.buyer, null, 2));
+          
           // Verifica se esiste già un record di buyer
           const existingBuyer = await storage.getBuyerByClientId(clientId);
-          console.log(`[PATCH /api/clients/${clientId}] Buyer esistente:`, existingBuyer);
+          console.log(`[PATCH /api/clients/${clientId}] Buyer esistente:`, 
+                      existingBuyer ? JSON.stringify(existingBuyer, null, 2) : "Non trovato");
           
-          // Dati del buyer da aggiornare
+          // Dati del buyer da aggiornare con controlli espliciti per i valori nulli
           const buyerData = {
             searchArea: req.body.buyer.searchArea,
-            minSize: req.body.buyer.minSize !== undefined ? req.body.buyer.minSize : null,
-            maxPrice: req.body.buyer.maxPrice !== undefined ? req.body.buyer.maxPrice : null,
-            urgency: req.body.buyer.urgency !== undefined ? req.body.buyer.urgency : 3,
-            rating: req.body.buyer.rating !== undefined ? req.body.buyer.rating : 3,
+            minSize: req.body.buyer.minSize !== undefined && req.body.buyer.minSize !== '' ? 
+                    Number(req.body.buyer.minSize) : null,
+            maxPrice: req.body.buyer.maxPrice !== undefined && req.body.buyer.maxPrice !== '' ? 
+                     Number(req.body.buyer.maxPrice) : null,
+            urgency: req.body.buyer.urgency !== undefined ? 
+                    Number(req.body.buyer.urgency) : 3,
+            rating: req.body.buyer.rating !== undefined ? 
+                   Number(req.body.buyer.rating) : 3,
             searchNotes: req.body.buyer.searchNotes || null
           };
           
-          console.log(`[PATCH /api/clients/${clientId}] Dati buyer da aggiornare:`, buyerData);
+          // Log dettagliato dei valori processati
+          console.log(`[PATCH /api/clients/${clientId}] Dati buyer dopo trasformazione:`, JSON.stringify({
+            originali: req.body.buyer,
+            processati: buyerData
+          }, null, 2));
           
           if (existingBuyer) {
             // Aggiorna buyer esistente
             const updatedBuyer = await storage.updateBuyer(existingBuyer.id, buyerData);
-            console.log(`[PATCH /api/clients/${clientId}] Buyer aggiornato:`, updatedBuyer);
+            console.log(`[PATCH /api/clients/${clientId}] Buyer aggiornato con successo. ID: ${existingBuyer.id}`);
+            console.log(`[PATCH /api/clients/${clientId}] Dati buyer aggiornati:`, JSON.stringify(updatedBuyer, null, 2));
           } else {
             // Crea un nuovo buyer
             const buyerInsertData = {
@@ -667,7 +680,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ...buyerData
             };
             const newBuyer = await storage.createBuyer(buyerInsertData);
-            console.log(`[PATCH /api/clients/${clientId}] Nuovo buyer creato:`, newBuyer);
+            console.log(`[PATCH /api/clients/${clientId}] Nuovo buyer creato con successo. ID: ${newBuyer.id}`);
+            console.log(`[PATCH /api/clients/${clientId}] Dati nuovo buyer:`, JSON.stringify(newBuyer, null, 2));
           }
         } catch (buyerError) {
           console.error(`[PATCH /api/clients/${clientId}] Error updating buyer preferences:`, buyerError);

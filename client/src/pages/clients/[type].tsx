@@ -18,40 +18,67 @@ export default function ClientsByTypePage() {
   // Determine if we're creating a new client or editing an existing one
   const isNewClient = params.type === "new";
   
-  // Riconosci vari pattern di URL per la modifica
-  const isEditMode = params.type && (
-    params.type.startsWith("edit") || 
-    params.type.startsWith("modify") ||
-    params.id // Nuova modalità route
+  // Controllo esplicito sui tipi di pattern URL per la modifica
+  const isEditMode = (
+    // Controlla prima i path pattern riconoscibili
+    params.type === "edit" || 
+    params.type === "modify" ||
+    params.type?.startsWith("edit/") || 
+    params.type?.startsWith("modify/") ||
+    // Poi i pattern di ID numerici
+    (params.type?.startsWith("edit") && !isNaN(parseInt(params.type.substring(4)))) ||
+    (params.type?.startsWith("modify") && !isNaN(parseInt(params.type.substring(6)))) ||
+    // Infine, controlla se c'è un ID esplicito nella route
+    (!!params.id && !isNaN(parseInt(params.id)))
   );
   
-  // Estrai l'ID cliente
+  // Estrai l'ID cliente con controlli più rigorosi
   let clientId: number | null = null;
   if (isEditMode) {
     console.log("Debugging URLs - params:", params);
     
-    if (params.id) {
+    // Controlla i parametri nell'ordine di priorità
+    if (params.id && !isNaN(parseInt(params.id))) {
+      // Caso /clients/:type/:id
       clientId = parseInt(params.id);
-    } else if (params.type.startsWith("edit/")) {
-      clientId = parseInt(params.type.replace("edit/", ""));
-    } else if (params.type.startsWith("modify/")) {
-      clientId = parseInt(params.type.replace("modify/", ""));
-    } else if (params.type.startsWith("edit")) {
-      // Gestisci URL come /clients/edit123
-      const idPart = params.type.replace("edit", "");
-      if (idPart && !isNaN(parseInt(idPart))) {
+      console.log("ID trovato nel parametro id:", clientId);
+    } else if (params.type?.startsWith("edit/")) {
+      // Caso /clients/edit/123
+      const idPart = params.type.substring(5);
+      if (!isNaN(parseInt(idPart))) {
         clientId = parseInt(idPart);
+        console.log("ID trovato nel formato edit/XXX:", clientId);
       }
-    } else if (params.type.startsWith("modify")) {
-      // Gestisci URL come /clients/modify123
-      const idPart = params.type.replace("modify", "");
-      if (idPart && !isNaN(parseInt(idPart))) {
+    } else if (params.type?.startsWith("modify/")) {
+      // Caso /clients/modify/123
+      const idPart = params.type.substring(7);
+      if (!isNaN(parseInt(idPart))) {
         clientId = parseInt(idPart);
+        console.log("ID trovato nel formato modify/XXX:", clientId);
+      }
+    } else if (params.type?.startsWith("edit") && params.type.length > 4) {
+      // Caso /clients/edit123
+      const idPart = params.type.substring(4);
+      if (!isNaN(parseInt(idPart))) {
+        clientId = parseInt(idPart);
+        console.log("ID trovato nel formato editXXX:", clientId);
+      }
+    } else if (params.type?.startsWith("modify") && params.type.length > 6) {
+      // Caso /clients/modify123
+      const idPart = params.type.substring(6);
+      if (!isNaN(parseInt(idPart))) {
+        clientId = parseInt(idPart);
+        console.log("ID trovato nel formato modifyXXX:", clientId);
       }
     }
   }
   
-  console.log("Editing mode details - isEditMode:", isEditMode, "clientId:", clientId);
+  // Controlla se abbiamo un caso in cui si pensa di essere in modalità modifica ma non si ha ID cliente
+  if (isEditMode && clientId === null) {
+    console.warn("ATTENZIONE: Modalità modifica attiva ma clientId non trovato nei parametri:", params);
+  }
+  
+  console.log("Editing mode details - isEditMode:", isEditMode, "clientId:", clientId, "isNewClient:", isNewClient);
   
   // Set appropriate client type based on URL or default to "buyer" for new clients
   const [clientType, setClientType] = useState<ClientType>("buyer");
@@ -141,21 +168,57 @@ export default function ClientsByTypePage() {
       notes: data.notes
     };
     
-    // Aggiungi i dati specifici in base al tipo di cliente
+    // Aggiungi i dati specifici in base al tipo di cliente con controlli più rigorosi
     if (data.type === 'buyer') {
+      // Gestione più robusta dei valori null/undefined per evitare errori di conversione
+      const minSize = data.minSize !== undefined && data.minSize !== null && data.minSize !== '' 
+                    ? Number(data.minSize) 
+                    : null;
+      
+      const maxPrice = data.maxPrice !== undefined && data.maxPrice !== null && data.maxPrice !== '' 
+                     ? Number(data.maxPrice) 
+                     : null;
+      
+      // Assicurati che i valori siano numeri validi
+      const urgency = data.urgency !== undefined && data.urgency !== null 
+                    ? Number(data.urgency) 
+                    : 3;
+      
+      const rating = data.rating !== undefined && data.rating !== null 
+                   ? Number(data.rating) 
+                   : 3;
+
+      // Log dettagliato dei valori per il debugging
+      console.log("Valori cliente buyer:", {
+        searchArea: data.searchArea,
+        minSize: { raw: data.minSize, processed: minSize },
+        maxPrice: { raw: data.maxPrice, processed: maxPrice },
+        urgency: { raw: data.urgency, processed: urgency },
+        rating: { raw: data.rating, processed: rating }
+      });
+      
       clientData.buyer = {
         searchArea: data.searchArea,
-        minSize: data.minSize ? Number(data.minSize) : null,
-        maxPrice: data.maxPrice ? Number(data.maxPrice) : null,
-        urgency: data.urgency ? Number(data.urgency) : 3,
-        rating: data.rating ? Number(data.rating) : 3,
+        minSize: minSize,
+        maxPrice: maxPrice,
+        urgency: urgency,
+        rating: rating,
         searchNotes: data.searchNotes || ""
       };
     } else if (data.type === 'seller') {
+      // Gestione più robusta dei valori numerici per il venditore
+      const propertySize = data.propertySize !== undefined && data.propertySize !== null && data.propertySize !== '' 
+                         ? Number(data.propertySize) 
+                         : 0;
+      
+      const propertyPrice = data.propertyPrice !== undefined && data.propertyPrice !== null && data.propertyPrice !== '' 
+                          ? Number(data.propertyPrice) 
+                          : 0;
+      
       clientData.seller = {
-        propertyAddress: data.propertyAddress,
-        propertySize: data.propertySize ? Number(data.propertySize) : 0,
-        propertyPrice: data.propertyPrice ? Number(data.propertyPrice) : 0,
+        propertyAddress: data.propertyAddress || "",
+        propertySize: propertySize,
+        propertyPrice: propertyPrice,
         propertyNotes: data.propertyNotes || ""
       };
     }
