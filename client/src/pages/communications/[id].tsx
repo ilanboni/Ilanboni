@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -188,10 +189,19 @@ export default function CommunicationDetailPage() {
               </span>
             </h1>
             <p className="text-gray-500 mt-1">
-              {communication && formatDistanceToNow(new Date(communication.createdAt), {
-                addSuffix: true,
-                locale: it,
-              })}
+              {communication?.createdAt ? 
+                (() => {
+                  try {
+                    return formatDistanceToNow(new Date(communication.createdAt), {
+                      addSuffix: true,
+                      locale: it,
+                    });
+                  } catch (e) {
+                    console.error("Errore formatDistanceToNow:", e);
+                    return "Data non disponibile";
+                  }
+                })() : "Data non disponibile"
+              }
             </p>
           </div>
           
@@ -270,7 +280,14 @@ export default function CommunicationDetailPage() {
                     <span className="mr-2 font-medium">Data prevista:</span>
                     {communication.followUpDate ? (
                       <span>
-                        {format(new Date(communication.followUpDate), "dd/MM/yyyy")}
+                        {(() => {
+                          try {
+                            return format(new Date(communication.followUpDate), "dd/MM/yyyy");
+                          } catch (e) {
+                            console.error("Errore formattazione data:", e);
+                            return "Data non valida";
+                          }
+                        })()}
                       </span>
                     ) : (
                       <span className="text-gray-500 italic">Data non specificata</span>

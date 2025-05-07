@@ -549,10 +549,17 @@ export default function ClientDetailPage() {
                             <TableCell>{getDirectionIcon(comm.direction)}</TableCell>
                             <TableCell>{getCommunicationTypeBadge(comm.type)}</TableCell>
                             <TableCell className="text-sm">
-                              {formatDistanceToNow(new Date(comm.createdAt), {
-                                addSuffix: true,
-                                locale: it,
-                              })}
+                              {(() => {
+                                try {
+                                  return formatDistanceToNow(new Date(comm.createdAt), {
+                                    addSuffix: true,
+                                    locale: it,
+                                  });
+                                } catch (e) {
+                                  console.error("Errore formattazione data:", e);
+                                  return "Data non disponibile";
+                                }
+                              })()}
                             </TableCell>
                             <TableCell className="font-medium">
                               <Link href={`/communications/${comm.id}`}>
@@ -756,10 +763,17 @@ export default function ClientDetailPage() {
                         {tasks.map((task) => (
                           <TableRow key={task.id}>
                             <TableCell>
-                              {formatDistanceToNow(new Date(task.createdAt), {
-                                addSuffix: true,
-                                locale: it,
-                              })}
+                              {(() => {
+                                try {
+                                  return formatDistanceToNow(new Date(task.createdAt), {
+                                    addSuffix: true,
+                                    locale: it,
+                                  });
+                                } catch (e) {
+                                  console.error("Errore formattazione data:", e);
+                                  return "Data non disponibile";
+                                }
+                              })()}
                             </TableCell>
                             <TableCell>{formatDate(task.dueDate)}</TableCell>
                             <TableCell>{getTaskTypeBadge(task.type)}</TableCell>

@@ -204,3 +204,20 @@ export function getCurrentTimeString(): string {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
+
+// Safely format date with a fallback value
+export function safeFormatDate(dateValue: string | Date | null | undefined, formatStr: string = "dd/MM/yyyy", fallback: string = "Data non disponibile"): string {
+  if (!dateValue) return fallback;
+  
+  try {
+    const date = typeof dateValue === "string" ? new Date(dateValue) : dateValue;
+    if (isNaN(date.getTime())) return fallback;
+    
+    // Import dynamically to avoid bundling issues
+    const { format } = require('date-fns');
+    return format(date, formatStr);
+  } catch (e) {
+    console.error("Errore formattazione data:", e);
+    return fallback;
+  }
+}
