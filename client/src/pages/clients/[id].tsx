@@ -193,9 +193,19 @@ export default function ClientDetailPage() {
   // Format direction indicator
   const getDirectionIcon = (direction: string) => {
     if (direction === "inbound") {
-      return <span className="text-green-600"><i className="fas fa-arrow-down"></i></span>;
+      return (
+        <div className="flex items-center text-green-600">
+          <i className="fas fa-arrow-down mr-1"></i>
+          <span className="text-xs font-medium">Ricevuto</span>
+        </div>
+      );
     } else {
-      return <span className="text-blue-600"><i className="fas fa-arrow-up"></i></span>;
+      return (
+        <div className="flex items-center text-blue-600">
+          <i className="fas fa-arrow-up mr-1"></i>
+          <span className="text-xs font-medium">Inviato</span>
+        </div>
+      );
     }
   };
   
@@ -564,7 +574,12 @@ export default function ClientDetailPage() {
                             <TableCell className="font-medium">
                               <Link href={`/communications/${comm.id}`}>
                                 <div className="hover:text-primary-700 cursor-pointer">
-                                  {comm.subject}
+                                  <div>{comm.subject}</div>
+                                  {comm.type === "whatsapp" && (
+                                    <div className="text-sm text-gray-500 mt-1 line-clamp-1">
+                                      {comm.content}
+                                    </div>
+                                  )}
                                 </div>
                               </Link>
                             </TableCell>
