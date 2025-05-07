@@ -42,31 +42,31 @@ export default function ClientDetailPage() {
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
-    queryKey: ["/api/clients", id],
+    queryKey: [`/api/clients/${id}`],
     enabled: !isNaN(id),
   });
   
   // Fetch client communications
   const { data: communications, isLoading: isCommunicationsLoading } = useQuery<Communication[]>({
-    queryKey: ["/api/clients", id, "communications"],
+    queryKey: [`/api/clients/${id}/communications`],
     enabled: !isNaN(id),
   });
   
   // Fetch client appointments
   const { data: appointments, isLoading: isAppointmentsLoading } = useQuery<Appointment[]>({
-    queryKey: ["/api/clients", id, "appointments"],
+    queryKey: [`/api/clients/${id}/appointments`],
     enabled: !isNaN(id),
   });
   
   // Fetch client tasks
   const { data: tasks, isLoading: isTasksLoading } = useQuery<Task[]>({
-    queryKey: ["/api/clients", id, "tasks"],
+    queryKey: [`/api/clients/${id}/tasks`],
     enabled: !isNaN(id),
   });
   
   // Fetch matching properties (per client compratori)
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
-    queryKey: ["/api/clients", id, "matching-properties"],
+    queryKey: [`/api/clients/${id}/matching-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
     queryFn: async () => {
       const response = await fetch(`/api/clients/${id}/matching-properties`);
