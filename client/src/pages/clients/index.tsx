@@ -77,7 +77,8 @@ export default function ClientsPage() {
   
   // Handle client actions
   const handleEditClient = (client: ClientWithDetails) => {
-    navigate(`/clients/edit/${client.id}`);
+    // Usa la route modify/ID che è più esplicita e ci permette di controllare meglio 
+    navigate(`/clients/modify/${client.id}`);
   };
   
   const handleViewClient = (client: ClientWithDetails) => {

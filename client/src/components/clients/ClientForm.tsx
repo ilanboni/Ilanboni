@@ -53,22 +53,22 @@ const clientFormSchema = z.object({
   isFriend: z.boolean().default(false),
   email: z.string().email("Indirizzo email non valido").optional().or(z.literal("")),
   phone: z.string().min(6, "Numero di telefono non valido"),
-  religion: z.string().optional(),
+  religion: z.string().optional().or(z.literal("")),
   birthday: z.date().optional().nullable(),
   contractType: z.enum(["rent", "sale"]).optional(),
-  notes: z.string().optional(),
+  notes: z.string().optional().or(z.literal("")),
   // Buyer-specific fields
-  searchArea: z.any().optional(),
-  minSize: z.number().min(0).optional(),
-  maxPrice: z.number().min(0).optional(),
-  urgency: z.number().min(1).max(5).optional(),
-  rating: z.number().min(1).max(5).optional(),
-  searchNotes: z.string().optional(),
+  searchArea: z.any().optional().nullable(),
+  minSize: z.union([z.number().min(0), z.string(), z.null(), z.undefined()]),
+  maxPrice: z.union([z.number().min(0), z.string(), z.null(), z.undefined()]),
+  urgency: z.union([z.number().min(1).max(5), z.null(), z.undefined()]).optional(),
+  rating: z.union([z.number().min(1).max(5), z.null(), z.undefined()]).optional(),
+  searchNotes: z.string().optional().or(z.literal("")),
   // Seller-specific fields
-  propertyAddress: z.string().optional(),
-  propertySize: z.number().min(0).optional(),
-  propertyPrice: z.number().min(0).optional(),
-  propertyNotes: z.string().optional()
+  propertyAddress: z.string().optional().or(z.literal("")),
+  propertySize: z.union([z.number().min(0), z.string(), z.null(), z.undefined()]),
+  propertyPrice: z.union([z.number().min(0), z.string(), z.null(), z.undefined()]),
+  propertyNotes: z.string().optional().or(z.literal(""))
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -97,10 +97,10 @@ export default function ClientForm({
   console.log("ClientForm - initialData:", initialData);
   console.log("ClientForm - buyerPreferences:", buyerPreferences);
   
-  // Form initialization
+  // Form initialization with type casting to fix TypeScript errors
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: initialData ? {
+    defaultValues: (initialData ? {
       type: initialData.type as ClientType,
       salutation: initialData.salutation || "",
       firstName: initialData.firstName || "",
@@ -115,9 +115,9 @@ export default function ClientForm({
       // Buyer fields - prima utilizza le preferenze separate, poi fallback sui dati cliente
       searchArea: buyerPreferences?.searchArea || initialData.buyer?.searchArea || null,
       minSize: buyerPreferences?.minSize !== undefined ? Number(buyerPreferences.minSize) : 
-             initialData.buyer?.minSize !== undefined ? Number(initialData.buyer.minSize) : null,
+             initialData.buyer?.minSize !== undefined ? Number(initialData.buyer.minSize) : undefined,
       maxPrice: buyerPreferences?.maxPrice !== undefined ? Number(buyerPreferences.maxPrice) : 
-              initialData.buyer?.maxPrice !== undefined ? Number(initialData.buyer.maxPrice) : null,
+              initialData.buyer?.maxPrice !== undefined ? Number(initialData.buyer.maxPrice) : undefined,
       urgency: buyerPreferences?.urgency !== undefined ? Number(buyerPreferences.urgency) : 
               initialData.buyer?.urgency !== undefined ? Number(initialData.buyer.urgency) : 3,
       rating: buyerPreferences?.rating !== undefined ? Number(buyerPreferences.rating) : 
@@ -142,8 +142,8 @@ export default function ClientForm({
       notes: "",
       // Default buyer values - utilizza le preferenze separate se disponibili
       searchArea: buyerPreferences?.searchArea || null,
-      minSize: buyerPreferences?.minSize !== undefined ? Number(buyerPreferences.minSize) : null,
-      maxPrice: buyerPreferences?.maxPrice !== undefined ? Number(buyerPreferences.maxPrice) : null,
+      minSize: buyerPreferences?.minSize !== undefined ? Number(buyerPreferences.minSize) : undefined,
+      maxPrice: buyerPreferences?.maxPrice !== undefined ? Number(buyerPreferences.maxPrice) : undefined,
       urgency: buyerPreferences?.urgency !== undefined ? Number(buyerPreferences.urgency) : 3,
       rating: buyerPreferences?.rating !== undefined ? Number(buyerPreferences.rating) : 3,
       searchNotes: buyerPreferences?.searchNotes || "",
@@ -152,7 +152,7 @@ export default function ClientForm({
       propertySize: 0,
       propertyPrice: 0,
       propertyNotes: ""
-    }
+    }) as any
   });
   
   // Log per debug
@@ -441,8 +441,14 @@ export default function ClientForm({
                           type="number"
                           min={0}
                           placeholder="80"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                          value={field.value === null || field.value === undefined ? '' : field.value}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? undefined : Number(e.target.value);
+                            field.onChange(value);
+                          }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                         />
                       </FormControl>
                       <FormMessage />
@@ -462,8 +468,14 @@ export default function ClientForm({
                           min={0}
                           step={1000}
                           placeholder="300000"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                          value={field.value === null || field.value === undefined ? '' : field.value}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? undefined : Number(e.target.value);
+                            field.onChange(value);
+                          }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                         />
                       </FormControl>
                       <FormMessage />
@@ -597,8 +609,14 @@ export default function ClientForm({
                           type="number"
                           min={0}
                           placeholder="100"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                          value={field.value === null || field.value === undefined ? '' : field.value}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? undefined : Number(e.target.value);
+                            field.onChange(value);
+                          }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                         />
                       </FormControl>
                       <FormMessage />
@@ -618,8 +636,14 @@ export default function ClientForm({
                           min={0}
                           step={1000}
                           placeholder="350000"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                          value={field.value === null || field.value === undefined ? '' : field.value}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? undefined : Number(e.target.value);
+                            field.onChange(value);
+                          }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                         />
                       </FormControl>
                       <FormMessage />

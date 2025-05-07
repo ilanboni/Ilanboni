@@ -17,26 +17,41 @@ export default function ClientsByTypePage() {
   
   // Determine if we're creating a new client or editing an existing one
   const isNewClient = params.type === "new";
+  
+  // Riconosci vari pattern di URL per la modifica
   const isEditMode = params.type && (
-    params.type.startsWith("edit") || // Modalità legacy URL (retrocompatibilità)
+    params.type.startsWith("edit") || 
+    params.type.startsWith("modify") ||
     params.id // Nuova modalità route
   );
   
   // Estrai l'ID cliente
   let clientId: number | null = null;
   if (isEditMode) {
+    console.log("Debugging URLs - params:", params);
+    
     if (params.id) {
       clientId = parseInt(params.id);
     } else if (params.type.startsWith("edit/")) {
       clientId = parseInt(params.type.replace("edit/", ""));
+    } else if (params.type.startsWith("modify/")) {
+      clientId = parseInt(params.type.replace("modify/", ""));
     } else if (params.type.startsWith("edit")) {
       // Gestisci URL come /clients/edit123
       const idPart = params.type.replace("edit", "");
       if (idPart && !isNaN(parseInt(idPart))) {
         clientId = parseInt(idPart);
       }
+    } else if (params.type.startsWith("modify")) {
+      // Gestisci URL come /clients/modify123
+      const idPart = params.type.replace("modify", "");
+      if (idPart && !isNaN(parseInt(idPart))) {
+        clientId = parseInt(idPart);
+      }
     }
   }
+  
+  console.log("Editing mode details - isEditMode:", isEditMode, "clientId:", clientId);
   
   // Set appropriate client type based on URL or default to "buyer" for new clients
   const [clientType, setClientType] = useState<ClientType>("buyer");
