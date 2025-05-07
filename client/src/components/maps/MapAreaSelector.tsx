@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet-draw/dist/leaflet.draw.css';
+import 'leaflet-draw';
 
 // Add window properties to avoid TypeScript errors
 declare global {
@@ -35,48 +37,9 @@ export function MapAreaSelector({
   const [isDrawLoaded, setIsDrawLoaded] = useState(false);
   
   useEffect(() => {
-    // Load Leaflet-draw dynamically
-    if (!document.getElementById('leaflet-draw-css')) {
-      const linkElement = document.createElement('link');
-      linkElement.id = 'leaflet-draw-css';
-      linkElement.rel = 'stylesheet';
-      linkElement.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css';
-      document.head.appendChild(linkElement);
-    }
-    
-    if (!window.L) {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
-      script.onload = () => {
-        setIsMapLoaded(true);
-        
-        // Load Leaflet Draw after Leaflet is loaded
-        if (!window.L.Control.Draw) {
-          const drawScript = document.createElement('script');
-          drawScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js';
-          drawScript.onload = () => {
-            setIsDrawLoaded(true);
-          };
-          document.head.appendChild(drawScript);
-        } else {
-          setIsDrawLoaded(true);
-        }
-      };
-      document.head.appendChild(script);
-    } else {
-      setIsMapLoaded(true);
-      
-      if (!window.L.Control.Draw) {
-        const drawScript = document.createElement('script');
-        drawScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js';
-        drawScript.onload = () => {
-          setIsDrawLoaded(true);
-        };
-        document.head.appendChild(drawScript);
-      } else {
-        setIsDrawLoaded(true);
-      }
-    }
+    // Imposta i flag di caricamento
+    setIsMapLoaded(true);
+    setIsDrawLoaded(true);
   }, []);
   
   useEffect(() => {
