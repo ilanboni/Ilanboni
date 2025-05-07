@@ -16,8 +16,13 @@ export default function ClientsByTypePage() {
   
   // Determine if we're creating a new client or editing an existing one
   const isNewClient = params.type === "new";
-  const isEditMode = params.type && params.type.startsWith("edit/");
-  const clientId = isEditMode ? parseInt(params.type.replace("edit/", "")) : null;
+  const isEditMode = params.type && (
+    params.type.startsWith("edit/") || // Modalità legacy URL (retrocompatibilità)
+    params.id // Nuova modalità route
+  );
+  const clientId = isEditMode 
+    ? (params.id ? parseInt(params.id) : parseInt(params.type.replace("edit/", "")))
+    : null;
   
   // Set appropriate client type based on URL or default to "buyer" for new clients
   const [clientType, setClientType] = useState<ClientType>("buyer");
@@ -28,7 +33,8 @@ export default function ClientsByTypePage() {
     // Quando in modalità modifica, usiamo l'API per ottenere i dati del cliente
     queryFn: async () => {
       if (!clientId) return null;
-      return apiRequest('GET', `/api/clients/${clientId}`);
+      const response = await apiRequest('GET', `/api/clients/${clientId}`);
+      return await response.json();
     },
     enabled: isEditMode && !!clientId
   });
@@ -39,7 +45,8 @@ export default function ClientsByTypePage() {
       // Usa API reali per salvare i dati del cliente
       const method = isEditMode ? 'PATCH' : 'POST';
       const url = isEditMode ? `/api/clients/${clientId}` : '/api/clients';
-      return apiRequest(method, url, data);
+      const response = await apiRequest(method, url, data);
+      return await response.json();
     },
     onSuccess: (response) => {
       // Invalidate clients query to refetch the list

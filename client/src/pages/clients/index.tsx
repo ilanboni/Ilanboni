@@ -87,7 +87,8 @@ export default function ClientsPage() {
   const handleDeleteClient = async (client: ClientWithDetails) => {
     try {
       // Chiama la vera API per eliminare il cliente
-      await apiRequest('DELETE', `/api/clients/${client.id}`);
+      const response = await apiRequest('DELETE', `/api/clients/${client.id}`);
+      await response.json(); // Processa la risposta anche se non la utilizziamo
       
       toast({
         title: "Cliente eliminato",

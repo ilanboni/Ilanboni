@@ -32,6 +32,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/clients" component={ClientsPage} />
       <Route path="/clients/new" component={ClientsByTypePage} />
+      <Route path="/clients/edit/:id" component={ClientsByTypePage} />
       <Route path="/clients/type/:type" component={ClientsByTypePage} />
       <Route path="/clients/:id/search" component={ClientPropertySearchPage} />
       <Route path="/clients/:id" component={ClientDetailPage} />
