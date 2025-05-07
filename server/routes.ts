@@ -544,6 +544,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const newClient = await storage.createClient(result.data);
+      
+      // Se è un cliente di tipo buyer, crea anche il record buyer corrispondente
+      if (newClient.type === "buyer" && req.body.buyer) {
+        try {
+          await storage.createBuyer({
+            clientId: newClient.id,
+            searchArea: req.body.buyer.searchArea || null,
+            minSize: req.body.buyer.minSize || null,
+            maxPrice: req.body.buyer.maxPrice || null,
+            urgency: req.body.buyer.urgency || 3,
+            rating: req.body.buyer.rating || 3,
+            searchNotes: req.body.buyer.searchNotes || null
+          });
+        } catch (buyerError) {
+          console.error("[POST /api/clients] Error creating buyer:", buyerError);
+          // Non blocchiamo la creazione del cliente se fallisce la creazione del buyer
+        }
+      }
+      
+      // Se è un cliente di tipo seller, crea anche il record seller corrispondente
+      if (newClient.type === "seller" && req.body.seller) {
+        try {
+          await storage.createSeller({
+            clientId: newClient.id,
+            propertyId: req.body.seller.propertyId || null
+          });
+        } catch (sellerError) {
+          console.error("[POST /api/clients] Error creating seller:", sellerError);
+          // Non blocchiamo la creazione del cliente se fallisce la creazione del seller
+        }
+      }
+      
       res.status(201).json(newClient);
     } catch (error) {
       console.error("[POST /api/clients]", error);
