@@ -8,41 +8,50 @@ import 'leaflet-draw/dist/leaflet.draw.css';
 // Importa direttamente i moduli necessari
 import 'leaflet-draw';
 
-// Definisci globalmente GeoJSON per TypeScript
-declare global {
-  interface Window {
-    GeoJSON?: {
-      Feature?: string;
-    }
-  }
-}
+// Definisci costanti per GeoJSON per evitare riferimenti a window.GeoJSON
+const GEOJSON_FEATURE_TYPE = "Feature";
+const GEOJSON_POLYGON_TYPE = "Polygon";
+const DEFAULT_EMPTY_GEOJSON = { 
+  type: GEOJSON_FEATURE_TYPE, 
+  geometry: { 
+    type: GEOJSON_POLYGON_TYPE, 
+    coordinates: [] 
+  } 
+};
 
-// Definisci manualmente l'oggetto GeoJSON se non dovesse essere disponibile
-if (typeof window !== 'undefined') {
-  window.GeoJSON = window.GeoJSON || {};
-  window.GeoJSON.Feature = window.GeoJSON.Feature || "Feature";
-}
+// Definisci gli eventi Draw come costanti
+const DRAW_EVENT_CREATED = 'draw:created';
+const DRAW_EVENT_EDITED = 'draw:edited';
+const DRAW_EVENT_DELETED = 'draw:deleted';
 
-// Definisci gli eventi Draw se non esistono
+// Assegna gli eventi a L.Draw per compatibilità
 if (!L.Draw) {
-  L.Draw = {};
+  (L as any).Draw = {};
 }
 if (!L.Draw.Event) {
-  L.Draw.Event = {};
+  (L.Draw as any).Event = {};
 }
 
-// Definisci gli eventi come stringhe
-L.Draw.Event.CREATED = 'draw:created';
-L.Draw.Event.EDITED = 'draw:edited';
-L.Draw.Event.DELETED = 'draw:deleted';
+// Usa le costanti invece di stringhe hard-coded
+(L.Draw.Event as any).CREATED = DRAW_EVENT_CREATED;
+(L.Draw.Event as any).EDITED = DRAW_EVENT_EDITED;
+(L.Draw.Event as any).DELETED = DRAW_EVENT_DELETED;
+
+// TypeScript definitions
+interface DrawEvent {
+  layers: any;
+  layer: any;
+}
 
 // Add window properties to avoid TypeScript errors
 declare global {
-  interface Window {
-    L: typeof L & {
-      Control: {
-        Draw: any;
-      };
+  namespace L {
+    namespace Draw {
+      namespace Event {
+        const CREATED: string;
+        const EDITED: string;
+        const DELETED: string;
+      }
     }
   }
 }
@@ -102,7 +111,7 @@ export function MapAreaSelector({
       mapInstanceRef.current.addLayer(drawnItemsRef.current);
       
       // Initialize draw control
-      drawControlRef.current = new L.Control.Draw({
+      drawControlRef.current = new (L.Control as any).Draw({
         edit: {
           featureGroup: drawnItemsRef.current,
           poly: {
@@ -136,11 +145,11 @@ export function MapAreaSelector({
             onAreaSelected(geoJSON);
           } else {
             console.warn("layer.toGeoJSON non è una funzione, utilizzo un oggetto vuoto");
-            onAreaSelected({ type: "Feature", geometry: { type: "Polygon", coordinates: [] } });
+            onAreaSelected(DEFAULT_EMPTY_GEOJSON);
           }
         } catch (error) {
           console.error("Errore durante la conversione in GeoJSON:", error);
-          onAreaSelected({ type: "Feature", geometry: { type: "Polygon", coordinates: [] } });
+          onAreaSelected(DEFAULT_EMPTY_GEOJSON);
         }
       });
       
@@ -162,11 +171,11 @@ export function MapAreaSelector({
             onAreaSelected(geoJSON);
           } else {
             console.warn("Nessun geoJSON valido ottenuto durante l'edit");
-            onAreaSelected({ type: "Feature", geometry: { type: "Polygon", coordinates: [] } });
+            onAreaSelected(DEFAULT_EMPTY_GEOJSON);
           }
         } catch (error) {
           console.error("Errore durante l'edit:", error);
-          onAreaSelected({ type: "Feature", geometry: { type: "Polygon", coordinates: [] } });
+          onAreaSelected(DEFAULT_EMPTY_GEOJSON);
         }
       });
       
