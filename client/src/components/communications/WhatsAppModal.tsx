@@ -60,13 +60,14 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
     mutationFn: async (data: FormData) => {
       if (!client) throw new Error("Nessun cliente selezionato");
       
-      return apiRequest('/api/whatsapp/send', {
-        method: 'POST',
-        data: {
+      return apiRequest(
+        'POST',
+        '/api/whatsapp/send',
+        {
           clientId: client.id,
           message: data.message,
-        },
-      });
+        }
+      );
     },
     onSuccess: () => {
       toast({
