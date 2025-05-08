@@ -1224,13 +1224,13 @@ export class MemStorage implements IStorage {
     
     // Filter properties based on buyer criteria
     return properties.filter(property => {
-      // Size check
-      if (buyer.minSize && property.size < buyer.minSize) {
+      // Size check with 10% tolerance (può essere fino al 10% in meno della metratura minima richiesta)
+      if (buyer.minSize && property.size < buyer.minSize * 0.9) {
         return false;
       }
       
-      // Price check
-      if (buyer.maxPrice && property.price > buyer.maxPrice) {
+      // Price check with 10% tolerance (può essere fino al 10% in più del prezzo massimo richiesto)
+      if (buyer.maxPrice && property.price > buyer.maxPrice * 1.1) {
         return false;
       }
       
@@ -1246,6 +1246,34 @@ export class MemStorage implements IStorage {
     });
   }
   
+  /**
+   * Verifica se un immobile corrisponde alle preferenze di un acquirente,
+   * applicando i criteri di tolleranza richiesti:
+   * - Poligono di ricerca (semplificato)
+   * - Metratura fino al 10% in meno del minimo richiesto
+   * - Prezzo fino al 10% in più del massimo richiesto
+   */
+  isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer): boolean {
+    // Size check with 10% tolerance
+    if (buyer.minSize && property.size < buyer.minSize * 0.9) {
+      return false;
+    }
+    
+    // Price check with 10% tolerance
+    if (buyer.maxPrice && property.price > buyer.maxPrice * 1.1) {
+      return false;
+    }
+    
+    // Check if property is in the search area (simplified)
+    if (buyer.searchArea) {
+      // This is a simplified check, in reality we'd use a proper GeoJSON library
+      // to check if the property location is inside the polygon
+      return true; // Assume it's in the area for now
+    }
+    
+    return true;
+  }
+  
   async matchBuyersForProperty(propertyId: number): Promise<Client[]> {
     const property = this.propertyStore.get(propertyId);
     if (!property) return [];
@@ -1255,27 +1283,13 @@ export class MemStorage implements IStorage {
     const matchedClients: Client[] = [];
     
     for (const buyer of buyers) {
-      // Size check
-      if (buyer.minSize && property.size < buyer.minSize) {
-        continue;
-      }
-      
-      // Price check
-      if (buyer.maxPrice && property.price > buyer.maxPrice) {
-        continue;
-      }
-      
-      // Check if property is in the search area (simplified)
-      if (buyer.searchArea) {
-        // Simplified check
-        // In reality, we'd use a proper GeoJSON library
-        // to check if the property location is inside the polygon
-      }
-      
-      // Add matched client
-      const client = this.clientStore.get(buyer.clientId);
-      if (client) {
-        matchedClients.push(client);
+      // Apply the same criteria using isPropertyMatchingBuyerCriteria
+      if (this.isPropertyMatchingBuyerCriteria(property, buyer)) {
+        // Add matched client
+        const client = this.clientStore.get(buyer.clientId);
+        if (client) {
+          matchedClients.push(client);
+        }
       }
     }
     

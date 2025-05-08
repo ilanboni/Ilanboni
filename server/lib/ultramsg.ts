@@ -246,3 +246,64 @@ export function getUltraMsgClient(): UltraMsgClient {
   
   return ultraMsgClient;
 }
+
+/**
+ * Invia una notifica WhatsApp a un cliente quando viene trovato un immobile che corrisponde alle sue preferenze
+ * @param client Il cliente a cui inviare la notifica
+ * @param property L'immobile che corrisponde alle preferenze del cliente
+ * @returns La comunicazione creata
+ */
+export async function sendPropertyMatchNotification(client: any, property: any): Promise<any> {
+  try {
+    // Verifica che il cliente abbia un numero di telefono
+    if (!client.phone) {
+      console.warn(`Impossibile inviare notifica WhatsApp: cliente ${client.id} non ha un numero di telefono`);
+      return null;
+    }
+    
+    console.log(`[MATCH NOTIFY] Invio notifica per immobile ${property.id} al cliente ${client.id} (${client.phone})`);
+    
+    // Crea messaggio personalizzato con i dettagli dell'immobile
+    const propertyDetails = [];
+    if (property.size) propertyDetails.push(`${property.size}mq`);
+    if (property.bedrooms) propertyDetails.push(`${property.bedrooms} locali`);
+    if (property.price) propertyDetails.push(`€${property.price.toLocaleString()}`);
+    
+    const propertyInfo = propertyDetails.length > 0 ? `(${propertyDetails.join(', ')})` : '';
+    
+    const message = 
+`Gentile ${client.salutation || ''} ${client.firstName} ${client.lastName},
+
+Abbiamo trovato un immobile che corrisponde alle Sue preferenze!
+
+*Dettagli immobile:*
+📍 *Indirizzo:* ${property.address}, ${property.city}
+${property.size ? `🏠 *Dimensione:* ${property.size} mq\n` : ''}${property.bedrooms ? `🛏️ *Locali:* ${property.bedrooms}\n` : ''}${property.bathrooms ? `🚿 *Bagni:* ${property.bathrooms}\n` : ''}${property.price ? `💰 *Prezzo:* €${property.price.toLocaleString()}\n` : ''}
+
+Per maggiori informazioni o per fissare un appuntamento per visionare l'immobile, non esiti a contattarci.
+
+Cordiali saluti,
+Il Suo Agente Immobiliare`;
+
+    // Utilizza l'istanza UltraMsg per inviare il messaggio e salvarlo nel database
+    const ultraMsg = getUltraMsgClient();
+    const communication = await ultraMsg.sendAndStoreCommunication(client.id, client.phone, message);
+    
+    console.log(`[MATCH NOTIFY] Notifica inviata con successo, comunicazione ${communication.id} creata`);
+    
+    // Aggiorna la comunicazione per collegare l'immobile
+    const updatedCommunication = await storage.updateCommunication(communication.id, {
+      propertyId: property.id,
+      type: 'property_match',
+      subject: 'Notifica immobile corrispondente',
+      status: 'completed',
+      needsFollowUp: true,
+      followUpDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 2 giorni dopo
+    });
+    
+    return updatedCommunication;
+  } catch (error) {
+    console.error('Errore nell\'invio della notifica di corrispondenza immobile:', error);
+    return null;
+  }
+}
