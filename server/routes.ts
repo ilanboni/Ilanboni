@@ -12,8 +12,19 @@ import {
 import { z } from "zod";
 import { summarizeText } from "./lib/openai";
 import { getUltraMsgClient } from "./lib/ultramsg";
+import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Registra le route per il webhook forwarder
+  const webhookForwarder = getWebhookForwarder();
+  webhookForwarder.registerRoutes(app);
+  
+  // Stampa la chiave da usare per il forwarder
+  const forwardKey = getForwardKey();
+  console.log("\n===============================================");
+  console.log("WEBHOOK FORWARDER KEY:", forwardKey);
+  console.log("Usa questa chiave quando configuri webhook.site per inoltrare i messaggi all'app");
+  console.log("===============================================\n");
   // API per la gestione delle comunicazioni
 
   // Ottieni tutte le comunicazioni (con filtri opzionali)
