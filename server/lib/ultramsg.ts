@@ -159,8 +159,13 @@ export class UltraMsgClient {
       let phone = webhookData.from || webhookData.author || webhookData.sender || '';
       console.log("[ULTRAMSG] Numero di telefono originale:", phone);
       
+      // Gestisci il formato specifico di WhatsApp che aggiunge @c.us alla fine
+      phone = phone.replace(/@c\.us$/i, '');
+      console.log("[ULTRAMSG] Numero dopo rimozione @c.us:", phone);
+      
       // Normalizza il numero di telefono (rimuovi +, spazi, e altri caratteri)
       phone = phone.replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+      console.log("[ULTRAMSG] Numero dopo normalizzazione:", phone);
       
       if (!phone) {
         console.warn('[ULTRAMSG] Numero di telefono mancante o non valido nel webhook');
@@ -173,6 +178,8 @@ export class UltraMsgClient {
         phone = '39' + phone;
         console.log("[ULTRAMSG] Aggiunto prefisso Italia al numero:", phone);
       }
+      
+      console.log("[ULTRAMSG] Numero di telefono finale per la ricerca:", phone);
       
       console.log("[ULTRAMSG] Ricerca cliente con numero di telefono normalizzato:", phone);
       

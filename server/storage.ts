@@ -1568,13 +1568,44 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getClientByPhone(phone: string): Promise<Client | undefined> {
-    // Normalizza il numero di telefono rimuovendo spazi, trattini e il prefisso + iniziale
-    const normalizedPhone = phone.replace(/[\s\-\+]/g, '');
+    console.log("[DB STORAGE] Ricerca cliente per telefono:", phone);
     
-    // Cerca il cliente usando LIKE con il numero normalizzato
+    // Normalizza il numero di telefono rimuovendo spazi, trattini, il prefisso + iniziale e @c.us
+    let normalizedPhone = phone.replace(/@c\.us$/i, '').replace(/[\s\-\+]/g, '');
+    
+    // Gestisci sia numeri con prefisso Italia che senza
+    let phoneWithoutPrefix = normalizedPhone;
+    let phoneWithPrefix = normalizedPhone;
+    
+    // Se il numero inizia con il prefisso Italia (39), crea una versione senza prefisso
+    if (normalizedPhone.startsWith('39') && normalizedPhone.length > 10) {
+      phoneWithoutPrefix = normalizedPhone.substring(2);
+    } 
+    // Se il numero non ha prefisso, crea una versione con prefisso
+    else if (!normalizedPhone.startsWith('39') && normalizedPhone.length === 10) {
+      phoneWithPrefix = '39' + normalizedPhone;
+    }
+    
+    console.log("[DB STORAGE] Varianti numeri di telefono per ricerca:", {
+      normalizedPhone,
+      phoneWithoutPrefix, 
+      phoneWithPrefix
+    });
+    
+    // Cerca il cliente usando OR con tutte le possibili varianti del numero
     const result = await db.select().from(clients).where(
-      like(clients.phone, `%${normalizedPhone}%`)
+      or(
+        like(clients.phone, `%${normalizedPhone}%`),
+        like(clients.phone, `%${phoneWithoutPrefix}%`),
+        like(clients.phone, `%${phoneWithPrefix}%`)
+      )
     );
+    
+    if (result.length > 0) {
+      console.log("[DB STORAGE] Cliente trovato:", result[0]);
+    } else {
+      console.log("[DB STORAGE] Nessun cliente trovato con questi numeri di telefono");
+    }
     
     return result.length > 0 ? result[0] : undefined;
   }
