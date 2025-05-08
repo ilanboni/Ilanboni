@@ -286,13 +286,8 @@ export default function CommunicationDetailPage() {
                     </div>
                   )}
                   
-                  <pre className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded overflow-auto max-w-full">
-                    Debug comunicazione: {JSON.stringify(communication, null, 2)}
-                  </pre>
-                  
                   {communication?.content ? (
-                    <div className="whitespace-pre-line text-gray-700 border p-4 rounded-md bg-white">
-                      <strong>Contenuto del messaggio:</strong><br />
+                    <div className="whitespace-pre-line text-gray-700 p-5 rounded-md bg-gray-50 border border-gray-200 shadow-sm">
                       {communication.content}
                     </div>
                   ) : (
