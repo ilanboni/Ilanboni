@@ -34,6 +34,18 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
       }
     });
     
+    // Recupera tutti i messaggi recenti senza filtro per chat
+    const allMessagesUrl = `https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE_ID}/messages`;
+    const allMessagesResponse = await axios.get(allMessagesUrl, {
+      params: {
+        token: process.env.ULTRAMSG_API_KEY,
+        limit: 50,
+        order: "desc"
+      }
+    });
+    
+    console.log("Risposta API messaggi recenti:", JSON.stringify(allMessagesResponse.data));
+    
     const chatIds = chatsResponse.data.map((chat: any) => chat.id);
     console.log(`Trovate ${chatIds.length} chat recenti`);
     
@@ -43,7 +55,64 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
     let errorCount = 0;
     const processedMessages: any[] = [];
     
-    // Elabora ogni chat
+    // Prima elaboriamo tutti i messaggi recenti
+    if (allMessagesResponse.data && allMessagesResponse.data.messages) {
+      const allMessages = allMessagesResponse.data.messages;
+      console.log(`Verifica ${allMessages.length} messaggi recenti (approccio globale)...`);
+      
+      for (const message of allMessages) {
+        // Ignora i messaggi inviati da noi
+        if (message.from === "390235981509@c.us" || message.from === process.env.ULTRAMSG_PHONE_NUMBER) {
+          console.log(`Ignora messaggio in uscita: ${message.body.substring(0, 20)}...`);
+          ignoredCount++;
+          continue;
+        }
+        
+        console.log(`Trovato messaggio potenziale: da ${message.from}, a ${message.to}, corpo: ${message.body.substring(0, 20)}...`);
+        
+        // Controlla se abbiamo già questo messaggio nel database
+        const messageId = message.id || `${message.from}:${message.created_at}`;
+        const existingMessage = await storage.getCommunicationByExternalId(messageId);
+        
+        if (existingMessage) {
+          console.log(`Messaggio ${messageId} già presente nel database`);
+          ignoredCount++;
+          continue;
+        }
+        
+        // Normalizza i dati del messaggio per il processore di webhook
+        const webhookData = {
+          event_type: "message",
+          from_me: false,
+          from: message.from,
+          to: message.to,
+          body: message.body,
+          media_url: "",
+          mime_type: message.type === "chat" ? "text/plain" : message.type,
+          external_id: messageId
+        };
+        
+        // Usa il processore di webhook esistente
+        const ultraMsgClient = getUltraMsgClient();
+        const communication = await ultraMsgClient.processIncomingWebhook(webhookData);
+        
+        if (communication) {
+          processedMessages.push({
+            id: communication.id,
+            from: message.from,
+            body: message.body,
+            created_at: communication.createdAt
+          });
+          processedCount++;
+          console.log(`✅ Elaborato nuovo messaggio da ${message.from}: ${message.body.substring(0, 30)}...`);
+        } else {
+          errorCount++;
+          console.error(`❌ Errore nell'elaborazione del messaggio da ${message.from}`);
+        }
+      }
+    }
+    
+    // Poi elaboriamo le chat singole come backup
     for (const chatId of chatIds) {
       try {
         // Recupera i messaggi recenti di questa chat
@@ -58,7 +127,6 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
         });
         
         const messages = Array.isArray(messagesResponse.data) ? messagesResponse.data : [];
-        console.log(`Chat ${chatId}: trovati ${messages.length} messaggi`);
         
         // Elabora ogni messaggio
         for (const message of messages) {
