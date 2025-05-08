@@ -2,10 +2,14 @@ import { useState } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format, addDays } from "date-fns";
 import { it } from "date-fns/locale";
-import { format } from "date-fns";
 import { safeFormatDate } from "@/lib/utils";
+import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +38,9 @@ export default function CommunicationDetailPage() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isFollowUpEnabled, setIsFollowUpEnabled] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState<Date | undefined>(undefined);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   
   // Fetch communication details with debugging
   const { data: communication, isLoading, isError, error } = useQuery<Communication>({
@@ -71,6 +78,77 @@ export default function CommunicationDetailPage() {
     }
   });
   
+  // Initialize state when communication data is loaded
+  useState(() => {
+    if (communication) {
+      setIsFollowUpEnabled(communication.needsFollowUp || false);
+      setFollowUpDate(
+        communication.followUpDate ? new Date(communication.followUpDate) : addDays(new Date(), 3)
+      );
+    }
+  }, [communication]);
+
+  // Update follow-up mutation
+  const updateFollowUpMutation = useMutation({
+    mutationFn: async (data: {
+      needsFollowUp: boolean;
+      followUpDate?: Date | null;
+    }) => {
+      return apiRequest(
+        "PATCH",
+        `/api/communications/${id}`,
+        {
+          needsFollowUp: data.needsFollowUp,
+          followUpDate: data.needsFollowUp ? data.followUpDate : null,
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/communications/${id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+      
+      toast({
+        title: "Follow-up aggiornato",
+        description: isFollowUpEnabled 
+          ? "Il follow-up è stato impostato con successo" 
+          : "Il follow-up è stato rimosso",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile aggiornare lo stato del follow-up",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Handler for follow-up toggle change
+  const handleFollowUpChange = (checked: boolean) => {
+    setIsFollowUpEnabled(checked);
+    if (checked && !followUpDate) {
+      setFollowUpDate(addDays(new Date(), 3)); // Default to 3 days from now
+    }
+    
+    updateFollowUpMutation.mutate({
+      needsFollowUp: checked,
+      followUpDate: checked ? followUpDate || addDays(new Date(), 3) : null,
+    });
+  };
+
+  // Handler for follow-up date change
+  const handleFollowUpDateChange = (date: Date | undefined) => {
+    if (date) {
+      setFollowUpDate(date);
+      if (isFollowUpEnabled) {
+        updateFollowUpMutation.mutate({
+          needsFollowUp: true,
+          followUpDate: date,
+        });
+      }
+    }
+  };
+
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -297,32 +375,104 @@ export default function CommunicationDetailPage() {
               </CardContent>
             </Card>
             
-            {/* Follow-up Info */}
-            {communication?.needsFollowUp && (
-              <Card className="mt-6">
+            {/* Follow-up and Reply Actions */}
+            <Card className="mt-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center">
+                    <i className="fas fa-reply mr-2 text-blue-600"></i>
+                    Gestione Follow-up e Risposta
+                  </span>
+                  
+                  {communication?.type === "whatsapp" && client && (
+                    <Button 
+                      onClick={() => setIsWhatsAppModalOpen(true)} 
+                      className="gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <i className="fab fa-whatsapp"></i>
+                      Rispondi subito
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="flex items-center space-x-4">
+                    <Switch 
+                      id="follow-up-toggle"
+                      checked={isFollowUpEnabled}
+                      onCheckedChange={handleFollowUpChange}
+                    />
+                    <Label 
+                      htmlFor="follow-up-toggle"
+                      className={isFollowUpEnabled ? "text-red-600 font-medium" : ""}
+                    >
+                      {isFollowUpEnabled 
+                        ? "Il messaggio richiede un follow-up" 
+                        : "Nessun follow-up richiesto"}
+                    </Label>
+                  </div>
+                  
+                  {isFollowUpEnabled && (
+                    <div className="mt-4 space-y-3">
+                      <div className="flex flex-col">
+                        <Label htmlFor="follow-up-date" className="mb-2">
+                          Data di follow-up:
+                        </Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              id="follow-up-date"
+                              className="w-[240px] justify-start text-left font-normal"
+                            >
+                              <i className="fas fa-calendar-alt mr-2"></i>
+                              {followUpDate ? (
+                                format(followUpDate, "dd/MM/yyyy")
+                              ) : (
+                                <span className="text-gray-500">Seleziona data</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={followUpDate}
+                              onSelect={handleFollowUpDateChange}
+                              initialFocus
+                              disabled={(date) => date < new Date()}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Display current follow-up status if it exists */}
+            {communication?.needsFollowUp && communication.followUpDate && (
+              <Card className="mt-6 border-red-200 bg-red-50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-red-600 flex items-center">
                     <i className="fas fa-exclamation-circle mr-2"></i>
-                    Follow-up richiesto
+                    Promemoria esistente
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center">
                     <span className="mr-2 font-medium">Data prevista:</span>
-                    {communication.followUpDate ? (
-                      <span>
-                        {(() => {
-                          try {
-                            return format(new Date(communication.followUpDate), "dd/MM/yyyy");
-                          } catch (e) {
-                            console.error("Errore formattazione data:", e);
-                            return "Data non valida";
-                          }
-                        })()}
-                      </span>
-                    ) : (
-                      <span className="text-gray-500 italic">Data non specificata</span>
-                    )}
+                    <span>
+                      {(() => {
+                        try {
+                          return format(new Date(communication.followUpDate), "dd/MM/yyyy");
+                        } catch (e) {
+                          console.error("Errore formattazione data:", e);
+                          return "Data non valida";
+                        }
+                      })()}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
