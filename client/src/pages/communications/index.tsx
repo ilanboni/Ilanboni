@@ -277,9 +277,9 @@ export default function CommunicationsPage() {
                         <TableCell className="max-w-[250px] truncate text-sm text-gray-600">
                           {comm.content || ""}
                         </TableCell>
-                        <TableCell>{getStatusBadge(comm.status)}</TableCell>
+                        <TableCell>{comm.status === "pending" ? <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">In attesa</Badge> : getStatusBadge(comm.status)}</TableCell>
                         <TableCell>
-                          {comm.needsFollowUp && (
+                          {comm.needsFollowUp === true && (
                             <Badge variant="outline" className="bg-red-50 text-red-700">
                               Richiesto
                             </Badge>
