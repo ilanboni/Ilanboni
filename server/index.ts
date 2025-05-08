@@ -1,6 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { fetchRecentWhatsAppMessages } from "./lib/ultramsgApi";
+
+// Intervallo in millisecondi per il polling dei messaggi WhatsApp
+const WHATSAPP_POLLING_INTERVAL = 60000; // 1 minuto
 
 const app = express();
 app.use(express.json());
@@ -36,6 +40,41 @@ app.use((req, res, next) => {
   next();
 });
 
+// Funzione che gestisce il polling dei messaggi WhatsApp
+function startWhatsAppPolling() {
+  console.log("🔄 Inizializzazione sistema di polling messaggi WhatsApp...");
+  
+  // Esegui immediatamente la prima verifica
+  pollWhatsAppMessages();
+  
+  // Imposta il polling periodico
+  setInterval(pollWhatsAppMessages, WHATSAPP_POLLING_INTERVAL);
+}
+
+// Funzione che esegue il polling effettivo
+async function pollWhatsAppMessages() {
+  if (!process.env.ULTRAMSG_API_KEY || !process.env.ULTRAMSG_INSTANCE_ID) {
+    console.log("⚠️ Chiavi API UltraMsg non configurate, polling disabilitato");
+    return;
+  }
+  
+  try {
+    console.log("📩 Verifica nuovi messaggi WhatsApp...");
+    const result = await fetchRecentWhatsAppMessages();
+    
+    if (result.processedCount > 0) {
+      console.log(`✅ Elaborati ${result.processedCount} nuovi messaggi WhatsApp`);
+      console.log(`ℹ️ Dettagli: ${result.ignoredCount} messaggi ignorati, ${result.errorCount} errori`);
+    } else if (result.ignoredCount > 0) {
+      console.log(`ℹ️ Nessun nuovo messaggio. ${result.ignoredCount} messaggi già elaborati in precedenza`);
+    } else {
+      console.log(`ℹ️ Nessun nuovo messaggio WhatsApp`);
+    }
+  } catch (error) {
+    console.error("❌ Errore durante il polling dei messaggi WhatsApp:", error);
+  }
+}
+
 (async () => {
   const server = await registerRoutes(app);
 
@@ -66,5 +105,8 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Avvia il polling dei messaggi WhatsApp dopo l'avvio del server
+    startWhatsAppPolling();
   });
 })();
