@@ -36,6 +36,16 @@ export default function CommunicationsPage() {
     queryKey: ["/api/communications"],
   });
   
+  // Fetch all clients for name display
+  const { data: clients } = useQuery({
+    queryKey: ["/api/clients"],
+  });
+  
+  // Function to get client name by id
+  const getClientName = (clientId: number) => {
+    const client = clients?.find(c => c.id === clientId);
+    return client ? `${client.firstName} ${client.lastName}` : `Cliente #${clientId}`;
+  };
   // Apply filters and search to communications
   const filteredCommunications = communications?.filter((comm) => {
     // Filter by type
@@ -232,7 +242,8 @@ export default function CommunicationsPage() {
                       <TableHead className="w-32">Tipo</TableHead>
                       <TableHead className="w-48">Data</TableHead>
                       <TableHead className="w-56">Cliente</TableHead>
-                      <TableHead>Oggetto</TableHead>
+                      <TableHead className="w-48">Oggetto</TableHead>
+                      <TableHead>Contenuto</TableHead>
                       <TableHead className="w-32">Stato</TableHead>
                       <TableHead className="w-24">Follow-up</TableHead>
                       <TableHead className="w-20 text-right">Azioni</TableHead>
@@ -252,7 +263,7 @@ export default function CommunicationsPage() {
                         <TableCell>
                           <Link href={`/clients/${comm.clientId}`}>
                             <div className="text-primary-700 hover:underline cursor-pointer">
-                              Cliente #{comm.clientId}
+                              {getClientName(comm.clientId)}
                             </div>
                           </Link>
                         </TableCell>
@@ -262,6 +273,9 @@ export default function CommunicationsPage() {
                               {comm.subject}
                             </div>
                           </Link>
+                        </TableCell>
+                        <TableCell className="max-w-[250px] truncate text-sm text-gray-600">
+                          {comm.content || ""}
                         </TableCell>
                         <TableCell>{getStatusBadge(comm.status)}</TableCell>
                         <TableCell>

@@ -36,7 +36,7 @@ export default function CommunicationDetailPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   // Fetch communication details
-  const { data: communication, isLoading } = useQuery<Communication>({
+  const { data: communication, isLoading, isError, error } = useQuery<Communication>({
     queryKey: ["/api/communications", id],
     enabled: !isNaN(id),
   });
@@ -138,26 +138,39 @@ export default function CommunicationDetailPage() {
     }
   };
   
-  // Loading state
-  if (isNaN(id) || (isLoading && !communication)) {
+  // Loading state or error state
+  if (isNaN(id) || isLoading || isError || !communication) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh]">
         <div className="text-6xl text-gray-300 mb-4">
           {isLoading ? (
             <i className="fas fa-spinner animate-spin"></i>
+          ) : isError ? (
+            <i className="fas fa-exclamation-triangle"></i>
           ) : (
             <i className="fas fa-search"></i>
           )}
         </div>
         <h1 className="text-2xl font-semibold text-gray-700 mb-4">
-          {isLoading ? "Caricamento in corso..." : "Comunicazione non trovata"}
+          {isLoading ? "Caricamento in corso..." : 
+           isError ? "Errore durante il caricamento" : 
+           "Comunicazione non trovata"}
         </h1>
         <p className="text-gray-500 mb-6">
           {isLoading
             ? "Attendere mentre carichiamo i dati."
+            : isError
+            ? `Si è verificato un errore durante il caricamento dei dati: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`
             : "La comunicazione che stai cercando non esiste o è stata rimossa."
           }
         </p>
+        <div>
+          {isError && (
+            <pre className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded overflow-auto max-w-full">
+              {JSON.stringify(error, null, 2)}
+            </pre>
+          )}
+        </div>
         <Button asChild>
           <Link href="/communications">
             <div className="px-2 py-1">
