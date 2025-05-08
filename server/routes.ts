@@ -1055,11 +1055,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // UltraMsg può inviare i dati in formato diverso a seconda della configurazione
       if (webhookData) {
-        // Gestisce sia il formato con l'oggetto data che il formato diretto
-        const messageData = webhookData.data || webhookData;
-        
-        // Gestisce il formato dalle informazioni reali ricevute da webhook.site
-        if (webhookData.event_type === "message_received" && messageData) {
+        // Nuovo formato esatto ricevuto da webhook.site (1)
+        if (webhookData.event_type === "message_received" && webhookData.data) {
+          const messageData = webhookData.data;
           normalizedWebhook.event_type = "message";
           normalizedWebhook.from_me = messageData.fromMe === true;
           normalizedWebhook.from = messageData.from ? messageData.from.replace(/@c\.us$/, '') : '';
@@ -1067,7 +1065,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           normalizedWebhook.body = messageData.body || '';
           normalizedWebhook.media_url = messageData.media || '';
           normalizedWebhook.mime_type = messageData.type === 'chat' ? 'text/plain' : messageData.type || 'text/plain';
-        } else {
+          
+          console.log("[WEBHOOK] Elaborazione formato webhook message_received con data object");
+        } 
+        // Formato test simulato (2)
+        else if (webhookData.event_type === "message" || webhookData.from || webhookData.to) {
           // Formato precedente
           normalizedWebhook.event_type = webhookData.event_type || webhookData.type || 'message';
           normalizedWebhook.from_me = webhookData.from_me === true || webhookData.fromMe === true;
@@ -1076,6 +1078,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           normalizedWebhook.body = webhookData.body || webhookData.text || webhookData.content || webhookData.message || '';
           normalizedWebhook.media_url = webhookData.media_url || webhookData.mediaUrl || '';
           normalizedWebhook.mime_type = webhookData.mime_type || webhookData.mimeType || 'text/plain';
+          
+          console.log("[WEBHOOK] Elaborazione formato webhook standard o simulato");
+        }
+        // Altri formati potenziali (3)
+        else {
+          console.log("[WEBHOOK] Formato non riconosciuto, tentativo di elaborazione come formato generico");
+          
+          // Cerca di estrarre informazioni da qualsiasi formato
+          const messageData = webhookData.data || webhookData;
+          normalizedWebhook.event_type = messageData.event_type || messageData.type || webhookData.event_type || 'message';
+          normalizedWebhook.from_me = messageData.fromMe === true || messageData.from_me === true || webhookData.from_me === true;
+          
+          // Cerca il numero di telefono mittente in tutti i possibili luoghi
+          let possibleFrom = messageData.from || messageData.author || messageData.sender || webhookData.from || '';
+          normalizedWebhook.from = possibleFrom ? possibleFrom.replace(/@c\.us$/, '') : '';
+          
+          // Cerca il numero destinatario in tutti i possibili luoghi
+          normalizedWebhook.to = messageData.to || messageData.recipient || webhookData.to || '';
+          
+          // Cerca il contenuto del messaggio in tutti i possibili luoghi
+          normalizedWebhook.body = messageData.body || messageData.text || messageData.content || messageData.message || 
+                                 webhookData.body || webhookData.text || webhookData.content || '';
+                                 
+          normalizedWebhook.media_url = messageData.media || messageData.media_url || webhookData.media_url || '';
+          
+          // Determina il tipo di contenuto
+          if (messageData.type === 'chat' || webhookData.type === 'chat') {
+            normalizedWebhook.mime_type = 'text/plain';
+          } else {
+            normalizedWebhook.mime_type = messageData.mime_type || messageData.type || webhookData.mime_type || 'text/plain';
+          }
         }
       }
       
