@@ -81,10 +81,20 @@ export default function CommunicationDetailPage() {
   // Initialize state when communication data is loaded
   useState(() => {
     if (communication) {
-      setIsFollowUpEnabled(communication.needsFollowUp || false);
-      setFollowUpDate(
-        communication.followUpDate ? new Date(communication.followUpDate) : addDays(new Date(), 3)
-      );
+      // Verifica se il follow-up è richiesto
+      const needsFollowUp = communication.needsFollowUp === true;
+      setIsFollowUpEnabled(needsFollowUp);
+      
+      // Imposta la data di follow-up solo se effettivamente necessario
+      if (needsFollowUp && communication.followUpDate) {
+        setFollowUpDate(new Date(communication.followUpDate));
+      } else if (needsFollowUp) {
+        // Se il follow-up è necessario ma non c'è una data, impostala a 3 giorni da oggi
+        setFollowUpDate(addDays(new Date(), 3));
+      } else {
+        // Se il follow-up non è necessario, resetta anche la data
+        setFollowUpDate(undefined);
+      }
     }
   }, [communication]);
 
@@ -451,13 +461,13 @@ export default function CommunicationDetailPage() {
               </CardContent>
             </Card>
             
-            {/* Display current follow-up status if it exists */}
-            {communication?.needsFollowUp && communication.followUpDate && (
+            {/* Display current follow-up status if it exists - solo come riferimento storico quando il toggle è disattivato */}
+            {communication?.needsFollowUp === true && communication.followUpDate && !isFollowUpEnabled && (
               <Card className="mt-6 border-red-200 bg-red-50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-red-600 flex items-center">
                     <i className="fas fa-exclamation-circle mr-2"></i>
-                    Promemoria esistente
+                    Promemoria registrato nel sistema
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -473,6 +483,10 @@ export default function CommunicationDetailPage() {
                         }
                       })()}
                     </span>
+                  </div>
+                  <div className="mt-2 text-sm text-gray-600 italic">
+                    Nota: Sembra che nel database sia presente un promemoria, ma il toggle è disattivato. 
+                    Riattiva il toggle per utilizzare questa data o lasciatelo disattivato per confermare la rimozione.
                   </div>
                 </CardContent>
               </Card>
