@@ -57,7 +57,7 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
           }
         });
         
-        const messages = messagesResponse.data as UltraMsgApiMessage[];
+        const messages = Array.isArray(messagesResponse.data) ? messagesResponse.data : [];
         console.log(`Chat ${chatId}: trovati ${messages.length} messaggi`);
         
         // Elabora ogni messaggio

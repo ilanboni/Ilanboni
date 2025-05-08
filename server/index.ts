@@ -59,16 +59,25 @@ async function pollWhatsAppMessages() {
   }
   
   try {
-    console.log("📩 Verifica nuovi messaggi WhatsApp...");
+    // Uso un timestamp per i log di debug solo ogni 5 minuti
+    const now = new Date();
+    const minutes = now.getMinutes();
+    const isVerboseLogging = minutes % 5 === 0;
+    
+    if (isVerboseLogging) {
+      console.log(`📩 [${now.toLocaleTimeString()}] Verifica nuovi messaggi WhatsApp...`);
+    }
+    
     const result = await fetchRecentWhatsAppMessages();
     
     if (result.processedCount > 0) {
-      console.log(`✅ Elaborati ${result.processedCount} nuovi messaggi WhatsApp`);
+      console.log(`✅ [${now.toLocaleTimeString()}] Elaborati ${result.processedCount} nuovi messaggi WhatsApp`);
       console.log(`ℹ️ Dettagli: ${result.ignoredCount} messaggi ignorati, ${result.errorCount} errori`);
-    } else if (result.ignoredCount > 0) {
-      console.log(`ℹ️ Nessun nuovo messaggio. ${result.ignoredCount} messaggi già elaborati in precedenza`);
-    } else {
-      console.log(`ℹ️ Nessun nuovo messaggio WhatsApp`);
+      console.log(`📱 Messaggi: ${result.messages.map(m => `${m.from}: "${m.body.substring(0, 20)}..."`).join(', ')}`);
+    } else if (result.ignoredCount > 0 && isVerboseLogging) {
+      console.log(`ℹ️ [${now.toLocaleTimeString()}] Nessun nuovo messaggio. ${result.ignoredCount} messaggi già elaborati in precedenza`);
+    } else if (isVerboseLogging) {
+      console.log(`ℹ️ [${now.toLocaleTimeString()}] Nessun nuovo messaggio WhatsApp`);
     }
   } catch (error) {
     console.error("❌ Errore durante il polling dei messaggi WhatsApp:", error);
