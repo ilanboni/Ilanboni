@@ -142,23 +142,39 @@ export class UltraMsgClient {
     try {
       console.log("[ULTRAMSG] Elaborazione webhook:", JSON.stringify(webhookData, null, 2));
       
+      // Gestisce diversi formati di webhook
+      const isFromMe = webhookData.from_me === true || webhookData.fromMe === true;
+      const eventType = webhookData.event_type || webhookData.type || 'message';
+      
       // Verifica che sia un messaggio in arrivo e non un messaggio inviato da noi
-      if (webhookData.event_type !== 'message' || webhookData.from_me) {
+      if (eventType !== 'message' || isFromMe) {
         console.log("[ULTRAMSG] Webhook ignorato: non è un messaggio in arrivo o è stato inviato da noi", {
-          event_type: webhookData.event_type,
-          from_me: webhookData.from_me
+          event_type: eventType,
+          from_me: isFromMe
         });
         return null;
       }
 
-      // Estrai il numero di telefono
-      const phone = webhookData.from?.replace(/^\+/, '');
+      // Estrai il numero di telefono (gestisce diversi formati)
+      let phone = webhookData.from || webhookData.author || webhookData.sender || '';
+      console.log("[ULTRAMSG] Numero di telefono originale:", phone);
+      
+      // Normalizza il numero di telefono (rimuovi +, spazi, e altri caratteri)
+      phone = phone.replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+      
       if (!phone) {
-        console.warn('[ULTRAMSG] Numero di telefono mancante nel webhook');
+        console.warn('[ULTRAMSG] Numero di telefono mancante o non valido nel webhook');
         return null;
       }
       
-      console.log("[ULTRAMSG] Ricerca cliente con numero di telefono:", phone);
+      // Se il numero non inizia con il prefisso dell'Italia (39), aggiungiamolo
+      // assumiamo che tutti i numeri sono italiani se non hanno prefisso
+      if (!phone.startsWith('39') && phone.length === 10) {
+        phone = '39' + phone;
+        console.log("[ULTRAMSG] Aggiunto prefisso Italia al numero:", phone);
+      }
+      
+      console.log("[ULTRAMSG] Ricerca cliente con numero di telefono normalizzato:", phone);
       
       // Cerca il cliente in base al numero di telefono
       const client = await storage.getClientByPhone(phone);
@@ -169,8 +185,9 @@ export class UltraMsgClient {
       
       console.log("[ULTRAMSG] Cliente trovato:", client.id, client.firstName, client.lastName);
 
-      // Estrai il contenuto del messaggio
-      const messageContent = webhookData.body || '';
+      // Estrai il contenuto del messaggio (gestisce diversi formati)
+      const messageContent = webhookData.body || webhookData.text || webhookData.content || webhookData.message || '';
+      console.log("[ULTRAMSG] Contenuto del messaggio:", messageContent);
       
       // Genera riassunto con AI se il messaggio è lungo
       let summary: string;

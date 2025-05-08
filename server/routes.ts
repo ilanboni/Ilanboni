@@ -1024,63 +1024,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Webhook per ricevere messaggi WhatsApp tramite UltraMsg
   app.post("/api/whatsapp/webhook", async (req: Request, res: Response) => {
     try {
+      // Registra tutti i dettagli della richiesta
+      console.log("=== INIZIO ANALISI WEBHOOK ULTRAMSG ===");
+      console.log("[WEBHOOK] Ricevuto webhook da:", req.ip);
+      console.log("[WEBHOOK] Headers:", JSON.stringify(req.headers, null, 2));
+      console.log("[WEBHOOK] Body completo:", JSON.stringify(req.body, null, 2));
+      console.log("[WEBHOOK] Query params:", JSON.stringify(req.query, null, 2));
+      
       // Verifica se è una notifica di messaggio valida
       const webhookData = req.body;
       
-      console.log("[WEBHOOK] Ricezione webhook WhatsApp:", JSON.stringify(webhookData, null, 2));
+      // Crea un oggetto webhook compatibile in caso di formati diversi
+      const normalizedWebhook: {
+        event_type: string;
+        from_me: boolean;
+        from: string;
+        to: string;
+        body: string;
+        media_url: string;
+        mime_type: string;
+      } = {
+        event_type: 'message',
+        from_me: false,
+        from: '',
+        to: '',
+        body: '',
+        media_url: '',
+        mime_type: 'text/plain'
+      };
       
-      if (!webhookData || !webhookData.event_type) {
+      // UltraMsg può inviare i dati in formato diverso a seconda della configurazione
+      if (webhookData) {
+        normalizedWebhook.event_type = webhookData.event_type || webhookData.type || 'message';
+        normalizedWebhook.from_me = webhookData.from_me === true || webhookData.fromMe === true;
+        normalizedWebhook.from = webhookData.from || webhookData.author || webhookData.sender || '';
+        normalizedWebhook.to = webhookData.to || webhookData.recipient || '';
+        normalizedWebhook.body = webhookData.body || webhookData.text || webhookData.content || webhookData.message || '';
+        normalizedWebhook.media_url = webhookData.media_url || webhookData.mediaUrl || '';
+        normalizedWebhook.mime_type = webhookData.mime_type || webhookData.mimeType || 'text/plain';
+      }
+      
+      console.log("[WEBHOOK] Dati webhook normalizzati:", JSON.stringify(normalizedWebhook, null, 2));
+      
+      if (!normalizedWebhook.from && !normalizedWebhook.body) {
         console.error("[WEBHOOK] Formato webhook non valido:", webhookData);
-        return res.status(400).json({ error: "Formato webhook non valido" });
+        return res.status(200).json({ success: true, message: "Formato non riconosciuto, ma ricevuto" });
       }
       
-      // Elabora solo gli eventi di tipo "message"
-      if (webhookData.event_type === "message" && !webhookData.from_me) {
-        try {
-          // Ottieni il client di UltraMsg
-          const ultraMsgClient = getUltraMsgClient();
+      // Elabora il messaggio in arrivo
+      try {
+        // Ottieni il client di UltraMsg
+        const ultraMsgClient = getUltraMsgClient();
+        
+        // Processa il messaggio in arrivo
+        const communication = await ultraMsgClient.processIncomingWebhook(normalizedWebhook);
+        
+        if (communication) {
+          console.log("[WEBHOOK] Comunicazione salvata:", communication);
           
-          // Processa il messaggio in arrivo
-          const communication = await ultraMsgClient.processIncomingWebhook(webhookData);
-          
-          if (communication) {
-            console.log("[WEBHOOK] Comunicazione salvata:", communication);
+          // Crea un task per il follow-up se necessario
+          if (communication.needsFollowUp) {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 1); // Scadenza: domani
             
-            // Crea un task per il follow-up se necessario
-            if (communication.needsFollowUp) {
-              const dueDate = new Date();
-              dueDate.setDate(dueDate.getDate() + 1); // Scadenza: domani
-              
-              await storage.createTask({
-                type: "follow_up",
-                title: "Rispondere al messaggio WhatsApp",
-                description: `Rispondere al messaggio WhatsApp del cliente: "${communication.summary}"`,
-                clientId: communication.clientId,
-                status: "pending",
-                dueDate: dueDate.toISOString().split('T')[0],
-                assignedTo: 1 // Assegnato all'agente predefinito
-              });
-            }
-            
-            return res.status(200).json({
-              success: true,
-              message: "Webhook elaborato con successo",
-              communication
+            await storage.createTask({
+              type: "follow_up",
+              title: "Rispondere al messaggio WhatsApp",
+              description: `Rispondere al messaggio WhatsApp del cliente: "${communication.summary}"`,
+              clientId: communication.clientId,
+              status: "pending",
+              dueDate: dueDate.toISOString().split('T')[0],
+              assignedTo: 1 // Assegnato all'agente predefinito
             });
-          } else {
-            console.warn("[WEBHOOK] Nessuna comunicazione creata");
           }
-        } catch (processError: any) {
-          console.error("[POST /api/whatsapp/webhook] Errore nel processare il messaggio:", processError);
+          
+          console.log("=== FINE ANALISI WEBHOOK ULTRAMSG (SUCCESSO) ===");
+          return res.status(200).json({
+            success: true,
+            message: "Webhook elaborato con successo",
+            communication
+          });
+        } else {
+          console.warn("[WEBHOOK] Nessuna comunicazione creata");
         }
+      } catch (processError: any) {
+        console.error("[POST /api/whatsapp/webhook] Errore nel processare il messaggio:", processError);
+        console.error(processError.stack);
       }
       
+      console.log("=== FINE ANALISI WEBHOOK ULTRAMSG ===");
       // Rispondi sempre con 200 per confermare la ricezione (anche se non elaborato)
-      res.status(200).json({ success: true });
+      res.status(200).json({ success: true, message: "Webhook ricevuto" });
     } catch (error: any) {
-      console.error("[POST /api/whatsapp/webhook]", error);
+      console.error("[POST /api/whatsapp/webhook] Errore generale:", error);
+      console.error(error.stack);
       // Rispondi sempre con 200 per confermare la ricezione (anche in caso di errore)
-      res.status(200).json({ success: true });
+      res.status(200).json({ success: true, message: "Webhook ricevuto (con errori)" });
     }
   });
   
