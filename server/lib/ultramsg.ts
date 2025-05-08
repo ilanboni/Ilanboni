@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Communication, InsertCommunication } from '@shared/schema';
+import { Communication, InsertCommunication, Client, Property } from '@shared/schema';
 import { storage } from '../storage';
 import { summarizeText } from './openai';
 
@@ -253,7 +253,7 @@ export function getUltraMsgClient(): UltraMsgClient {
  * @param property L'immobile che corrisponde alle preferenze del cliente
  * @returns La comunicazione creata
  */
-export async function sendPropertyMatchNotification(client: any, property: any): Promise<any> {
+export async function sendPropertyMatchNotification(client: Client, property: Property): Promise<Communication | null> {
   try {
     // Verifica che il cliente abbia un numero di telefono
     if (!client.phone) {
