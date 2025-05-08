@@ -602,6 +602,15 @@ export default function CommunicationDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* WhatsApp Modal for quick reply */}
+      {client && (
+        <WhatsAppModal
+          isOpen={isWhatsAppModalOpen}
+          onClose={() => setIsWhatsAppModalOpen(false)}
+          client={client}
+        />
+      )}
     </>
   );
 }
