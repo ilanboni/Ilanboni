@@ -1124,6 +1124,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Endpoint di test per simulare la ricezione di un messaggio WhatsApp
+  // Endpoint semplice per verificare che il webhook sia raggiungibile
+  app.get("/api/whatsapp/ping", async (req: Request, res: Response) => {
+    console.log("=== WEBHOOK PING RICEVUTO ===");
+    console.log("Headers:", JSON.stringify(req.headers, null, 2));
+    console.log("Body:", JSON.stringify(req.body, null, 2));
+    
+    // Rispondi con successo
+    res.status(200).json({
+      success: true,
+      message: "Webhook ping ricevuto con successo",
+      timestamp: new Date().toISOString(),
+      request_data: {
+        headers: req.headers,
+        body: req.body,
+        ip: req.ip
+      }
+    });
+  });
+  
   app.post("/api/whatsapp/test-webhook", async (req: Request, res: Response) => {
     try {
       const { clientId, message } = req.body;
