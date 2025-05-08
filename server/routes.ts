@@ -1055,13 +1055,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // UltraMsg può inviare i dati in formato diverso a seconda della configurazione
       if (webhookData) {
-        normalizedWebhook.event_type = webhookData.event_type || webhookData.type || 'message';
-        normalizedWebhook.from_me = webhookData.from_me === true || webhookData.fromMe === true;
-        normalizedWebhook.from = webhookData.from || webhookData.author || webhookData.sender || '';
-        normalizedWebhook.to = webhookData.to || webhookData.recipient || '';
-        normalizedWebhook.body = webhookData.body || webhookData.text || webhookData.content || webhookData.message || '';
-        normalizedWebhook.media_url = webhookData.media_url || webhookData.mediaUrl || '';
-        normalizedWebhook.mime_type = webhookData.mime_type || webhookData.mimeType || 'text/plain';
+        // Gestisce sia il formato con l'oggetto data che il formato diretto
+        const messageData = webhookData.data || webhookData;
+        
+        // Gestisce il formato dalle informazioni reali ricevute da webhook.site
+        if (webhookData.event_type === "message_received" && messageData) {
+          normalizedWebhook.event_type = "message";
+          normalizedWebhook.from_me = messageData.fromMe === true;
+          normalizedWebhook.from = messageData.from ? messageData.from.replace(/@c\.us$/, '') : '';
+          normalizedWebhook.to = messageData.to ? messageData.to.replace(/@c\.us$/, '') : '';
+          normalizedWebhook.body = messageData.body || '';
+          normalizedWebhook.media_url = messageData.media || '';
+          normalizedWebhook.mime_type = messageData.type === 'chat' ? 'text/plain' : messageData.type || 'text/plain';
+        } else {
+          // Formato precedente
+          normalizedWebhook.event_type = webhookData.event_type || webhookData.type || 'message';
+          normalizedWebhook.from_me = webhookData.from_me === true || webhookData.fromMe === true;
+          normalizedWebhook.from = webhookData.from || webhookData.author || webhookData.sender || '';
+          normalizedWebhook.to = webhookData.to || webhookData.recipient || '';
+          normalizedWebhook.body = webhookData.body || webhookData.text || webhookData.content || webhookData.message || '';
+          normalizedWebhook.media_url = webhookData.media_url || webhookData.mediaUrl || '';
+          normalizedWebhook.mime_type = webhookData.mime_type || webhookData.mimeType || 'text/plain';
+        }
       }
       
       console.log("[WEBHOOK] Dati webhook normalizzati:", JSON.stringify(normalizedWebhook, null, 2));
