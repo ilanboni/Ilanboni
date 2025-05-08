@@ -13,7 +13,7 @@ import ClientDetailPage from "@/pages/clients/[id]";
 import ClientPropertySearchPage from "@/pages/clients/[id]/search";
 import PropertiesPage from "@/pages/properties/index";
 import PropertyDetailPage from "@/pages/properties/[id]";
-import PropertyEditPage from "@/pages/property-edit";
+import PropertyEditPage from "@/pages/properties/[id]/edit";
 import NewPropertyPage from "@/pages/properties/new";
 import SharedPropertiesPage from "@/pages/properties/shared/index";
 import SharedPropertyDetailPage from "@/pages/properties/shared/[id]";
@@ -44,7 +44,7 @@ function Router() {
       <Route path="/properties/shared" component={SharedPropertiesPage} />
       <Route path="/properties/shared/new" component={NewSharedPropertyPage} />
       <Route path="/properties/shared/:id" component={SharedPropertyDetailPage} />
-      <Route path="/property-edit/:id" component={PropertyEditPage} />
+      <Route path="/properties/:id/edit" component={PropertyEditPage} />
       <Route path="/properties/:id" component={PropertyDetailPage} />
       <Route path="/appointments" component={AppointmentsPage} />
       <Route path="/communications" component={CommunicationsPage} />

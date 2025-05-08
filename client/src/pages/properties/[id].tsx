@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -26,6 +30,25 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   type PropertyWithDetails,
   type Communication,
@@ -34,17 +57,125 @@ import {
   type ClientWithDetails
 } from "@shared/schema";
 
+// Form schema per la validazione
+const formSchema = z.object({
+  type: z.string(),
+  address: z.string().min(3, "L'indirizzo deve essere di almeno 3 caratteri"),
+  city: z.string().min(2, "La città deve essere di almeno 2 caratteri"),
+  size: z.coerce.number().min(1, "La dimensione deve essere maggiore di 0"),
+  price: z.coerce.number().min(1, "Il prezzo deve essere maggiore di 0"),
+  bedrooms: z.coerce.number().optional().nullable(),
+  bathrooms: z.coerce.number().optional().nullable(),
+  floor: z.coerce.number().optional().nullable(),
+  yearBuilt: z.coerce.number().optional().nullable(),
+  energyClass: z.string().optional().nullable(),
+  hasGarage: z.boolean().optional().nullable(),
+  hasGarden: z.boolean().optional().nullable(),
+  status: z.string(),
+  notes: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+});
+
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Set up form with zodResolver
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      type: "",
+      address: "",
+      city: "",
+      size: 0,
+      price: 0,
+      bedrooms: null,
+      bathrooms: null,
+      floor: null,
+      yearBuilt: null,
+      energyClass: null,
+      hasGarage: false,
+      hasGarden: false,
+      status: "available",
+      notes: "",
+      description: "",
+    },
+  });
+  
+  // Mutation per aggiornare l'immobile
+  const updatePropertyMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof formSchema>) => {
+      const response = await fetch(`/api/properties/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Errore durante l'aggiornamento dell'immobile");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Rimuovi la modalità di modifica
+      setIsEditing(false);
+      
+      // Invalida la query per aggiornare i dati
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties", id] });
+      
+      // Mostra un messaggio di successo
+      toast({
+        title: "Immobile aggiornato",
+        description: "L'immobile è stato aggiornato con successo",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore durante l'aggiornamento dell'immobile",
+        variant: "destructive",
+      });
+    },
+  });
   
   // Fetch property details
   const { data: property, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails>({
     queryKey: ["/api/properties", id],
     enabled: !isNaN(id),
   });
+  
+  // Aggiornamento dei valori del form quando property viene caricato
+  useEffect(() => {
+    if (property) {
+      form.reset({
+        type: property.type || "",
+        address: property.address || "",
+        city: property.city || "",
+        size: property.size || 0,
+        price: property.price || 0,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        floor: property.floor,
+        yearBuilt: property.yearBuilt,
+        energyClass: property.energyClass || null,
+        hasGarage: property.hasGarage || false,
+        hasGarden: property.hasGarden || false,
+        status: property.status || "available",
+        notes: property.notes || "",
+        description: property.description || "",
+      });
+    }
+  }, [property, form]);
   
   // Fetch property communications
   const { data: communications, isLoading: isCommunicationsLoading } = useQuery<Communication[]>({
@@ -265,10 +396,10 @@ export default function PropertyDetailPage() {
             
             <Button 
               variant="outline"
-              asChild
               className="gap-2"
+              asChild
             >
-              <Link href={`/property-edit/${id}`}>
+              <Link href={`/properties/${id}/edit`}>
                 <i className="fas fa-edit"></i>
                 <span>Modifica</span>
               </Link>
@@ -286,163 +417,531 @@ export default function PropertyDetailPage() {
           
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="md:col-span-2">
+            {isEditing ? (
+              <Card className="col-span-3">
                 <CardHeader>
-                  <CardTitle>Dettagli Immobile</CardTitle>
-                  <CardDescription>Caratteristiche e specifiche</CardDescription>
+                  <CardTitle>Modifica Immobile</CardTitle>
+                  <CardDescription>Aggiorna i dettagli dell'immobile</CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Prezzo</h3>
-                    <p className="text-lg font-medium">{formatPrice(property?.price || 0)}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Superficie</h3>
-                    <p>{property?.size} m²</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Camere da letto</h3>
-                    <p>{property?.bedrooms || "Non specificate"}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Bagni</h3>
-                    <p>{property?.bathrooms || "Non specificati"}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Anno di costruzione</h3>
-                    <p>{property?.yearBuilt || "Non specificato"}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Energia</h3>
-                    <p>{property?.energyClass || "Non specificata"}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Inserito il</h3>
-                    <p>{property?.createdAt ? formatDate(property.createdAt.toString()) : "Data non disponibile"}</p>
-                  </div>
-                </CardContent>
-                
-                {property?.description && (
-                  <>
-                    <Separator className="my-2" />
-                    <CardContent>
-                      <h3 className="text-sm font-medium text-gray-500 mb-2">Descrizione</h3>
-                      <div className="text-gray-700 whitespace-pre-line">
-                        {property.description}
+                <CardContent>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(values => updatePropertyMutation.mutate(values))} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Property Type */}
+                        <FormField
+                          control={form.control}
+                          name="type"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Tipologia*</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona tipologia" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="apartment">Appartamento</SelectItem>
+                                  <SelectItem value="house">Casa</SelectItem>
+                                  <SelectItem value="villa">Villa</SelectItem>
+                                  <SelectItem value="office">Ufficio</SelectItem>
+                                  <SelectItem value="commercial">Commerciale</SelectItem>
+                                  <SelectItem value="land">Terreno</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Status */}
+                        <FormField
+                          control={form.control}
+                          name="status"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Stato*</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona stato" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="available">Disponibile</SelectItem>
+                                  <SelectItem value="sold">Venduto</SelectItem>
+                                  <SelectItem value="rented">Affittato</SelectItem>
+                                  <SelectItem value="pending">In trattativa</SelectItem>
+                                  <SelectItem value="inactive">Non disponibile</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
-                    </CardContent>
-                  </>
-                )}
-              </Card>
-              
-              <div className="space-y-6">
-                {/* Statistics Card */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Statistiche</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Comunicazioni</span>
-                      <Badge variant="secondary">{communications?.length || 0}</Badge>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Appuntamenti</span>
-                      <Badge variant="secondary">{appointments?.length || 0}</Badge>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Note e attività</span>
-                      <Badge variant="secondary">{tasks?.length || 0}</Badge>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Ultima comunicazione</span>
-                      <span className="text-sm">
-                        {property?.lastCommunication ? (
-                          formatDistanceToNow(new Date(property.lastCommunication.createdAt), { 
-                            addSuffix: true,
-                            locale: it 
-                          })
-                        ) : (
-                          "Nessuna"
+                      
+                      {/* Address */}
+                      <FormField
+                        control={form.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Indirizzo*</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Via/Piazza e numero civico" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
                         )}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                {/* Shared Property Info */}
-                {property?.sharedDetails && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Condivisione</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <span className="text-sm font-medium text-gray-500 block mb-1">Stato</span>
-                        <Badge 
-                          className={property.sharedDetails.isAcquired 
-                            ? "bg-green-100 text-green-800" 
-                            : "bg-yellow-100 text-yellow-800"}
-                        >
-                          {property.sharedDetails.isAcquired ? "Acquisito" : "Non acquisito"}
-                        </Badge>
+                      />
+                      
+                      {/* City */}
+                      <FormField
+                        control={form.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Città*</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Città" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Size */}
+                        <FormField
+                          control={form.control}
+                          name="size"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Dimensione (mq)*</FormLabel>
+                              <FormControl>
+                                <Input type="number" min="0" step="1" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Price */}
+                        <FormField
+                          control={form.control}
+                          name="price"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Prezzo (€)*</FormLabel>
+                              <FormControl>
+                                <Input type="number" min="0" step="1000" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
-                      {property.sharedDetails.agencyName && (
-                        <div>
-                          <span className="text-sm font-medium text-gray-500 block mb-1">Agenzia</span>
-                          <span>{property.sharedDetails.agencyName}</span>
-                        </div>
-                      )}
-                      {property.sharedDetails.contactPerson && (
-                        <div>
-                          <span className="text-sm font-medium text-gray-500 block mb-1">Persona di contatto</span>
-                          <span>{property.sharedDetails.contactPerson}</span>
-                        </div>
-                      )}
-                      {property.sharedDetails.contactPhone && (
-                        <div>
-                          <span className="text-sm font-medium text-gray-500 block mb-1">Telefono contatto</span>
-                          <span>{property.sharedDetails.contactPhone}</span>
-                        </div>
-                      )}
-                      {property.sharedDetails.contactEmail && (
-                        <div>
-                          <span className="text-sm font-medium text-gray-500 block mb-1">Email contatto</span>
-                          <span>{property.sharedDetails.contactEmail}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-                
-                {/* External Link */}
-                {property?.externalLink && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Link Esterno</CardTitle>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Bedrooms */}
+                        <FormField
+                          control={form.control}
+                          name="bedrooms"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Locali</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  step="1" 
+                                  value={field.value !== null ? field.value : ""} 
+                                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Bathrooms */}
+                        <FormField
+                          control={form.control}
+                          name="bathrooms"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bagni</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  step="1" 
+                                  value={field.value !== null ? field.value : ""} 
+                                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Floor */}
+                        <FormField
+                          control={form.control}
+                          name="floor"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Piano</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="-1" 
+                                  step="1" 
+                                  value={field.value !== null ? field.value : ""} 
+                                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Year Built */}
+                        <FormField
+                          control={form.control}
+                          name="yearBuilt"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Anno di costruzione</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="1800" 
+                                  max={new Date().getFullYear()} 
+                                  step="1" 
+                                  value={field.value !== null ? field.value : ""} 
+                                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Energy Class */}
+                        <FormField
+                          control={form.control}
+                          name="energyClass"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Classe energetica</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value || ""}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona classe" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="">-</SelectItem>
+                                  <SelectItem value="A4">A4</SelectItem>
+                                  <SelectItem value="A3">A3</SelectItem>
+                                  <SelectItem value="A2">A2</SelectItem>
+                                  <SelectItem value="A1">A1</SelectItem>
+                                  <SelectItem value="B">B</SelectItem>
+                                  <SelectItem value="C">C</SelectItem>
+                                  <SelectItem value="D">D</SelectItem>
+                                  <SelectItem value="E">E</SelectItem>
+                                  <SelectItem value="F">F</SelectItem>
+                                  <SelectItem value="G">G</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="flex gap-4">
+                        {/* Has Garage */}
+                        <FormField
+                          control={form.control}
+                          name="hasGarage"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value === true}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm font-normal">
+                                Garage/Posto auto
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Has Garden */}
+                        <FormField
+                          control={form.control}
+                          name="hasGarden"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value === true}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm font-normal">
+                                Giardino
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      {/* Description */}
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Descrizione</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Inserisci una descrizione dettagliata dell'immobile..."
+                                rows={6}
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Notes */}
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Note interne</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Aggiungi note private sull'immobile (non visibili ai clienti)..."
+                                rows={3}
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsEditing(false)}
+                        >
+                          Annulla
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={updatePropertyMutation.isPending}
+                        >
+                          {updatePropertyMutation.isPending ? (
+                            <>
+                              <span className="animate-spin mr-2">
+                                <i className="fas fa-spinner"></i>
+                              </span>
+                              Aggiornamento in corso...
+                            </>
+                          ) : (
+                            <>Salva Modifiche</>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            ) : (
+                <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Dettagli Immobile</CardTitle>
+                      <CardDescription>Caratteristiche e specifiche</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <a 
-                        href={property.externalLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:text-primary-700 hover:underline flex items-center"
-                      >
-                        <i className="fas fa-external-link-alt mr-2"></i> 
-                        Visualizza annuncio esterno
-                      </a>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Prezzo</h3>
+                        <p className="text-lg font-medium">{formatPrice(property?.price || 0)}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Superficie</h3>
+                        <p>{property?.size} m²</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Camere da letto</h3>
+                        <p>{property?.bedrooms || "Non specificate"}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Bagni</h3>
+                        <p>{property?.bathrooms || "Non specificati"}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Anno di costruzione</h3>
+                        <p>{property?.yearBuilt || "Non specificato"}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Energia</h3>
+                        <p>{property?.energyClass || "Non specificata"}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Inserito il</h3>
+                        <p>{property?.createdAt ? formatDate(property.createdAt.toString()) : "Data non disponibile"}</p>
+                      </div>
                     </CardContent>
+                    
+                    {property?.description && (
+                      <>
+                        <Separator className="my-2" />
+                        <CardContent>
+                          <h3 className="text-sm font-medium text-gray-500 mb-2">Descrizione</h3>
+                          <div className="text-gray-700 whitespace-pre-line">
+                            {property.description}
+                          </div>
+                        </CardContent>
+                      </>
+                    )}
                   </Card>
-                )}
-              </div>
-            </div>
-            
-            {/* Interested Clients */}
-            {property?.interestedClients && property.interestedClients.length > 0 && (
+                  
+                  <div className="space-y-6">
+                    {/* Statistics Card */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Statistiche</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Comunicazioni</span>
+                          <Badge variant="secondary">{communications?.length || 0}</Badge>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Appuntamenti</span>
+                          <Badge variant="secondary">{appointments?.length || 0}</Badge>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Note e attività</span>
+                          <Badge variant="secondary">{tasks?.length || 0}</Badge>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Ultima comunicazione</span>
+                          <span className="text-sm">
+                            {property?.lastCommunication ? (
+                              formatDistanceToNow(new Date(property.lastCommunication.createdAt), { 
+                                addSuffix: true,
+                                locale: it 
+                              })
+                            ) : (
+                              "Nessuna"
+                            )}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    {/* Shared Property Info */}
+                    {property?.sharedDetails && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg">Condivisione</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div>
+                            <span className="text-sm font-medium text-gray-500 block mb-1">Stato</span>
+                            <Badge 
+                              className={property.sharedDetails.isAcquired 
+                                ? "bg-green-100 text-green-800" 
+                                : "bg-yellow-100 text-yellow-800"}
+                            >
+                              {property.sharedDetails.isAcquired ? "Acquisito" : "Non acquisito"}
+                            </Badge>
+                          </div>
+                          {property.sharedDetails.agencyName && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-500 block mb-1">Agenzia</span>
+                              <span>{property.sharedDetails.agencyName}</span>
+                            </div>
+                          )}
+                          {property.sharedDetails.contactPerson && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-500 block mb-1">Persona di contatto</span>
+                              <span>{property.sharedDetails.contactPerson}</span>
+                            </div>
+                          )}
+                          {property.sharedDetails.contactPhone && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-500 block mb-1">Telefono contatto</span>
+                              <span>{property.sharedDetails.contactPhone}</span>
+                            </div>
+                          )}
+                          {property.sharedDetails.contactEmail && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-500 block mb-1">Email contatto</span>
+                              <span>{property.sharedDetails.contactEmail}</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                    
+                    {/* External Link */}
+                    {property?.externalLink && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg">Link Esterno</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <a 
+                            href={property.externalLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:text-primary-700 hover:underline flex items-center"
+                          >
+                            <i className="fas fa-external-link-alt mr-2"></i> 
+                            Visualizza annuncio esterno
+                          </a>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Interested Clients */}
+                {property?.interestedClients && property.interestedClients.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Clienti Interessati</CardTitle>
@@ -534,6 +1033,8 @@ export default function PropertyDetailPage() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+                </>
             )}
           </TabsContent>
           
