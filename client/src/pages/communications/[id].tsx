@@ -35,22 +35,40 @@ export default function CommunicationDetailPage() {
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
-  // Fetch communication details
+  // Fetch communication details with debugging
   const { data: communication, isLoading, isError, error } = useQuery<Communication>({
-    queryKey: ["/api/communications", id],
+    queryKey: [`/api/communications/${id}`],
     enabled: !isNaN(id),
+    onSuccess: (data) => {
+      console.log("Communication data loaded successfully:", data);
+    },
+    onError: (err) => {
+      console.error("Error loading communication:", err);
+    }
   });
   
   // Fetch client details
   const { data: client } = useQuery<Client>({
-    queryKey: ["/api/clients", communication?.clientId],
+    queryKey: [`/api/clients/${communication?.clientId}`],
     enabled: !!communication?.clientId,
+    onSuccess: (data) => {
+      console.log("Client data loaded successfully:", data);
+    },
+    onError: (err) => {
+      console.error("Error loading client:", err);
+    }
   });
   
   // Fetch property details if available
   const { data: property } = useQuery<Property>({
-    queryKey: ["/api/properties", communication?.propertyId],
+    queryKey: [`/api/properties/${communication?.propertyId}`],
     enabled: !!communication?.propertyId,
+    onSuccess: (data) => {
+      console.log("Property data loaded successfully:", data);
+    },
+    onError: (err) => {
+      console.error("Error loading property:", err);
+    }
   });
   
   // Delete mutation
@@ -268,8 +286,13 @@ export default function CommunicationDetailPage() {
                     </div>
                   )}
                   
+                  <pre className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded overflow-auto max-w-full">
+                    Debug comunicazione: {JSON.stringify(communication, null, 2)}
+                  </pre>
+                  
                   {communication?.content ? (
-                    <div className="whitespace-pre-line text-gray-700">
+                    <div className="whitespace-pre-line text-gray-700 border p-4 rounded-md bg-white">
+                      <strong>Contenuto del messaggio:</strong><br />
                       {communication.content}
                     </div>
                   ) : (
