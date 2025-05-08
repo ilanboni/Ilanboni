@@ -268,7 +268,7 @@ export default function PropertyDetailPage() {
               asChild
               className="gap-2"
             >
-              <Link href={`/properties/${id}/edit`}>
+              <Link href={`/properties/edit-property/${id}`}>
                 <i className="fas fa-edit"></i>
                 <span>Modifica</span>
               </Link>

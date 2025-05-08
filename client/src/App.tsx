@@ -44,7 +44,7 @@ function Router() {
       <Route path="/properties/shared" component={SharedPropertiesPage} />
       <Route path="/properties/shared/new" component={NewSharedPropertyPage} />
       <Route path="/properties/shared/:id" component={SharedPropertyDetailPage} />
-      <Route path="/properties/:id/edit" component={EditPropertyPage} />
+      <Route path="/properties/edit-property/:id" component={EditPropertyPage} />
       <Route path="/properties/:id" component={PropertyDetailPage} />
       <Route path="/appointments" component={AppointmentsPage} />
       <Route path="/communications" component={CommunicationsPage} />
