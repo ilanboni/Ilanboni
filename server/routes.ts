@@ -11,7 +11,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { summarizeText } from "./lib/openai";
-import { getUltraMsgClient } from "./lib/ultramsg";
+import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
 import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -411,6 +411,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const newProperty = await storage.createProperty(result.data);
+      
+      // Cerca acquirenti compatibili con questo immobile
+      try {
+        console.log(`[POST /api/properties] Verifica corrispondenze per il nuovo immobile ${newProperty.id}`);
+        const matchingClients = await storage.matchBuyersForProperty(newProperty.id);
+        
+        if (matchingClients && matchingClients.length > 0) {
+          console.log(`[POST /api/properties] Trovati ${matchingClients.length} clienti corrispondenti per l'immobile ${newProperty.id}`);
+          
+          // Per ogni cliente corrispondente, invia una notifica WhatsApp
+          for (const client of matchingClients) {
+            try {
+              const clientDetails = await storage.getClientWithDetails(client.id);
+              if (clientDetails) {
+                await sendPropertyMatchNotification(clientDetails, newProperty);
+                console.log(`[POST /api/properties] Notifica WhatsApp inviata al cliente ${client.id} per l'immobile ${newProperty.id}`);
+              }
+            } catch (notifyError) {
+              console.error(`[POST /api/properties] Errore nell'invio della notifica al cliente ${client.id}:`, notifyError);
+              // Non blocchiamo il flusso principale se fallisce una notifica
+            }
+          }
+        } else {
+          console.log(`[POST /api/properties] Nessun cliente corrispondente trovato per l'immobile ${newProperty.id}`);
+        }
+      } catch (matchError) {
+        console.error("[POST /api/properties] Errore nel processo di match con acquirenti:", matchError);
+        // Non blocchiamo la creazione dell'immobile se fallisce il matching
+      }
+      
       res.status(201).json(newProperty);
     } catch (error) {
       console.error("[POST /api/properties]", error);
@@ -431,7 +461,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Immobile non trovato" });
       }
       
+      // Controlla se ci sono cambiamenti significativi che potrebbero modificare la corrispondenza
+      const hasSignificantChanges = 
+        (req.body.price !== undefined && req.body.price !== property.price) || 
+        (req.body.size !== undefined && req.body.size !== property.size) || 
+        (req.body.status !== undefined && req.body.status !== property.status) ||
+        (req.body.bedrooms !== undefined && req.body.bedrooms !== property.bedrooms) ||
+        (req.body.location !== undefined);
+      
       const updatedProperty = await storage.updateProperty(propertyId, req.body);
+      
+      // Se ci sono cambiamenti significativi o l'immobile è stato reso disponibile, verifica i match
+      if (hasSignificantChanges || req.body.status === 'available') {
+        try {
+          console.log(`[PATCH /api/properties/${propertyId}] Verifica corrispondenze per immobile aggiornato`);
+          
+          // Ottieni clienti corrispondenti
+          const matchingClients = await storage.matchBuyersForProperty(propertyId);
+          
+          if (matchingClients && matchingClients.length > 0) {
+            console.log(`[PATCH /api/properties/${propertyId}] Trovati ${matchingClients.length} clienti corrispondenti`);
+            
+            // Per ogni cliente corrispondente, invia una notifica WhatsApp
+            for (const client of matchingClients) {
+              try {
+                const clientDetails = await storage.getClientWithDetails(client.id);
+                if (clientDetails) {
+                  // Verifica se il cliente ha già ricevuto una notifica per questo immobile
+                  const existingCommunications = await storage.getCommunicationsByClientId(client.id);
+                  const alreadyNotified = existingCommunications.some(
+                    comm => comm.propertyId === propertyId && comm.type === 'property_match'
+                  );
+                  
+                  if (!alreadyNotified) {
+                    await sendPropertyMatchNotification(clientDetails, updatedProperty);
+                    console.log(`[PATCH /api/properties/${propertyId}] Notifica WhatsApp inviata al cliente ${client.id}`);
+                  } else {
+                    console.log(`[PATCH /api/properties/${propertyId}] Cliente ${client.id} già notificato in precedenza`);
+                  }
+                }
+              } catch (notifyError) {
+                console.error(`[PATCH /api/properties/${propertyId}] Errore nell'invio della notifica al cliente ${client.id}:`, notifyError);
+                // Non blocchiamo il flusso principale se fallisce una notifica
+              }
+            }
+          } else {
+            console.log(`[PATCH /api/properties/${propertyId}] Nessun cliente corrispondente trovato`);
+          }
+        } catch (matchError) {
+          console.error(`[PATCH /api/properties/${propertyId}] Errore nel processo di match con acquirenti:`, matchError);
+          // Non blocchiamo l'aggiornamento dell'immobile se fallisce il matching
+        }
+      }
+      
       res.json(updatedProperty);
     } catch (error) {
       console.error(`[PATCH /api/properties/${req.params.id}]`, error);
