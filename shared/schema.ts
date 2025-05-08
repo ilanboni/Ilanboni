@@ -143,7 +143,8 @@ export const communications = pgTable("communications", {
   needsFollowUp: boolean("needs_follow_up").default(false),
   followUpDate: date("follow_up_date"),
   status: text("status").default("pending"), // pending, completed, no-response
-  createdAt: timestamp("created_at").defaultNow()
+  createdAt: timestamp("created_at").defaultNow(),
+  externalId: text("external_id") // ID esterno (es. ID messaggio WhatsApp)
 });
 
 // Analytics for market insights

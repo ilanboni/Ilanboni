@@ -86,6 +86,7 @@ export interface IStorage {
   updateCommunication(id: number, data: Partial<InsertCommunication>): Promise<Communication | undefined>;
   deleteCommunication(id: number): Promise<boolean>;
   getClientsWithoutRecentCommunication(days: number, minRating: number): Promise<ClientWithDetails[]>;
+  getCommunicationByExternalId(externalId: string): Promise<Communication | undefined>;
   
   // Task methods
   getTask(id: number): Promise<Task | undefined>;
@@ -1047,6 +1048,12 @@ export class MemStorage implements IStorage {
     return this.communicationStore.get(id);
   }
   
+  async getCommunicationByExternalId(externalId: string): Promise<Communication | undefined> {
+    return Array.from(this.communicationStore.values()).find(
+      comm => comm.externalId === externalId
+    );
+  }
+  
   async getCommunications(filters?: { type?: string; status?: string }): Promise<Communication[]> {
     let communications = Array.from(this.communicationStore.values());
     
@@ -1532,6 +1539,13 @@ export class MemStorage implements IStorage {
 // Export a single storage instance
 // Database storage implementation
 export class DatabaseStorage implements IStorage {
+  async getCommunicationByExternalId(externalId: string): Promise<Communication | undefined> {
+    const [communication] = await db
+      .select()
+      .from(communications)
+      .where(eq(communications.externalId, externalId));
+    return communication;
+  }
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id));
