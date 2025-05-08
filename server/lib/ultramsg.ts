@@ -248,6 +248,92 @@ export function getUltraMsgClient(): UltraMsgClient {
 }
 
 /**
+ * Strutture di messaggi di notifica per clienti amici e non amici
+ */
+const MATCH_MESSAGES = {
+  // Messaggi per clienti amici (informali con 'tu')
+  FRIEND: [
+    (client: Client, property: Property) => `Ciao ${client.firstName}!
+
+Buone notizie! Ho trovato un immobile che potrebbe piacerti molto, in base a quello che stavamo cercando.
+
+*Ecco i dettagli:*
+📍 *Indirizzo:* ${property.address}, ${property.city}
+${property.size ? `🏠 *Dimensione:* ${property.size} mq\n` : ''}${property.bedrooms ? `🛏️ *Locali:* ${property.bedrooms}\n` : ''}${property.bathrooms ? `🚿 *Bagni:* ${property.bathrooms}\n` : ''}${property.price ? `💰 *Prezzo:* €${property.price.toLocaleString()}\n` : ''}
+
+Cosa ne pensi? Vuoi che organizziamo un appuntamento per vederlo insieme?
+
+Fammi sapere quando sei disponibile!`,
+    
+    (client: Client, property: Property) => `Hey ${client.firstName}!
+
+Ho appena trovato un immobile che potrebbe essere perfetto per te! 
+
+*Dai un'occhiata:*
+📍 ${property.address}, ${property.city}
+${property.size ? `🏠 ${property.size} mq\n` : ''}${property.bedrooms ? `🛏️ ${property.bedrooms} locali\n` : ''}${property.bathrooms ? `🚿 ${property.bathrooms} bagni\n` : ''}${property.price ? `💰 €${property.price.toLocaleString()}\n` : ''}
+
+Ti interessa? Potremmo organizzare una visita nei prossimi giorni.
+
+A presto!`,
+    
+    (client: Client, property: Property) => `Ciao ${client.firstName},
+
+Mi sono appena imbattuto in questo immobile che corrisponde a ciò che stavi cercando!
+
+*Dettagli veloci:*
+📍 ${property.address}, ${property.city}
+${property.size ? `🏠 ${property.size} mq\n` : ''}${property.bedrooms ? `🛏️ ${property.bedrooms} locali\n` : ''}${property.price ? `💰 €${property.price.toLocaleString()}\n` : ''}
+
+Se sei interessato, fammi un fischio e organizziamo subito una visita!
+
+Buona giornata!`
+  ],
+  
+  // Messaggi per clienti formali (con 'Lei')
+  FORMAL: [
+    (client: Client, property: Property) => `Gentile ${client.salutation || ''} ${client.lastName},
+
+Abbiamo individuato un immobile che corrisponde ai requisiti da Lei specificati.
+
+*Dettagli dell'immobile:*
+📍 *Indirizzo:* ${property.address}, ${property.city}
+${property.size ? `🏠 *Dimensione:* ${property.size} mq\n` : ''}${property.bedrooms ? `🛏️ *Locali:* ${property.bedrooms}\n` : ''}${property.bathrooms ? `🚿 *Bagni:* ${property.bathrooms}\n` : ''}${property.price ? `💰 *Prezzo:* €${property.price.toLocaleString()}\n` : ''}
+
+Per ulteriori informazioni o per fissare un appuntamento, La invito a contattarci.
+
+Cordiali saluti,
+Il Suo consulente immobiliare`,
+    
+    (client: Client, property: Property) => `Egregio ${client.salutation || ''} ${client.lastName},
+
+Le segnaliamo una nuova opportunità immobiliare che si allinea con i criteri di ricerca da Lei indicati.
+
+*Specifiche dell'immobile:*
+📍 *Ubicazione:* ${property.address}, ${property.city}
+${property.size ? `🏠 *Superficie:* ${property.size} mq\n` : ''}${property.bedrooms ? `🛏️ *Stanze:* ${property.bedrooms}\n` : ''}${property.bathrooms ? `🚿 *Servizi:* ${property.bathrooms}\n` : ''}${property.price ? `💰 *Prezzo:* €${property.price.toLocaleString()}\n` : ''}
+
+Restiamo a Sua disposizione per organizzare una visita o fornire maggiori dettagli.
+
+Distinti saluti,
+Il Suo agente immobiliare`,
+    
+    (client: Client, property: Property) => `Gentile ${client.salutation || ''} ${client.firstName} ${client.lastName},
+
+Abbiamo il piacere di segnalarLe un immobile che potrebbe soddisfare le Sue esigenze abitative.
+
+*Caratteristiche principali:*
+📍 ${property.address}, ${property.city}
+${property.size ? `🏠 ${property.size} mq\n` : ''}${property.bedrooms ? `🛏️ ${property.bedrooms} locali\n` : ''}${property.price ? `💰 €${property.price.toLocaleString()}\n` : ''}
+
+Qualora fosse interessato, saremo lieti di fornirLe ulteriori informazioni e di accompagnarLa in un sopralluogo.
+
+Con i migliori saluti,
+La Sua agenzia immobiliare`
+  ]
+};
+
+/**
  * Invia una notifica WhatsApp a un cliente quando viene trovato un immobile che corrisponde alle sue preferenze
  * @param client Il cliente a cui inviare la notifica
  * @param property L'immobile che corrisponde alle preferenze del cliente
@@ -263,27 +349,16 @@ export async function sendPropertyMatchNotification(client: Client, property: Pr
     
     console.log(`[MATCH NOTIFY] Invio notifica per immobile ${property.id} al cliente ${client.id} (${client.phone})`);
     
-    // Crea messaggio personalizzato con i dettagli dell'immobile
-    const propertyDetails = [];
-    if (property.size) propertyDetails.push(`${property.size}mq`);
-    if (property.bedrooms) propertyDetails.push(`${property.bedrooms} locali`);
-    if (property.price) propertyDetails.push(`€${property.price.toLocaleString()}`);
+    // Determina se usare messaggi formali o informali in base al campo isFriend
+    const messageType = client.isFriend ? 'FRIEND' : 'FORMAL';
     
-    const propertyInfo = propertyDetails.length > 0 ? `(${propertyDetails.join(', ')})` : '';
+    // Seleziona un messaggio casuale dalla lista appropriata
+    const messages = MATCH_MESSAGES[messageType];
+    const randomIndex = Math.floor(Math.random() * messages.length);
+    const messageTemplate = messages[randomIndex];
     
-    const message = 
-`Gentile ${client.salutation || ''} ${client.firstName} ${client.lastName},
-
-Abbiamo trovato un immobile che corrisponde alle Sue preferenze!
-
-*Dettagli immobile:*
-📍 *Indirizzo:* ${property.address}, ${property.city}
-${property.size ? `🏠 *Dimensione:* ${property.size} mq\n` : ''}${property.bedrooms ? `🛏️ *Locali:* ${property.bedrooms}\n` : ''}${property.bathrooms ? `🚿 *Bagni:* ${property.bathrooms}\n` : ''}${property.price ? `💰 *Prezzo:* €${property.price.toLocaleString()}\n` : ''}
-
-Per maggiori informazioni o per fissare un appuntamento per visionare l'immobile, non esiti a contattarci.
-
-Cordiali saluti,
-Il Suo Agente Immobiliare`;
+    // Genera il messaggio con i dati del cliente e dell'immobile
+    const message = messageTemplate(client, property);
 
     // Utilizza l'istanza UltraMsg per inviare il messaggio e salvarlo nel database
     const ultraMsg = getUltraMsgClient();
