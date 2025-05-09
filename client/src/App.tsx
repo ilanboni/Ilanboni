@@ -13,7 +13,7 @@ import ClientDetailPage from "@/pages/clients/[id]";
 import ClientPropertySearchPage from "@/pages/clients/[id]/search";
 import PropertiesPage from "@/pages/properties/index";
 import PropertyDetailPage from "@/pages/properties/[id]";
-import PropertyEditPage from "@/pages/properties/[id]/edit";
+import PropertyEditPage from "@/pages/properties/[id]/edit/index";
 import NewPropertyPage from "@/pages/properties/new";
 import SharedPropertiesPage from "@/pages/properties/shared/index";
 import SharedPropertyDetailPage from "@/pages/properties/shared/[id]";
