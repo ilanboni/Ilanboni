@@ -31,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertPropertySchema, insertSharedPropertySchema } from "@shared/schema";
+import MapLocationSelector from "@/components/maps/MapLocationSelector";
 
 export default function NewPropertyPage() {
   const [_, setLocation] = useLocation();
@@ -71,6 +72,7 @@ export default function NewPropertyPage() {
       description: "",
       status: "available",
       externalLink: null,
+      location: null,
       isShared: false,
       isAcquired: false,
     },
@@ -497,6 +499,30 @@ export default function NewPropertyPage() {
                           </FormControl>
                           <FormDescription>
                             Una descrizione completa dell'immobile e delle sue caratteristiche
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Location Map */}
+                    <FormField
+                      control={form.control}
+                      name="location"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Posizione sulla mappa</FormLabel>
+                          <FormControl>
+                            <div className="h-72 w-full border rounded-md overflow-hidden">
+                              <MapLocationSelector 
+                                value={field.value}
+                                onChange={field.onChange}
+                                className="h-full w-full"
+                              />
+                            </div>
+                          </FormControl>
+                          <FormDescription>
+                            Seleziona la posizione esatta dell'immobile sulla mappa. Puoi cercare un indirizzo o cliccare direttamente sulla mappa.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
