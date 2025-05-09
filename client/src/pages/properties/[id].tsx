@@ -20,6 +20,16 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -81,8 +91,6 @@ export default function PropertyDetailPage() {
   const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
-  const [isEditing, setIsEditing] = useState(false);
-  
   console.log("PropertyDetailPage - ID:", id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -128,9 +136,6 @@ export default function PropertyDetailPage() {
       return response.json();
     },
     onSuccess: () => {
-      // Rimuovi la modalità di modifica
-      setIsEditing(false);
-      
       // Invalida la query per aggiornare i dati
       queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
       queryClient.invalidateQueries({ queryKey: ["/api/properties", id] });
@@ -396,18 +401,394 @@ export default function PropertyDetailPage() {
               </Link>
             </Button>
             
-            <Button 
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                console.log("Edit button clicked, enabling edit mode");
-                setIsEditing(true);
-                setActiveTab("overview");
-              }}
-            >
-              <i className="fas fa-edit"></i>
-              <span>Modifica</span>
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => {
+                    console.log("Edit dialog button clicked");
+                  }}
+                >
+                  <i className="fas fa-edit"></i>
+                  <span>Modifica</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Modifica Immobile</DialogTitle>
+                  <DialogDescription>
+                    Aggiorna i dettagli dell'immobile. Clicca su Salva una volta completato.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(values => updatePropertyMutation.mutate(values))} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Property Type */}
+                      <FormField
+                        control={form.control}
+                        name="type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tipologia*</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleziona tipologia" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="apartment">Appartamento</SelectItem>
+                                <SelectItem value="house">Casa</SelectItem>
+                                <SelectItem value="villa">Villa</SelectItem>
+                                <SelectItem value="office">Ufficio</SelectItem>
+                                <SelectItem value="commercial">Commerciale</SelectItem>
+                                <SelectItem value="land">Terreno</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Status */}
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Stato*</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleziona stato" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="available">Disponibile</SelectItem>
+                                <SelectItem value="sold">Venduto</SelectItem>
+                                <SelectItem value="rented">Affittato</SelectItem>
+                                <SelectItem value="pending">In trattativa</SelectItem>
+                                <SelectItem value="inactive">Non disponibile</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    {/* Address */}
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Indirizzo*</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Via/Piazza e numero civico" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {/* City */}
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Città*</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Città" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Size */}
+                      <FormField
+                        control={form.control}
+                        name="size"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Dimensione (mq)*</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" step="1" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Price */}
+                      <FormField
+                        control={form.control}
+                        name="price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Prezzo (€)*</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" step="1000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Bedrooms */}
+                      <FormField
+                        control={form.control}
+                        name="bedrooms"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Locali</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="0" 
+                                step="1" 
+                                value={field.value !== null ? field.value : ""} 
+                                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Bathrooms */}
+                      <FormField
+                        control={form.control}
+                        name="bathrooms"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Bagni</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="0" 
+                                step="1" 
+                                value={field.value !== null ? field.value : ""} 
+                                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Floor */}
+                      <FormField
+                        control={form.control}
+                        name="floor"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Piano</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="-1" 
+                                step="1" 
+                                value={field.value !== null ? field.value : ""} 
+                                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Year Built */}
+                      <FormField
+                        control={form.control}
+                        name="yearBuilt"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Anno di costruzione</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="1800" 
+                                max={new Date().getFullYear()} 
+                                step="1" 
+                                value={field.value !== null ? field.value : ""} 
+                                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Energy Class */}
+                      <FormField
+                        control={form.control}
+                        name="energyClass"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Classe energetica</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value || ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleziona classe energetica" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">Non specificata</SelectItem>
+                                <SelectItem value="A4">A4</SelectItem>
+                                <SelectItem value="A3">A3</SelectItem>
+                                <SelectItem value="A2">A2</SelectItem>
+                                <SelectItem value="A1">A1</SelectItem>
+                                <SelectItem value="A">A</SelectItem>
+                                <SelectItem value="B">B</SelectItem>
+                                <SelectItem value="C">C</SelectItem>
+                                <SelectItem value="D">D</SelectItem>
+                                <SelectItem value="E">E</SelectItem>
+                                <SelectItem value="F">F</SelectItem>
+                                <SelectItem value="G">G</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Has Garage */}
+                      <FormField
+                        control={form.control}
+                        name="hasGarage"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-2">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value || false}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>Box auto/Garage</FormLabel>
+                              <FormDescription>
+                                Presenza di box auto o garage
+                              </FormDescription>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* Has Garden */}
+                      <FormField
+                        control={form.control}
+                        name="hasGarden"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-2">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value || false}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>Giardino</FormLabel>
+                              <FormDescription>
+                                Presenza di giardino
+                              </FormDescription>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    {/* Description */}
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descrizione</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Descrizione dell'immobile"
+                              className="min-h-[120px]"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {/* Notes */}
+                    <FormField
+                      control={form.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Note interne</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Note interne (visibili solo all'agenzia)"
+                              className="min-h-[80px]"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                        >
+                          Annulla
+                        </Button>
+                      </DialogClose>
+                      <Button 
+                        type="submit" 
+                        disabled={updatePropertyMutation.isPending}
+                      >
+                        {updatePropertyMutation.isPending ? (
+                          <>
+                            <span className="animate-spin mr-2">
+                              <i className="fas fa-spinner"></i>
+                            </span>
+                            Aggiornamento in corso...
+                          </>
+                        ) : (
+                          <>Salva Modifiche</>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
         
