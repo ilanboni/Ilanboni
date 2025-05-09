@@ -66,12 +66,10 @@ const PropertyEditPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Extract ID from URL
-  const path = window.location.pathname;
-  const idMatch = path.match(/\/properties\/(\d+)\/edit/);
-  const id = idMatch ? parseInt(idMatch[1]) : NaN;
+  // Get ID from the URL parameters via wouter
+  const id = parseInt(params.id);
   
-  console.log("PropertyEditPage - extracted ID:", id);
+  console.log("PropertyEditPage - ID from params:", id);
 
   // Fetch property data
   const { data: property, isLoading, error: fetchError } = useQuery({
