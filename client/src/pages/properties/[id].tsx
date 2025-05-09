@@ -82,6 +82,8 @@ export default function PropertyDetailPage() {
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
+  
+  console.log("PropertyDetailPage - ID:", id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -397,12 +399,14 @@ export default function PropertyDetailPage() {
             <Button 
               variant="outline"
               className="gap-2"
-              asChild
+              onClick={() => {
+                console.log("Edit button clicked, enabling edit mode");
+                setIsEditing(true);
+                setActiveTab("overview");
+              }}
             >
-              <Link href={`/properties/${id}/edit`} onClick={() => console.log("Edit button clicked, navigating to:", `/properties/${id}/edit`)}>
-                <i className="fas fa-edit"></i>
-                <span>Modifica</span>
-              </Link>
+              <i className="fas fa-edit"></i>
+              <span>Modifica</span>
             </Button>
           </div>
         </div>
