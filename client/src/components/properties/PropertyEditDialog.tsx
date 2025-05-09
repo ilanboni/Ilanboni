@@ -189,8 +189,8 @@ export default function PropertyEditDialog({
                     <FormLabel>Tipologia*</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
+                      defaultValue={field.value || undefined}
+                      value={field.value || undefined}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -219,8 +219,8 @@ export default function PropertyEditDialog({
                     <FormLabel>Stato*</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
+                      defaultValue={field.value || undefined}
+                      value={field.value || undefined}
                     >
                       <FormControl>
                         <SelectTrigger>

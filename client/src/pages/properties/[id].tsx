@@ -19,6 +19,7 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
+import PropertyEditDialog from "@/components/properties/PropertyEditDialog";
 import {
   Dialog,
   DialogContent,
@@ -91,6 +92,7 @@ export default function PropertyDetailPage() {
   const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   console.log("PropertyDetailPage - ID:", id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -401,1310 +403,529 @@ export default function PropertyDetailPage() {
               </Link>
             </Button>
             
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button 
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => {
-                    console.log("Edit dialog button clicked");
-                  }}
-                >
-                  <i className="fas fa-edit"></i>
-                  <span>Modifica</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl">
-                <DialogHeader>
-                  <DialogTitle>Modifica Immobile</DialogTitle>
-                  <DialogDescription>
-                    Aggiorna i dettagli dell'immobile. Clicca su Salva una volta completato.
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(values => updatePropertyMutation.mutate(values))} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Property Type */}
-                      <FormField
-                        control={form.control}
-                        name="type"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tipologia*</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona tipologia" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="apartment">Appartamento</SelectItem>
-                                <SelectItem value="house">Casa</SelectItem>
-                                <SelectItem value="villa">Villa</SelectItem>
-                                <SelectItem value="office">Ufficio</SelectItem>
-                                <SelectItem value="commercial">Commerciale</SelectItem>
-                                <SelectItem value="land">Terreno</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Status */}
-                      <FormField
-                        control={form.control}
-                        name="status"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Stato*</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona stato" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="available">Disponibile</SelectItem>
-                                <SelectItem value="sold">Venduto</SelectItem>
-                                <SelectItem value="rented">Affittato</SelectItem>
-                                <SelectItem value="pending">In trattativa</SelectItem>
-                                <SelectItem value="inactive">Non disponibile</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    {/* Address */}
-                    <FormField
-                      control={form.control}
-                      name="address"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Indirizzo*</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Via/Piazza e numero civico" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {/* City */}
-                    <FormField
-                      control={form.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Città*</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Città" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Size */}
-                      <FormField
-                        control={form.control}
-                        name="size"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Dimensione (mq)*</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" step="1" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Price */}
-                      <FormField
-                        control={form.control}
-                        name="price"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Prezzo (€)*</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" step="1000" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Bedrooms */}
-                      <FormField
-                        control={form.control}
-                        name="bedrooms"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Locali</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                min="0" 
-                                step="1" 
-                                value={field.value !== null ? field.value : ""} 
-                                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Bathrooms */}
-                      <FormField
-                        control={form.control}
-                        name="bathrooms"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Bagni</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                min="0" 
-                                step="1" 
-                                value={field.value !== null ? field.value : ""} 
-                                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Floor */}
-                      <FormField
-                        control={form.control}
-                        name="floor"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Piano</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                min="-1" 
-                                step="1" 
-                                value={field.value !== null ? field.value : ""} 
-                                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Year Built */}
-                      <FormField
-                        control={form.control}
-                        name="yearBuilt"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Anno di costruzione</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                min="1800" 
-                                max={new Date().getFullYear()} 
-                                step="1" 
-                                value={field.value !== null ? field.value : ""} 
-                                onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Energy Class */}
-                      <FormField
-                        control={form.control}
-                        name="energyClass"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Classe energetica</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value || ""}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona classe energetica" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="">Non specificata</SelectItem>
-                                <SelectItem value="A4">A4</SelectItem>
-                                <SelectItem value="A3">A3</SelectItem>
-                                <SelectItem value="A2">A2</SelectItem>
-                                <SelectItem value="A1">A1</SelectItem>
-                                <SelectItem value="A">A</SelectItem>
-                                <SelectItem value="B">B</SelectItem>
-                                <SelectItem value="C">C</SelectItem>
-                                <SelectItem value="D">D</SelectItem>
-                                <SelectItem value="E">E</SelectItem>
-                                <SelectItem value="F">F</SelectItem>
-                                <SelectItem value="G">G</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Has Garage */}
-                      <FormField
-                        control={form.control}
-                        name="hasGarage"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value || false}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Box auto/Garage</FormLabel>
-                              <FormDescription>
-                                Presenza di box auto o garage
-                              </FormDescription>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Has Garden */}
-                      <FormField
-                        control={form.control}
-                        name="hasGarden"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value || false}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Giardino</FormLabel>
-                              <FormDescription>
-                                Presenza di giardino
-                              </FormDescription>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    {/* Description */}
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Descrizione</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Descrizione dell'immobile"
-                              className="min-h-[120px]"
-                              {...field}
-                              value={field.value || ""}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {/* Notes */}
-                    <FormField
-                      control={form.control}
-                      name="notes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Note interne</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Note interne (visibili solo all'agenzia)"
-                              className="min-h-[80px]"
-                              {...field}
-                              value={field.value || ""}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button 
-                          type="button" 
-                          variant="outline"
-                        >
-                          Annulla
-                        </Button>
-                      </DialogClose>
-                      <Button 
-                        type="submit" 
-                        disabled={updatePropertyMutation.isPending}
-                      >
-                        {updatePropertyMutation.isPending ? (
-                          <>
-                            <span className="animate-spin mr-2">
-                              <i className="fas fa-spinner"></i>
-                            </span>
-                            Aggiornamento in corso...
-                          </>
-                        ) : (
-                          <>Salva Modifiche</>
-                        )}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              variant="outline"
+              className="gap-2"
+              onClick={() => setIsEditDialogOpen(true)}
+            >
+              <i className="fas fa-edit"></i>
+              <span>Modifica</span>
+            </Button>
+            
+            {property && (
+              <PropertyEditDialog
+                open={isEditDialogOpen}
+                onClose={() => setIsEditDialogOpen(false)}
+                property={property as any}
+                onSuccess={() => {
+                  // Ricarica i dati dell'immobile
+                  queryClient.invalidateQueries({ queryKey: ["/api/properties", id] });
+                }}
+              />
+            )}
           </div>
         </div>
         
-        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 md:w-[600px]">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList>
             <TabsTrigger value="overview">Panoramica</TabsTrigger>
-            <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
-            <TabsTrigger value="appointments">Appuntamenti</TabsTrigger>
-            <TabsTrigger value="tasks">Note e Attività</TabsTrigger>
+            <TabsTrigger value="communications">
+              Comunicazioni
+              {communications && communications.length > 0 && (
+                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{communications.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="appointments">
+              Appuntamenti
+              {appointments && appointments.length > 0 && (
+                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{appointments.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="tasks">
+              Task
+              {tasks && tasks.length > 0 && (
+                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{tasks.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="photos">Foto</TabsTrigger>
           </TabsList>
           
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6 mt-6">
-            {isEditing ? (
-              <Card className="col-span-3">
-                <CardHeader>
-                  <CardTitle>Modifica Immobile</CardTitle>
-                  <CardDescription>Aggiorna i dettagli dell'immobile</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(values => updatePropertyMutation.mutate(values))} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Property Type */}
-                        <FormField
-                          control={form.control}
-                          name="type"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Tipologia*</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                                value={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Seleziona tipologia" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="apartment">Appartamento</SelectItem>
-                                  <SelectItem value="house">Casa</SelectItem>
-                                  <SelectItem value="villa">Villa</SelectItem>
-                                  <SelectItem value="office">Ufficio</SelectItem>
-                                  <SelectItem value="commercial">Commerciale</SelectItem>
-                                  <SelectItem value="land">Terreno</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* Status */}
-                        <FormField
-                          control={form.control}
-                          name="status"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Stato*</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                                value={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Seleziona stato" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="available">Disponibile</SelectItem>
-                                  <SelectItem value="sold">Venduto</SelectItem>
-                                  <SelectItem value="rented">Affittato</SelectItem>
-                                  <SelectItem value="pending">In trattativa</SelectItem>
-                                  <SelectItem value="inactive">Non disponibile</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      {/* Address */}
-                      <FormField
-                        control={form.control}
-                        name="address"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Indirizzo*</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Via/Piazza e numero civico" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* City */}
-                      <FormField
-                        control={form.control}
-                        name="city"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Città*</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Città" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Size */}
-                        <FormField
-                          control={form.control}
-                          name="size"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Dimensione (mq)*</FormLabel>
-                              <FormControl>
-                                <Input type="number" min="0" step="1" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* Price */}
-                        <FormField
-                          control={form.control}
-                          name="price"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Prezzo (€)*</FormLabel>
-                              <FormControl>
-                                <Input type="number" min="0" step="1000" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Bedrooms */}
-                        <FormField
-                          control={form.control}
-                          name="bedrooms"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Locali</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min="0" 
-                                  step="1" 
-                                  value={field.value !== null ? field.value : ""} 
-                                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* Bathrooms */}
-                        <FormField
-                          control={form.control}
-                          name="bathrooms"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Bagni</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min="0" 
-                                  step="1" 
-                                  value={field.value !== null ? field.value : ""} 
-                                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* Floor */}
-                        <FormField
-                          control={form.control}
-                          name="floor"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Piano</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min="-1" 
-                                  step="1" 
-                                  value={field.value !== null ? field.value : ""} 
-                                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Year Built */}
-                        <FormField
-                          control={form.control}
-                          name="yearBuilt"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Anno di costruzione</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min="1800" 
-                                  max={new Date().getFullYear()} 
-                                  step="1" 
-                                  value={field.value !== null ? field.value : ""} 
-                                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* Energy Class */}
-                        <FormField
-                          control={form.control}
-                          name="energyClass"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Classe energetica</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                value={field.value || ""}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Seleziona classe" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="">-</SelectItem>
-                                  <SelectItem value="A4">A4</SelectItem>
-                                  <SelectItem value="A3">A3</SelectItem>
-                                  <SelectItem value="A2">A2</SelectItem>
-                                  <SelectItem value="A1">A1</SelectItem>
-                                  <SelectItem value="B">B</SelectItem>
-                                  <SelectItem value="C">C</SelectItem>
-                                  <SelectItem value="D">D</SelectItem>
-                                  <SelectItem value="E">E</SelectItem>
-                                  <SelectItem value="F">F</SelectItem>
-                                  <SelectItem value="G">G</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="flex gap-4">
-                        {/* Has Garage */}
-                        <FormField
-                          control={form.control}
-                          name="hasGarage"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value === true}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                              <FormLabel className="text-sm font-normal">
-                                Garage/Posto auto
-                              </FormLabel>
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {/* Has Garden */}
-                        <FormField
-                          control={form.control}
-                          name="hasGarden"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value === true}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                              <FormLabel className="text-sm font-normal">
-                                Giardino
-                              </FormLabel>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      {/* Description */}
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Descrizione</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Inserisci una descrizione dettagliata dell'immobile..."
-                                rows={6}
-                                {...field}
-                                value={field.value || ""}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* Notes */}
-                      <FormField
-                        control={form.control}
-                        name="notes"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Note interne</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Aggiungi note private sull'immobile (non visibili ai clienti)..."
-                                rows={3}
-                                {...field}
-                                value={field.value || ""}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setIsEditing(false)}
-                        >
-                          Annulla
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={updatePropertyMutation.isPending}
-                        >
-                          {updatePropertyMutation.isPending ? (
-                            <>
-                              <span className="animate-spin mr-2">
-                                <i className="fas fa-spinner"></i>
-                              </span>
-                              Aggiornamento in corso...
-                            </>
-                          ) : (
-                            <>Salva Modifiche</>
-                          )}
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-            ) : (
-                <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="md:col-span-2">
-                    <CardHeader>
-                      <CardTitle>Dettagli Immobile</CardTitle>
-                      <CardDescription>Caratteristiche e specifiche</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <TabsContent value="overview">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Dettagli Immobile</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Prezzo</h3>
-                        <p className="text-lg font-medium">{formatPrice(property?.price || 0)}</p>
+                        <h3 className="text-sm font-medium text-gray-500">Indirizzo</h3>
+                        <p className="mt-1">{property?.address}</p>
                       </div>
+                      
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Superficie</h3>
-                        <p>{property?.size} m²</p>
+                        <h3 className="text-sm font-medium text-gray-500">Città</h3>
+                        <p className="mt-1">{property?.city}</p>
                       </div>
+                      
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Camere da letto</h3>
-                        <p>{property?.bedrooms || "Non specificate"}</p>
+                        <h3 className="text-sm font-medium text-gray-500">Tipologia</h3>
+                        <p className="mt-1">{formatPropertyType(property?.type || "")}</p>
                       </div>
+                      
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Bagni</h3>
-                        <p>{property?.bathrooms || "Non specificati"}</p>
+                        <h3 className="text-sm font-medium text-gray-500">Stato</h3>
+                        <p className="mt-1">{formatPropertyStatus(property?.status)}</p>
                       </div>
+                      
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Anno di costruzione</h3>
-                        <p>{property?.yearBuilt || "Non specificato"}</p>
+                        <h3 className="text-sm font-medium text-gray-500">Prezzo</h3>
+                        <p className="mt-1 font-semibold text-lg">{formatPrice(property?.price || 0)}</p>
                       </div>
+                      
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Energia</h3>
-                        <p>{property?.energyClass || "Non specificata"}</p>
+                        <h3 className="text-sm font-medium text-gray-500">Superficie</h3>
+                        <p className="mt-1">{property?.size} m²</p>
                       </div>
-                      <div className="md:col-span-2">
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Inserito il</h3>
-                        <p>{property?.createdAt ? formatDate(property.createdAt.toString()) : "Data non disponibile"}</p>
-                      </div>
-                    </CardContent>
+                      
+                      {property?.bedrooms && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">Locali</h3>
+                          <p className="mt-1">{property.bedrooms}</p>
+                        </div>
+                      )}
+                      
+                      {property?.bathrooms && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">Bagni</h3>
+                          <p className="mt-1">{property.bathrooms}</p>
+                        </div>
+                      )}
+                      
+                      {property?.floor !== null && property?.floor !== undefined && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">Piano</h3>
+                          <p className="mt-1">{property.floor}</p>
+                        </div>
+                      )}
+                      
+                      {property?.yearBuilt && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">Anno di costruzione</h3>
+                          <p className="mt-1">{property.yearBuilt}</p>
+                        </div>
+                      )}
+                      
+                      {property?.energyClass && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">Classe energetica</h3>
+                          <p className="mt-1">{property.energyClass}</p>
+                        </div>
+                      )}
+                      
+                      {property?.hasGarage !== null && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">Garage</h3>
+                          <p className="mt-1">{property.hasGarage ? "Sì" : "No"}</p>
+                        </div>
+                      )}
+                      
+                      {property?.hasGarden !== null && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500">Giardino</h3>
+                          <p className="mt-1">{property.hasGarden ? "Sì" : "No"}</p>
+                        </div>
+                      )}
+                    </div>
                     
                     {property?.description && (
-                      <>
-                        <Separator className="my-2" />
-                        <CardContent>
-                          <h3 className="text-sm font-medium text-gray-500 mb-2">Descrizione</h3>
-                          <div className="text-gray-700 whitespace-pre-line">
-                            {property.description}
-                          </div>
-                        </CardContent>
-                      </>
-                    )}
-                  </Card>
-                  
-                  <div className="space-y-6">
-                    {/* Statistics Card */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Statistiche</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Comunicazioni</span>
-                          <Badge variant="secondary">{communications?.length || 0}</Badge>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Appuntamenti</span>
-                          <Badge variant="secondary">{appointments?.length || 0}</Badge>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Note e attività</span>
-                          <Badge variant="secondary">{tasks?.length || 0}</Badge>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Ultima comunicazione</span>
-                          <span className="text-sm">
-                            {property?.lastCommunication ? (
-                              formatDistanceToNow(new Date(property.lastCommunication.createdAt), { 
-                                addSuffix: true,
-                                locale: it 
-                              })
-                            ) : (
-                              "Nessuna"
-                            )}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    {/* Shared Property Info */}
-                    {property?.sharedDetails && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-lg">Condivisione</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div>
-                            <span className="text-sm font-medium text-gray-500 block mb-1">Stato</span>
-                            <Badge 
-                              className={property.sharedDetails.isAcquired 
-                                ? "bg-green-100 text-green-800" 
-                                : "bg-yellow-100 text-yellow-800"}
-                            >
-                              {property.sharedDetails.isAcquired ? "Acquisito" : "Non acquisito"}
-                            </Badge>
-                          </div>
-                          {property.sharedDetails.agencyName && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-500 block mb-1">Agenzia</span>
-                              <span>{property.sharedDetails.agencyName}</span>
-                            </div>
-                          )}
-                          {property.sharedDetails.contactPerson && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-500 block mb-1">Persona di contatto</span>
-                              <span>{property.sharedDetails.contactPerson}</span>
-                            </div>
-                          )}
-                          {property.sharedDetails.contactPhone && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-500 block mb-1">Telefono contatto</span>
-                              <span>{property.sharedDetails.contactPhone}</span>
-                            </div>
-                          )}
-                          {property.sharedDetails.contactEmail && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-500 block mb-1">Email contatto</span>
-                              <span>{property.sharedDetails.contactEmail}</span>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                      <div className="mt-6">
+                        <h3 className="text-sm font-medium text-gray-500 mb-2">Descrizione</h3>
+                        <p className="text-gray-700 whitespace-pre-wrap">{property.description}</p>
+                      </div>
                     )}
                     
-                    {/* External Link */}
+                    {property?.notes && (
+                      <div className="mt-6">
+                        <h3 className="text-sm font-medium text-gray-500 mb-2">Note</h3>
+                        <p className="text-gray-700 whitespace-pre-wrap">{property.notes}</p>
+                      </div>
+                    )}
+                    
                     {property?.externalLink && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-lg">Link Esterno</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <a 
-                            href={property.externalLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary-600 hover:text-primary-700 hover:underline flex items-center"
-                          >
-                            <i className="fas fa-external-link-alt mr-2"></i> 
-                            Visualizza annuncio esterno
-                          </a>
-                        </CardContent>
-                      </Card>
+                      <div className="mt-6">
+                        <h3 className="text-sm font-medium text-gray-500 mb-2">Link esterno</h3>
+                        <a 
+                          href={property.externalLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {property.externalLink}
+                        </a>
+                      </div>
                     )}
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
                 
-                {/* Interested Clients */}
-                {property?.interestedClients && property.interestedClients.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Clienti Interessati</CardTitle>
-                  <CardDescription>Clienti potenzialmente interessati a questo immobile</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-48">Cliente</TableHead>
-                          <TableHead className="w-36">Tipo</TableHead>
-                          <TableHead>Budget</TableHead>
-                          <TableHead>Requisiti</TableHead>
-                          <TableHead className="w-32">Rating</TableHead>
-                          <TableHead className="w-20 text-right">Azioni</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {property.interestedClients.map((client) => (
-                          <TableRow key={client.id}>
-                            <TableCell className="font-medium">
-                              {client.firstName} {client.lastName}
-                            </TableCell>
-                            <TableCell>
-                              {client.type === "buyer" 
-                                ? <Badge className="bg-blue-100 text-blue-800">Acquirente</Badge>
-                                : client.type === "seller"
-                                ? <Badge className="bg-amber-100 text-amber-800">Venditore</Badge>
-                                : <Badge className="bg-purple-100 text-purple-800">Entrambi</Badge>
-                              }
-                            </TableCell>
-                            <TableCell>
-                              {client.buyer?.maxPrice 
-                                ? formatPrice(client.buyer.maxPrice)
-                                : "Non specificato"
-                              }
-                            </TableCell>
-                            <TableCell>
-                              {client.buyer?.searchNotes 
-                                ? (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div className="max-w-[200px] truncate cursor-help">
-                                          {client.buyer.searchNotes}
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent className="max-w-sm">
-                                        <p className="text-sm">{client.buyer.searchNotes}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )
-                                : "Nessun requisito specificato"
-                              }
-                            </TableCell>
-                            <TableCell>
-                              {client.buyer?.rating ? (
-                                <div className="flex text-yellow-500">
-                                  {Array.from({ length: client.buyer.rating }, (_, i) => (
-                                    <i key={i} className="fas fa-star"></i>
-                                  ))}
-                                </div>
-                              ) : "N/D"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" asChild>
-                                  <Link href={`/clients/${client.id}`}>
-                                    <i className="fas fa-eye"></i>
-                                  </Link>
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  asChild
-                                >
-                                  <Link href={`/communications/whatsapp?clientId=${client.id}`}>
-                                    <i className="fab fa-whatsapp text-green-600"></i>
-                                  </Link>
-                                </Button>
+                {/* Mappa */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Posizione</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64 w-full bg-gray-100 rounded-md flex items-center justify-center">
+                      {property?.location ? (
+                        <div className="text-gray-600">Mappa in caricamento...</div>
+                      ) : (
+                        <div className="text-gray-600">Posizione non disponibile</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Attività recenti */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Attività recenti</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-4">
+                    {(isCommunicationsLoading || isAppointmentsLoading || isTasksLoading) ? (
+                      <div className="py-4 flex justify-center">
+                        <div className="animate-spin">
+                          <i className="fas fa-spinner text-xl text-gray-400"></i>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {(communications || []).length === 0 && 
+                          (appointments || []).length === 0 && 
+                          (tasks || []).length === 0 && (
+                          <div className="py-2 text-center text-gray-500">
+                            <p>Nessuna attività recente</p>
+                          </div>
+                        )}
+                        
+                        {/* Comunicazioni recenti */}
+                        {communications && communications.slice(0, 3).map((comm) => (
+                          <div key={comm.id} className="flex items-center space-x-3">
+                            <div className="rounded-full bg-blue-50 p-2">
+                              <i className="fas fa-comment text-blue-500"></i>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-medium">
+                                  {comm.clientName || "Cliente"}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {getCommunicationTypeBadge(comm.type || "")}
+                                </span>
                               </div>
-                            </TableCell>
-                          </TableRow>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatDate(comm.createdAt || "")}
+                              </p>
+                            </div>
+                          </div>
                         ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-                </>
-            )}
+                        
+                        {/* Appuntamenti recenti */}
+                        {appointments && appointments.slice(0, 3).map((apt) => (
+                          <div key={apt.id} className="flex items-center space-x-3">
+                            <div className="rounded-full bg-purple-50 p-2">
+                              <i className="fas fa-calendar text-purple-500"></i>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-medium">
+                                  {apt.title || "Appuntamento"}
+                                </span>
+                                <span className="text-xs">
+                                  {getAppointmentStatusBadge(apt.status || "")}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatDate(apt.date || "")}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Task recenti */}
+                        {tasks && tasks.slice(0, 3).map((task) => (
+                          <div key={task.id} className="flex items-center space-x-3">
+                            <div className="rounded-full bg-amber-50 p-2">
+                              <i className="fas fa-tasks text-amber-500"></i>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-medium">
+                                  {task.title || "Task"}
+                                </span>
+                                <span className="text-xs">
+                                  {getTaskStatusBadge(task.status || "")}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {formatDate(task.dueDate || "")}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                {/* Documenti - parte da sviluppare */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Documenti</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="py-6 text-center text-gray-500">
+                      <p>Nessun documento disponibile</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </TabsContent>
           
           {/* Communications Tab */}
-          <TabsContent value="communications" className="space-y-6 mt-6">
+          <TabsContent value="communications">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Comunicazioni</CardTitle>
-                <Button 
-                  variant="default"
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href={`/communications/new?propertyId=${id}`}>
-                    <i className="fas fa-plus"></i>
-                    <span>Nuova Comunicazione</span>
-                  </Link>
+                <Button variant="outline">
+                  <i className="fas fa-plus mr-2"></i>
+                  Aggiungi comunicazione
                 </Button>
               </CardHeader>
               <CardContent>
                 {isCommunicationsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-                  </div>
-                ) : !communications || communications.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-5xl mb-4">
-                      <i className="fas fa-comments"></i>
+                  <div className="py-10 flex justify-center">
+                    <div className="animate-spin">
+                      <i className="fas fa-spinner text-2xl text-gray-400"></i>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Nessuna comunicazione</h3>
-                    <p>
-                      Non ci sono comunicazioni registrate per questo immobile.
-                    </p>
+                  </div>
+                ) : communications && communications.length === 0 ? (
+                  <div className="py-10 text-center text-gray-500">
+                    <div className="text-5xl mb-4 text-gray-300">
+                      <i className="fas fa-comment-slash"></i>
+                    </div>
+                    <p className="text-lg font-medium">Nessuna comunicazione</p>
+                    <p className="mt-1">Non ci sono comunicazioni registrate per questo immobile.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12"></TableHead>
-                          <TableHead className="w-32">Tipo</TableHead>
-                          <TableHead className="w-48">Data</TableHead>
-                          <TableHead className="w-48">Cliente</TableHead>
-                          <TableHead>Oggetto</TableHead>
-                          <TableHead className="w-20 text-right">Azioni</TableHead>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Direzione</TableHead>
+                        <TableHead>Contenuto</TableHead>
+                        <TableHead>Follow-up</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {communications && communications.map((comm) => (
+                        <TableRow key={comm.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDate(comm.createdAt || "")}
+                          </TableCell>
+                          <TableCell>{comm.clientName || "N/D"}</TableCell>
+                          <TableCell>
+                            {getCommunicationTypeBadge(comm.type || "")}
+                          </TableCell>
+                          <TableCell>
+                            {getDirectionIcon(comm.direction || "outbound")}
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-xs truncate">
+                              {comm.content || ""}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {comm.needsFollowUp && (
+                              <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                                Richiesto
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon">
+                              <i className="fas fa-ellipsis-v"></i>
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {communications.map((comm) => (
-                          <TableRow key={comm.id}>
-                            <TableCell>{getDirectionIcon(comm.direction)}</TableCell>
-                            <TableCell>{getCommunicationTypeBadge(comm.type)}</TableCell>
-                            <TableCell className="text-sm">
-                              {formatDistanceToNow(new Date(comm.createdAt), {
-                                addSuffix: true,
-                                locale: it,
-                              })}
-                            </TableCell>
-                            <TableCell>
-                              <Link href={`/clients/${comm.clientId}`}>
-                                <div className="text-primary-600 hover:underline">
-                                  Cliente #{comm.clientId}
-                                </div>
-                              </Link>
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              <Link href={`/communications/${comm.id}`}>
-                                <div className="hover:text-primary-600 cursor-pointer">
-                                  {comm.subject}
-                                </div>
-                              </Link>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" asChild>
-                                  <Link href={`/communications/${comm.id}`}>
-                                    <i className="fas fa-eye"></i>
-                                  </Link>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
           
           {/* Appointments Tab */}
-          <TabsContent value="appointments" className="space-y-6 mt-6">
+          <TabsContent value="appointments">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Appuntamenti</CardTitle>
-                <Button 
-                  variant="default"
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href={`/appointments/new?propertyId=${id}`}>
-                    <i className="fas fa-plus"></i>
-                    <span>Nuovo Appuntamento</span>
-                  </Link>
+                <Button variant="outline">
+                  <i className="fas fa-plus mr-2"></i>
+                  Aggiungi appuntamento
                 </Button>
               </CardHeader>
               <CardContent>
                 {isAppointmentsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-                  </div>
-                ) : !appointments || appointments.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-5xl mb-4">
-                      <i className="fas fa-calendar"></i>
+                  <div className="py-10 flex justify-center">
+                    <div className="animate-spin">
+                      <i className="fas fa-spinner text-2xl text-gray-400"></i>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Nessun appuntamento</h3>
-                    <p>
-                      Non ci sono appuntamenti programmati per questo immobile.
-                    </p>
+                  </div>
+                ) : appointments && appointments.length === 0 ? (
+                  <div className="py-10 text-center text-gray-500">
+                    <div className="text-5xl mb-4 text-gray-300">
+                      <i className="fas fa-calendar-times"></i>
+                    </div>
+                    <p className="text-lg font-medium">Nessun appuntamento</p>
+                    <p className="mt-1">Non ci sono appuntamenti programmati per questo immobile.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-48">Data</TableHead>
-                          <TableHead className="w-36">Ora</TableHead>
-                          <TableHead className="w-48">Cliente</TableHead>
-                          <TableHead className="w-40">Tipo</TableHead>
-                          <TableHead>Note</TableHead>
-                          <TableHead className="w-32">Stato</TableHead>
-                          <TableHead className="w-20 text-right">Azioni</TableHead>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Ora</TableHead>
+                        <TableHead>Titolo</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead>Note</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {appointments && appointments.map((apt) => (
+                        <TableRow key={apt.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDate(apt.date || "")}
+                          </TableCell>
+                          <TableCell>{apt.time || "N/D"}</TableCell>
+                          <TableCell>{apt.title || "N/D"}</TableCell>
+                          <TableCell>{apt.clientName || "N/D"}</TableCell>
+                          <TableCell>
+                            {getAppointmentStatusBadge(apt.status || "")}
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-xs truncate">
+                              {apt.notes || ""}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon">
+                              <i className="fas fa-ellipsis-v"></i>
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {appointments.map((appointment) => (
-                          <TableRow key={appointment.id}>
-                            <TableCell>{formatDate(appointment.date)}</TableCell>
-                            <TableCell>{appointment.time}</TableCell>
-                            <TableCell>
-                              <Link href={`/clients/${appointment.clientId}`}>
-                                <div className="text-primary-600 hover:underline">
-                                  Cliente #{appointment.clientId}
-                                </div>
-                              </Link>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-gray-700">
-                                {appointment.type === "visit"
-                                  ? "Visita immobile"
-                                  : appointment.type === "meeting"
-                                  ? "Incontro in agenzia"
-                                  : appointment.type === "call"
-                                  ? "Chiamata telefonica"
-                                  : appointment.type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {appointment.notes ? (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="max-w-[200px] truncate cursor-help">
-                                        {appointment.notes}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-sm">
-                                      <p className="text-sm">{appointment.notes}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{getAppointmentStatusBadge(appointment.status)}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" asChild>
-                                  <Link href={`/appointments/${appointment.id}`}>
-                                    <i className="fas fa-eye"></i>
-                                  </Link>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
           
           {/* Tasks Tab */}
-          <TabsContent value="tasks" className="space-y-6 mt-6">
+          <TabsContent value="tasks">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle>Note e Attività</CardTitle>
-                <Button 
-                  variant="default"
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href={`/tasks/new?propertyId=${id}`}>
-                    <i className="fas fa-plus"></i>
-                    <span>Nuova Attività</span>
-                  </Link>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Task</CardTitle>
+                <Button variant="outline">
+                  <i className="fas fa-plus mr-2"></i>
+                  Aggiungi task
                 </Button>
               </CardHeader>
               <CardContent>
                 {isTasksLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  <div className="py-10 flex justify-center">
+                    <div className="animate-spin">
+                      <i className="fas fa-spinner text-2xl text-gray-400"></i>
+                    </div>
                   </div>
-                ) : !tasks || tasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-5xl mb-4">
+                ) : tasks && tasks.length === 0 ? (
+                  <div className="py-10 text-center text-gray-500">
+                    <div className="text-5xl mb-4 text-gray-300">
                       <i className="fas fa-clipboard-list"></i>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Nessuna nota o attività</h3>
-                    <p>
-                      Non ci sono note o attività registrate per questo immobile.
-                    </p>
+                    <p className="text-lg font-medium">Nessun task</p>
+                    <p className="mt-1">Non ci sono task programmati per questo immobile.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-48">Data</TableHead>
-                          <TableHead className="w-48">Scadenza</TableHead>
-                          <TableHead className="w-40">Tipo</TableHead>
-                          <TableHead>Titolo</TableHead>
-                          <TableHead className="w-32">Stato</TableHead>
-                          <TableHead className="w-20 text-right">Azioni</TableHead>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Scadenza</TableHead>
+                        <TableHead>Titolo</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Assegnato a</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tasks && tasks.map((task) => (
+                        <TableRow key={task.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDate(task.dueDate || "")}
+                          </TableCell>
+                          <TableCell>{task.title || "N/D"}</TableCell>
+                          <TableCell>
+                            {getTaskTypeBadge(task.type || "")}
+                          </TableCell>
+                          <TableCell>{task.assignedTo || "N/D"}</TableCell>
+                          <TableCell>{task.clientName || "N/D"}</TableCell>
+                          <TableCell>
+                            {getTaskStatusBadge(task.status || "")}
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon">
+                              <i className="fas fa-ellipsis-v"></i>
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tasks.map((task) => (
-                          <TableRow key={task.id}>
-                            <TableCell>
-                              {formatDistanceToNow(new Date(task.createdAt), {
-                                addSuffix: true,
-                                locale: it,
-                              })}
-                            </TableCell>
-                            <TableCell>{formatDate(task.dueDate)}</TableCell>
-                            <TableCell>{getTaskTypeBadge(task.type)}</TableCell>
-                            <TableCell className="font-medium">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="max-w-[200px] truncate cursor-help">
-                                      {task.title}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-sm">
-                                    <p className="font-medium">{task.title}</p>
-                                    {task.description && (
-                                      <p className="text-sm mt-1">{task.description}</p>
-                                    )}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </TableCell>
-                            <TableCell>{getTaskStatusBadge(task.status)}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" asChild>
-                                  <Link href={`/tasks/${task.id}`}>
-                                    <i className="fas fa-eye"></i>
-                                  </Link>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Photos Tab */}
+          <TabsContent value="photos">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Foto</CardTitle>
+                <Button variant="outline">
+                  <i className="fas fa-upload mr-2"></i>
+                  Carica foto
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="py-10 text-center text-gray-500">
+                  <div className="text-5xl mb-4 text-gray-300">
+                    <i className="fas fa-image"></i>
+                  </div>
+                  <p className="text-lg font-medium">Nessuna foto</p>
+                  <p className="mt-1">Non ci sono foto caricate per questo immobile.</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
