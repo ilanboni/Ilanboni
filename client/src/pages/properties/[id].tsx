@@ -399,7 +399,7 @@ export default function PropertyDetailPage() {
               className="gap-2"
               asChild
             >
-              <Link href={`/properties/${id}/edit`}>
+              <Link href={`/properties/${id}/edit`} onClick={() => console.log("Edit button clicked, navigating to:", `/properties/${id}/edit`)}>
                 <i className="fas fa-edit"></i>
                 <span>Modifica</span>
               </Link>
