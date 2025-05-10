@@ -259,8 +259,22 @@ export default function PropertyEditDialog({
                   <FormItem>
                     <FormLabel>Indirizzo*</FormLabel>
                     <FormControl>
-                      <Input placeholder="Via Roma, 123" {...field} />
+                      <AddressAutocomplete 
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        placeholder="Inizia a digitare l'indirizzo..."
+                        city={form.watch("city")}
+                        onSelect={(data) => {
+                          // Aggiorna anche la posizione se disponibile
+                          if (data.location) {
+                            form.setValue("location", data.location);
+                          }
+                        }}
+                      />
                     </FormControl>
+                    <FormDescription>
+                      L'indirizzo completo dell'immobile
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
