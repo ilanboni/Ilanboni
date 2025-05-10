@@ -55,35 +55,40 @@ export default function PropertyEditDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Debug the property data to check what's coming in
+  useEffect(() => {
+    console.log("PropertyEditDialog received property:", property);
+  }, [property]);
+  
   // Define form with explicit typing
   const form = useForm<z.infer<typeof insertPropertySchema>>({
     resolver: zodResolver(insertPropertySchema),
-    // Inizializziamo con valori vuoti/di default
+    // Inizializziamo con i valori dalla proprietà direttamente
     defaultValues: {
-      type: "",
-      address: "",
-      city: "",
-      size: 0,
-      price: 0,
-      bedrooms: null,
-      bathrooms: null,
-      yearBuilt: null,
-      energyClass: null,
-      description: "",
-      status: "available",
-      externalLink: "",
-      location: null,
-      isShared: false,
-      isOwned: true,
+      type: property?.type || "",
+      address: property?.address || "",
+      city: property?.city || "",
+      size: property?.size || 0,
+      price: property?.price || 0,
+      bedrooms: property?.bedrooms || null,
+      bathrooms: property?.bathrooms || null,
+      yearBuilt: property?.yearBuilt || null,
+      energyClass: property?.energyClass || null,
+      description: property?.description || "",
+      status: property?.status || "available",
+      externalLink: property?.externalLink || "",
+      location: property?.location || null,
+      isShared: property?.isShared || false,
+      isOwned: property?.isOwned || true,
     },
   });
   
-  // Reset form when property changes
+  // Reset form when dialog opens or property changes
   useEffect(() => {
     if (open && property) {
-      console.log("Resetting form with property data:", property);
+      console.log("PropertyEditDialog - Updating form with data:", JSON.stringify(property, null, 2));
       
-      // Prima convertiamo eventuali valori undefined in null o default
+      // Prepariamo i valori assicurandoci che tutti i campi siano definiti
       const formValues = {
         type: property.type || "",
         address: property.address || "",
@@ -102,12 +107,13 @@ export default function PropertyEditDialog({
         isOwned: typeof property.isOwned === 'boolean' ? property.isOwned : true,
       };
       
-      console.log("Form values being set:", formValues);
+      console.log("Form values being set:", JSON.stringify(formValues, null, 2));
       
-      // Resettiamo il form con un leggero ritardo per assicurarci che il dialogo sia già renderizzato
+      // Reset del form in due passaggi per assicurare l'aggiornamento corretto
+      form.reset({});
       setTimeout(() => {
         form.reset(formValues);
-      }, 100);
+      }, 50);
     }
   }, [form, property, open]);
   

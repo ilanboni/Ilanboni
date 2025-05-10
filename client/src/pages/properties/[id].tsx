@@ -160,13 +160,16 @@ export default function PropertyDetailPage() {
   });
   
   // Fetch property details
-  const { data: property, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails>({
+  const { data: propertyData, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails[]>({
     queryKey: ["/api/properties", id],
     enabled: !isNaN(id),
     onSuccess: (data) => {
       console.log("Property data loaded:", JSON.stringify(data, null, 2));
     }
   });
+  
+  // Estrai la prima proprietà dall'array
+  const property = propertyData && propertyData.length > 0 ? propertyData[0] : null;
   
   // Aggiornamento dei valori del form quando property viene caricato
   useEffect(() => {
