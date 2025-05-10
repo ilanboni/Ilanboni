@@ -513,41 +513,43 @@ export default function NewPropertyPage() {
                         <FormItem>
                           <FormLabel>Posizione sulla mappa</FormLabel>
                           <FormControl>
-                            <div className="h-72 w-full border rounded-md overflow-hidden">
-                              <MapLocationSelector 
-                                value={field.value}
-                                onChange={field.onChange}
-                                className="h-full w-full"
-                                addressToSearch={`${form.watch('address')}, ${form.watch('city')}, Italia`}
-                              />
-                            </div>
-                            <div className="mt-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  // Forza una ricerca dell'indirizzo sulla mappa
-                                  const addressToSearch = `${form.getValues().address}, ${form.getValues().city}, Italia`;
-                                  console.log("Cercando indirizzo:", addressToSearch);
-                                  
-                                  // Resetta il valore del campo location per permettere la ricerca dell'indirizzo
-                                  field.onChange(null);
-                                  
-                                  // Dopo aver azzerato, aggiungiamo un timestamp all'indirizzo per forzare la ricerca
-                                  setTimeout(() => {
-                                    // Aggiorniamo il valore di addressToSearch nel componente
-                                    // Nota: questo forza un re-render del componente
-                                    form.setValue("address", form.getValues().address + " ", { shouldDirty: false });
+                            <div>
+                              <div className="h-72 w-full border rounded-md overflow-hidden">
+                                <MapLocationSelector 
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  className="h-full w-full"
+                                  addressToSearch={`${form.watch('address')}, ${form.watch('city')}, Italia`}
+                                />
+                              </div>
+                              <div className="mt-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Forza una ricerca dell'indirizzo sulla mappa
+                                    const addressToSearch = `${form.getValues().address}, ${form.getValues().city}, Italia`;
+                                    console.log("Cercando indirizzo:", addressToSearch);
+                                    
+                                    // Resetta il valore del campo location per permettere la ricerca dell'indirizzo
+                                    field.onChange(null);
+                                    
+                                    // Dopo aver azzerato, aggiungiamo un timestamp all'indirizzo per forzare la ricerca
                                     setTimeout(() => {
-                                      form.setValue("address", form.getValues().address.trim(), { shouldDirty: false });
-                                    }, 10);
-                                  }, 50);
-                                }}
-                              >
-                                <i className="fas fa-search mr-2"></i>
-                                Cerca indirizzo sulla mappa
-                              </Button>
+                                      // Aggiorniamo il valore di addressToSearch nel componente
+                                      // Nota: questo forza un re-render del componente
+                                      form.setValue("address", form.getValues().address + " ", { shouldDirty: false });
+                                      setTimeout(() => {
+                                        form.setValue("address", form.getValues().address.trim(), { shouldDirty: false });
+                                      }, 10);
+                                    }, 50);
+                                  }}
+                                >
+                                  <i className="fas fa-search mr-2"></i>
+                                  Cerca indirizzo sulla mappa
+                                </Button>
+                              </div>
                             </div>
                           </FormControl>
                           <FormDescription>
