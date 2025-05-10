@@ -20,6 +20,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import PropertyEditDialog from "@/components/properties/PropertyEditDialog";
+import MapLocationSelector from "@/components/maps/MapLocationSelector";
 import {
   Dialog,
   DialogContent,
@@ -381,10 +382,14 @@ export default function PropertyDetailPage() {
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{property?.address}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{property?.address || "Indirizzo non specificato"}</h1>
             <div className="flex items-center mt-1 space-x-2">
-              <span className="text-gray-500">{property?.city}</span>
-              <span className="text-gray-300">•</span>
+              {property?.city ? (
+                <>
+                  <span className="text-gray-500">{property.city}</span>
+                  <span className="text-gray-300">•</span>
+                </>
+              ) : null}
               {formatPropertyType(property?.type || "")}
               <span className="text-gray-300">•</span>
               {formatPropertyStatus(property?.status)}
@@ -487,22 +492,18 @@ export default function PropertyDetailPage() {
                       
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Superficie</h3>
-                        <p className="mt-1">{property?.size} m²</p>
+                        <p className="mt-1">{property?.size ? `${property.size} m²` : "Non specificata"}</p>
                       </div>
                       
-                      {property?.bedrooms && (
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Locali</h3>
-                          <p className="mt-1">{property.bedrooms}</p>
-                        </div>
-                      )}
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Locali</h3>
+                        <p className="mt-1">{property?.bedrooms ?? "Non specificati"}</p>
+                      </div>
                       
-                      {property?.bathrooms && (
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Bagni</h3>
-                          <p className="mt-1">{property.bathrooms}</p>
-                        </div>
-                      )}
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Bagni</h3>
+                        <p className="mt-1">{property?.bathrooms ?? "Non specificati"}</p>
+                      </div>
                       
                       {property?.floor !== null && property?.floor !== undefined && (
                         <div>
@@ -525,19 +526,15 @@ export default function PropertyDetailPage() {
                         </div>
                       )}
                       
-                      {property?.hasGarage !== null && (
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Garage</h3>
-                          <p className="mt-1">{property.hasGarage ? "Sì" : "No"}</p>
-                        </div>
-                      )}
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Garage</h3>
+                        <p className="mt-1">{property?.hasGarage === true ? "Sì" : (property?.hasGarage === false ? "No" : "Non specificato")}</p>
+                      </div>
                       
-                      {property?.hasGarden !== null && (
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Giardino</h3>
-                          <p className="mt-1">{property.hasGarden ? "Sì" : "No"}</p>
-                        </div>
-                      )}
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Giardino</h3>
+                        <p className="mt-1">{property?.hasGarden === true ? "Sì" : (property?.hasGarden === false ? "No" : "Non specificato")}</p>
+                      </div>
                     </div>
                     
                     {property?.description && (
@@ -576,11 +573,18 @@ export default function PropertyDetailPage() {
                     <CardTitle>Posizione</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-64 w-full bg-gray-100 rounded-md flex items-center justify-center">
-                      {property?.location ? (
-                        <div className="text-gray-600">Mappa in caricamento...</div>
+                    <div className="h-64 w-full rounded-md">
+                      {isPropertyLoading ? (
+                        <div className="h-full w-full bg-gray-100 flex items-center justify-center">
+                          <div className="text-gray-600">Caricamento in corso...</div>
+                        </div>
                       ) : (
-                        <div className="text-gray-600">Posizione non disponibile</div>
+                        <MapLocationSelector 
+                          value={property?.location} 
+                          onChange={() => {}}
+                          readOnly={true}
+                          className="h-full"
+                        />
                       )}
                     </div>
                   </CardContent>
