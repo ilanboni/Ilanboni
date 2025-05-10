@@ -96,22 +96,26 @@ export default function PropertyEditDialog({
   // Reset form when property changes
   useEffect(() => {
     if (open) {
+      console.log("Resetting form with property data:", property);
       form.reset({
-        type: property.type,
-        address: property.address,
-        city: property.city,
-        size: property.size,
-        price: property.price,
-        bedrooms: property.bedrooms,
-        bathrooms: property.bathrooms,
-        yearBuilt: property.yearBuilt,
-        energyClass: property.energyClass,
-        description: property.description,
-        status: property.status,
-        externalLink: property.externalLink,
-        location: property.location,
-        isShared: property.isShared,
-        isOwned: property.isOwned,
+        type: property.type || "",
+        address: property.address || "",
+        city: property.city || "",
+        size: property.size || 0,
+        price: property.price || 0,
+        bedrooms: property.bedrooms || null,
+        bathrooms: property.bathrooms || null,
+        yearBuilt: property.yearBuilt || null,
+        energyClass: property.energyClass || null,
+        description: property.description || "",
+        status: property.status || "available",
+        externalLink: property.externalLink || "",
+        location: property.location || null,
+        isShared: property.isShared || false,
+        isOwned: property.isOwned || true,
+        hasGarage: property.hasGarage || false,
+        hasGarden: property.hasGarden || false,
+        notes: property.notes || "",
       });
     }
   }, [form, property, open]);
@@ -119,16 +123,28 @@ export default function PropertyEditDialog({
   // Update property mutation
   const updatePropertyMutation = useMutation({
     mutationFn: async (data: z.infer<typeof insertPropertySchema>) => {
+      console.log("Updating property with data:", data);
+      
+      // Assicurati che i valori booleani siano correttamente inviati
+      const updatedData = {
+        ...data,
+        isShared: data.isShared === undefined ? false : !!data.isShared,
+        isOwned: data.isOwned === undefined ? true : !!data.isOwned,
+        hasGarage: data.hasGarage === undefined ? false : !!data.hasGarage,
+        hasGarden: data.hasGarden === undefined ? false : !!data.hasGarden,
+      };
+      
       const response = await fetch(`/api/properties/${property.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(updatedData),
       });
       
       if (!response.ok) {
-        throw new Error("Failed to update property");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Errore durante l'aggiornamento dell'immobile");
       }
       
       return await response.json();
@@ -469,6 +485,7 @@ export default function PropertyEditDialog({
                         value={field.value}
                         onChange={field.onChange}
                         className="h-full w-full"
+                        addressToSearch={`${form.getValues().address}, ${form.getValues().city}, Italia`}
                       />
                     </div>
                   </FormControl>

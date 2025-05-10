@@ -9,13 +9,15 @@ interface MapLocationSelectorProps {
   onChange: (value: any) => void;
   className?: string;
   readOnly?: boolean;
+  addressToSearch?: string;
 }
 
 export default function MapLocationSelector({
   value,
   onChange,
   className,
-  readOnly = false
+  readOnly = false,
+  addressToSearch
 }: MapLocationSelectorProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -42,6 +44,33 @@ export default function MapLocationSelector({
     }
   }, []);
   
+  // Funzione per cercare un indirizzo
+  const searchAddress = async (address: string) => {
+    if (!address.trim()) return;
+    
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const location = {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
+        };
+        
+        addMarker(location);
+        mapInstanceRef.current?.setView(location, 16);
+        return true;
+      }
+    } catch (error) {
+      console.error("Errore nella ricerca indirizzo:", error);
+    }
+    return false;
+  };
+
+  // Effetto per inizializzare la mappa
   useEffect(() => {
     if (!isMapLoaded || !mapRef.current || !window.L) return;
     
@@ -86,6 +115,30 @@ export default function MapLocationSelector({
       }
     };
   }, [isMapLoaded, value, onChange, readOnly]);
+  
+  // Effetto per cercare l'indirizzo quando cambia
+  const previousAddressRef = useRef<string | undefined>();
+  
+  useEffect(() => {
+    const searchIfNeeded = async () => {
+      // Controlla se l'indirizzo è cambiato e se è diverso da quello precedente
+      if (
+        addressToSearch && 
+        isMapLoaded && 
+        mapInstanceRef.current && 
+        !value?.lat && 
+        !value?.lng && 
+        addressToSearch !== previousAddressRef.current &&
+        addressToSearch.trim() !== ""
+      ) {
+        console.log("Searching for address:", addressToSearch);
+        previousAddressRef.current = addressToSearch;
+        await searchAddress(addressToSearch);
+      }
+    };
+    
+    searchIfNeeded();
+  }, [addressToSearch, isMapLoaded]);
   
   const addMarker = (latlng: { lat: number, lng: number }) => {
     // Remove existing marker
