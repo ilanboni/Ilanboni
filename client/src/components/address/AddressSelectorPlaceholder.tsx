@@ -59,24 +59,31 @@ export default function AddressSelectorPlaceholder({
   const [customLat, setCustomLat] = useState("45.4642");
   const [customLng, setCustomLng] = useState("9.1900");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<typeof SAMPLE_ADDRESSES>([]);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<typeof SAMPLE_ADDRESSES>(SAMPLE_ADDRESSES);
   const suggestionRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Filtra i suggerimenti in base a ciò che l'utente digita
   const filterSuggestions = (input: string) => {
-    if (!input || input.length < 2) {
-      setFilteredSuggestions([]);
+    if (!input || input.length < 1) {
+      // Se l'input è vuoto, mostriamo tutti gli indirizzi
+      setFilteredSuggestions(SAMPLE_ADDRESSES);
+      setShowSuggestions(SAMPLE_ADDRESSES.length > 0);
       return;
     }
 
     const inputLower = input.toLowerCase();
     const matches = SAMPLE_ADDRESSES.filter(
-      addr => addr.address.toLowerCase().includes(inputLower)
+      addr => 
+        addr.address.toLowerCase().includes(inputLower) || 
+        addr.fullAddress.toLowerCase().includes(inputLower)
     );
     
     setFilteredSuggestions(matches);
     setShowSuggestions(matches.length > 0);
+    
+    // Log per debug
+    console.log(`Filtrando per "${input}": trovati ${matches.length} risultati`);
   };
 
   // Aggiorna i suggerimenti quando cambia l'input
@@ -166,8 +173,23 @@ export default function AddressSelectorPlaceholder({
             placeholder={placeholder}
             className="flex-1"
             onFocus={() => {
-              if (filteredSuggestions.length > 0) {
-                setShowSuggestions(true);
+              // Mostra sempre i suggerimenti quando l'utente clicca sull'input
+              setShowSuggestions(true);
+              
+              // Se l'input è vuoto ma abbiamo suggerimenti precaricati, mostra tutti gli indirizzi
+              if (!value && filteredSuggestions.length === 0) {
+                setFilteredSuggestions(SAMPLE_ADDRESSES);
+              }
+              
+              console.log("Focus - Showing suggestions:", filteredSuggestions.length);
+            }}
+            onClick={() => {
+              // Mostra i suggerimenti anche al click
+              setShowSuggestions(true);
+              
+              // Se l'input è vuoto, mostra tutti gli indirizzi
+              if (!value || value.length < 2) {
+                setFilteredSuggestions(SAMPLE_ADDRESSES);
               }
             }}
           />
@@ -178,15 +200,27 @@ export default function AddressSelectorPlaceholder({
               ref={suggestionRef}
               className="absolute z-20 w-full mt-1 bg-white border rounded-md shadow-md max-h-60 overflow-y-auto"
             >
-              {filteredSuggestions.map((suggestion, idx) => (
-                <div
-                  key={idx}
-                  className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                  onClick={() => handleSelectSuggestion(suggestion)}
-                >
-                  {suggestion.address}
+              {filteredSuggestions.length > 0 ? (
+                filteredSuggestions.map((suggestion, idx) => (
+                  <div
+                    key={idx}
+                    className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-sm border-b last:border-b-0 flex justify-between items-center"
+                    onClick={() => handleSelectSuggestion(suggestion)}
+                  >
+                    <div className="flex items-center">
+                      <MapPin className="h-3 w-3 mr-2 text-gray-500" />
+                      <span className="font-medium">{suggestion.address}</span>
+                    </div>
+                    <span className="text-xs text-gray-500 ml-2">
+                      {suggestion.fullAddress.split(", ").slice(-1)[0]}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-3 text-sm text-gray-500">
+                  Nessun indirizzo trovato. Prova a modificare la ricerca o seleziona "Seleziona sulla mappa" per inserire manualmente.
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
