@@ -113,9 +113,6 @@ export default function PropertyEditDialog({
         location: property.location || null,
         isShared: property.isShared || false,
         isOwned: property.isOwned || true,
-        hasGarage: property.hasGarage || false,
-        hasGarden: property.hasGarden || false,
-        notes: property.notes || "",
       });
     }
   }, [form, property, open]);
@@ -130,8 +127,6 @@ export default function PropertyEditDialog({
         ...data,
         isShared: data.isShared === undefined ? false : !!data.isShared,
         isOwned: data.isOwned === undefined ? true : !!data.isOwned,
-        hasGarage: data.hasGarage === undefined ? false : !!data.hasGarage,
-        hasGarden: data.hasGarden === undefined ? false : !!data.hasGarden,
       };
       
       const response = await fetch(`/api/properties/${property.id}`, {
