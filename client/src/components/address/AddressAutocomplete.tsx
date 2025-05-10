@@ -36,14 +36,24 @@ export default function AddressAutocomplete({
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [debouncedValue, setDebouncedValue] = useState(value);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Gestione click esterno
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
-          inputRef.current && !inputRef.current.contains(event.target as Node)) {
+      try {
+        const target = event.target as Node;
+        const dropdownContains = dropdownRef.current?.contains(target) || false;
+        const inputContains = inputRef.current?.contains(target) || false;
+        
+        if (!dropdownContains && !inputContains) {
+          setSuggestions([]);
+        }
+      } catch (error) {
+        console.error('Errore nella gestione del click esterno:', error);
+        // In caso di errore, chiudi comunque il dropdown
         setSuggestions([]);
       }
     }
@@ -63,6 +73,9 @@ export default function AddressAutocomplete({
 
   // Effettua la ricerca quando il valore debounced cambia
   useEffect(() => {
+    // Resetta l'errore quando inizia una nuova ricerca
+    setError(null);
+    
     if (!debouncedValue || debouncedValue.length < 3) {
       setSuggestions([]);
       return;
@@ -79,8 +92,17 @@ export default function AddressAutocomplete({
     
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5&countrycodes=it`)
       .then(response => response.json())
-      .then((data: AutocompleteResult[]) => {
-        setSuggestions(data);
+      .then((data: any) => {
+        // Assicuriamoci che data sia un array e facciamo validazione
+        const validResults = Array.isArray(data) ? data.filter(item => 
+          item && 
+          typeof item === 'object' && 
+          typeof item.display_name === 'string' &&
+          typeof item.lat === 'string' &&
+          typeof item.lon === 'string'
+        ) : [];
+        
+        setSuggestions(validResults as AutocompleteResult[]);
         setIsLoading(false);
       })
       .catch(error => {
@@ -92,8 +114,9 @@ export default function AddressAutocomplete({
   // Gestisce la selezione di un indirizzo dai suggerimenti
   const handleSelectSuggestion = (suggestion: AutocompleteResult) => {
     // Estrai solo la via dall'indirizzo completo
-    const roadName = suggestion.address.road || "";
-    const houseNumber = suggestion.address.house_number || "";
+    const address = suggestion.address || {};
+    const roadName = address.road || "";
+    const houseNumber = address.house_number || "";
     const streetAddress = (roadName + (houseNumber ? ` ${houseNumber}` : "")).trim();
     
     // Aggiorna il valore dell'input
@@ -101,14 +124,29 @@ export default function AddressAutocomplete({
     
     // Notifica il parent component con la selezione completa
     if (onSelect) {
-      onSelect({
-        address: streetAddress,
-        location: {
-          lat: parseFloat(suggestion.lat),
-          lng: parseFloat(suggestion.lon)
-        },
-        fullAddress: suggestion.display_name
-      });
+      try {
+        // Convertiamo le coordinate in numeri con gestione di eventuali errori
+        const lat = parseFloat(suggestion.lat);
+        const lng = parseFloat(suggestion.lon);
+        
+        // Verifichiamo che siano numeri validi
+        const location = !isNaN(lat) && !isNaN(lng) 
+          ? { lat, lng }
+          : undefined;
+        
+        onSelect({
+          address: streetAddress,
+          location: location,
+          fullAddress: suggestion.display_name
+        });
+      } catch (error) {
+        console.error('Errore durante l\'elaborazione delle coordinate:', error);
+        // Notifica senza coordinate
+        onSelect({
+          address: streetAddress,
+          fullAddress: suggestion.display_name
+        });
+      }
     }
     
     // Chiudi i suggerimenti
@@ -135,6 +173,10 @@ export default function AddressAutocomplete({
           placeholder={placeholder}
           className="pr-16"
           onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            // Ritardiamo la chiusura del dropdown per permettere il click
+            setTimeout(() => setIsFocused(false), 200);
+          }}
         />
         <div className="absolute right-0 flex">
           {value && (
