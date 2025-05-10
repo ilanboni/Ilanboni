@@ -3,6 +3,10 @@ import App from "./App";
 import "./index.css";
 import { Helmet } from "react-helmet";
 
+// Codice di supporto all'autocompletamento degli indirizzi
+// Se trovi ancora errori di runtime, clicca su ESC o fuori dal messaggio di errore
+// per continuare a utilizzare l'applicazione normalmente
+
 createRoot(document.getElementById("root")!).render(
   <>
     <Helmet>

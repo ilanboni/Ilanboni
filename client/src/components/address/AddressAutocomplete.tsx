@@ -103,10 +103,17 @@ export default function AddressAutocomplete({
         ) : [];
         
         setSuggestions(validResults as AutocompleteResult[]);
+        
+        // Mostra un messaggio se non ci sono risultati
+        if (validResults.length === 0 && debouncedValue.length >= 3) {
+          setError('Nessun indirizzo trovato. Prova a essere più specifico o verifica l\'indirizzo inserito.');
+        }
+        
         setIsLoading(false);
       })
       .catch(error => {
         console.error('Errore durante la ricerca indirizzi:', error);
+        setError('Si è verificato un errore durante la ricerca. Riprova più tardi.');
         setIsLoading(false);
       });
   }, [debouncedValue, city]);
@@ -203,22 +210,33 @@ export default function AddressAutocomplete({
       </div>
       
       {/* Dropdown suggerimenti */}
-      {suggestions.length > 0 && isFocused && (
+      {(suggestions.length > 0 || error) && isFocused && (
         <div 
           ref={dropdownRef}
           className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto"
         >
-          <ul className="py-1">
-            {suggestions.map((suggestion, index) => (
-              <li 
-                key={index}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                onClick={() => handleSelectSuggestion(suggestion)}
-              >
-                {suggestion.display_name}
-              </li>
-            ))}
-          </ul>
+          {error ? (
+            <div className="px-4 py-3 text-sm text-red-600">
+              <div className="flex items-center">
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            </div>
+          ) : (
+            <ul className="py-1">
+              {suggestions.map((suggestion, index) => (
+                <li 
+                  key={index}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                  onClick={() => handleSelectSuggestion(suggestion)}
+                >
+                  {suggestion.display_name}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>
