@@ -78,14 +78,15 @@ const formSchema = z.object({
   price: z.coerce.number().min(1, "Il prezzo deve essere maggiore di 0"),
   bedrooms: z.coerce.number().optional().nullable(),
   bathrooms: z.coerce.number().optional().nullable(),
-  floor: z.coerce.number().optional().nullable(),
   yearBuilt: z.coerce.number().optional().nullable(),
   energyClass: z.string().optional().nullable(),
-  hasGarage: z.boolean().optional().nullable(),
-  hasGarden: z.boolean().optional().nullable(),
   status: z.string(),
-  notes: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
+  // Aggiungiamo altri campi presenti nel modello PropertyWithDetails
+  isShared: z.boolean().optional().default(false),
+  isOwned: z.boolean().optional().default(true),
+  externalLink: z.string().optional().nullable(),
+  location: z.any().optional().nullable(),
 });
 
 export default function PropertyDetailPage() {
@@ -178,14 +179,20 @@ export default function PropertyDetailPage() {
         price: property.price || 0,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
-        floor: null, // Non presente nello schema
         yearBuilt: property.yearBuilt,
         energyClass: property.energyClass || null,
-        hasGarage: false, // Non presente nello schema
-        hasGarden: false, // Non presente nello schema
         status: property.status || "available",
-        notes: "", // Non presente nello schema
         description: property.description || "",
+        isShared: property.isShared || false,
+        isOwned: property.isOwned || true,
+        externalLink: property.externalLink || "",
+        location: property.location || null,
+      });
+      
+      // Log per il debug
+      console.log("Form reset with values:", {
+        ...property,
+        location: property.location
       });
     }
   }, [property, form]);

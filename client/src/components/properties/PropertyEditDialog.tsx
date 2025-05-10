@@ -36,24 +36,8 @@ import { useToast } from "@/hooks/use-toast";
 import { insertPropertySchema } from "@shared/schema";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
 
-interface Property {
-  id: number;
-  address: string;
-  city: string;
-  size: number;
-  price: number;
-  type: string;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  yearBuilt: number | null;
-  energyClass: string | null;
-  description: string | null;
-  status: string;
-  isShared: boolean;
-  isOwned: boolean;
-  externalLink: string | null;
-  location: { lat: number; lng: number } | null;
-}
+// Importa il tipo direttamente dallo schema condiviso
+import { type Property } from "@shared/schema";
 
 interface PropertyEditDialogProps {
   open: boolean;
