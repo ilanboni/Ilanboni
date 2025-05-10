@@ -162,6 +162,9 @@ export default function PropertyDetailPage() {
   const { data: property, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails>({
     queryKey: ["/api/properties", id],
     enabled: !isNaN(id),
+    onSuccess: (data) => {
+      console.log("Property data loaded:", data);
+    }
   });
   
   // Aggiornamento dei valori del form quando property viene caricato
@@ -382,7 +385,10 @@ export default function PropertyDetailPage() {
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{property?.address || "Indirizzo non specificato"}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {console.log("Rendering address:", property?.address)}
+              {property?.address || "Indirizzo non specificato"}
+            </h1>
             <div className="flex items-center mt-1 space-x-2">
               {property?.city ? (
                 <>
@@ -467,12 +473,12 @@ export default function PropertyDetailPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Indirizzo</h3>
-                        <p className="mt-1">{property?.address}</p>
+                        <p className="mt-1 font-medium">{property?.address || "Non specificato"}</p>
                       </div>
                       
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Città</h3>
-                        <p className="mt-1">{property?.city}</p>
+                        <p className="mt-1">{property?.city || "Non specificata"}</p>
                       </div>
                       
                       <div>
@@ -482,12 +488,12 @@ export default function PropertyDetailPage() {
                       
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Stato</h3>
-                        <p className="mt-1">{formatPropertyStatus(property?.status)}</p>
+                        <p className="mt-1">{formatPropertyStatus(property?.status || "available")}</p>
                       </div>
                       
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Prezzo</h3>
-                        <p className="mt-1 font-semibold text-lg">{formatPrice(property?.price || 0)}</p>
+                        <p className="mt-1 font-semibold text-xl text-blue-600">{formatPrice(property?.price || 0)}</p>
                       </div>
                       
                       <div>
