@@ -431,15 +431,18 @@ export default function PropertyDetailPage() {
             </Button>
             
             {property && (
-              <PropertyEditDialog
-                open={isEditDialogOpen}
-                onClose={() => setIsEditDialogOpen(false)}
-                property={property as any}
-                onSuccess={() => {
-                  // Ricarica i dati dell'immobile
-                  queryClient.invalidateQueries({ queryKey: ["/api/properties", id] });
-                }}
-              />
+              <>
+                {console.log("Property data passed to PropertyEditDialog:", JSON.stringify(property, null, 2))}
+                <PropertyEditDialog
+                  open={isEditDialogOpen}
+                  onClose={() => setIsEditDialogOpen(false)}
+                  property={property}
+                  onSuccess={() => {
+                    // Ricarica i dati dell'immobile
+                    queryClient.invalidateQueries({ queryKey: ["/api/properties", id] });
+                  }}
+                />
+              </>
             )}
           </div>
         </div>

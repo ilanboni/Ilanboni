@@ -518,6 +518,7 @@ export default function NewPropertyPage() {
                                 value={field.value}
                                 onChange={field.onChange}
                                 className="h-full w-full"
+                                addressToSearch={`${form.watch('address')}, ${form.watch('city')}, Italia`}
                               />
                             </div>
                           </FormControl>
