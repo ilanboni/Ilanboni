@@ -521,6 +521,27 @@ export default function NewPropertyPage() {
                                 addressToSearch={`${form.watch('address')}, ${form.watch('city')}, Italia`}
                               />
                             </div>
+                            <div className="mt-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  // Forza una ricerca dell'indirizzo sulla mappa
+                                  console.log("Cercando indirizzo:", `${form.getValues().address}, ${form.getValues().city}, Italia`);
+                                  if (form.getValues().address && form.getValues().city) {
+                                    // Rimuoviamo temporaneamente la posizione e la reimpostiamo subito dopo
+                                    // per forzare un aggiornamento del componente mappa
+                                    const currentLocation = field.value;
+                                    field.onChange(null);
+                                    setTimeout(() => field.onChange(currentLocation), 10);
+                                  }
+                                }}
+                              >
+                                <i className="fas fa-search mr-2"></i>
+                                Cerca indirizzo sulla mappa
+                              </Button>
+                            </div>
                           </FormControl>
                           <FormDescription>
                             Seleziona la posizione esatta dell'immobile sulla mappa. Puoi cercare un indirizzo o cliccare direttamente sulla mappa.

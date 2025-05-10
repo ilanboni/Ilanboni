@@ -58,30 +58,33 @@ export default function PropertyEditDialog({
   // Define form with explicit typing
   const form = useForm<z.infer<typeof insertPropertySchema>>({
     resolver: zodResolver(insertPropertySchema),
+    // Inizializziamo con valori vuoti/di default
     defaultValues: {
-      type: property.type,
-      address: property.address,
-      city: property.city,
-      size: property.size,
-      price: property.price,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      yearBuilt: property.yearBuilt,
-      energyClass: property.energyClass,
-      description: property.description,
-      status: property.status,
-      externalLink: property.externalLink,
-      location: property.location,
-      isShared: property.isShared,
-      isOwned: property.isOwned,
+      type: "",
+      address: "",
+      city: "",
+      size: 0,
+      price: 0,
+      bedrooms: null,
+      bathrooms: null,
+      yearBuilt: null,
+      energyClass: null,
+      description: "",
+      status: "available",
+      externalLink: "",
+      location: null,
+      isShared: false,
+      isOwned: true,
     },
   });
   
   // Reset form when property changes
   useEffect(() => {
-    if (open) {
+    if (open && property) {
       console.log("Resetting form with property data:", property);
-      form.reset({
+      
+      // Prima convertiamo eventuali valori undefined in null o default
+      const formValues = {
         type: property.type || "",
         address: property.address || "",
         city: property.city || "",
@@ -95,9 +98,16 @@ export default function PropertyEditDialog({
         status: property.status || "available",
         externalLink: property.externalLink || "",
         location: property.location || null,
-        isShared: property.isShared || false,
-        isOwned: property.isOwned || true,
-      });
+        isShared: typeof property.isShared === 'boolean' ? property.isShared : false,
+        isOwned: typeof property.isOwned === 'boolean' ? property.isOwned : true,
+      };
+      
+      console.log("Form values being set:", formValues);
+      
+      // Resettiamo il form con un leggero ritardo per assicurarci che il dialogo sia già renderizzato
+      setTimeout(() => {
+        form.reset(formValues);
+      }, 100);
     }
   }, [form, property, open]);
   
@@ -466,6 +476,27 @@ export default function PropertyEditDialog({
                         className="h-full w-full"
                         addressToSearch={`${form.getValues().address}, ${form.getValues().city}, Italia`}
                       />
+                    </div>
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Forza una ricerca dell'indirizzo sulla mappa
+                          console.log("Cercando indirizzo:", `${form.getValues().address}, ${form.getValues().city}, Italia`);
+                          if (form.getValues().address && form.getValues().city) {
+                            // Rimuoviamo temporaneamente la posizione e la reimpostiamo subito dopo
+                            // per forzare un aggiornamento del componente mappa
+                            const currentLocation = field.value;
+                            field.onChange(null);
+                            setTimeout(() => field.onChange(currentLocation), 10);
+                          }
+                        }}
+                      >
+                        <i className="fas fa-search mr-2"></i>
+                        Cerca indirizzo sulla mappa
+                      </Button>
                     </div>
                   </FormControl>
                   <FormDescription>
