@@ -163,7 +163,7 @@ export default function PropertyDetailPage() {
     queryKey: ["/api/properties", id],
     enabled: !isNaN(id),
     onSuccess: (data) => {
-      console.log("Property data loaded:", data);
+      console.log("Property data loaded:", JSON.stringify(data, null, 2));
     }
   });
   
@@ -178,13 +178,13 @@ export default function PropertyDetailPage() {
         price: property.price || 0,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
-        floor: property.floor,
+        floor: null, // Non presente nello schema
         yearBuilt: property.yearBuilt,
         energyClass: property.energyClass || null,
-        hasGarage: property.hasGarage || false,
-        hasGarden: property.hasGarden || false,
+        hasGarage: false, // Non presente nello schema
+        hasGarden: false, // Non presente nello schema
         status: property.status || "available",
-        notes: property.notes || "",
+        notes: "", // Non presente nello schema
         description: property.description || "",
       });
     }
