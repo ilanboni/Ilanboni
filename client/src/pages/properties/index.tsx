@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { PropertyWithDetails } from "@/types";
+import { type PropertyWithDetails } from "@shared/schema";
 import PropertyCard from "@/components/properties/PropertyCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +53,8 @@ export default function PropertiesPage() {
   
   // Handle property actions
   const handleEditProperty = (property: PropertyWithDetails) => {
-    navigate(`/properties/edit/${property.id}`);
+    // Invece di navigare, ora apriamo direttamente la pagina dei dettagli
+    navigate(`/properties/${property.id}`);
   };
   
   const handleViewProperty = (property: PropertyWithDetails) => {
