@@ -74,6 +74,8 @@ export default function MapLocationSelector({
   useEffect(() => {
     if (!isMapLoaded || !mapRef.current || !window.L) return;
     
+    console.log("Initializing map with value:", value);
+    
     // Initialize map if it doesn't exist
     if (!mapInstanceRef.current) {
       // Set default view to Milan, Italy
@@ -90,22 +92,24 @@ export default function MapLocationSelector({
           addMarker(e.latlng);
         });
       }
+      
+      // Fix map rendering issue
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 100);
     }
     
     // Load existing marker if available
     if (value && value.lat && value.lng) {
+      console.log("Adding marker with coordinates:", value);
       addMarker({ lat: value.lat, lng: value.lng });
+      mapInstanceRef.current.setView([value.lat, value.lng], 16);
     } else if (mapInstanceRef.current && !markerRef.current) {
       // Se non c'è un valore, centriamo comunque la mappa su Milano
       mapInstanceRef.current.setView([45.4642, 9.1900], 12);
     }
-    
-    // Fix map rendering issue
-    setTimeout(() => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
-      }
-    }, 100);
     
     // Cleanup function
     return () => {
@@ -114,7 +118,27 @@ export default function MapLocationSelector({
         mapInstanceRef.current.off('click');
       }
     };
-  }, [isMapLoaded, value, onChange, readOnly]);
+  }, [isMapLoaded, readOnly]);
+  
+  // Effetto per gestire gli aggiornamenti del valore
+  useEffect(() => {
+    if (!isMapLoaded || !mapInstanceRef.current) return;
+    
+    // Se abbiamo un valore con coordinate valide, aggiorna il marker
+    if (value && value.lat && value.lng) {
+      console.log("Value changed, updating marker with:", value);
+      
+      // Rimuovi il marker esistente se presente
+      if (markerRef.current) {
+        mapInstanceRef.current.removeLayer(markerRef.current);
+        markerRef.current = null;
+      }
+      
+      // Aggiungi il nuovo marker
+      addMarker({ lat: value.lat, lng: value.lng });
+      mapInstanceRef.current.setView([value.lat, value.lng], 16);
+    }
+  }, [value]);
   
   // Effetto per cercare l'indirizzo quando cambia
   const previousAddressRef = useRef<string | undefined>();
@@ -126,8 +150,6 @@ export default function MapLocationSelector({
         addressToSearch && 
         isMapLoaded && 
         mapInstanceRef.current && 
-        !value?.lat && 
-        !value?.lng && 
         addressToSearch !== previousAddressRef.current &&
         addressToSearch.trim() !== ""
       ) {

@@ -490,14 +490,25 @@ export default function PropertyEditDialog({
                         size="sm"
                         onClick={() => {
                           // Forza una ricerca dell'indirizzo sulla mappa
-                          console.log("Cercando indirizzo:", `${form.getValues().address}, ${form.getValues().city}, Italia`);
-                          if (form.getValues().address && form.getValues().city) {
-                            // Rimuoviamo temporaneamente la posizione e la reimpostiamo subito dopo
-                            // per forzare un aggiornamento del componente mappa
-                            const currentLocation = field.value;
-                            field.onChange(null);
-                            setTimeout(() => field.onChange(currentLocation), 10);
-                          }
+                          const addressToSearch = `${form.getValues().address}, ${form.getValues().city}, Italia`;
+                          console.log("Cercando indirizzo:", addressToSearch);
+                          
+                          // Resetta il valore del campo location per permettere la ricerca dell'indirizzo
+                          field.onChange(null);
+                          
+                          // Dopo aver azzerato, aggiungiamo un timestamp all'indirizzo per forzare la ricerca
+                          setTimeout(() => {
+                            // Ricrea un nuovo oggetto addressToSearch per forzare il trigger dell'useEffect
+                            const addressWithTimestamp = addressToSearch + "?" + Date.now();
+                            console.log("Aggiornato indirizzo con timestamp:", addressWithTimestamp);
+                            
+                            // Aggiorniamo il valore di addressToSearch nel componente
+                            // Nota: questo forza un re-render del componente
+                            form.setValue("address", form.getValues().address + " ", { shouldDirty: false });
+                            setTimeout(() => {
+                              form.setValue("address", form.getValues().address.trim(), { shouldDirty: false });
+                            }, 10);
+                          }, 50);
                         }}
                       >
                         <i className="fas fa-search mr-2"></i>
