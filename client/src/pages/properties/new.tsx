@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertPropertySchema, insertSharedPropertySchema } from "@shared/schema";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
-import SimpleAddressAutocomplete from "@/components/address/SimpleAddressAutocomplete";
+import AddressSelectorPlaceholder from "@/components/address/AddressSelectorPlaceholder";
 
 export default function NewPropertyPage() {
   const [_, setLocation] = useLocation();
@@ -265,11 +265,10 @@ export default function NewPropertyPage() {
                           <FormItem>
                             <FormLabel>Indirizzo*</FormLabel>
                             <FormControl>
-                              <SimpleAddressAutocomplete
+                              <AddressSelectorPlaceholder
                                 value={field.value}
                                 onChange={field.onChange}
-                                placeholder="Inizia a digitare l'indirizzo..."
-                                city={form.watch("city")}
+                                placeholder="Inserisci l'indirizzo dell'immobile..."
                                 onSelect={(data) => {
                                   // Aggiorna anche la posizione se disponibile
                                   if (data.location) {
