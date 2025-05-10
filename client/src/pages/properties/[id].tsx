@@ -579,12 +579,19 @@ export default function PropertyDetailPage() {
                           <div className="text-gray-600">Caricamento in corso...</div>
                         </div>
                       ) : (
-                        <MapLocationSelector 
-                          value={property?.location} 
-                          onChange={() => {}}
-                          readOnly={true}
-                          className="h-full"
-                        />
+                        <>
+                          {!property?.location && (
+                            <div className="absolute top-0 left-0 right-0 bg-white bg-opacity-80 z-[500] p-2 text-center text-sm">
+                              Posizione non specificata - Visualizzazione di Milano
+                            </div>
+                          )}
+                          <MapLocationSelector 
+                            value={property?.location} 
+                            onChange={() => {}}
+                            readOnly={true}
+                            className="h-full"
+                          />
+                        </>
                       )}
                     </div>
                   </CardContent>

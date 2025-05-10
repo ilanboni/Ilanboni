@@ -66,11 +66,16 @@ export default function MapLocationSelector({
     // Load existing marker if available
     if (value && value.lat && value.lng) {
       addMarker({ lat: value.lat, lng: value.lng });
+    } else if (mapInstanceRef.current && !markerRef.current) {
+      // Se non c'è un valore, centriamo comunque la mappa su Milano
+      mapInstanceRef.current.setView([45.4642, 9.1900], 12);
     }
     
     // Fix map rendering issue
     setTimeout(() => {
-      mapInstanceRef.current.invalidateSize();
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
     }, 100);
     
     // Cleanup function
