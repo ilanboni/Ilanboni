@@ -35,7 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { insertPropertySchema } from "@shared/schema";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
-import AddressAutocomplete from "@/components/address/AddressAutocomplete";
+import SimpleAddressAutocomplete from "@/components/address/SimpleAddressAutocomplete";
 
 // Importa il tipo direttamente dallo schema condiviso
 import { type Property } from "@shared/schema";
@@ -259,7 +259,7 @@ export default function PropertyEditDialog({
                   <FormItem>
                     <FormLabel>Indirizzo*</FormLabel>
                     <FormControl>
-                      <AddressAutocomplete 
+                      <SimpleAddressAutocomplete
                         value={field.value || ""}
                         onChange={field.onChange}
                         placeholder="Inizia a digitare l'indirizzo..."

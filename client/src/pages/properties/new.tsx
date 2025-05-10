@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertPropertySchema, insertSharedPropertySchema } from "@shared/schema";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
-import AddressAutocomplete from "@/components/address/AddressAutocomplete";
+import SimpleAddressAutocomplete from "@/components/address/SimpleAddressAutocomplete";
 
 export default function NewPropertyPage() {
   const [_, setLocation] = useLocation();
@@ -265,7 +265,7 @@ export default function NewPropertyPage() {
                           <FormItem>
                             <FormLabel>Indirizzo*</FormLabel>
                             <FormControl>
-                              <AddressAutocomplete 
+                              <SimpleAddressAutocomplete
                                 value={field.value}
                                 onChange={field.onChange}
                                 placeholder="Inizia a digitare l'indirizzo..."
