@@ -35,6 +35,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { insertPropertySchema } from "@shared/schema";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
+import AddressAutocomplete from "@/components/address/AddressAutocomplete";
 
 // Importa il tipo direttamente dallo schema condiviso
 import { type Property } from "@shared/schema";
