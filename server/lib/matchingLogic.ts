@@ -51,10 +51,28 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
         return false;
       }
       
-      // Per ora, per evitare errori di compilazione, assumiamo che sia nel poligono
-      // In un'implementazione reale, decommentare e usare:
-      // return pointInPolygon(property.location, buyer.searchArea);
-      return true;
+      // Se non abbiamo un'area di ricerca definita, consideriamo l'immobile come valido
+      if (!buyer.searchArea || !Array.isArray(buyer.searchArea) || buyer.searchArea.length < 3) {
+        console.log(`[Matching] L'acquirente ${buyer.id} non ha un poligono di ricerca valido`, 
+          buyer.searchArea ? `(${buyer.searchArea.length} punti)` : '(undefined)');
+        return true;
+      }
+      
+      // Verifico che la posizione dell'immobile sia nel formato corretto
+      if (!property.location || !property.location.lat || !property.location.lng) {
+        console.log(`[Matching] L'immobile ${property.id} non ha una posizione valida:`, property.location);
+        return false;
+      }
+      
+      // Converto la posizione nel formato atteso dalla funzione pointInPolygon
+      const point: [number, number] = [property.location.lng, property.location.lat];
+      
+      // Eseguo il controllo effettivo
+      const isInPolygon = pointInPolygon(point, buyer.searchArea);
+      
+      console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione ${point} è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id}`);
+      
+      return isInPolygon;
     } catch (error) {
       console.error('Errore nella verifica del poligono:', error);
       // In caso di errore, assumiamo che non sia nel poligono

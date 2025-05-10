@@ -267,7 +267,17 @@ export default function PropertyEditDialog({
                           // Aggiorna anche la posizione se disponibile
                           if (data.location) {
                             form.setValue("location", data.location);
+                            console.log("Aggiornata posizione dalla selezione indirizzo:", data.location);
                           }
+                          
+                          // Aggiorna anche l'indirizzo completo
+                          if (data.address) {
+                            console.log("Impostando indirizzo da selezione:", data.address);
+                            field.onChange(data.address);
+                          }
+                          
+                          // Log per debug
+                          console.log("Dati completi dalla selezione:", data);
                         }}
                       />
                     </FormControl>
