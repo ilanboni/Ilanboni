@@ -13,7 +13,7 @@ import { z } from "zod";
 import { summarizeText } from "./lib/openai";
 import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
 import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
-import { geocodeAddress, reverseGeocode } from "./lib/geocoding";
+import geocodeRouter from "./routes/geocode";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Registra le route per il webhook forwarder
@@ -1343,42 +1343,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Altri endpoint API esistenti
   
-  // API per la geocodifica di indirizzi
-  app.get("/api/geocode", async (req: Request, res: Response) => {
-    try {
-      const address = req.query.q as string;
-      
-      if (!address) {
-        return res.status(400).json({ error: "Parametro 'q' mancante" });
-      }
-      
-      console.log("[GET /api/geocode] Geocodifica indirizzo:", address);
-      const results = await geocodeAddress(address);
-      res.json(results);
-    } catch (error: any) {
-      console.error("[GET /api/geocode] Errore:", error);
-      res.status(500).json({ error: error.message || "Errore durante la geocodifica" });
-    }
-  });
-  
-  // API per la geocodifica inversa
-  app.get("/api/reverse-geocode", async (req: Request, res: Response) => {
-    try {
-      const lat = parseFloat(req.query.lat as string);
-      const lng = parseFloat(req.query.lng as string);
-      
-      if (isNaN(lat) || isNaN(lng)) {
-        return res.status(400).json({ error: "Parametri 'lat' e 'lng' devono essere numeri validi" });
-      }
-      
-      console.log("[GET /api/reverse-geocode] Geocodifica inversa:", { lat, lng });
-      const result = await reverseGeocode(lat, lng);
-      res.json(result);
-    } catch (error: any) {
-      console.error("[GET /api/reverse-geocode] Errore:", error);
-      res.status(500).json({ error: error.message || "Errore durante la geocodifica inversa" });
-    }
-  });
+  // Registra i router per API specifiche
+  app.use("/api/geocode", geocodeRouter);
 
   const httpServer = createServer(app);
   return httpServer;

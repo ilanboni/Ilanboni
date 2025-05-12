@@ -57,7 +57,7 @@ export async function reverseGeocode(lat: number, lng: number): Promise<Geocodin
     
     console.log(`Reverse geocoding per: (${lat}, ${lng})`);
     
-    const response = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
+    const response = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
     
     if (!response.ok) {
       throw new Error(`Errore API (${response.status}): ${response.statusText}`);
