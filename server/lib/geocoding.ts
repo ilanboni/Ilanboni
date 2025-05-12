@@ -6,7 +6,7 @@
 import fetch from 'node-fetch';
 
 // Configurazione per le richieste Nominatim
-const USER_AGENT = 'GestionaleImmobiliare/1.0';
+const USER_AGENT = 'RealEstateCRM/1.0 (info@tuosito.it)';
 const BASE_URL = 'https://nominatim.openstreetmap.org';
 
 export interface GeocodingResult {

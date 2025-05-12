@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ error: "Parametro 'q' mancante" });
     }
     
-    console.log("[GET /api/geocode] Geocodifica indirizzo:", address);
+    console.log("Query ricevuta:", address);
     const results = await geocodeAddress(address);
     res.json(results);
   } catch (error: any) {
