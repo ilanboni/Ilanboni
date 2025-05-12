@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import AppLayout from "@/components/layouts/AppLayout";
+import { AddressAutocompleteProvider } from "@/components/address/AddressAutocompleteProvider";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import ClientsPage from "@/pages/clients/index";
@@ -65,10 +66,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="realestate-crm-theme">
         <TooltipProvider>
-          <Toaster />
-          <AppLayout>
-            <Router />
-          </AppLayout>
+          <AddressAutocompleteProvider>
+            <Toaster />
+            <AppLayout>
+              <Router />
+            </AppLayout>
+          </AddressAutocompleteProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
