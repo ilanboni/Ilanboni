@@ -369,8 +369,12 @@ La Sua agenzia immobiliare`
  * @returns URL per visualizzare l'immobile sulla piattaforma
  */
 function generatePropertyUrl(propertyId: number): string {
-  // Utilizza l'URL base dell'applicazione
-  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+  // Utilizza l'URL del server Replit
+  // Otteniamo l'URL dalla richiesta o dall'ambiente
+  const baseUrl = process.env.REPLIT_SLUG 
+    ? `https://${process.env.REPLIT_SLUG}.replit.app` 
+    : (process.env.BASE_URL || 'http://localhost:5000');
+  
   return `${baseUrl}/properties/${propertyId}`;
 }
 
@@ -397,25 +401,44 @@ function compileMessageTemplate(template: string, client: Client, property: Prop
     .replace(/\{propertyPrice\}/g, property.price ? `€${property.price.toLocaleString()}` : '')
     .replace(/\{propertyUrl\}/g, propertyUrl);
   
-  // Gestione dei placeholder condizionali (es. {propertyBedrooms?testo con {propertyBedrooms}\n})
+  // Gestione di tutti i campi, inclusi quelli opzionali
   message = message
     .replace(/\{propertySize\}/g, property.size?.toString() || '');
     
-  // Per i campi opzionali, utilizziamo un pattern per controllare se sono presenti
+  // Gestione del numero di locali (bedrooms)
   if (property.bedrooms) {
-    message = message.replace(/\{propertyBedrooms\?([^}]*)\}/g, '$1')
-      .replace(/\{propertyBedrooms\}/g, property.bedrooms.toString());
+    // Prima risolviamo i blocchi condizionali
+    message = message.replace(/\{propertyBedrooms\?([^}]*)\}/g, (match, p1) => {
+      return p1.replace(/\{propertyBedrooms\}/g, property.bedrooms?.toString() || '');
+    });
+    
+    // Poi sostituiamo i placeholder normali
+    message = message.replace(/\{propertyBedrooms\}/g, property.bedrooms.toString());
   } else {
     // Se il campo non è presente, rimuoviamo l'intero blocco condizionale
     message = message.replace(/\{propertyBedrooms\?[^}]*\}/g, '');
   }
   
+  // Gestione del numero di bagni (bathrooms)
   if (property.bathrooms) {
-    message = message.replace(/\{propertyBathrooms\?([^}]*)\}/g, '$1')
-      .replace(/\{propertyBathrooms\}/g, property.bathrooms.toString());
+    // Prima risolviamo i blocchi condizionali
+    message = message.replace(/\{propertyBathrooms\?([^}]*)\}/g, (match, p1) => {
+      return p1.replace(/\{propertyBathrooms\}/g, property.bathrooms?.toString() || '');
+    });
+    
+    // Poi sostituiamo i placeholder normali
+    message = message.replace(/\{propertyBathrooms\}/g, property.bathrooms.toString());
   } else {
+    // Se il campo non è presente, rimuoviamo l'intero blocco condizionale
     message = message.replace(/\{propertyBathrooms\?[^}]*\}/g, '');
   }
+  
+  // Pulizia finale - rimuovi eventuali parentesi graffe spurie o altri caratteri non voluti
+  message = message
+    .replace(/\}\n\}/g, '\n')
+    .replace(/\}\}/g, '')
+    .replace(/\{\{/g, '')
+    .replace(/\}\s*\n\s*\}/g, '\n');
   
   return message;
 }
