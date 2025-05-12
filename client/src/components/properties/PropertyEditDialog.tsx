@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
+import { geocodeAddress } from "@/lib/geocoding";
 import {
   Dialog,
   DialogContent,
@@ -559,29 +560,47 @@ export default function PropertyEditDialog({
                               // Resetta il valore del campo location per permettere la ricerca dell'indirizzo
                               field.onChange(null);
                               
-                              // Utilizziamo l'API Nominatim direttamente
-                              fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressToSearch)}&countrycodes=it&limit=1`)
-                                .then(response => response.json())
-                                .then(data => {
-                                  if (data && data.length > 0) {
+                              // Utilizziamo il proxy backend per Nominatim
+                              geocodeAddress(addressToSearch)
+                                .then(results => {
+                                  if (results && results.length > 0) {
                                     const location = {
-                                      lat: parseFloat(data[0].lat),
-                                      lng: parseFloat(data[0].lon)
+                                      lat: results[0].lat,
+                                      lng: results[0].lng
                                     };
                                     
                                     console.log("Risultato geocoding:", location);
                                     
                                     if (!isNaN(location.lat) && !isNaN(location.lng)) {
                                       field.onChange(location);
+                                      toast({
+                                        title: "Posizione aggiornata",
+                                        description: `Indirizzo trovato: ${results[0].display_name}`,
+                                      });
                                     } else {
-                                      console.error("Coordinate non valide:", data[0]);
+                                      console.error("Coordinate non valide:", results[0]);
+                                      toast({
+                                        title: "Errore",
+                                        description: "Coordinate non valide ricevute dal server di geocodifica",
+                                        variant: "destructive",
+                                      });
                                     }
                                   } else {
                                     console.warn("Nessun risultato trovato per:", addressToSearch);
+                                    toast({
+                                      title: "Nessun risultato",
+                                      description: `Nessun indirizzo trovato per "${addressToSearch}"`,
+                                      variant: "destructive",
+                                    });
                                   }
                                 })
                                 .catch(error => {
                                   console.error("Errore di geocoding:", error);
+                                  toast({
+                                    title: "Errore di geocodifica",
+                                    description: error.message || "Si è verificato un errore durante la geocodifica dell'indirizzo",
+                                    variant: "destructive",
+                                  });
                                 });
                             }}
                           >

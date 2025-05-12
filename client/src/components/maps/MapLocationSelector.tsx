@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { geocodeAddress } from "@/lib/geocoding";
 
 interface MapLocationSelectorProps {
   value?: any;
@@ -44,21 +45,21 @@ export default function MapLocationSelector({
     }
   }, []);
   
-  // Funzione per cercare un indirizzo
+  // Funzione per cercare un indirizzo usando il proxy backend
   const searchAddress = async (address: string) => {
     if (!address.trim()) return;
     
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-      );
-      const data = await response.json();
+      console.log("Ricerca indirizzo tramite API proxy:", address);
+      const results = await geocodeAddress(address);
       
-      if (data && data.length > 0) {
+      if (results && results.length > 0) {
         const location = {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
+          lat: results[0].lat,
+          lng: results[0].lng
         };
+        
+        console.log("Risultato geocoding:", location);
         
         addMarker(location);
         mapInstanceRef.current?.setView(location, 16);
@@ -179,22 +180,19 @@ export default function MapLocationSelector({
         previousAddressRef.current = addressToSearch;
         
         try {
-          // Prima prova con Nominatim che ha migliore supporto per indirizzi italiani
-          const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressToSearch)}&countrycodes=it&limit=1`;
-          console.log("Ricerca indirizzo con Nominatim:", nominatimUrl);
+          // Utilizziamo il proxy backend per la geocodifica
+          console.log("Geocodifica indirizzo tramite API proxy:", addressToSearch);
+          const results = await geocodeAddress(addressToSearch);
           
-          const response = await fetch(nominatimUrl);
-          const data = await response.json();
-          
-          if (data && data.length > 0) {
+          if (results && results.length > 0) {
             const location = {
-              lat: parseFloat(data[0].lat),
-              lng: parseFloat(data[0].lon)
+              lat: results[0].lat,
+              lng: results[0].lng
             };
             
             // Verifica che i valori siano numeri validi
             if (!isNaN(location.lat) && !isNaN(location.lng)) {
-              console.log("Posizione trovata con Nominatim:", location);
+              console.log("Posizione trovata con API proxy:", location);
               
               // Aggiorna il marker e centra la mappa
               onChange(location);
@@ -203,15 +201,13 @@ export default function MapLocationSelector({
               // perché l'useEffect che osserva il valore si occuperà di aggiornare la mappa
               return true;
             }
+          } else {
+            console.log("Nessun risultato trovato per:", addressToSearch);
+            return false;
           }
-          
-          // Se Nominatim fallisce, prova con searchAddress che usa Nominatim internamente
-          console.log("Nessun risultato da Nominatim, provo con searchAddress...");
-          return await searchAddress(addressToSearch);
         } catch (error) {
-          console.error("Errore nella ricerca con Nominatim:", error);
-          // Fallback a searchAddress
-          return await searchAddress(addressToSearch);
+          console.error("Errore nella geocodifica:", error);
+          return false;
         }
       }
       return false;
@@ -258,18 +254,18 @@ export default function MapLocationSelector({
     e.preventDefault();
     if (!searchQuery.trim()) return;
     
-    // Use Nominatim for geocoding
+    // Utilizziamo il proxy backend per il geocoding
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`
-      );
-      const data = await response.json();
+      console.log("Ricerca indirizzo da campo di ricerca:", searchQuery);
+      const results = await geocodeAddress(searchQuery);
       
-      if (data && data.length > 0) {
+      if (results && results.length > 0) {
         const location = {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
+          lat: results[0].lat,
+          lng: results[0].lng
         };
+        
+        console.log("Risultato geocoding da campo di ricerca:", location);
         
         addMarker(location);
         mapInstanceRef.current.setView(location, 16);
