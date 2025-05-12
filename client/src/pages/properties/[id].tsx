@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import PropertyEditDialog from "@/components/properties/PropertyEditDialog";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
+import MapPreview from "@/components/maps/MapPreview";
 import {
   Dialog,
   DialogContent,
@@ -599,15 +600,15 @@ export default function PropertyDetailPage() {
                         </div>
                       ) : (
                         <>
-                          {!property?.location && (
+                          {!property?.location?.lat && !property?.location?.lng && (
                             <div className="absolute top-0 left-0 right-0 bg-white bg-opacity-80 z-[500] p-2 text-center text-sm">
                               Posizione non specificata - Visualizzazione di Milano
                             </div>
                           )}
-                          <MapLocationSelector 
-                            value={property?.location} 
-                            onChange={() => {}}
-                            readOnly={true}
+                          <MapPreview 
+                            lat={property?.location?.lat}
+                            lng={property?.location?.lng}
+                            height="100%"
                             className="h-full"
                           />
                         </>

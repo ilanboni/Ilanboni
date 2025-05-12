@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { insertPropertySchema } from "@shared/schema";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
+import MapPreview from "@/components/maps/MapPreview";
 import AddressSelectorPlaceholder from "@/components/address/AddressSelectorPlaceholder";
 
 // Importa il tipo direttamente dallo schema condiviso
@@ -500,45 +502,93 @@ export default function PropertyEditDialog({
                   <FormLabel>Posizione sulla mappa</FormLabel>
                   <FormControl>
                     <div>
-                      <div className="h-72 w-full border rounded-md overflow-hidden">
-                        <MapLocationSelector 
-                          value={field.value}
-                          onChange={field.onChange}
-                          className="h-full w-full"
-                          addressToSearch={`${form.getValues().address}, ${form.getValues().city}, Italia`}
-                        />
-                      </div>
-                      <div className="mt-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            // Forza una ricerca dell'indirizzo sulla mappa
-                            const addressToSearch = `${form.getValues().address}, ${form.getValues().city}, Italia`;
-                            console.log("Cercando indirizzo:", addressToSearch);
-                            
-                            // Resetta il valore del campo location per permettere la ricerca dell'indirizzo
-                            field.onChange(null);
-                            
-                            // Dopo aver azzerato, aggiungiamo un timestamp all'indirizzo per forzare la ricerca
-                            setTimeout(() => {
-                              // Ricrea un nuovo oggetto addressToSearch per forzare il trigger dell'useEffect
-                              const addressWithTimestamp = addressToSearch + "?" + Date.now();
-                              console.log("Aggiornato indirizzo con timestamp:", addressWithTimestamp);
+                      <div className="grid gap-4">
+                        {/* Vista interattiva quando abbiamo coordinate valide */}
+                        {field.value && typeof field.value.lat === 'number' && typeof field.value.lng === 'number' ? (
+                          <div className="relative">
+                            <div className="h-72 w-full border rounded-md overflow-hidden">
+                              <MapPreview 
+                                lat={field.value.lat}
+                                lng={field.value.lng}
+                                height="100%"
+                              />
+                            </div>
+                            <div className="absolute bottom-2 right-2">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => field.onChange(null)}
+                              >
+                                Modifica posizione
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-72 w-full border rounded-md overflow-hidden">
+                            <MapLocationSelector 
+                              value={field.value}
+                              onChange={(position) => {
+                                console.log("Nuova posizione selezionata:", position);
+                                field.onChange(position);
+                              }}
+                              className="h-full w-full"
+                              addressToSearch={`${form.getValues().address}, ${form.getValues().city}, Italia`}
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center">
+                          <div className="text-sm text-gray-500">
+                            {field.value && typeof field.value.lat === 'number' && typeof field.value.lng === 'number' ? (
+                              <span>Posizione impostata: {field.value.lat.toFixed(6)}, {field.value.lng.toFixed(6)}</span>
+                            ) : (
+                              <span>Posizione non impostata</span>
+                            )}
+                          </div>
+                          
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // Forza una ricerca dell'indirizzo sulla mappa
+                              const addressToSearch = `${form.getValues().address}, ${form.getValues().city}, Italia`;
+                              console.log("Cercando indirizzo:", addressToSearch);
                               
-                              // Aggiorniamo il valore di addressToSearch nel componente
-                              // Nota: questo forza un re-render del componente
-                              form.setValue("address", form.getValues().address + " ", { shouldDirty: false });
-                              setTimeout(() => {
-                                form.setValue("address", form.getValues().address.trim(), { shouldDirty: false });
-                              }, 10);
-                            }, 50);
-                          }}
-                        >
-                          <i className="fas fa-search mr-2"></i>
-                          Cerca indirizzo sulla mappa
-                        </Button>
+                              // Resetta il valore del campo location per permettere la ricerca dell'indirizzo
+                              field.onChange(null);
+                              
+                              // Utilizziamo l'API Nominatim direttamente
+                              fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressToSearch)}&countrycodes=it&limit=1`)
+                                .then(response => response.json())
+                                .then(data => {
+                                  if (data && data.length > 0) {
+                                    const location = {
+                                      lat: parseFloat(data[0].lat),
+                                      lng: parseFloat(data[0].lon)
+                                    };
+                                    
+                                    console.log("Risultato geocoding:", location);
+                                    
+                                    if (!isNaN(location.lat) && !isNaN(location.lng)) {
+                                      field.onChange(location);
+                                    } else {
+                                      console.error("Coordinate non valide:", data[0]);
+                                    }
+                                  } else {
+                                    console.warn("Nessun risultato trovato per:", addressToSearch);
+                                  }
+                                })
+                                .catch(error => {
+                                  console.error("Errore di geocoding:", error);
+                                });
+                            }}
+                          >
+                            <Search className="mr-2 h-4 w-4" />
+                            Geocodifica indirizzo
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </FormControl>
