@@ -125,7 +125,7 @@ export default function MapLocationSelector({
     if (!isMapLoaded || !mapInstanceRef.current) return;
     
     // Se abbiamo un valore con coordinate valide, aggiorna il marker
-    if (value && value.lat && value.lng) {
+    if (value && typeof value.lat === 'number' && typeof value.lng === 'number') {
       console.log("Value changed, updating marker with:", value);
       
       // Rimuovi il marker esistente se presente
@@ -135,10 +135,32 @@ export default function MapLocationSelector({
       }
       
       // Aggiungi il nuovo marker
-      addMarker({ lat: value.lat, lng: value.lng });
-      mapInstanceRef.current.setView([value.lat, value.lng], 16);
+      const newPosition = { lat: value.lat, lng: value.lng };
+      
+      // Crea nuovo marker
+      markerRef.current = L.marker(newPosition, {
+        draggable: !readOnly
+      }).addTo(mapInstanceRef.current);
+      
+      // Aggiungi handler per drag se non in modalità sola lettura
+      if (!readOnly) {
+        markerRef.current.on('dragend', function() {
+          const pos = markerRef.current.getLatLng();
+          onChange({ lat: pos.lat, lng: pos.lng });
+        });
+      }
+      
+      // Centra la mappa sul marker
+      mapInstanceRef.current.setView(newPosition, 16);
+      
+      // Invalida le dimensioni della mappa per assicurarsi che venga renderizzata correttamente
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 100);
     }
-  }, [value]);
+  }, [value, isMapLoaded, readOnly]);
   
   // Effetto per cercare l'indirizzo quando cambia
   const previousAddressRef = useRef<string | undefined>();
@@ -155,8 +177,44 @@ export default function MapLocationSelector({
       ) {
         console.log("Searching for address:", addressToSearch);
         previousAddressRef.current = addressToSearch;
-        await searchAddress(addressToSearch);
+        
+        try {
+          // Prima prova con Nominatim che ha migliore supporto per indirizzi italiani
+          const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressToSearch)}&countrycodes=it&limit=1`;
+          console.log("Ricerca indirizzo con Nominatim:", nominatimUrl);
+          
+          const response = await fetch(nominatimUrl);
+          const data = await response.json();
+          
+          if (data && data.length > 0) {
+            const location = {
+              lat: parseFloat(data[0].lat),
+              lng: parseFloat(data[0].lon)
+            };
+            
+            // Verifica che i valori siano numeri validi
+            if (!isNaN(location.lat) && !isNaN(location.lng)) {
+              console.log("Posizione trovata con Nominatim:", location);
+              
+              // Aggiorna il marker e centra la mappa
+              onChange(location);
+              
+              // Non c'è bisogno di chiamare addMarker o setView qui
+              // perché l'useEffect che osserva il valore si occuperà di aggiornare la mappa
+              return true;
+            }
+          }
+          
+          // Se Nominatim fallisce, prova con searchAddress che usa Nominatim internamente
+          console.log("Nessun risultato da Nominatim, provo con searchAddress...");
+          return await searchAddress(addressToSearch);
+        } catch (error) {
+          console.error("Errore nella ricerca con Nominatim:", error);
+          // Fallback a searchAddress
+          return await searchAddress(addressToSearch);
+        }
       }
+      return false;
     };
     
     searchIfNeeded();
