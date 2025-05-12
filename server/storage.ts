@@ -1530,22 +1530,62 @@ export class MemStorage implements IStorage {
       return [];
     }
     
+    // Crea un oggetto property temporaneo con le stesse proprietà della proprietà condivisa
+    // necessario per poter utilizzare la funzione isPropertyMatchingBuyerCriteria
+    const tempProperty: Property = {
+      id: -1, // ID temporaneo, non serve per il matching
+      address: sharedProperty.address,
+      city: sharedProperty.city,
+      price: sharedProperty.price,
+      size: sharedProperty.size,
+      type: sharedProperty.type || 'generic',
+      status: 'available',
+      location: sharedProperty.location,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isShared: true,
+      isOwned: false
+    };
+    
+    console.log(`[getMatchingBuyersForSharedProperty] Verifico matching per proprietà condivisa ${sharedPropertyId}`);
+    
+    // Importa la funzione di matching dalla libreria centralizzata
+    const { isPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+    
     const matchingBuyers: ClientWithDetails[] = [];
     
-    // Find potential buyers based on criteria
-    const buyers = Array.from(this.buyerStore.values());
-    for (const buyer of buyers) {
-      if (
-        (!buyer.minSize || sharedProperty.size >= buyer.minSize) &&
-        (!buyer.maxPrice || sharedProperty.price <= buyer.maxPrice)
-      ) {
+    // Esegui query per trovare potenziali compratori (filtro iniziale)
+    const potentialBuyers = await db
+      .select()
+      .from(buyers)
+      .where(
+        and(
+          or(
+            isNull(buyers.maxPrice),
+            gte(buyers.maxPrice, sharedProperty.price * 1.1) // Tolleranza 10% sul prezzo
+          ),
+          or(
+            isNull(buyers.minSize),
+            lte(buyers.minSize, sharedProperty.size / 0.9) // Tolleranza 10% sulla dimensione
+          )
+        )
+      );
+    
+    console.log(`[getMatchingBuyersForSharedProperty] Trovati ${potentialBuyers.length} potenziali acquirenti (filtro preliminare)`);
+    
+    // Verifica ogni potenziale acquirente con i criteri completi, inclusa la posizione geografica
+    for (const buyer of potentialBuyers) {
+      // Verifica tutti i criteri, inclusa la posizione geografica
+      if (isPropertyMatchingBuyerCriteria(tempProperty, buyer)) {
         const client = await this.getClientWithDetails(buyer.clientId);
         if (client) {
+          console.log(`[getMatchingBuyersForSharedProperty] Cliente ${client.id} (${client.firstName} ${client.lastName}) corrisponde alla proprietà condivisa ${sharedPropertyId}`);
           matchingBuyers.push(client);
         }
       }
     }
     
+    console.log(`[getMatchingBuyersForSharedProperty] ${matchingBuyers.length} clienti corrispondono alla proprietà condivisa ${sharedPropertyId} dopo tutti i controlli`);
     return matchingBuyers;
   }
 }
@@ -2387,30 +2427,63 @@ export class DatabaseStorage implements IStorage {
     const buyer = await this.getBuyer(buyerId);
     if (!buyer) return [];
     
+    console.log(`[matchPropertiesForBuyer] Cercando immobili per l'acquirente ${buyerId}`);
+    
+    // Fase 1: Filtro preliminare nel database
     let query = db.select().from(properties).where(eq(properties.status, "available"));
     
     const conditions: SQL[] = [];
     
     if (buyer.maxPrice) {
-      conditions.push(lte(properties.price, buyer.maxPrice));
+      // Tolleranza 10% sul prezzo (può essere fino al 10% in più del massimo richiesto)
+      conditions.push(lte(properties.price, buyer.maxPrice * 1.1));
     }
     
     if (buyer.minSize) {
-      conditions.push(gte(properties.size, buyer.minSize));
+      // Tolleranza 10% sulla dimensione (può essere fino al 10% in meno del minimo richiesto)
+      conditions.push(gte(properties.size, buyer.minSize * 0.9));
     }
     
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
     
-    return await query;
+    const preliminaryProperties = await query;
+    console.log(`[matchPropertiesForBuyer] Trovati ${preliminaryProperties.length} immobili potenzialmente compatibili (filtro preliminare)`);
+    
+    // Se non ci sono immobili nel filtro preliminare, non serve procedere
+    if (preliminaryProperties.length === 0) {
+      return [];
+    }
+    
+    // Fase 2: Filtro più preciso con il controllo geografico
+    // Importa la funzione di matching dalla libreria centralizzata
+    const { isPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+    
+    // Filtra ulteriormente usando la funzione completa che verifica anche la posizione geografica
+    const matchingProperties = preliminaryProperties.filter(property => {
+      const isMatching = isPropertyMatchingBuyerCriteria(property, buyer);
+      
+      if (isMatching) {
+        console.log(`[matchPropertiesForBuyer] Immobile ${property.id} (${property.address}) corrisponde all'acquirente ${buyerId}`);
+      } else {
+        console.log(`[matchPropertiesForBuyer] Immobile ${property.id} (${property.address}) NON corrisponde all'acquirente ${buyerId} dopo controllo completo`);
+      }
+      
+      return isMatching;
+    });
+    
+    console.log(`[matchPropertiesForBuyer] ${matchingProperties.length} immobili corrispondono all'acquirente ${buyerId} dopo tutti i controlli`);
+    return matchingProperties;
   }
 
   async matchBuyersForProperty(propertyId: number): Promise<Client[]> {
     const property = await this.getProperty(propertyId);
     if (!property) return [];
     
-    const matchingBuyers = await db
+    // Fase 1: Esegui un filtro preliminare nel database per dimensione e prezzo
+    // Questo riduce il numero di clienti da verificare per la posizione geografica
+    const preliminaryMatches = await db
       .select()
       .from(buyers)
       .innerJoin(clients, eq(buyers.clientId, clients.id))
@@ -2419,16 +2492,39 @@ export class DatabaseStorage implements IStorage {
           eq(clients.type, "buyer"),
           or(
             isNull(buyers.maxPrice),
-            gte(buyers.maxPrice, property.price)
+            gte(buyers.maxPrice, property.price * 1.1) // Tolleranza 10% sul prezzo
           ),
           or(
             isNull(buyers.minSize),
-            lte(buyers.minSize, property.size)
+            lte(buyers.minSize, property.size / 0.9) // Tolleranza 10% sulla dimensione
           )
         )
       );
     
-    return matchingBuyers.map(match => match.clients);
+    console.log(`[matchBuyersForProperty] Trovati ${preliminaryMatches.length} potenziali acquirenti per l'immobile ${propertyId} (filtro preliminare)`);
+    
+    // Fase 2: Filtra ulteriormente utilizzando la funzione isPropertyMatchingBuyerCriteria
+    // che verificherà anche la posizione geografica (punto in poligono)
+    const matchingClients: Client[] = [];
+    
+    // Importa la funzione di matching dalla libreria centralizzata
+    const { isPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+    
+    for (const match of preliminaryMatches) {
+      const buyer = match.buyers;
+      const client = match.clients;
+      
+      // Verifica tutti i criteri, inclusa la posizione geografica
+      if (isPropertyMatchingBuyerCriteria(property, buyer)) {
+        console.log(`[matchBuyersForProperty] Cliente ${client.id} (${client.firstName} ${client.lastName}) corrisponde all'immobile ${propertyId}`);
+        matchingClients.push(client);
+      } else {
+        console.log(`[matchBuyersForProperty] Cliente ${client.id} (${client.firstName} ${client.lastName}) NON corrisponde all'immobile ${propertyId} dopo controllo completo`);
+      }
+    }
+    
+    console.log(`[matchBuyersForProperty] ${matchingClients.length} clienti corrispondono all'immobile ${propertyId} dopo tutti i controlli`);
+    return matchingClients;
   }
 }
 
