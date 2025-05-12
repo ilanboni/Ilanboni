@@ -51,24 +51,42 @@ export default function AddressSelectorPlaceholder({
   };
 
   // Gestisce l'inserimento manuale dell'indirizzo e delle coordinate
-  const handleSubmitCustomAddress = () => {
-    const trimmedAddress = customAddress.trim();
-    if (!trimmedAddress) return;
-    
-    onChange(trimmedAddress);
-    
-    if (onSelect) {
-      onSelect({
-        address: trimmedAddress,
-        location: {
-          lat: parseFloat(customLat) || 45.4642,
-          lng: parseFloat(customLng) || 9.1900
-        },
-        fullAddress: trimmedAddress
-      });
+  const handleSubmitCustomAddress = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault(); // Previene propagazione eventi che potrebbero causare freeze
     }
     
-    setDialogOpen(false);
+    try {
+      const trimmedAddress = (customAddress || "").trim();
+      if (!trimmedAddress) {
+        console.warn("Indirizzo vuoto, non verrà salvato");
+        setDialogOpen(false);
+        return;
+      }
+      
+      // Converte le coordinate assicurandosi che siano numeri validi
+      const lat = parseFloat(customLat) || 45.4642;
+      const lng = parseFloat(customLng) || 9.1900;
+      
+      console.log("Coordinate selezionate:", { lat, lng, address: trimmedAddress });
+      
+      onChange(trimmedAddress);
+      
+      if (onSelect) {
+        onSelect({
+          address: trimmedAddress,
+          location: { lat, lng },
+          fullAddress: trimmedAddress
+        });
+      }
+      
+      // Chiudi il dialogo con un breve ritardo
+      setTimeout(() => {
+        setDialogOpen(false);
+      }, 50);
+    } catch (err) {
+      console.error("Errore nel salvataggio dell'indirizzo:", err);
+    }
   };
 
   return (
@@ -86,9 +104,18 @@ export default function AddressSelectorPlaceholder({
         <Button
           type="button" 
           variant="outline"
-          onClick={() => {
-            setCustomAddress(value);
-            setDialogOpen(true);
+          onClick={(e) => {
+            e.preventDefault(); // Previene propagazione eventi che potrebbero causare freeze
+            
+            // Resetta i valori prima di aprire il dialogo
+            setCustomAddress(value || "");
+            setCustomLat("45.4642");
+            setCustomLng("9.1900");
+            
+            // Apri il dialogo con un breve ritardo per evitare race conditions
+            setTimeout(() => {
+              setDialogOpen(true);
+            }, 50);
           }}
           className="whitespace-nowrap"
         >
@@ -155,10 +182,20 @@ export default function AddressSelectorPlaceholder({
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setDialogOpen(false)}>
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={(e) => {
+                e.preventDefault();
+                setTimeout(() => setDialogOpen(false), 50);
+              }}
+            >
               Annulla
             </Button>
-            <Button type="button" onClick={handleSubmitCustomAddress}>
+            <Button 
+              type="button" 
+              onClick={(e) => handleSubmitCustomAddress(e)}
+            >
               Conferma
             </Button>
           </DialogFooter>

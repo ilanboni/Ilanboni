@@ -1,0 +1,85 @@
+import React, { useState } from 'react';
+
+export default function AddressAutocomplete({ onSelect }) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSearch = async (value) => {
+    setQuery(value);
+    setError('');
+    if (value.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(value)}&limit=5`);
+      const data = await res.json();
+      if (data.features.length === 0) {
+        setError('Nessun risultato trovato.');
+        setSuggestions([]);
+      } else {
+        setSuggestions(data.features);
+      }
+    } catch (err) {
+      setError('Errore durante la ricerca.');
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelect = (feature) => {
+    const { coordinates } = feature.geometry;
+    const props = feature.properties;
+    const address = `${props.name || ''} ${props.street || ''}, ${props.city || ''}, ${props.country || ''}`;
+    setQuery(address);
+    setSuggestions([]);
+    onSelect({
+      address,
+      lat: coordinates[1],
+      lng: coordinates[0]
+    });
+  };
+
+  return (
+    <div style={{ position: 'relative', maxWidth: '400px' }}>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => handleSearch(e.target.value)}
+        placeholder="Inserisci indirizzo"
+        style={{ width: '100%', padding: '8px' }}
+      />
+      {loading && <div style={{ fontSize: '12px' }}>Caricamento…</div>}
+      {error && <div style={{ color: 'red', fontSize: '12px' }}>{error}</div>}
+      {suggestions.length > 0 && (
+        <ul style={{
+          listStyle: 'none',
+          margin: 0,
+          padding: '5px',
+          border: '1px solid #ccc',
+          background: '#fff',
+          position: 'absolute',
+          width: '100%',
+          maxHeight: '200px',
+          overflowY: 'auto',
+          zIndex: 10
+        }}>
+          {suggestions.map((f, i) => (
+            <li
+              key={i}
+              onClick={() => handleSelect(f)}
+              style={{ padding: '5px', cursor: 'pointer' }}
+            >
+              {f.properties.name || ''} {f.properties.street || ''}, {f.properties.city || ''}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
