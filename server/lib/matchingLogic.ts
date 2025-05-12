@@ -6,7 +6,8 @@
  */
 
 import { Buyer, Property } from '@shared/schema';
-import { pointInPolygon } from './geoUtils';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import { point, polygon } from '@turf/helpers';
 
 /**
  * Verifica se un immobile corrisponde alle preferenze di un acquirente,
@@ -64,13 +65,29 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
         return false;
       }
       
-      // Converto la posizione nel formato atteso dalla funzione pointInPolygon
-      const point: [number, number] = [property.location.lng, property.location.lat];
+      // Utilizzo Turf.js per verificare se il punto è dentro il poligono
+      // Creo un punto GeoJSON con la posizione dell'immobile [lng, lat]
+      const immobilePoint = point([property.location.lng, property.location.lat]);
       
-      // Eseguo il controllo effettivo
-      const isInPolygon = pointInPolygon(point, buyer.searchArea);
+      // Creo un poligono GeoJSON con l'area di ricerca del cliente
+      // Turf.js richiede che l'array di coordinate sia chiuso (primo e ultimo punto identici)
+      let searchAreaCoords = [...buyer.searchArea];
       
-      console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione ${point} è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id}`);
+      // Verifica se il poligono è chiuso (il primo e l'ultimo punto devono coincidere)
+      const firstPoint = buyer.searchArea[0];
+      const lastPoint = buyer.searchArea[buyer.searchArea.length - 1];
+      
+      // Se il poligono non è chiuso, lo chiudiamo aggiungendo il primo punto alla fine
+      if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
+        searchAreaCoords.push(firstPoint);
+      }
+      
+      const buyerPolygon = polygon([searchAreaCoords]);
+      
+      // Eseguo il controllo con Turf.js
+      const isInPolygon = booleanPointInPolygon(immobilePoint, buyerPolygon);
+      
+      console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione [${property.location.lng}, ${property.location.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id}`);
       
       return isInPolygon;
     } catch (error) {
