@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
+import { useToast } from "@/hooks/use-toast";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -41,6 +42,10 @@ export default function ClientDetailPage() {
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
+  const [propertyBeingNotified, setPropertyBeingNotified] = useState<number | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
@@ -77,6 +82,22 @@ export default function ClientDetailPage() {
           return []; // Il cliente non è un compratore
         }
         throw new Error('Errore nel caricamento degli immobili compatibili');
+      }
+      return response.json();
+    }
+  });
+  
+  // Fetch matching properties with notification status (per client compratori)
+  const { data: propertiesWithNotifications, isLoading: isPropertiesWithNotificationsLoading, refetch: refetchPropertiesWithNotifications } = useQuery({
+    queryKey: [`/api/clients/${id}/properties-with-notification-status`],
+    enabled: !isNaN(id) && client?.type === "buyer",
+    queryFn: async () => {
+      const response = await fetch(`/api/clients/${id}/properties-with-notification-status`);
+      if (!response.ok) {
+        if (response.status === 400) {
+          return []; // Il cliente non è un compratore
+        }
+        throw new Error('Errore nel caricamento degli immobili con stato di notifica');
       }
       return response.json();
     }
@@ -206,6 +227,51 @@ export default function ClientDetailPage() {
           <span className="text-xs font-medium">Inviato</span>
         </div>
       );
+    }
+  };
+  
+  // Invia una notifica di immobile al cliente
+  const handleSendPropertyNotification = async (propertyId: number) => {
+    // Se c'è già un'operazione in corso, non procedere
+    if (isSendingNotification) return;
+    
+    try {
+      setIsSendingNotification(true);
+      setPropertyBeingNotified(propertyId);
+      
+      // Chiama l'API per inviare la notifica
+      const response = await fetch(`/api/clients/${id}/send-property/${propertyId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Errore durante l'invio della notifica");
+      }
+      
+      // Aggiorna i dati delle proprietà con notifiche
+      await refetchPropertiesWithNotifications();
+      
+      // Notifica all'utente
+      toast({
+        title: "Notifica inviata",
+        description: "L'immobile è stato inviato con successo al cliente",
+        variant: "success"
+      });
+    } catch (error: any) {
+      console.error("Errore nell'invio della notifica:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore durante l'invio della notifica",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSendingNotification(false);
+      setPropertyBeingNotified(null);
     }
   };
   
@@ -343,6 +409,7 @@ export default function ClientDetailPage() {
               <>
                 <TabsTrigger value="matching-properties">Immobili compatibili</TabsTrigger>
                 <TabsTrigger value="matching-shared">Possibili immobili</TabsTrigger>
+                <TabsTrigger value="properties-notification-status">Immobili da inviare</TabsTrigger>
               </>
             )}
             <TabsTrigger value="sent-properties">Immobili inviati</TabsTrigger>
