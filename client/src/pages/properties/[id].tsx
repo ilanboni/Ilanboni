@@ -199,8 +199,11 @@ export default function PropertyDetailPage() {
         ...property,
         location: property.location
       });
+      
+      // Forza l'aggiornamento della query dei buyers
+      queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'buyers-with-notification-status'] });
     }
-  }, [property, form]);
+  }, [property, form, id, queryClient]);
   
   // Fetch property communications
   const { data: communications, isLoading: isCommunicationsLoading } = useQuery<Communication[]>({
@@ -229,6 +232,16 @@ export default function PropertyDetailPage() {
   // Fetch buyers with notification status
   const { data: buyersWithStatus, isLoading: isBuyersWithStatusLoading } = useQuery<any[]>({
     queryKey: ["/api/properties", id, "buyers-with-notification-status"],
+    queryFn: async () => {
+      console.log("Esecuzione queryFn personalizzata");
+      const response = await fetch(`/api/properties/${id}/buyers-with-notification-status`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      console.log("API diretta buyers-with-notification-status:", data);
+      return data;
+    },
     enabled: !isNaN(id),
   });
   
@@ -238,20 +251,38 @@ export default function PropertyDetailPage() {
     enabled: !isNaN(id),
   });
   
-  // Verifica se ci sono clienti da notificare e imposta la tab attiva
+  // Carichiamo i dati dei buyer direttamente
+  const [manualBuyersWithStatus, setManualBuyersWithStatus] = useState<any[]>([]);
+  const [manualBuyersLoading, setManualBuyersLoading] = useState(true);
+  
+  // Carica i buyer direttamente con fetch
   useEffect(() => {
-    console.log("useEffect per cambiare tab, buyersWithStatus:", buyersWithStatus);
-    // Se ci sono acquirenti da notificare, seleziona la tab automaticamente
-    if (!isBuyersWithStatusLoading && buyersWithStatus && buyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0) {
-      console.log("Trovati clienti da notificare:", buyersWithStatus.filter(b => !b.notificationStatus?.notified).length);
-      // Cambia la tab solo se l'utente è sulla tab overview o se il parametro tab=notify è nell'URL
-      const urlParams = new URLSearchParams(window.location.search);
-      if (activeTab === "overview" || urlParams.get('tab') === 'notify') {
-        console.log("Cambio tab a buyersToNotify");
-        setActiveTab("buyersToNotify");
-      }
+    if (!isNaN(id)) {
+      setManualBuyersLoading(true);
+      fetch(`/api/properties/${id}/buyers-with-notification-status`)
+        .then(response => response.json())
+        .then(data => {
+          console.log("Dati API caricati direttamente:", data);
+          setManualBuyersWithStatus(data);
+          setManualBuyersLoading(false);
+          
+          // Se ci sono buyer da notificare, cambia tab
+          const buyersToNotify = data.filter(b => !b.notificationStatus?.notified);
+          console.log("Clienti da notificare (caricamento diretto):", buyersToNotify.length);
+          if (buyersToNotify.length > 0) {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (activeTab === "overview" || urlParams.get('tab') === 'notify') {
+              console.log("Cambio tab a buyersToNotify (diretto)");
+              setActiveTab("buyersToNotify");
+            }
+          }
+        })
+        .catch(error => {
+          console.error("Errore nel caricamento diretto:", error);
+          setManualBuyersLoading(false);
+        });
     }
-  }, [buyersWithStatus, isBuyersWithStatusLoading, activeTab]);
+  }, [id, activeTab]);
   
   // Loading state
   if (isPropertyLoading || isNaN(id)) {
@@ -1117,19 +1148,45 @@ export default function PropertyDetailPage() {
                 <CardTitle>Clienti da notificare</CardTitle>
               </CardHeader>
               <CardContent>
-                {isBuyersWithStatusLoading ? (
+                {manualBuyersLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin text-3xl text-gray-300">
                       <i className="fas fa-spinner"></i>
                     </div>
                   </div>
-                ) : buyersWithStatus && buyersWithStatus.length > 0 ? (
+                ) : manualBuyersWithStatus && manualBuyersWithStatus.length > 0 ? (
                   <div>
-                    <pre className="text-xs bg-gray-100 p-2 mb-4 hidden">
-                      {JSON.stringify(buyersWithStatus, null, 2)}
-                    </pre>
+                    {/* Debug info - Nascondi in produzione */}
+                    {false && (
+                      <>
+                        <pre className="text-xs bg-gray-100 p-2 mb-4">
+                          {JSON.stringify(manualBuyersWithStatus, null, 2)}
+                        </pre>
+                        <p className="text-xs text-red-500 mb-2">
+                          Buyers non notificati: {manualBuyersWithStatus ? manualBuyersWithStatus.filter(b => !b.notificationStatus?.notified).length : 0}
+                        </p>
+                        <div className="mb-4">
+                          <button 
+                            className="px-3 py-1 text-xs bg-blue-500 text-white rounded"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(`/api/properties/${id}/buyers-with-notification-status`);
+                                const data = await response.json();
+                                console.log("Risultato API diretta:", data);
+                                console.log("Clienti non notificati:", data.filter(b => !b.notificationStatus?.notified).length);
+                                setManualBuyersWithStatus(data);
+                              } catch (error) {
+                                console.error("Errore:", error);
+                              }
+                            }}
+                          >
+                            Ricarica Dati
+                          </button>
+                        </div>
+                      </>
+                    )}
                     
-                    {buyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0 ? (
+                    {manualBuyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0 ? (
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -1140,7 +1197,7 @@ export default function PropertyDetailPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {buyersWithStatus
+                          {manualBuyersWithStatus
                             .filter(b => !b.notificationStatus?.notified)
                             .map((buyer) => (
                               <TableRow key={buyer.id}>
