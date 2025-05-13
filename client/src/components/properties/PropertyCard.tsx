@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PropertyWithDetails } from "@/types";
+import { PropertyWithDetails } from "@shared/schema";
 import { formatCurrency, getStatusColor } from "@/lib/utils";
 import { 
   Edit, 

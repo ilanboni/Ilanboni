@@ -1,8 +1,8 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { GREETING_TEMPLATES, WHATSAPP_TEMPLATES } from "./constants";
-import { ClientWithDetails, PropertyWithDetails, GeoPolygon } from "../types";
-import { Client, Property, SearchParameters } from "@shared/schema";
+import { GeoPolygon } from "../types";
+import { Client, Property, SearchParameters, PropertyWithDetails, ClientWithDetails } from "@shared/schema";
 
 // Merge class names with Tailwind
 export function cn(...inputs: ClassValue[]) {
