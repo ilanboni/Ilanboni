@@ -1130,6 +1130,135 @@ export default function ClientDetailPage() {
             </Card>
           </TabsContent>
           
+          {/* Immobili da Inviare (Properties with Notification Status) Tab */}
+          <TabsContent value="properties-notification-status" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle>Immobili da Inviare</CardTitle>
+                  <CardDescription>
+                    Immobili compatibili con il cliente e stato delle notifiche
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isPropertiesWithNotificationsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : !propertiesWithNotifications || propertiesWithNotifications.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-5xl mb-4">
+                      <i className="fas fa-home"></i>
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">Nessun immobile compatibile</h3>
+                    <p>
+                      Non ci sono immobili che corrispondono alle preferenze del cliente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Immobile</TableHead>
+                          <TableHead>Dettagli</TableHead>
+                          <TableHead>Stato invio</TableHead>
+                          <TableHead>Data invio</TableHead>
+                          <TableHead className="text-right">Azioni</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {propertiesWithNotifications.map((property) => (
+                          <TableRow key={property.id}>
+                            <TableCell className="font-medium">
+                              <Link href={`/properties/${property.id}`} className="text-primary-600 hover:underline">
+                                {property.address}
+                              </Link>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span>{property.city}</span>
+                                <span className="text-sm text-gray-500">{property.size} m² - €{property.price?.toLocaleString()}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {property.notificationStatus?.notified ? (
+                                <Badge variant="outline" className="bg-green-50 text-green-700">
+                                  <i className="fas fa-check mr-1"></i> Inviato
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                                  <i className="fas fa-clock mr-1"></i> Non inviato
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {property.notificationStatus?.sentAt ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <span>
+                                        {format(new Date(property.notificationStatus.sentAt), "dd/MM/yyyy")}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{format(new Date(property.notificationStatus.sentAt), "dd/MM/yyyy HH:mm")}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant={property.notificationStatus?.notified ? "outline" : "default"}
+                                  className={property.notificationStatus?.notified ? "gap-1 border-green-600 text-green-600" : "gap-1"}
+                                  onClick={() => handleSendPropertyNotification(property.id)}
+                                  disabled={isSendingNotification && propertyBeingNotified === property.id}
+                                >
+                                  {isSendingNotification && propertyBeingNotified === property.id ? (
+                                    <>
+                                      <i className="fas fa-spinner animate-spin"></i>
+                                      <span>Invio...</span>
+                                    </>
+                                  ) : property.notificationStatus?.notified ? (
+                                    <>
+                                      <i className="fas fa-paper-plane"></i>
+                                      <span>Invia di nuovo</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="fas fa-paper-plane"></i>
+                                      <span>Invia Notifica</span>
+                                    </>
+                                  )}
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="text-slate-800"
+                                  asChild
+                                >
+                                  <Link href={`/properties/${property.id}`}>
+                                    <i className="fas fa-eye"></i>
+                                  </Link>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
           {/* Immobili Inviati Tab */}
           <TabsContent value="sent-properties" className="space-y-6 mt-6">
             <Card>
