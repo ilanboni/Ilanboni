@@ -2481,6 +2481,9 @@ export class DatabaseStorage implements IStorage {
     const property = await this.getProperty(propertyId);
     if (!property) return [];
     
+    // Calcola il prezzo con tolleranza (+10%)
+    const priceWithTolerance = Math.floor(property.price * 1.1);
+    
     // Fase 1: Esegui un filtro preliminare nel database per dimensione e prezzo
     // Questo riduce il numero di clienti da verificare per la posizione geografica
     const preliminaryMatches = await db
@@ -2492,7 +2495,7 @@ export class DatabaseStorage implements IStorage {
           eq(clients.type, "buyer"),
           or(
             isNull(buyers.maxPrice),
-            gte(buyers.maxPrice, property.price * 1.1) // Tolleranza 10% sul prezzo
+            gte(buyers.maxPrice, priceWithTolerance) // Tolleranza 10% sul prezzo
           ),
           or(
             isNull(buyers.minSize),
