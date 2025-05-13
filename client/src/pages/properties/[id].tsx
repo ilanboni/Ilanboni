@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
+import { Loader2, SendIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -62,6 +63,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import BuyersToNotifyList from "@/components/properties/BuyersToNotifyList";
+import NotifiedBuyersList from "@/components/properties/NotifiedBuyersList";
 import { 
   type PropertyWithDetails,
   type Communication,
@@ -112,14 +115,14 @@ export default function PropertyDetailPage() {
       price: 0,
       bedrooms: null,
       bathrooms: null,
-      floor: null,
       yearBuilt: null,
       energyClass: null,
-      hasGarage: false,
-      hasGarden: false,
       status: "available",
-      notes: "",
       description: "",
+      isShared: false,
+      isOwned: true,
+      externalLink: "",
+      location: null,
     },
   });
   
@@ -164,10 +167,7 @@ export default function PropertyDetailPage() {
   // Fetch property details
   const { data: propertyData, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails[]>({
     queryKey: ["/api/properties", id],
-    enabled: !isNaN(id),
-    onSuccess: (data) => {
-      console.log("Property data loaded:", JSON.stringify(data, null, 2));
-    }
+    enabled: !isNaN(id)
   });
   
   // Estrai la prima proprietà dall'array
@@ -254,6 +254,7 @@ export default function PropertyDetailPage() {
   // Carichiamo i dati dei buyer direttamente
   const [manualBuyersWithStatus, setManualBuyersWithStatus] = useState<any[]>([]);
   const [manualBuyersLoading, setManualBuyersLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Carica i buyer direttamente con fetch
   useEffect(() => {
@@ -446,965 +447,535 @@ export default function PropertyDetailPage() {
     }
   };
   
+  // Formatta l'indirizzo per la visualizzazione
+  const renderAddress = () => {
+    if (!property) return "";
+    
+    console.log("Rendering address:", property.address);
+    
+    return property.address;
+  };
+  
+  // Form submission handler
+  const onSubmit = (data: z.infer<typeof formSchema>) => {
+    updatePropertyMutation.mutate(data);
+  };
+  
   return (
-    <>
+    <div className="container mx-auto py-6 space-y-6 pb-16">
       <Helmet>
-        <title>
-          {property ? `${property.address} | ${property.city}` : "Dettaglio Immobile"} | Gestionale Immobiliare
-        </title>
-        <meta 
-          name="description" 
-          content={`Visualizza i dettagli, le comunicazioni e gli appuntamenti dell'immobile in ${property?.address}, ${property?.city}`} 
-        />
+        <title>{property ? `${property.address} - ${property.city}` : "Dettaglio immobile"}</title>
       </Helmet>
       
-      <div className="flex flex-col space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {console.log("Rendering address:", property?.address)}
-              {property?.address || "Indirizzo non specificato"}
-            </h1>
-            <div className="flex items-center mt-1 space-x-2">
-              {property?.city ? (
-                <>
-                  <span className="text-gray-500">{property.city}</span>
-                  <span className="text-gray-300">•</span>
-                </>
-              ) : null}
-              {formatPropertyType(property?.type || "")}
-              <span className="text-gray-300">•</span>
-              {formatPropertyStatus(property?.status)}
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              asChild
-            >
-              <Link href="/properties">
-                <div className="px-2 py-1">
-                  <i className="fas fa-arrow-left mr-2"></i> Indietro
-                </div>
-              </Link>
-            </Button>
-            
-            <Button 
-              variant="outline"
-              className="gap-2"
-              onClick={() => setIsEditDialogOpen(true)}
-            >
-              <i className="fas fa-edit"></i>
-              <span>Modifica</span>
-            </Button>
-            
-            {property && (
-              <>
-                {console.log("Property data passed to PropertyEditDialog:", JSON.stringify(property, null, 2))}
-                <PropertyEditDialog
-                  open={isEditDialogOpen}
-                  onClose={() => setIsEditDialogOpen(false)}
-                  property={property}
-                  onSuccess={() => {
-                    // Ricarica i dati dell'immobile
-                    queryClient.invalidateQueries({ queryKey: ["/api/properties", id] });
-                  }}
-                />
-              </>
+      <div className="flex items-center justify-between">
+        <div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/properties">
+              <i className="fas fa-arrow-left mr-2"></i> Immobili
+            </Link>
+          </Button>
+          <h1 className="text-3xl font-bold mt-2">
+            {renderAddress()}
+            {property?.isShared && (
+              <Badge className="ml-2 bg-purple-100 text-purple-800">Condiviso</Badge>
             )}
-          </div>
+            {!property?.isOwned && (
+              <Badge className="ml-2 bg-yellow-100 text-yellow-800">Non proprietario</Badge>
+            )}
+          </h1>
+          <div className="text-gray-500 mt-1">{property?.city}</div>
         </div>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setIsEditDialogOpen(true)}
+            variant="outline"
+          >
+            <i className="fas fa-edit mr-2"></i> Modifica
+          </Button>
+        </div>
+      </div>
+      
+      {property && (
+        <PropertyEditDialog 
+          open={isEditDialogOpen} 
+          onOpenChange={setIsEditDialogOpen} 
+          property={property}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/properties", id] });
+          }}
+        />
+      )}
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-7 mb-4">
+          <TabsTrigger value="overview">Panoramica</TabsTrigger>
+          <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
+          <TabsTrigger value="appointments">Appuntamenti</TabsTrigger>
+          <TabsTrigger value="tasks">Compiti</TabsTrigger>
+          <TabsTrigger value="photos">Foto</TabsTrigger>
+          <TabsTrigger value="buyersToNotify">Da inviare a</TabsTrigger>
+          <TabsTrigger value="notifiedBuyers">Inviato a</TabsTrigger>
+        </TabsList>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList>
-            <TabsTrigger value="overview">Panoramica</TabsTrigger>
-            <TabsTrigger value="communications">
-              Comunicazioni
-              {communications && communications.length > 0 && (
-                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{communications.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="appointments">
-              Appuntamenti
-              {appointments && appointments.length > 0 && (
-                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{appointments.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="tasks">
-              Task
-              {tasks && tasks.length > 0 && (
-                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{tasks.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="matchingBuyers">
-              Possibili clienti
-              {matchingBuyers && matchingBuyers.length > 0 && (
-                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{matchingBuyers.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="buyersToNotify">
-              Da inviare a
-              {buyersWithStatus && buyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0 && (
-                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">
-                  {buyersWithStatus.filter(b => !b.notificationStatus?.notified).length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="notifiedBuyers">
-              Inviato a
-              {notifiedBuyers && notifiedBuyers.length > 0 && (
-                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{notifiedBuyers.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="photos">Foto</TabsTrigger>
-          </TabsList>
-          
-          {/* Overview Tab */}
-          <TabsContent value="overview">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2 space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Dettagli Immobile</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Indirizzo</h3>
-                        <p className="mt-1 font-medium">{property?.address || "Non specificato"}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Città</h3>
-                        <p className="mt-1">{property?.city || "Non specificata"}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Tipologia</h3>
-                        <p className="mt-1">{formatPropertyType(property?.type || "")}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Stato</h3>
-                        <p className="mt-1">{formatPropertyStatus(property?.status || "available")}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Prezzo</h3>
-                        <p className="mt-1 font-semibold text-xl text-blue-600">{formatPrice(property?.price || 0)}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Superficie</h3>
-                        <p className="mt-1">{property?.size ? `${property.size} m²` : "Non specificata"}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Locali</h3>
-                        <p className="mt-1">{property?.bedrooms ?? "Non specificati"}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Bagni</h3>
-                        <p className="mt-1">{property?.bathrooms ?? "Non specificati"}</p>
-                      </div>
-                      
-                      {property?.floor !== null && property?.floor !== undefined && (
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Piano</h3>
-                          <p className="mt-1">{property.floor}</p>
-                        </div>
-                      )}
-                      
-                      {property?.yearBuilt && (
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Anno di costruzione</h3>
-                          <p className="mt-1">{property.yearBuilt}</p>
-                        </div>
-                      )}
-                      
-                      {property?.energyClass && (
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">Classe energetica</h3>
-                          <p className="mt-1">{property.energyClass}</p>
-                        </div>
-                      )}
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Garage</h3>
-                        <p className="mt-1">{property?.hasGarage === true ? "Sì" : (property?.hasGarage === false ? "No" : "Non specificato")}</p>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Giardino</h3>
-                        <p className="mt-1">{property?.hasGarden === true ? "Sì" : (property?.hasGarden === false ? "No" : "Non specificato")}</p>
-                      </div>
+        {/* Overview Tab */}
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-6">
+              {/* Property details card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dettagli immobile</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Tipo</div>
+                      <div>{formatPropertyType(property?.type || "")}</div>
                     </div>
-                    
-                    {property?.description && (
-                      <div className="mt-6">
-                        <h3 className="text-sm font-medium text-gray-500 mb-2">Descrizione</h3>
-                        <p className="text-gray-700 whitespace-pre-wrap">{property.description}</p>
-                      </div>
-                    )}
-                    
-                    {property?.notes && (
-                      <div className="mt-6">
-                        <h3 className="text-sm font-medium text-gray-500 mb-2">Note</h3>
-                        <p className="text-gray-700 whitespace-pre-wrap">{property.notes}</p>
-                      </div>
-                    )}
-                    
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Prezzo</div>
+                      <div className="text-lg font-semibold">{formatPrice(property?.price || 0)}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Superficie</div>
+                      <div>{property?.size} m²</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Stanze da letto</div>
+                      <div>{property?.bedrooms || "N/D"}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Bagni</div>
+                      <div>{property?.bathrooms || "N/D"}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Anno di costruzione</div>
+                      <div>{property?.yearBuilt || "N/D"}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Classe energetica</div>
+                      <div>{property?.energyClass || "N/D"}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Stato</div>
+                      <div>{formatPropertyStatus(property?.status)}</div>
+                    </div>
                     {property?.externalLink && (
-                      <div className="mt-6">
-                        <h3 className="text-sm font-medium text-gray-500 mb-2">Link esterno</h3>
-                        <a 
-                          href={property.externalLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {property.externalLink}
+                      <div>
+                        <div className="text-sm text-gray-500 mb-1">Link esterno</div>
+                        <a href={property.externalLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          <i className="fas fa-external-link-alt mr-1"></i> Visualizza
                         </a>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-                
-                {/* Mappa */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Posizione</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 w-full rounded-md">
-                      {isPropertyLoading ? (
-                        <div className="h-full w-full bg-gray-100 flex items-center justify-center">
-                          <div className="text-gray-600">Caricamento in corso...</div>
-                        </div>
-                      ) : (
-                        <>
-                          {!property?.location?.lat && !property?.location?.lng && (
-                            <div className="absolute top-0 left-0 right-0 bg-white bg-opacity-80 z-[500] p-2 text-center text-sm">
-                              Posizione non specificata - Visualizzazione di Milano
-                            </div>
-                          )}
-                          <MapPreview 
-                            lat={property?.location?.lat}
-                            lng={property?.location?.lng}
-                            height="100%"
-                            className="h-full"
-                          />
-                        </>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="space-y-6">
-                {/* Attività recenti */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Attività recenti</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-4">
-                    {(isCommunicationsLoading || isAppointmentsLoading || isTasksLoading) ? (
-                      <div className="py-4 flex justify-center">
-                        <div className="animate-spin">
-                          <i className="fas fa-spinner text-xl text-gray-400"></i>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {(communications || []).length === 0 && 
-                          (appointments || []).length === 0 && 
-                          (tasks || []).length === 0 && (
-                          <div className="py-2 text-center text-gray-500">
-                            <p>Nessuna attività recente</p>
-                          </div>
-                        )}
-                        
-                        {/* Comunicazioni recenti */}
-                        {communications && communications.slice(0, 3).map((comm) => (
-                          <div key={comm.id} className="flex items-center space-x-3">
-                            <div className="rounded-full bg-blue-50 p-2">
-                              <i className="fas fa-comment text-blue-500"></i>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm font-medium">
-                                  {comm.clientName || "Cliente"}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {getCommunicationTypeBadge(comm.type || "")}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatDate(comm.createdAt || "")}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                        
-                        {/* Appuntamenti recenti */}
-                        {appointments && appointments.slice(0, 3).map((apt) => (
-                          <div key={apt.id} className="flex items-center space-x-3">
-                            <div className="rounded-full bg-purple-50 p-2">
-                              <i className="fas fa-calendar text-purple-500"></i>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm font-medium">
-                                  {apt.title || "Appuntamento"}
-                                </span>
-                                <span className="text-xs">
-                                  {getAppointmentStatusBadge(apt.status || "")}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatDate(apt.date || "")}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                        
-                        {/* Task recenti */}
-                        {tasks && tasks.slice(0, 3).map((task) => (
-                          <div key={task.id} className="flex items-center space-x-3">
-                            <div className="rounded-full bg-amber-50 p-2">
-                              <i className="fas fa-tasks text-amber-500"></i>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm font-medium">
-                                  {task.title || "Task"}
-                                </span>
-                                <span className="text-xs">
-                                  {getTaskStatusBadge(task.status || "")}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatDate(task.dueDate || "")}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                {/* Documenti - parte da sviluppare */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Documenti</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="py-6 text-center text-gray-500">
-                      <p>Nessun documento disponibile</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-          
-          {/* Communications Tab */}
-          <TabsContent value="communications">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Comunicazioni</CardTitle>
-                <Button variant="outline">
-                  <i className="fas fa-plus mr-2"></i>
-                  Aggiungi comunicazione
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {isCommunicationsLoading ? (
-                  <div className="py-10 flex justify-center">
-                    <div className="animate-spin">
-                      <i className="fas fa-spinner text-2xl text-gray-400"></i>
-                    </div>
                   </div>
-                ) : communications && communications.length === 0 ? (
-                  <div className="py-10 text-center text-gray-500">
-                    <div className="text-5xl mb-4 text-gray-300">
-                      <i className="fas fa-comment-slash"></i>
-                    </div>
-                    <p className="text-lg font-medium">Nessuna comunicazione</p>
-                    <p className="mt-1">Non ci sono comunicazioni registrate per questo immobile.</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Direzione</TableHead>
-                        <TableHead>Contenuto</TableHead>
-                        <TableHead>Follow-up</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {communications && communications.map((comm) => (
-                        <TableRow key={comm.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {formatDate(comm.createdAt || "")}
-                          </TableCell>
-                          <TableCell>{comm.clientName || "N/D"}</TableCell>
-                          <TableCell>
-                            {getCommunicationTypeBadge(comm.type || "")}
-                          </TableCell>
-                          <TableCell>
-                            {getDirectionIcon(comm.direction || "outbound")}
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-xs truncate">
-                              {comm.content || ""}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {comm.needsFollowUp && (
-                              <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-                                Richiesto
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="icon">
-                              <i className="fas fa-ellipsis-v"></i>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Appointments Tab */}
-          <TabsContent value="appointments">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Appuntamenti</CardTitle>
-                <Button variant="outline">
-                  <i className="fas fa-plus mr-2"></i>
-                  Aggiungi appuntamento
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {isAppointmentsLoading ? (
-                  <div className="py-10 flex justify-center">
-                    <div className="animate-spin">
-                      <i className="fas fa-spinner text-2xl text-gray-400"></i>
-                    </div>
-                  </div>
-                ) : appointments && appointments.length === 0 ? (
-                  <div className="py-10 text-center text-gray-500">
-                    <div className="text-5xl mb-4 text-gray-300">
-                      <i className="fas fa-calendar-times"></i>
-                    </div>
-                    <p className="text-lg font-medium">Nessun appuntamento</p>
-                    <p className="mt-1">Non ci sono appuntamenti programmati per questo immobile.</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Ora</TableHead>
-                        <TableHead>Titolo</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Stato</TableHead>
-                        <TableHead>Note</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {appointments && appointments.map((apt) => (
-                        <TableRow key={apt.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {formatDate(apt.date || "")}
-                          </TableCell>
-                          <TableCell>{apt.time || "N/D"}</TableCell>
-                          <TableCell>{apt.title || "N/D"}</TableCell>
-                          <TableCell>{apt.clientName || "N/D"}</TableCell>
-                          <TableCell>
-                            {getAppointmentStatusBadge(apt.status || "")}
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-xs truncate">
-                              {apt.notes || ""}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="icon">
-                              <i className="fas fa-ellipsis-v"></i>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Tasks Tab */}
-          <TabsContent value="tasks">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Task</CardTitle>
-                <Button variant="outline">
-                  <i className="fas fa-plus mr-2"></i>
-                  Aggiungi task
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {isTasksLoading ? (
-                  <div className="py-10 flex justify-center">
-                    <div className="animate-spin">
-                      <i className="fas fa-spinner text-2xl text-gray-400"></i>
-                    </div>
-                  </div>
-                ) : tasks && tasks.length === 0 ? (
-                  <div className="py-10 text-center text-gray-500">
-                    <div className="text-5xl mb-4 text-gray-300">
-                      <i className="fas fa-clipboard-list"></i>
-                    </div>
-                    <p className="text-lg font-medium">Nessun task</p>
-                    <p className="mt-1">Non ci sono task programmati per questo immobile.</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Scadenza</TableHead>
-                        <TableHead>Titolo</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Assegnato a</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Stato</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tasks && tasks.map((task) => (
-                        <TableRow key={task.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {formatDate(task.dueDate || "")}
-                          </TableCell>
-                          <TableCell>{task.title || "N/D"}</TableCell>
-                          <TableCell>
-                            {getTaskTypeBadge(task.type || "")}
-                          </TableCell>
-                          <TableCell>{task.assignedTo || "N/D"}</TableCell>
-                          <TableCell>{task.clientName || "N/D"}</TableCell>
-                          <TableCell>
-                            {getTaskStatusBadge(task.status || "")}
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="icon">
-                              <i className="fas fa-ellipsis-v"></i>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Photos Tab */}
-          <TabsContent value="photos">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Foto</CardTitle>
-                <Button variant="outline">
-                  <i className="fas fa-upload mr-2"></i>
-                  Carica foto
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="py-10 text-center text-gray-500">
-                  <div className="text-5xl mb-4 text-gray-300">
-                    <i className="fas fa-image"></i>
-                  </div>
-                  <p className="text-lg font-medium">Nessuna foto</p>
-                  <p className="mt-1">Non ci sono foto caricate per questo immobile.</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Matching Buyers Tab */}
-          <TabsContent value="matchingBuyers">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Clienti potenzialmente interessati</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isMatchingBuyersLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin text-3xl text-gray-300">
-                      <i className="fas fa-spinner"></i>
-                    </div>
-                  </div>
-                ) : matchingBuyers && matchingBuyers.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Budget Max</TableHead>
-                        <TableHead>MQ Min</TableHead>
-                        <TableHead>Zone di ricerca</TableHead>
-                        <TableHead className="text-right">Azioni</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {matchingBuyers.map((buyer) => (
-                        <TableRow key={buyer.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center">
-                              <div>
-                                <span className="font-semibold">
-                                  {buyer.firstName} {buyer.lastName}
-                                </span>
-                                <div className="text-xs text-gray-500">
-                                  {buyer.phone && (
-                                    <div>
-                                      <i className="fas fa-phone text-gray-400 mr-1"></i> {buyer.phone}
-                                    </div>
-                                  )}
-                                  {buyer.email && (
-                                    <div>
-                                      <i className="fas fa-envelope text-gray-400 mr-1"></i> {buyer.email}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {buyer.preferences?.maxPrice ? formatPrice(buyer.preferences.maxPrice) : "Non specificato"}
-                          </TableCell>
-                          <TableCell>
-                            {buyer.preferences?.minSize ? `${buyer.preferences.minSize} mq` : "Non specificato"}
-                          </TableCell>
-                          <TableCell>
-                            {buyer.preferences?.searchArea ? (
-                              <div className="flex items-center">
-                                <i className="fas fa-map-marker-alt text-red-500 mr-1"></i>
-                                <span>Area personalizzata</span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-500">Nessuna area specificata</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                asChild
-                              >
-                                <Link href={`/clients/${buyer.id}`}>
-                                  <i className="fas fa-user text-blue-600"></i>
-                                </Link>
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="py-10 text-center text-gray-500">
-                    <div className="text-5xl mb-4 text-gray-300">
-                      <i className="fas fa-users-slash"></i>
-                    </div>
-                    <p className="text-lg font-medium">Nessun cliente compatibile</p>
-                    <p className="mt-1">Non ci sono clienti che corrispondono ai criteri di questo immobile.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Buyers to Notify Tab */}
-          <TabsContent value="buyersToNotify">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Clienti da notificare</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {manualBuyersLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin text-3xl text-gray-300">
-                      <i className="fas fa-spinner"></i>
-                    </div>
-                  </div>
-                ) : manualBuyersWithStatus && manualBuyersWithStatus.length > 0 ? (
+                  
                   <div>
-                    {/* Debug info - Nascondi in produzione */}
-                    {false && (
-                      <>
-                        <pre className="text-xs bg-gray-100 p-2 mb-4">
-                          {JSON.stringify(manualBuyersWithStatus, null, 2)}
-                        </pre>
-                        <p className="text-xs text-red-500 mb-2">
-                          Buyers non notificati: {manualBuyersWithStatus ? manualBuyersWithStatus.filter(b => !b.notificationStatus?.notified).length : 0}
-                        </p>
-                        <div className="mb-4">
-                          <button 
-                            className="px-3 py-1 text-xs bg-blue-500 text-white rounded"
-                            onClick={async () => {
-                              try {
-                                const response = await fetch(`/api/properties/${id}/buyers-with-notification-status`);
-                                const data = await response.json();
-                                console.log("Risultato API diretta:", data);
-                                console.log("Clienti non notificati:", data.filter(b => !b.notificationStatus?.notified).length);
-                                setManualBuyersWithStatus(data);
-                              } catch (error) {
-                                console.error("Errore:", error);
-                              }
-                            }}
-                          >
-                            Ricarica Dati
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    
-                    {manualBuyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Nome</TableHead>
-                            <TableHead>Contatti</TableHead>
-                            <TableHead>Preferenze</TableHead>
-                            <TableHead className="text-right">Azioni</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {manualBuyersWithStatus
-                            .filter(b => !b.notificationStatus?.notified)
-                            .map((buyer) => (
-                              <TableRow key={buyer.id}>
-                                <TableCell className="font-medium">
-                                  <div className="flex items-center">
-                                    <div>
-                                      <Link href={`/clients/${buyer.id}`} className="hover:underline">
-                                        {buyer.salutation ? `${buyer.salutation} ` : ""}
-                                        {buyer.firstName} {buyer.lastName}
-                                      </Link>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="text-sm">
-                                    {buyer.phone && (
-                                      <div className="mb-1">
-                                        <i className="fas fa-phone text-gray-400 mr-1 w-4"></i> {buyer.phone}
-                                      </div>
-                                    )}
-                                    {buyer.email && (
-                                      <div>
-                                        <i className="fas fa-envelope text-gray-400 mr-1 w-4"></i> {buyer.email}
-                                      </div>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="text-sm">
-                                    {buyer.preferences?.maxPrice && (
-                                      <div className="mb-1">
-                                        <i className="fas fa-euro-sign text-gray-400 mr-1 w-4"></i>
-                                        Max: {formatPrice(buyer.preferences.maxPrice)}
-                                      </div>
-                                    )}
-                                    {buyer.preferences?.minSize && (
-                                      <div>
-                                        <i className="fas fa-ruler-combined text-gray-400 mr-1 w-4"></i>
-                                        Min: {buyer.preferences.minSize} mq
-                                      </div>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button 
-                                    size="sm"
-                                    onClick={async () => {
-                                      try {
-                                        const response = await fetch(`/api/clients/${buyer.id}/send-property/${id}`, {
-                                          method: 'POST',
-                                          headers: {
-                                            'Content-Type': 'application/json'
-                                          }
-                                        });
-
-                                        if (!response.ok) {
-                                          const error = await response.json();
-                                          throw new Error(error.error || 'Errore durante l\'invio dell\'immobile');
-                                        }
-
-                                        toast({
-                                          title: 'Immobile inviato',
-                                          description: `Immobile inviato con successo a ${buyer.firstName} ${buyer.lastName}`,
-                                        });
-
-                                        // Ricarica i dati
-                                        queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'buyers-with-notification-status'] });
-                                        queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'notified-buyers'] });
-                                      } catch (error) {
-                                        toast({
-                                          variant: 'destructive',
-                                          title: 'Errore',
-                                          description: error.message,
-                                        });
-                                      }
-                                    }}
-                                  >
-                                    <i className="fas fa-paper-plane mr-2"></i> Invia immobile
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <div className="py-10 text-center text-gray-500">
-                        <div className="text-5xl mb-4 text-gray-300">
-                          <i className="fas fa-check-circle"></i>
-                        </div>
-                        <p className="text-lg font-medium">Tutti i clienti sono stati notificati</p>
-                        <p className="mt-1">Nessun cliente deve essere ancora notificato per questo immobile.</p>
+                    <div className="text-sm text-gray-500 mb-2">Descrizione</div>
+                    <div className="text-gray-700 whitespace-pre-wrap">
+                      {property?.description || "Nessuna descrizione disponibile."}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Latest communications */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle>Ultime comunicazioni</CardTitle>
+                  <Button variant="ghost" size="sm" className="text-primary" asChild>
+                    <Link href={`#`} onClick={() => setActiveTab("communications")}>
+                      Vedi tutto
+                    </Link>
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isCommunicationsLoading ? (
+                    <div className="py-10 text-center text-gray-500">
+                      <div className="text-3xl mb-2 text-gray-300 animate-spin">
+                        <i className="fas fa-spinner"></i>
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="py-10 text-center text-gray-500">
-                    <div className="text-5xl mb-4 text-gray-300">
-                      <i className="fas fa-info-circle"></i>
+                      <p>Caricamento comunicazioni...</p>
                     </div>
-                    <p className="text-lg font-medium">Nessun cliente abbinato</p>
-                    <p className="mt-1">Non ci sono clienti abbinati con questo immobile.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Notified Buyers Tab */}
-          <TabsContent value="notifiedBuyers">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Clienti notificati</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isNotifiedBuyersLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin text-3xl text-gray-300">
-                      <i className="fas fa-spinner"></i>
-                    </div>
-                  </div>
-                ) : notifiedBuyers && notifiedBuyers.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Data invio</TableHead>
-                        <TableHead>Canale</TableHead>
-                        <TableHead>Feedback</TableHead>
-                        <TableHead className="text-right">Azioni</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {notifiedBuyers.map((buyer) => (
-                        <TableRow key={buyer.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center">
-                              <div>
-                                <Link href={`/clients/${buyer.id}`} className="hover:underline">
-                                  {buyer.salutation ? `${buyer.salutation} ` : ""}
-                                  {buyer.firstName} {buyer.lastName}
-                                </Link>
-                                <div className="text-xs text-gray-500">
-                                  {buyer.phone && (
-                                    <span className="mr-2">{buyer.phone}</span>
-                                  )}
-                                </div>
+                  ) : communications && communications.length > 0 ? (
+                    <div className="space-y-4">
+                      {communications.slice(0, 3).map((comm) => (
+                        <div key={comm.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-md">
+                          <div className="flex-shrink-0 mt-0.5">
+                            {getDirectionIcon(comm.direction)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">
+                                  {comm.clientName || "Sistema"}
+                                </span>
+                                {getCommunicationTypeBadge(comm.type)}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {formatDate(comm.createdAt?.toString() || "")}
                               </div>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {buyer.sentAt ? (
-                              <div className="flex flex-col">
-                                <span>{formatDate(buyer.sentAt)}</span>
-                                <span className="text-xs text-gray-500">
-                                  {formatDistanceToNow(parseISO(buyer.sentAt), { 
-                                    addSuffix: true,
-                                    locale: it 
-                                  })}
-                                </span>
-                              </div>
-                            ) : (
-                              "N/D"
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                              WhatsApp
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-[200px] truncate">
-                              {buyer.feedback || (
-                                <span className="text-gray-400 italic">Nessun feedback</span>
+                            <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap line-clamp-2">{comm.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-10 text-center text-gray-500">
+                      <div className="text-5xl mb-4 text-gray-300">
+                        <i className="fas fa-comments"></i>
+                      </div>
+                      <p className="text-lg font-medium">Nessuna comunicazione</p>
+                      <p className="mt-1">Non ci sono comunicazioni registrate per questo immobile.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Location and Sidebar Information */}
+            <div className="space-y-6">
+              {/* Map card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Posizione</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {property && property.location && (
+                    <div className="h-[300px] rounded-md overflow-hidden border">
+                      <MapPreview 
+                        lat={property.location.lat}
+                        lng={property.location.lng}
+                        zoom={15}
+                        markerTitle={property.address}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Matching buyers card */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle>Acquirenti potenziali</CardTitle>
+                  <Button variant="ghost" size="sm" className="text-primary" asChild>
+                    <Link href={`#`} onClick={() => setActiveTab("buyersToNotify")}>
+                      Vedi tutto
+                    </Link>
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isMatchingBuyersLoading ? (
+                    <div className="py-10 text-center text-gray-500">
+                      <div className="text-3xl mb-2 text-gray-300 animate-spin">
+                        <i className="fas fa-spinner"></i>
+                      </div>
+                      <p>Caricamento acquirenti...</p>
+                    </div>
+                  ) : matchingBuyers && matchingBuyers.length > 0 ? (
+                    <div className="space-y-3">
+                      {matchingBuyers.slice(0, 5).map((buyer) => (
+                        <div key={buyer.id} className="p-3 bg-gray-50 rounded-md">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <Link href={`/clients/${buyer.id}`} className="font-medium hover:underline">
+                                {buyer.firstName} {buyer.lastName}
+                              </Link>
+                              {buyer.isFriend && (
+                                <Badge variant="outline" className="ml-2 bg-green-50 text-green-700">Amico</Badge>
                               )}
                             </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  // Reinvia immobile
-                                }}
-                              >
-                                <i className="fas fa-sync-alt mr-2"></i> Reinvia
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                          <div className="mt-1 text-sm">
+                            {buyer.phone && (
+                              <div className="flex items-center">
+                                <i className="fas fa-phone text-gray-400 mr-1 w-4"></i>
+                                <span>{buyer.phone}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="py-10 text-center text-gray-500">
-                    <div className="text-5xl mb-4 text-gray-300">
-                      <i className="fas fa-paper-plane"></i>
+                      
+                      {matchingBuyers.length > 5 && (
+                        <div className="text-center pt-2">
+                          <Button variant="ghost" size="sm" onClick={() => setActiveTab("buyersToNotify")}>
+                            Vedi altri {matchingBuyers.length - 5} acquirenti
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-lg font-medium">Nessun cliente notificato</p>
-                    <p className="mt-1">Non hai ancora inviato notifiche ai clienti per questo immobile.</p>
+                  ) : (
+                    <div className="py-10 text-center text-gray-500">
+                      <div className="text-5xl mb-4 text-gray-300">
+                        <i className="fas fa-user-friends"></i>
+                      </div>
+                      <p className="text-lg font-medium">Nessun acquirente</p>
+                      <p className="mt-1">Non ci sono acquirenti abbinati a questo immobile.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+        
+        {/* Communications Tab */}
+        <TabsContent value="communications">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Comunicazioni</CardTitle>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <i className="fas fa-plus mr-2"></i> Aggiungi
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Aggiungi comunicazione</DialogTitle>
+                    <DialogDescription>
+                      Registra una nuova comunicazione per questo immobile.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {/* Dialog content */}
+                  <div className="py-4">
+                    <div className="text-center text-gray-500">
+                      <i className="fas fa-comment-alt text-3xl mb-2"></i>
+                      <p>Form comunicazione (non implementato)</p>
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </>
+                  <DialogFooter>
+                    <Button variant="outline">Annulla</Button>
+                    <Button>Salva</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              {isCommunicationsLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin text-3xl text-gray-300">
+                    <i className="fas fa-spinner"></i>
+                  </div>
+                </div>
+              ) : communications && communications.length > 0 ? (
+                <div className="space-y-4">
+                  {communications.map((comm) => (
+                    <div key={comm.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-md">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {getDirectionIcon(comm.direction)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {comm.clientName || "Sistema"}
+                            </span>
+                            {getCommunicationTypeBadge(comm.type)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {formatDate(comm.createdAt?.toString() || "")}
+                          </div>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{comm.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-10 text-center text-gray-500">
+                  <div className="text-5xl mb-4 text-gray-300">
+                    <i className="fas fa-comments"></i>
+                  </div>
+                  <p className="text-lg font-medium">Nessuna comunicazione</p>
+                  <p className="mt-1">Non ci sono comunicazioni registrate per questo immobile.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Appointments Tab */}
+        <TabsContent value="appointments">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Appuntamenti</CardTitle>
+              <Button>
+                <i className="fas fa-plus mr-2"></i> Aggiungi
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {isAppointmentsLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin text-3xl text-gray-300">
+                    <i className="fas fa-spinner"></i>
+                  </div>
+                </div>
+              ) : appointments && appointments.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Stato</TableHead>
+                      <TableHead className="text-right">Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {appointments.map((appointment) => (
+                      <TableRow key={appointment.id}>
+                        <TableCell>
+                          <div className="font-medium">
+                            {formatDate(appointment.date?.toString() || "")}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {appointment.time || "N/D"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {appointment.clientName || "N/D"}
+                        </TableCell>
+                        <TableCell>
+                          {appointment.type || "N/D"}
+                        </TableCell>
+                        <TableCell>
+                          {getAppointmentStatusBadge(appointment.status)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm">
+                            <i className="fas fa-ellipsis-h"></i>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="py-10 text-center text-gray-500">
+                  <div className="text-5xl mb-4 text-gray-300">
+                    <i className="fas fa-calendar"></i>
+                  </div>
+                  <p className="text-lg font-medium">Nessun appuntamento</p>
+                  <p className="mt-1">Non ci sono appuntamenti programmati per questo immobile.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Tasks Tab */}
+        <TabsContent value="tasks">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Compiti</CardTitle>
+              <Button>
+                <i className="fas fa-plus mr-2"></i> Aggiungi
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {isTasksLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin text-3xl text-gray-300">
+                    <i className="fas fa-spinner"></i>
+                  </div>
+                </div>
+              ) : tasks && tasks.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Titolo</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Scadenza</TableHead>
+                      <TableHead>Stato</TableHead>
+                      <TableHead className="text-right">Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell>
+                          <div className="font-medium">{task.title}</div>
+                          <div className="text-sm text-gray-500 truncate max-w-md">{task.description}</div>
+                        </TableCell>
+                        <TableCell>
+                          {getTaskTypeBadge(task.type || "")}
+                        </TableCell>
+                        <TableCell>
+                          {formatDate(task.dueDate?.toString() || "")}
+                        </TableCell>
+                        <TableCell>
+                          {getTaskStatusBadge(task.status)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm">
+                            <i className="fas fa-ellipsis-h"></i>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="py-10 text-center text-gray-500">
+                  <div className="text-5xl mb-4 text-gray-300">
+                    <i className="fas fa-tasks"></i>
+                  </div>
+                  <p className="text-lg font-medium">Nessun compito</p>
+                  <p className="mt-1">Non ci sono compiti associati a questo immobile.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Photos Tab */}
+        <TabsContent value="photos">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Foto</CardTitle>
+              <Button>
+                <i className="fas fa-plus mr-2"></i> Aggiungi
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="py-10 text-center text-gray-500">
+                <div className="text-5xl mb-4 text-gray-300">
+                  <i className="fas fa-images"></i>
+                </div>
+                <p className="text-lg font-medium">Nessuna foto</p>
+                <p className="mt-1">Non ci sono foto caricate per questo immobile.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Buyers to Notify Tab */}
+        <TabsContent value="buyersToNotify">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Clienti da notificare</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BuyersToNotifyList propertyId={id} onTabChange={setActiveTab} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Notified Buyers Tab */}
+        <TabsContent value="notifiedBuyers">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Clienti notificati</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <NotifiedBuyersList propertyId={id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
