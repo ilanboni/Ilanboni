@@ -412,6 +412,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Non è stato possibile inviare la notifica" });
       }
       
+      // Creare una comunicazione per tenere traccia dell'invio dell'immobile
+      const now = new Date();
+      const communicationData = {
+        clientId,
+        propertyId,
+        type: "property_notification",
+        channel: "whatsapp",
+        content: `Immobile "${property.address}" inviato al cliente ${client.firstName} ${client.lastName} tramite WhatsApp.`,
+        status: "sent",
+        sentAt: now,
+        createdAt: now,
+        updatedAt: now
+      };
+      
+      // Salva la comunicazione
+      await storage.createCommunication(communicationData);
+      
       res.status(201).json({
         success: true,
         message: "Notifica inviata con successo",
