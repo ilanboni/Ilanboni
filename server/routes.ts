@@ -309,6 +309,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint per ottenere gli immobili compatibili con un cliente con info su invio
+  app.get("/api/clients/:id/properties-with-notification-status", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      if (client.type !== 'buyer') {
+        return res.status(400).json({ error: "Solo i clienti compratori hanno immobili compatibili" });
+      }
+      
+      // Ottiene immobili corrispondenti
+      const buyer = await storage.getBuyerByClientId(clientId);
+      if (!buyer) {
+        return res.status(404).json({ error: "Dati acquirente non trovati" });
+      }
+      
+      // Recupera immobili che corrispondono alle preferenze
+      const matchingProperties = await storage.matchPropertiesForBuyer(buyer.id);
+      
+      // Recupera comunicazioni per verificare quali immobili sono stati già inviati
+      const communications = await storage.getCommunicationsByClientId(clientId);
+      
+      // Crea un mapping degli immobili inviati con data di invio e tipo
+      const sentPropertiesMap = communications
+        .filter(c => c.propertyId !== null && c.type === 'property_match')
+        .reduce((map, comm) => {
+          if (comm.propertyId) {
+            if (!map[comm.propertyId] || new Date(comm.createdAt) > new Date(map[comm.propertyId].sentAt)) {
+              map[comm.propertyId] = {
+                notificationId: comm.id,
+                sentAt: comm.createdAt,
+                status: comm.status
+              };
+            }
+          }
+          return map;
+        }, {} as Record<number, {notificationId: number, sentAt: Date, status: string}>);
+      
+      // Combina le informazioni
+      const propertiesWithStatus = matchingProperties.map(property => {
+        const notificationInfo = sentPropertiesMap[property.id];
+        return {
+          ...property,
+          notificationStatus: notificationInfo ? {
+            notified: true,
+            sentAt: notificationInfo.sentAt,
+            notificationId: notificationInfo.notificationId,
+            status: notificationInfo.status
+          } : {
+            notified: false
+          }
+        };
+      });
+      
+      res.json(propertiesWithStatus);
+    } catch (error) {
+      console.error(`[GET /api/clients/:id/properties-with-notification-status]`, error);
+      res.status(500).json({ error: "Errore durante il recupero degli immobili con stato di notifica" });
+    }
+  });
+
+  // Endpoint per inviare manualmente una notifica di immobile a un cliente
+  app.post("/api/clients/:clientId/send-property/:propertyId", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const propertyId = parseInt(req.params.propertyId);
+      
+      if (isNaN(clientId) || isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID cliente o immobile non valido" });
+      }
+      
+      // Recupera cliente e immobile
+      const client = await storage.getClientWithDetails(clientId);
+      const property = await storage.getProperty(propertyId);
+      
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+      
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      // Verifica che il cliente sia un acquirente
+      if (client.type !== 'buyer') {
+        return res.status(400).json({ error: "Solo i clienti acquirenti possono ricevere notifiche di immobili" });
+      }
+      
+      // Invia la notifica
+      const { sendPropertyMatchNotification } = await import('./lib/ultramsg');
+      const notification = await sendPropertyMatchNotification(client, property);
+      
+      if (!notification) {
+        return res.status(500).json({ error: "Non è stato possibile inviare la notifica" });
+      }
+      
+      res.status(201).json({
+        success: true,
+        message: "Notifica inviata con successo",
+        notification
+      });
+    } catch (error) {
+      console.error(`[POST /api/clients/:clientId/send-property/:propertyId]`, error);
+      res.status(500).json({ error: "Errore durante l'invio della notifica" });
+    }
+  });
+
   // Endpoint per ottenere gli immobili inviati a un cliente
   app.get("/api/clients/:id/sent-properties", async (req: Request, res: Response) => {
     try {
