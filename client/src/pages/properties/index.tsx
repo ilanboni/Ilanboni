@@ -53,12 +53,13 @@ export default function PropertiesPage() {
   
   // Handle property actions
   const handleEditProperty = (property: PropertyWithDetails) => {
-    // Invece di navigare, ora apriamo direttamente la pagina dei dettagli
-    navigate(`/properties/${property.id}`);
+    // Naviga alla pagina di dettaglio e apre automaticamente il modal di modifica
+    navigate(`/properties/${property.id}?edit=true`);
   };
   
   const handleViewProperty = (property: PropertyWithDetails) => {
-    setPropertyToView(property);
+    // Naviga alla pagina di dettaglio dell'immobile
+    navigate(`/properties/${property.id}`);
   };
   
   const handleDeleteProperty = async (property: PropertyWithDetails) => {
