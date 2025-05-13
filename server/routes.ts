@@ -657,6 +657,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint per trovare clienti potenziali per un immobile
+  app.get("/api/properties/:id/matching-buyers", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      // Cerca clienti acquirenti con preferenze compatibili
+      const matchingBuyers = await storage.matchBuyersForProperty(propertyId);
+      
+      res.json(matchingBuyers);
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}/matching-buyers]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei clienti compatibili" });
+    }
+  });
+  
+  // Endpoint per ottenere clienti con il loro stato di notifica per un immobile
+  app.get("/api/properties/:id/buyers-with-notification-status", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      // Trova clienti compatibili con questo immobile
+      const matchingBuyers = await storage.matchBuyersForProperty(propertyId);
+      
+      // Recupera comunicazioni relative all'immobile
+      const communications = await storage.getCommunicationsByPropertyId(propertyId);
+      
+      // Crea una mappa di clienti che hanno ricevuto notifiche per questo immobile
+      const notifiedClientsMap = communications
+        .filter(c => c.clientId !== null && c.type === 'property_match')
+        .reduce((map, comm) => {
+          if (comm.clientId) {
+            if (!map[comm.clientId] || new Date(comm.createdAt) > new Date(map[comm.clientId].sentAt)) {
+              map[comm.clientId] = {
+                notificationId: comm.id,
+                sentAt: comm.createdAt,
+                status: comm.status
+              };
+            }
+          }
+          return map;
+        }, {} as Record<number, {notificationId: number, sentAt: Date, status: string}>);
+      
+      // Combina i risultati
+      const buyersWithStatus = matchingBuyers.map(buyer => {
+        const notificationInfo = notifiedClientsMap[buyer.id];
+        return {
+          ...buyer,
+          notificationStatus: notificationInfo ? {
+            notified: true,
+            sentAt: notificationInfo.sentAt,
+            notificationId: notificationInfo.notificationId,
+            status: notificationInfo.status
+          } : {
+            notified: false
+          }
+        };
+      });
+      
+      res.json(buyersWithStatus);
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}/buyers-with-notification-status]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei clienti con stato di notifica" });
+    }
+  });
+  
+  // Endpoint per ottenere i clienti a cui è stato inviato l'immobile
+  app.get("/api/properties/:id/notified-buyers", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      // Recupera comunicazioni relative all'immobile
+      const communications = await storage.getCommunicationsByPropertyId(propertyId);
+      
+      // Filtra per comunicazioni di tipo "property_match"
+      const notificationComms = communications.filter(c => 
+        c.clientId !== null && 
+        c.type === 'property_match'
+      );
+      
+      // Crea una mappa per tenere traccia dell'ultima notifica per ogni cliente
+      const latestNotificationByClient = new Map<number, { commId: number, sentAt: Date }>();
+      
+      // Popola la mappa con le notifiche più recenti
+      for (const comm of notificationComms) {
+        if (!comm.clientId) continue;
+        
+        const existing = latestNotificationByClient.get(comm.clientId);
+        if (!existing || new Date(comm.createdAt) > existing.sentAt) {
+          latestNotificationByClient.set(comm.clientId, {
+            commId: comm.id,
+            sentAt: new Date(comm.createdAt)
+          });
+        }
+      }
+      
+      // Recupera i dettagli completi dei clienti
+      const notifiedBuyers = await Promise.all(
+        Array.from(latestNotificationByClient.keys()).map(async (clientId) => {
+          const client = await storage.getClient(clientId);
+          const notificationInfo = latestNotificationByClient.get(clientId);
+          
+          if (client && notificationInfo) {
+            return {
+              ...client,
+              sentAt: notificationInfo.sentAt,
+              notificationId: notificationInfo.commId
+            };
+          }
+          return null;
+        })
+      );
+      
+      // Filtra eventuali clienti null (che potrebbero essere stati eliminati)
+      const validNotifiedBuyers = notifiedBuyers.filter(buyer => buyer !== null);
+      
+      res.json(validNotifiedBuyers);
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}/notified-buyers]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei clienti notificati" });
+    }
+  });
+  
   // API per proprietà condivise
   
   // Get shared properties with optional filters
