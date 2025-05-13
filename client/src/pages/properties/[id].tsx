@@ -1108,7 +1108,7 @@ export default function PropertyDetailPage() {
                       <i className="fas fa-spinner"></i>
                     </div>
                   </div>
-                ) : buyersWithStatus && buyersWithStatus.filter(b => b.notificationStatus && !b.notificationStatus.notified).length > 0 ? (
+                ) : buyersWithStatus && buyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1120,7 +1120,7 @@ export default function PropertyDetailPage() {
                     </TableHeader>
                     <TableBody>
                       {buyersWithStatus
-                        .filter(b => b.notificationStatus && !b.notificationStatus.notified)
+                        .filter(b => !b.notificationStatus?.notified)
                         .map((buyer) => (
                           <TableRow key={buyer.id}>
                             <TableCell className="font-medium">
