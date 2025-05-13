@@ -67,7 +67,8 @@ import {
   type Communication,
   type Appointment,
   type Task,
-  type ClientWithDetails
+  type ClientWithDetails,
+  type Client
 } from "@shared/schema";
 
 // Form schema per la validazione
@@ -216,6 +217,24 @@ export default function PropertyDetailPage() {
   // Fetch property tasks
   const { data: tasks, isLoading: isTasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/properties", id, "tasks"],
+    enabled: !isNaN(id),
+  });
+  
+  // Fetch matching buyers
+  const { data: matchingBuyers, isLoading: isMatchingBuyersLoading } = useQuery<Client[]>({
+    queryKey: ["/api/properties", id, "matching-buyers"],
+    enabled: !isNaN(id),
+  });
+  
+  // Fetch buyers with notification status
+  const { data: buyersWithStatus, isLoading: isBuyersWithStatusLoading } = useQuery<any[]>({
+    queryKey: ["/api/properties", id, "buyers-with-notification-status"],
+    enabled: !isNaN(id),
+  });
+  
+  // Fetch notified buyers
+  const { data: notifiedBuyers, isLoading: isNotifiedBuyersLoading } = useQuery<any[]>({
+    queryKey: ["/api/properties", id, "notified-buyers"],
     enabled: !isNaN(id),
   });
   
@@ -470,6 +489,26 @@ export default function PropertyDetailPage() {
               Task
               {tasks && tasks.length > 0 && (
                 <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{tasks.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="matchingBuyers">
+              Possibili clienti
+              {matchingBuyers && matchingBuyers.length > 0 && (
+                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{matchingBuyers.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="buyersToNotify">
+              Da inviare a
+              {buyersWithStatus && buyersWithStatus.filter(b => !b.notificationStatus.notified).length > 0 && (
+                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">
+                  {buyersWithStatus.filter(b => !b.notificationStatus.notified).length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="notifiedBuyers">
+              Inviato a
+              {notifiedBuyers && notifiedBuyers.length > 0 && (
+                <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">{notifiedBuyers.length}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="photos">Foto</TabsTrigger>
@@ -957,6 +996,322 @@ export default function PropertyDetailPage() {
                   <p className="text-lg font-medium">Nessuna foto</p>
                   <p className="mt-1">Non ci sono foto caricate per questo immobile.</p>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Matching Buyers Tab */}
+          <TabsContent value="matchingBuyers">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Clienti potenzialmente interessati</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isMatchingBuyersLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin text-3xl text-gray-300">
+                      <i className="fas fa-spinner"></i>
+                    </div>
+                  </div>
+                ) : matchingBuyers && matchingBuyers.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Budget Max</TableHead>
+                        <TableHead>MQ Min</TableHead>
+                        <TableHead>Zone di ricerca</TableHead>
+                        <TableHead className="text-right">Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {matchingBuyers.map((buyer) => (
+                        <TableRow key={buyer.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center">
+                              <div>
+                                <span className="font-semibold">
+                                  {buyer.firstName} {buyer.lastName}
+                                </span>
+                                <div className="text-xs text-gray-500">
+                                  {buyer.phone && (
+                                    <div>
+                                      <i className="fas fa-phone text-gray-400 mr-1"></i> {buyer.phone}
+                                    </div>
+                                  )}
+                                  {buyer.email && (
+                                    <div>
+                                      <i className="fas fa-envelope text-gray-400 mr-1"></i> {buyer.email}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {buyer.preferences?.maxPrice ? formatPrice(buyer.preferences.maxPrice) : "Non specificato"}
+                          </TableCell>
+                          <TableCell>
+                            {buyer.preferences?.minSize ? `${buyer.preferences.minSize} mq` : "Non specificato"}
+                          </TableCell>
+                          <TableCell>
+                            {buyer.preferences?.searchArea ? (
+                              <div className="flex items-center">
+                                <i className="fas fa-map-marker-alt text-red-500 mr-1"></i>
+                                <span>Area personalizzata</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">Nessuna area specificata</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                asChild
+                              >
+                                <Link href={`/clients/${buyer.id}`}>
+                                  <i className="fas fa-user text-blue-600"></i>
+                                </Link>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="py-10 text-center text-gray-500">
+                    <div className="text-5xl mb-4 text-gray-300">
+                      <i className="fas fa-users-slash"></i>
+                    </div>
+                    <p className="text-lg font-medium">Nessun cliente compatibile</p>
+                    <p className="mt-1">Non ci sono clienti che corrispondono ai criteri di questo immobile.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Buyers to Notify Tab */}
+          <TabsContent value="buyersToNotify">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Clienti da notificare</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isBuyersWithStatusLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin text-3xl text-gray-300">
+                      <i className="fas fa-spinner"></i>
+                    </div>
+                  </div>
+                ) : buyersWithStatus && buyersWithStatus.filter(b => !b.notificationStatus.notified).length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Contatti</TableHead>
+                        <TableHead>Preferenze</TableHead>
+                        <TableHead className="text-right">Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {buyersWithStatus
+                        .filter(b => !b.notificationStatus.notified)
+                        .map((buyer) => (
+                          <TableRow key={buyer.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center">
+                                <div>
+                                  <Link href={`/clients/${buyer.id}`} className="hover:underline">
+                                    {buyer.salutation ? `${buyer.salutation} ` : ""}
+                                    {buyer.firstName} {buyer.lastName}
+                                  </Link>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {buyer.phone && (
+                                  <div className="mb-1">
+                                    <i className="fas fa-phone text-gray-400 mr-1 w-4"></i> {buyer.phone}
+                                  </div>
+                                )}
+                                {buyer.email && (
+                                  <div>
+                                    <i className="fas fa-envelope text-gray-400 mr-1 w-4"></i> {buyer.email}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {buyer.preferences?.maxPrice && (
+                                  <div className="mb-1">
+                                    <i className="fas fa-euro-sign text-gray-400 mr-1 w-4"></i>
+                                    Max: {formatPrice(buyer.preferences.maxPrice)}
+                                  </div>
+                                )}
+                                {buyer.preferences?.minSize && (
+                                  <div>
+                                    <i className="fas fa-ruler-combined text-gray-400 mr-1 w-4"></i>
+                                    Min: {buyer.preferences.minSize} mq
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button 
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(`/api/clients/${buyer.id}/send-property/${id}`, {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json'
+                                      }
+                                    });
+
+                                    if (!response.ok) {
+                                      const error = await response.json();
+                                      throw new Error(error.error || 'Errore durante l\'invio dell\'immobile');
+                                    }
+
+                                    toast({
+                                      title: 'Immobile inviato',
+                                      description: `Immobile inviato con successo a ${buyer.firstName} ${buyer.lastName}`,
+                                    });
+
+                                    // Ricarica i dati
+                                    queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'buyers-with-notification-status'] });
+                                    queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'notified-buyers'] });
+                                  } catch (error) {
+                                    toast({
+                                      variant: 'destructive',
+                                      title: 'Errore',
+                                      description: error.message,
+                                    });
+                                  }
+                                }}
+                              >
+                                <i className="fas fa-paper-plane mr-2"></i> Invia immobile
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="py-10 text-center text-gray-500">
+                    <div className="text-5xl mb-4 text-gray-300">
+                      <i className="fas fa-check-circle"></i>
+                    </div>
+                    <p className="text-lg font-medium">Tutti i clienti sono stati notificati</p>
+                    <p className="mt-1">Nessun cliente deve essere ancora notificato per questo immobile.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Notified Buyers Tab */}
+          <TabsContent value="notifiedBuyers">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Clienti notificati</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isNotifiedBuyersLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin text-3xl text-gray-300">
+                      <i className="fas fa-spinner"></i>
+                    </div>
+                  </div>
+                ) : notifiedBuyers && notifiedBuyers.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Data invio</TableHead>
+                        <TableHead>Canale</TableHead>
+                        <TableHead>Feedback</TableHead>
+                        <TableHead className="text-right">Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {notifiedBuyers.map((buyer) => (
+                        <TableRow key={buyer.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center">
+                              <div>
+                                <Link href={`/clients/${buyer.id}`} className="hover:underline">
+                                  {buyer.salutation ? `${buyer.salutation} ` : ""}
+                                  {buyer.firstName} {buyer.lastName}
+                                </Link>
+                                <div className="text-xs text-gray-500">
+                                  {buyer.phone && (
+                                    <span className="mr-2">{buyer.phone}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {buyer.sentAt ? (
+                              <div className="flex flex-col">
+                                <span>{formatDate(buyer.sentAt)}</span>
+                                <span className="text-xs text-gray-500">
+                                  {formatDistanceToNow(parseISO(buyer.sentAt), { 
+                                    addSuffix: true,
+                                    locale: it 
+                                  })}
+                                </span>
+                              </div>
+                            ) : (
+                              "N/D"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
+                              WhatsApp
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-[200px] truncate">
+                              {buyer.feedback || (
+                                <span className="text-gray-400 italic">Nessun feedback</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  // Reinvia immobile
+                                }}
+                              >
+                                <i className="fas fa-sync-alt mr-2"></i> Reinvia
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="py-10 text-center text-gray-500">
+                    <div className="text-5xl mb-4 text-gray-300">
+                      <i className="fas fa-paper-plane"></i>
+                    </div>
+                    <p className="text-lg font-medium">Nessun cliente notificato</p>
+                    <p className="mt-1">Non hai ancora inviato notifiche ai clienti per questo immobile.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
