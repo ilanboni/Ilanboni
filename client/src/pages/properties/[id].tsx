@@ -238,6 +238,21 @@ export default function PropertyDetailPage() {
     enabled: !isNaN(id),
   });
   
+  // Verifica se ci sono clienti da notificare e imposta la tab attiva
+  useEffect(() => {
+    console.log("useEffect per cambiare tab, buyersWithStatus:", buyersWithStatus);
+    // Se ci sono acquirenti da notificare, seleziona la tab automaticamente
+    if (!isBuyersWithStatusLoading && buyersWithStatus && buyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0) {
+      console.log("Trovati clienti da notificare:", buyersWithStatus.filter(b => !b.notificationStatus?.notified).length);
+      // Cambia la tab solo se l'utente è sulla tab overview o se il parametro tab=notify è nell'URL
+      const urlParams = new URLSearchParams(window.location.search);
+      if (activeTab === "overview" || urlParams.get('tab') === 'notify') {
+        console.log("Cambio tab a buyersToNotify");
+        setActiveTab("buyersToNotify");
+      }
+    }
+  }, [buyersWithStatus, isBuyersWithStatusLoading, activeTab]);
+  
   // Loading state
   if (isPropertyLoading || isNaN(id)) {
     return (
@@ -1108,109 +1123,125 @@ export default function PropertyDetailPage() {
                       <i className="fas fa-spinner"></i>
                     </div>
                   </div>
-                ) : buyersWithStatus && buyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Contatti</TableHead>
-                        <TableHead>Preferenze</TableHead>
-                        <TableHead className="text-right">Azioni</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {buyersWithStatus
-                        .filter(b => !b.notificationStatus?.notified)
-                        .map((buyer) => (
-                          <TableRow key={buyer.id}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center">
-                                <div>
-                                  <Link href={`/clients/${buyer.id}`} className="hover:underline">
-                                    {buyer.salutation ? `${buyer.salutation} ` : ""}
-                                    {buyer.firstName} {buyer.lastName}
-                                  </Link>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                {buyer.phone && (
-                                  <div className="mb-1">
-                                    <i className="fas fa-phone text-gray-400 mr-1 w-4"></i> {buyer.phone}
-                                  </div>
-                                )}
-                                {buyer.email && (
-                                  <div>
-                                    <i className="fas fa-envelope text-gray-400 mr-1 w-4"></i> {buyer.email}
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                {buyer.preferences?.maxPrice && (
-                                  <div className="mb-1">
-                                    <i className="fas fa-euro-sign text-gray-400 mr-1 w-4"></i>
-                                    Max: {formatPrice(buyer.preferences.maxPrice)}
-                                  </div>
-                                )}
-                                {buyer.preferences?.minSize && (
-                                  <div>
-                                    <i className="fas fa-ruler-combined text-gray-400 mr-1 w-4"></i>
-                                    Min: {buyer.preferences.minSize} mq
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button 
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    const response = await fetch(`/api/clients/${buyer.id}/send-property/${id}`, {
-                                      method: 'POST',
-                                      headers: {
-                                        'Content-Type': 'application/json'
-                                      }
-                                    });
-
-                                    if (!response.ok) {
-                                      const error = await response.json();
-                                      throw new Error(error.error || 'Errore durante l\'invio dell\'immobile');
-                                    }
-
-                                    toast({
-                                      title: 'Immobile inviato',
-                                      description: `Immobile inviato con successo a ${buyer.firstName} ${buyer.lastName}`,
-                                    });
-
-                                    // Ricarica i dati
-                                    queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'buyers-with-notification-status'] });
-                                    queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'notified-buyers'] });
-                                  } catch (error) {
-                                    toast({
-                                      variant: 'destructive',
-                                      title: 'Errore',
-                                      description: error.message,
-                                    });
-                                  }
-                                }}
-                              >
-                                <i className="fas fa-paper-plane mr-2"></i> Invia immobile
-                              </Button>
-                            </TableCell>
+                ) : buyersWithStatus && buyersWithStatus.length > 0 ? (
+                  <div>
+                    <pre className="text-xs bg-gray-100 p-2 mb-4 hidden">
+                      {JSON.stringify(buyersWithStatus, null, 2)}
+                    </pre>
+                    
+                    {buyersWithStatus.filter(b => !b.notificationStatus?.notified).length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nome</TableHead>
+                            <TableHead>Contatti</TableHead>
+                            <TableHead>Preferenze</TableHead>
+                            <TableHead className="text-right">Azioni</TableHead>
                           </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {buyersWithStatus
+                            .filter(b => !b.notificationStatus?.notified)
+                            .map((buyer) => (
+                              <TableRow key={buyer.id}>
+                                <TableCell className="font-medium">
+                                  <div className="flex items-center">
+                                    <div>
+                                      <Link href={`/clients/${buyer.id}`} className="hover:underline">
+                                        {buyer.salutation ? `${buyer.salutation} ` : ""}
+                                        {buyer.firstName} {buyer.lastName}
+                                      </Link>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="text-sm">
+                                    {buyer.phone && (
+                                      <div className="mb-1">
+                                        <i className="fas fa-phone text-gray-400 mr-1 w-4"></i> {buyer.phone}
+                                      </div>
+                                    )}
+                                    {buyer.email && (
+                                      <div>
+                                        <i className="fas fa-envelope text-gray-400 mr-1 w-4"></i> {buyer.email}
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="text-sm">
+                                    {buyer.preferences?.maxPrice && (
+                                      <div className="mb-1">
+                                        <i className="fas fa-euro-sign text-gray-400 mr-1 w-4"></i>
+                                        Max: {formatPrice(buyer.preferences.maxPrice)}
+                                      </div>
+                                    )}
+                                    {buyer.preferences?.minSize && (
+                                      <div>
+                                        <i className="fas fa-ruler-combined text-gray-400 mr-1 w-4"></i>
+                                        Min: {buyer.preferences.minSize} mq
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button 
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        const response = await fetch(`/api/clients/${buyer.id}/send-property/${id}`, {
+                                          method: 'POST',
+                                          headers: {
+                                            'Content-Type': 'application/json'
+                                          }
+                                        });
+
+                                        if (!response.ok) {
+                                          const error = await response.json();
+                                          throw new Error(error.error || 'Errore durante l\'invio dell\'immobile');
+                                        }
+
+                                        toast({
+                                          title: 'Immobile inviato',
+                                          description: `Immobile inviato con successo a ${buyer.firstName} ${buyer.lastName}`,
+                                        });
+
+                                        // Ricarica i dati
+                                        queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'buyers-with-notification-status'] });
+                                        queryClient.invalidateQueries({ queryKey: ['/api/properties', id, 'notified-buyers'] });
+                                      } catch (error) {
+                                        toast({
+                                          variant: 'destructive',
+                                          title: 'Errore',
+                                          description: error.message,
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <i className="fas fa-paper-plane mr-2"></i> Invia immobile
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <div className="py-10 text-center text-gray-500">
+                        <div className="text-5xl mb-4 text-gray-300">
+                          <i className="fas fa-check-circle"></i>
+                        </div>
+                        <p className="text-lg font-medium">Tutti i clienti sono stati notificati</p>
+                        <p className="mt-1">Nessun cliente deve essere ancora notificato per questo immobile.</p>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="py-10 text-center text-gray-500">
                     <div className="text-5xl mb-4 text-gray-300">
-                      <i className="fas fa-check-circle"></i>
+                      <i className="fas fa-info-circle"></i>
                     </div>
-                    <p className="text-lg font-medium">Tutti i clienti sono stati notificati</p>
-                    <p className="mt-1">Nessun cliente deve essere ancora notificato per questo immobile.</p>
+                    <p className="text-lg font-medium">Nessun cliente abbinato</p>
+                    <p className="mt-1">Non ci sono clienti abbinati con questo immobile.</p>
                   </div>
                 )}
               </CardContent>
