@@ -400,7 +400,7 @@ export default function ClientDetailPage() {
         </div>
         
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-7 md:w-[960px]">
+          <TabsList className="w-full grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
             <TabsTrigger value="overview">Panoramica</TabsTrigger>
             <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
             <TabsTrigger value="appointments">Appuntamenti</TabsTrigger>
