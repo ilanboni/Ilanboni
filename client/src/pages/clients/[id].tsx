@@ -1284,78 +1284,119 @@ export default function ClientDetailPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {sentProperties.map((property) => (
-                      <Card key={property.id} className="overflow-hidden">
-                        <div className="aspect-video relative bg-gray-100">
-                          {property.images && property.images.length > 0 ? (
-                            <img 
-                              src={property.images[0]} 
-                              alt={property.title} 
-                              className="w-full h-full object-cover" 
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full text-gray-400">
-                              <i className="fas fa-home text-4xl"></i>
-                            </div>
-                          )}
-                          <div className="absolute top-2 right-2">
-                            <Badge className="bg-primary-900/80 text-white">
-                              € {property.price?.toLocaleString() || "N/D"}
-                            </Badge>
-                          </div>
-                        </div>
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-semibold text-lg line-clamp-1">
-                                <Link href={`/properties/${property.id}`} className="hover:text-primary-600">
-                                  {property.title}
-                                </Link>
-                              </h3>
-                              <p className="text-sm text-gray-600 line-clamp-1">{property.address}</p>
-                            </div>
-                            <Badge variant={property.status === "available" ? "success" : "outline"}>
-                              {property.status === "available" ? "Disponibile" : property.status}
-                            </Badge>
-                          </div>
-                          
-                          <div className="flex justify-between mt-3 text-sm">
-                            <div>
-                              <span className="font-medium">{property.size} m²</span>
-                              <span className="mx-1">•</span>
-                              <span>{property.bedrooms || 0} cam.</span>
-                              <span className="mx-1">•</span>
-                              <span>{property.bathrooms || 0} bagni</span>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-4 flex justify-between">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-xs"
-                              asChild
-                            >
-                              <Link href={`/properties/${property.id}`}>
-                                <i className="fas fa-info-circle mr-1"></i> Dettagli
+                  <div className="overflow-hidden rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Immobile</TableHead>
+                          <TableHead>Dettagli</TableHead>
+                          <TableHead>Data invio</TableHead>
+                          <TableHead>Metodo</TableHead>
+                          <TableHead>Feedback</TableHead>
+                          <TableHead className="text-right">Azioni</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sentProperties.map((property) => (
+                          <TableRow key={property.id}>
+                            <TableCell className="font-medium">
+                              <Link href={`/properties/${property.id}`} className="text-primary-600 hover:underline">
+                                {property.address || property.title}
                               </Link>
-                            </Button>
-                            
-                            <Button 
-                              variant="default" 
-                              size="sm" 
-                              className="text-xs"
-                              asChild
-                            >
-                              <Link href={`/communications/whatsapp?clientId=${id}&propertyId=${property.id}`}>
-                                <i className="fab fa-whatsapp mr-1"></i> Invia di nuovo
-                              </Link>
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span>{property.city}</span>
+                                <span className="text-sm text-gray-500">
+                                  {property.size} m² - 
+                                  {property.price ? ` €${property.price?.toLocaleString()}` : ""}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {property.sentAt ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <span>
+                                        {format(new Date(property.sentAt), "dd/MM/yyyy")}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{format(new Date(property.sentAt), "dd/MM/yyyy HH:mm")}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {property.communicationType ? (
+                                property.communicationType === 'whatsapp' ? (
+                                  <Badge variant="outline" className="bg-green-50 text-green-700">
+                                    <i className="fab fa-whatsapp mr-1"></i> WhatsApp
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                    <i className="fas fa-envelope mr-1"></i> Email
+                                  </Badge>
+                                )
+                              ) : (
+                                <Badge variant="outline" className="bg-green-50 text-green-700">
+                                  <i className="fab fa-whatsapp mr-1"></i> WhatsApp
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {property.feedback ? (
+                                <Badge variant={property.feedback === 'positive' ? 'success' : property.feedback === 'negative' ? 'destructive' : 'secondary'}>
+                                  {property.feedback === 'positive' ? (
+                                    <><i className="fas fa-thumbs-up mr-1"></i> Interessato</>
+                                  ) : property.feedback === 'negative' ? (
+                                    <><i className="fas fa-thumbs-down mr-1"></i> Non interessato</>
+                                  ) : (
+                                    <><i className="fas fa-question mr-1"></i> Da definire</>
+                                  )}
+                                </Badge>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-green-600 text-green-600">
+                                    <i className="fas fa-thumbs-up mr-1"></i>
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-red-600 text-red-600">
+                                    <i className="fas fa-thumbs-down mr-1"></i>
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1 border-green-600 text-green-600"
+                                  onClick={() => handleSendPropertyNotification(property.id)}
+                                >
+                                  <i className="fas fa-paper-plane"></i>
+                                  <span>Invia di nuovo</span>
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="text-slate-800"
+                                  asChild
+                                >
+                                  <Link href={`/properties/${property.id}`}>
+                                    <i className="fas fa-eye"></i>
+                                  </Link>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </CardContent>
