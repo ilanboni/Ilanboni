@@ -418,12 +418,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientId,
         propertyId,
         type: "property_notification",
-        channel: "whatsapp",
+        subject: `Notifica immobile ${property.address}`,
         content: `Immobile "${property.address}" inviato al cliente ${client.firstName} ${client.lastName} tramite WhatsApp.`,
+        direction: "outbound",
         status: "sent",
-        sentAt: now,
-        createdAt: now,
-        updatedAt: now
+        externalId: notification.id?.toString()
       };
       
       // Salva la comunicazione

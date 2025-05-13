@@ -2429,19 +2429,23 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`[matchPropertiesForBuyer] Cercando immobili per l'acquirente ${buyerId}`);
     
+    // Calcola i valori con tolleranza per uso in SQL
+    const maxPriceWithTolerance = buyer.maxPrice ? Math.floor(buyer.maxPrice * 1.1) : null;
+    const minSizeWithTolerance = buyer.minSize ? Math.floor(buyer.minSize * 0.9) : null;
+    
     // Fase 1: Filtro preliminare nel database
     let query = db.select().from(properties).where(eq(properties.status, "available"));
     
     const conditions: SQL[] = [];
     
-    if (buyer.maxPrice) {
+    if (maxPriceWithTolerance) {
       // Tolleranza 10% sul prezzo (può essere fino al 10% in più del massimo richiesto)
-      conditions.push(lte(properties.price, buyer.maxPrice * 1.1));
+      conditions.push(lte(properties.price, maxPriceWithTolerance));
     }
     
-    if (buyer.minSize) {
+    if (minSizeWithTolerance) {
       // Tolleranza 10% sulla dimensione (può essere fino al 10% in meno del minimo richiesto)
-      conditions.push(gte(properties.size, buyer.minSize * 0.9));
+      conditions.push(gte(properties.size, minSizeWithTolerance));
     }
     
     if (conditions.length > 0) {
@@ -2484,6 +2488,9 @@ export class DatabaseStorage implements IStorage {
     // Calcola il prezzo con tolleranza (+10%)
     const priceWithTolerance = Math.floor(property.price * 1.1);
     
+    // Calcola la dimensione con tolleranza (-10%)
+    const sizeWithTolerance = Math.floor(property.size * 0.9);
+    
     // Fase 1: Esegui un filtro preliminare nel database per dimensione e prezzo
     // Questo riduce il numero di clienti da verificare per la posizione geografica
     const preliminaryMatches = await db
@@ -2499,7 +2506,7 @@ export class DatabaseStorage implements IStorage {
           ),
           or(
             isNull(buyers.minSize),
-            lte(buyers.minSize, property.size / 0.9) // Tolleranza 10% sulla dimensione
+            lte(buyers.minSize, sizeWithTolerance) // Tolleranza 10% sulla dimensione
           )
         )
       );
