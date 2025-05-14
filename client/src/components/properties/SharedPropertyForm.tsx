@@ -413,7 +413,14 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 <FormItem>
                   <FormLabel>Piano dell'appartamento</FormLabel>
                   <FormControl>
-                    <Input placeholder="es. 3° piano" {...field} value={field.value || ""} />
+                    <Input 
+                      placeholder="es. 3° piano" 
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                      value={field.value || ""} 
+                    />
                   </FormControl>
                   <FormDescription>
                     Inserisci il piano dell'appartamento (es. "Piano terra", "1° piano", "Attico")
@@ -436,7 +443,14 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Nome agenzia 1</FormLabel>
                     <FormControl>
-                      <Input placeholder="es. Immobiliare Rossi" {...field} value={field.value || ""} />
+                      <Input 
+                        placeholder="es. Immobiliare Rossi" 
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value || ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -449,7 +463,14 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Link agenzia 1</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://example.com/property/1234" {...field} value={field.value || ""} />
+                      <Input 
+                        placeholder="https://example.com/property/1234" 
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value || ""} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -465,7 +486,14 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Nome agenzia 2</FormLabel>
                     <FormControl>
-                      <Input placeholder="es. Immobiliare Bianchi" {...field} value={field.value || ""} />
+                      <Input 
+                        placeholder="es. Immobiliare Bianchi" 
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value || ""} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -478,7 +506,14 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Link agenzia 2</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://example.com/property/1234" {...field} value={field.value || ""} />
+                      <Input 
+                        placeholder="https://example.com/property/1234" 
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value || ""} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -494,7 +529,14 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Nome agenzia 3</FormLabel>
                     <FormControl>
-                      <Input placeholder="es. Immobiliare Verdi" {...field} value={field.value || ""} />
+                      <Input 
+                        placeholder="es. Immobiliare Verdi" 
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value || ""} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -507,7 +549,14 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Link agenzia 3</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://example.com/property/1234" {...field} value={field.value || ""} />
+                      <Input 
+                        placeholder="https://example.com/property/1234" 
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value || ""} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
