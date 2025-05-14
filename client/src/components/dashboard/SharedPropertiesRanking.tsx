@@ -117,6 +117,18 @@ export default function SharedPropertiesRanking() {
             <Building className="h-16 w-16 mx-auto mb-4 text-gray-300" />
             <p>Nessuna proprietà condivisa trovata</p>
             <p className="text-sm mt-1">Aggiungi proprietà condivise per visualizzare la classifica</p>
+            <div className="mt-5">
+              <p className="text-xs text-gray-600 mb-3 italic max-w-md mx-auto">
+                Le proprietà condivise ti permettono di tracciare immobili di altre agenzie 
+                e identificare potenziali clienti interessati
+              </p>
+              <button
+                className="px-4 py-2 text-sm text-white bg-primary rounded hover:bg-primary/90"
+                onClick={() => window.location.href = "/properties/shared/add"}
+              >
+                Aggiungi proprietà condivisa
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -169,9 +181,9 @@ export default function SharedPropertiesRanking() {
         
         <div className="mt-4 flex justify-center">
           <Link href="/properties/shared">
-            <Button variant="outline" size="sm">
+            <button className="px-3 py-1 text-sm border rounded hover:bg-slate-50">
               Visualizza tutte le proprietà condivise
-            </Button>
+            </button>
           </Link>
         </div>
       </CardContent>

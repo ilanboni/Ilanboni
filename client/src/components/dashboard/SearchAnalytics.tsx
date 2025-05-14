@@ -9,6 +9,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { TabsList } from "@/components/ui/tabs";
 import { TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { AlertCircle } from "lucide-react";
 
@@ -160,11 +161,26 @@ export default function SearchAnalytics() {
                         style={{ backgroundColor: zoneColors[index % zoneColors.length] }}
                       ></span>
                       {zone.name}
+                      {index === 0 && (
+                        <span className="ml-2 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-800 rounded-sm">
+                          Alta richiesta
+                        </span>
+                      )}
                     </span>
                     <span className="text-gray-500">{zone.count} ricerche</span>
                   </li>
                 ))}
               </ul>
+              {zoneData.length > 0 && (
+                <div className="mt-4 text-right">
+                  <button 
+                    className="px-3 py-1 text-xs border rounded hover:bg-slate-50"
+                    onClick={() => window.location.href = "/properties/shared/add?zone=" + encodeURIComponent(zoneData[0]?.name || "")}
+                  >
+                    Cerca proprietà in {zoneData[0]?.name}
+                  </button>
+                </div>
+              )}
             </div>
           </TabsContent>
           
@@ -212,6 +228,11 @@ export default function SearchAnalytics() {
                         style={{ backgroundColor: priceColors[index % priceColors.length] }}
                       ></span>
                       {price.range}
+                      {index === 0 && (
+                        <span className="ml-2 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-800 rounded-sm">
+                          Alta richiesta
+                        </span>
+                      )}
                     </span>
                     <span className="text-gray-500">{price.count} ricerche</span>
                   </li>
@@ -264,14 +285,47 @@ export default function SearchAnalytics() {
                         style={{ backgroundColor: sizeColors[index % sizeColors.length] }}
                       ></span>
                       {size.range}
+                      {index === 0 && (
+                        <span className="ml-2 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-800 rounded-sm">
+                          Alta richiesta
+                        </span>
+                      )}
                     </span>
                     <span className="text-gray-500">{size.count} ricerche</span>
                   </li>
                 ))}
               </ul>
+              {sizeData.length > 0 && (
+                <div className="mt-4 text-right">
+                  <button 
+                    className="px-3 py-1 text-xs border rounded hover:bg-slate-50"
+                    onClick={() => window.location.href = "/properties/shared/add?size=" + encodeURIComponent(sizeData[0]?.range || "")}
+                  >
+                    Cerca proprietà di {sizeData[0]?.range}
+                  </button>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
+        
+        {/* Statistiche complessive e azioni */}
+        <div className="mt-6 pt-4 border-t flex flex-wrap items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">
+              Numero totale di clienti con preferenze: <span className="font-bold">{analyticsData.zones.reduce((sum, zone) => sum + zone.count, 0)}</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Usa queste statistiche per indirizzare la ricerca di nuove proprietà
+            </p>
+          </div>
+          <button
+            className="px-4 py-2 text-sm text-white bg-primary rounded hover:bg-primary/90 mt-2 sm:mt-0"
+            onClick={() => window.location.href = "/properties/shared/add"}
+          >
+            Cerca nuove proprietà da condividere
+          </button>
+        </div>
       </CardContent>
     </Card>
   );
