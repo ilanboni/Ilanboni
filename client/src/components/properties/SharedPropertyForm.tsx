@@ -10,6 +10,7 @@ import { InsertSharedProperty, insertSharedPropertySchema } from "@shared/schema
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { MapSelector } from "@/components/maps/MapSelector";
+import { Label } from "@/components/ui/label";
 import React, { useState, useEffect } from "react";
 
 // Extend the shared property schema with validations
@@ -452,13 +453,11 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 <FormItem>
                   <FormLabel>Piano dell'appartamento</FormLabel>
                   <FormControl>
-                    <Input 
+                    <input 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="es. 3° piano" 
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      ref={field.ref}
-                      value={field.value || ""} 
+                      onChange={handleFloorChange}
+                      value={form.getValues("floor") || ""}
                     />
                   </FormControl>
                   <FormDescription>
@@ -475,26 +474,42 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
           <h3 className="text-lg font-medium mb-4">Link altre agenzie</h3>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="agency1Name">Nome agenzia 1</Label>
-                <Input 
-                  id="agency1Name"
-                  placeholder="es. Immobiliare Rossi" 
-                  onChange={handleAgency1NameChange}
-                  value={form.getValues("agency1Name") || ""} 
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="agency1Link">Link agenzia 1</Label>
-                <Input 
-                  id="agency1Link"
-                  placeholder="https://example.com/property/1234" 
-                  onChange={handleAgency1LinkChange}
-                  value={form.getValues("agency1Link") || ""} 
-                  className="mt-1"
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="agency1Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome agenzia 1</FormLabel>
+                    <FormControl>
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="es. Immobiliare Rossi" 
+                        onChange={handleAgency1NameChange}
+                        value={form.getValues("agency1Name") || ""} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="agency1Link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link agenzia 1</FormLabel>
+                    <FormControl>
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="https://example.com/property/1234" 
+                        onChange={handleAgency1LinkChange}
+                        value={form.getValues("agency1Link") || ""} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -505,13 +520,11 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Nome agenzia 2</FormLabel>
                     <FormControl>
-                      <Input 
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="es. Immobiliare Bianchi" 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        value={field.value || ""} 
+                        onChange={handleAgency2NameChange}
+                        value={form.getValues("agency2Name") || ""} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -525,13 +538,11 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Link agenzia 2</FormLabel>
                     <FormControl>
-                      <Input 
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="https://example.com/property/1234" 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        value={field.value || ""} 
+                        onChange={handleAgency2LinkChange}
+                        value={form.getValues("agency2Link") || ""} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -548,13 +559,11 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Nome agenzia 3</FormLabel>
                     <FormControl>
-                      <Input 
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="es. Immobiliare Verdi" 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        value={field.value || ""} 
+                        onChange={handleAgency3NameChange}
+                        value={form.getValues("agency3Name") || ""} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -568,13 +577,11 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Link agenzia 3</FormLabel>
                     <FormControl>
-                      <Input 
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="https://example.com/property/1234" 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        value={field.value || ""} 
+                        onChange={handleAgency3LinkChange}
+                        value={form.getValues("agency3Link") || ""} 
                       />
                     </FormControl>
                     <FormMessage />
