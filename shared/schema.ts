@@ -215,6 +215,7 @@ export type ClientWithDetails = Client & {
   communications?: Communication[];
   lastCommunication?: Communication;
   daysSinceLastCommunication?: number;
+  matchPercentage?: number; // Percentuale di match con l'immobile
 };
 
 export type PropertyWithDetails = Property & {

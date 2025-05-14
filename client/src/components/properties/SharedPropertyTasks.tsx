@@ -190,7 +190,7 @@ export default function SharedPropertyTasks({ sharedPropertyId }: SharedProperty
     return format(date, "d MMMM yyyy", { locale: it });
   };
 
-  const getTaskStatusBadge = (dueDate: Date, status: string) => {
+  const getTaskStatusBadge = (dueDate: string, status: string) => {
     const today = new Date();
     const taskDate = new Date(dueDate);
     
@@ -248,7 +248,7 @@ export default function SharedPropertyTasks({ sharedPropertyId }: SharedProperty
                   title: formData.get('title') as string,
                   description: formData.get('description') as string,
                   sharedPropertyId,
-                  dueDate: new Date(formData.get('dueDate') as string),
+                  dueDate: formData.get('dueDate') as string,
                   status: 'pending',
                   assignedTo: null,
                 };
@@ -356,7 +356,7 @@ export default function SharedPropertyTasks({ sharedPropertyId }: SharedProperty
                           <p className="text-sm text-gray-500 mt-1">{task.description}</p>
                         )}
                         <div className="text-xs text-gray-500 mt-1">
-                          Scadenza: {formatDate(task.dueDate)}
+                          Scadenza: {task.dueDate ? formatDate(task.dueDate) : 'N/A'}
                         </div>
                       </div>
                     </div>
@@ -409,7 +409,7 @@ export default function SharedPropertyTasks({ sharedPropertyId }: SharedProperty
                           <p className="text-sm text-gray-500 mt-1 line-through">{task.description}</p>
                         )}
                         <div className="text-xs text-gray-500 mt-1">
-                          Completato il: {task.updatedAt ? formatDate(task.updatedAt) : 'N/A'}
+                          Completato il: {task.createdAt ? formatDate(task.createdAt) : 'N/A'}
                         </div>
                       </div>
                     </div>
