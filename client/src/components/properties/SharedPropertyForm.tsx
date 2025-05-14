@@ -65,6 +65,13 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
   // Use useEffect to reset form values when initialData changes
   useEffect(() => {
     if (initialData) {
+      console.log("Dati iniziali completi:", initialData);
+      console.log("Campo floor:", initialData.floor);
+      console.log("Campo agency1Name:", initialData.agency1Name);
+      console.log("Campo agency2Name:", initialData.agency2Name);
+      console.log("Campo agency3Name:", initialData.agency3Name);
+      
+      // Reset del form con tutti i dati
       form.reset({
         ...defaultValues,
         ...initialData
