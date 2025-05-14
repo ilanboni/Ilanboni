@@ -446,7 +446,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Nome agenzia 2</FormLabel>
                     <FormControl>
-                      <Input placeholder="es. Immobiliare Bianchi" {...field} />
+                      <Input placeholder="es. Immobiliare Bianchi" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -475,7 +475,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Nome agenzia 3</FormLabel>
                     <FormControl>
-                      <Input placeholder="es. Immobiliare Verdi" {...field} />
+                      <Input placeholder="es. Immobiliare Verdi" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
