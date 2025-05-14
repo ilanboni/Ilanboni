@@ -86,8 +86,12 @@ export const sharedProperties = pgTable("shared_properties", {
   ownerPhone: text("owner_phone"),
   ownerEmail: text("owner_email"),
   ownerNotes: text("owner_notes"),
+  floor: text("floor"), // piano dell'appartamento
+  agency1Name: text("agency1_name"),
   agency1Link: text("agency1_link"),
+  agency2Name: text("agency2_name"),
   agency2Link: text("agency2_link"),
+  agency3Name: text("agency3_name"),
   agency3Link: text("agency3_link"),
   rating: integer("rating").default(3), // 1-5 scale of importance/quality
   stage: text("stage").default("address_found"), // address_found, owner_found, owner_contact_found, owner_contacted, result

@@ -43,8 +43,12 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
       ownerPhone: "",
       ownerEmail: "",
       ownerNotes: "",
+      floor: "",
+      agency1Name: "",
       agency1Link: "",
+      agency2Name: "",
       agency2Link: "",
+      agency3Name: "",
       agency3Link: "",
       rating: 3,
       stage: "address_found",
@@ -366,53 +370,115 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="floor"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Piano dell'appartamento</FormLabel>
+                  <FormControl>
+                    <Input placeholder="es. 3° piano" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Inserisci il piano dell'appartamento (es. "Piano terra", "1° piano", "Attico")
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </Card>
         
         <Card className="p-6">
           <h3 className="text-lg font-medium mb-4">Link altre agenzie</h3>
-          <div className="grid grid-cols-1 gap-6">
-            <FormField
-              control={form.control}
-              name="agency1Link"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Link agenzia 1</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com/property/1234" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="agency1Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome agenzia 1</FormLabel>
+                    <FormControl>
+                      <Input placeholder="es. Immobiliare Rossi" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="agency1Link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link agenzia 1</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://example.com/property/1234" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-            <FormField
-              control={form.control}
-              name="agency2Link"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Link agenzia 2</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com/property/1234" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="agency2Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome agenzia 2</FormLabel>
+                    <FormControl>
+                      <Input placeholder="es. Immobiliare Bianchi" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="agency2Link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link agenzia 2</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://example.com/property/1234" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-            <FormField
-              control={form.control}
-              name="agency3Link"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Link agenzia 3</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com/property/1234" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="agency3Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome agenzia 3</FormLabel>
+                    <FormControl>
+                      <Input placeholder="es. Immobiliare Verdi" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="agency3Link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link agenzia 3</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://example.com/property/1234" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         </Card>
 
