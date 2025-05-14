@@ -183,7 +183,22 @@ export default function SharedPropertyDetailsPage() {
   });
   
   const handleUpdate = (data: InsertSharedProperty) => {
-    updateMutation.mutate(data);
+    console.log("Dati completi da inviare per modifica:", data);
+
+    // Assicuriamoci che i campi agency siano correttamente definiti
+    const dataToSend = {
+      ...data,
+      floor: data.floor || "",
+      agency1Name: data.agency1Name || "",
+      agency1Link: data.agency1Link || "",
+      agency2Name: data.agency2Name || "",
+      agency2Link: data.agency2Link || "",
+      agency3Name: data.agency3Name || "",
+      agency3Link: data.agency3Link || ""
+    };
+    
+    console.log("Dati finali dopo pulizia:", dataToSend);
+    updateMutation.mutate(dataToSend);
   };
   
   const handleDelete = () => {
