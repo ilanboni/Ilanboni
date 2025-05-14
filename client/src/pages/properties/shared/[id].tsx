@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { InsertSharedProperty, SharedProperty } from "@shared/schema";
 import { SharedPropertyForm } from "@/components/properties/SharedPropertyForm";
 import { apiRequest } from "@/lib/queryClient";
+import SharedPropertyTasks from "@/components/properties/SharedPropertyTasks";
+import SharedPropertyMatchingBuyers from "@/components/properties/SharedPropertyMatchingBuyers";
 
 function getStageColor(stage: string) {
   switch (stage) {
