@@ -55,7 +55,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
       stageResult: "",
       isAcquired: false,
       matchBuyers: false,
-      ...initialData
+      ...(initialData || {})
     }
   });
 
@@ -81,7 +81,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 <FormItem>
                   <FormLabel>Indirizzo</FormLabel>
                   <FormControl>
-                    <Input placeholder="Via Roma, 123" {...field} />
+                    <Input placeholder="Via Roma, 123" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -146,7 +146,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipologia</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || "apartment"}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleziona tipologia" />
@@ -220,7 +220,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Fase attuale</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || "address_found"}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleziona fase" />
@@ -246,7 +246,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Risultato</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleziona risultato" />
