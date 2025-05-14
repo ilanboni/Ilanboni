@@ -279,7 +279,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   </div>
                   <FormControl>
                     <Switch
-                      checked={field.value}
+                      checked={field.value === true}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
@@ -300,7 +300,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   </div>
                   <FormControl>
                     <Switch
-                      checked={field.value}
+                      checked={field.value === true}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
@@ -320,7 +320,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 <FormItem>
                   <FormLabel>Nome proprietario</FormLabel>
                   <FormControl>
-                    <Input placeholder="Mario Rossi" {...field} />
+                    <Input placeholder="Mario Rossi" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -334,7 +334,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 <FormItem>
                   <FormLabel>Telefono proprietario</FormLabel>
                   <FormControl>
-                    <Input placeholder="+39 123 456 7890" {...field} />
+                    <Input placeholder="+39 123 456 7890" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -348,7 +348,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 <FormItem>
                   <FormLabel>Email proprietario</FormLabel>
                   <FormControl>
-                    <Input placeholder="mario.rossi@example.com" {...field} />
+                    <Input placeholder="mario.rossi@example.com" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -380,7 +380,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 <FormItem>
                   <FormLabel>Piano dell'appartamento</FormLabel>
                   <FormControl>
-                    <Input placeholder="es. 3° piano" {...field} />
+                    <Input placeholder="es. 3° piano" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormDescription>
                     Inserisci il piano dell'appartamento (es. "Piano terra", "1° piano", "Attico")
