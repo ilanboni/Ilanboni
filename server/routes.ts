@@ -7,8 +7,15 @@ import {
   insertSharedPropertySchema,
   insertClientSchema,
   insertBuyerSchema,
-  insertSellerSchema
+  insertSellerSchema,
+  clients,
+  buyers,
+  properties,
+  sharedProperties,
+  communications
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "drizzle-orm";
 import { z } from "zod";
 import { summarizeText } from "./lib/openai";
 import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
