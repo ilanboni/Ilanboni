@@ -114,7 +114,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                       placeholder="80" 
                       {...field} 
                       value={field.value ?? 0}
-                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
+                      onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -134,7 +134,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                       placeholder="250000" 
                       {...field} 
                       value={field.value ?? 0}
-                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
+                      onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -403,7 +403,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Nome agenzia 1</FormLabel>
                     <FormControl>
-                      <Input placeholder="es. Immobiliare Rossi" {...field} />
+                      <Input placeholder="es. Immobiliare Rossi" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -416,7 +416,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Link agenzia 1</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://example.com/property/1234" {...field} />
+                      <Input placeholder="https://example.com/property/1234" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -445,7 +445,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Link agenzia 2</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://example.com/property/1234" {...field} />
+                      <Input placeholder="https://example.com/property/1234" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -474,7 +474,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                   <FormItem>
                     <FormLabel>Link agenzia 3</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://example.com/property/1234" {...field} />
+                      <Input placeholder="https://example.com/property/1234" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
