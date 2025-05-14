@@ -10,7 +10,7 @@ import { InsertSharedProperty, insertSharedPropertySchema } from "@shared/schema
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { MapSelector } from "@/components/maps/MapSelector";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 // Extend the shared property schema with validations
 const formSchema = insertSharedPropertySchema.extend({
@@ -29,35 +29,48 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
     initialData?.location as {lat?: number; lng?: number} | null
   );
 
+  // Prepare default values combining defaults with initialData
+  const defaultValues = {
+    propertyId: null, // Impostiamo esplicitamente a null invece di 0 
+    address: "",
+    city: "",
+    size: 0,
+    price: 0,
+    type: "apartment",
+    ownerName: "",
+    ownerPhone: "",
+    ownerEmail: "",
+    ownerNotes: "",
+    floor: "",
+    agency1Name: "",
+    agency1Link: "",
+    agency2Name: "",
+    agency2Link: "",
+    agency3Name: "",
+    agency3Link: "",
+    rating: 3,
+    stage: "address_found",
+    stageResult: "",
+    isAcquired: false,
+    matchBuyers: false,
+    ...(initialData || {})
+  };
+
   // Initialize the form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      propertyId: null, // Impostiamo esplicitamente a null invece di 0 
-      address: "",
-      city: "",
-      size: 0,
-      price: 0,
-      type: "apartment",
-      ownerName: "",
-      ownerPhone: "",
-      ownerEmail: "",
-      ownerNotes: "",
-      floor: "",
-      agency1Name: "",
-      agency1Link: "",
-      agency2Name: "",
-      agency2Link: "",
-      agency3Name: "",
-      agency3Link: "",
-      rating: 3,
-      stage: "address_found",
-      stageResult: "",
-      isAcquired: false,
-      matchBuyers: false,
-      ...(initialData || {})
-    }
+    defaultValues: defaultValues,
   });
+  
+  // Use useEffect to reset form values when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        ...defaultValues,
+        ...initialData
+      });
+    }
+  }, [initialData, form, defaultValues]);
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     // Include location data from map
@@ -366,6 +379,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                       placeholder="Note informative sul proprietario..." 
                       className="resize-none" 
                       {...field} 
+                      value={field.value || ""}
                     />
                   </FormControl>
                   <FormMessage />
