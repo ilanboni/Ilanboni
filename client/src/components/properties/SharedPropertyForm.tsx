@@ -80,11 +80,23 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
   }, [initialData, form, defaultValues]);
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    // Include location data from map
+    // Include location data from map and log che cosa viene inviato
+    console.log("Valori form prima dell'invio:", values);
+    
     const formData = {
       ...values,
-      location: locationData
+      location: locationData,
+      // Assicuriamoci che i campi siano presenti anche se vuoti
+      floor: values.floor || "",
+      agency1Name: values.agency1Name || "",
+      agency1Link: values.agency1Link || "",
+      agency2Name: values.agency2Name || "",
+      agency2Link: values.agency2Link || "",
+      agency3Name: values.agency3Name || "",
+      agency3Link: values.agency3Link || ""
     };
+    
+    console.log("Dati completi da inviare:", formData);
     onSubmit(formData);
   };
 

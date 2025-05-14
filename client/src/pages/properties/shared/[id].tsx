@@ -108,6 +108,7 @@ export default function SharedPropertyDetailsPage() {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async (data: InsertSharedProperty) => {
+      console.log("Dati da inviare all'API:", data);
       return apiRequest(`/api/shared-properties/${params.id}`, {
         method: 'PATCH',
         data
