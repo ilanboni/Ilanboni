@@ -863,20 +863,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Crea una proprietà condivisa
   app.post("/api/shared-properties", async (req: Request, res: Response) => {
     try {
+      console.log("Ricevuta richiesta di creazione proprietà condivisa:", JSON.stringify(req.body, null, 2));
+      
       // Valida i dati in ingresso
       const result = insertSharedPropertySchema.safeParse(req.body);
       
       if (!result.success) {
+        console.log("Errore di validazione:", JSON.stringify(result.error.format(), null, 2));
         return res.status(400).json({ 
           error: "Dati condivisione non validi", 
           details: result.error.format() 
         });
       }
       
-      const newSharedProperty = await storage.createSharedProperty(result.data);
+      console.log("Validazione passata, creazione in corso...");
+      
+      // Prepariamo i dati per la creazione, assicurandoci che propertyId possa essere 0 o null
+      const dataToInsert = {
+        ...result.data
+      };
+      
+      // Se propertyId è 0, impostalo a null
+      if (dataToInsert.propertyId === 0) {
+        dataToInsert.propertyId = null;
+      }
+      
+      const newSharedProperty = await storage.createSharedProperty(dataToInsert);
+      console.log("Proprietà condivisa creata con successo:", newSharedProperty.id);
       res.status(201).json(newSharedProperty);
     } catch (error) {
-      console.error("[POST /api/shared-properties]", error);
+      console.error("[POST /api/shared-properties] Errore completo:", error);
       res.status(500).json({ error: "Errore durante la creazione della proprietà condivisa" });
     }
   });

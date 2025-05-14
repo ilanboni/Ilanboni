@@ -33,7 +33,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      propertyId: 0,
+      propertyId: null, // Impostiamo esplicitamente a null invece di 0 
       address: "",
       city: "",
       size: 0,

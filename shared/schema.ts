@@ -172,7 +172,11 @@ export const insertClientSchema = createInsertSchema(clients).omit({ id: true, c
 export const insertBuyerSchema = createInsertSchema(buyers).omit({ id: true });
 export const insertSellerSchema = createInsertSchema(sellers).omit({ id: true });
 export const insertPropertySchema = createInsertSchema(properties).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertSharedPropertySchema = createInsertSchema(sharedProperties).omit({ id: true });
+export const insertSharedPropertySchema = createInsertSchema(sharedProperties)
+  .omit({ id: true })
+  .extend({
+    propertyId: z.number().nullable().optional(), // Permettiamo sia null che undefined
+  });
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true });
 export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, createdAt: true });
