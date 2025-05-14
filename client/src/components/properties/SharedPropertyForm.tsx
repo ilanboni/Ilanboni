@@ -89,6 +89,35 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
     }
   }, [initialData, form, defaultValues]);
 
+  // Implementiamo funzioni di supporto per aggiornare manualmente ogni campo
+  const handleAgency1NameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency1Name", e.target.value);
+  };
+  
+  const handleAgency1LinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency1Link", e.target.value);
+  };
+  
+  const handleAgency2NameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency2Name", e.target.value);
+  };
+  
+  const handleAgency2LinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency2Link", e.target.value);
+  };
+  
+  const handleAgency3NameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency3Name", e.target.value);
+  };
+  
+  const handleAgency3LinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency3Link", e.target.value);
+  };
+  
+  const handleFloorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("floor", e.target.value);
+  };
+
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     // Include location data from map and log che cosa viene inviato
     console.log("Valori form prima dell'invio:", values);
@@ -446,46 +475,26 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
           <h3 className="text-lg font-medium mb-4">Link altre agenzie</h3>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="agency1Name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome agenzia 1</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="es. Immobiliare Rossi" 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="agency1Link"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link agenzia 1</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="https://example.com/property/1234" 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                        value={field.value || ""} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div>
+                <Label htmlFor="agency1Name">Nome agenzia 1</Label>
+                <Input 
+                  id="agency1Name"
+                  placeholder="es. Immobiliare Rossi" 
+                  onChange={handleAgency1NameChange}
+                  value={form.getValues("agency1Name") || ""} 
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="agency1Link">Link agenzia 1</Label>
+                <Input 
+                  id="agency1Link"
+                  placeholder="https://example.com/property/1234" 
+                  onChange={handleAgency1LinkChange}
+                  value={form.getValues("agency1Link") || ""} 
+                  className="mt-1"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
