@@ -95,7 +95,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                 <FormItem>
                   <FormLabel>Città</FormLabel>
                   <FormControl>
-                    <Input placeholder="Milano" {...field} />
+                    <Input placeholder="Milano" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -113,6 +113,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                       type="number" 
                       placeholder="80" 
                       {...field} 
+                      value={field.value ?? 0}
                       onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
                     />
                   </FormControl>
@@ -132,6 +133,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
                       type="number" 
                       placeholder="250000" 
                       {...field} 
+                      value={field.value ?? 0}
                       onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
                     />
                   </FormControl>
@@ -172,7 +174,7 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Valutazione importanza (1-5)</FormLabel>
-                  <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value.toString()}>
+                  <Select onValueChange={(value) => field.onChange(parseInt(value))} value={(field.value ?? 3).toString()}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleziona importanza" />
