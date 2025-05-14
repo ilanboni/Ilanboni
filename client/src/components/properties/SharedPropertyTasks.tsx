@@ -356,7 +356,7 @@ export default function SharedPropertyTasks({ sharedPropertyId }: SharedProperty
                           <p className="text-sm text-gray-500 mt-1">{task.description}</p>
                         )}
                         <div className="text-xs text-gray-500 mt-1">
-                          Scadenza: {task.dueDate ? formatDate(task.dueDate) : 'N/A'}
+                          Scadenza: {task.dueDate ? formatDate(task.dueDate.toString()) : 'N/A'}
                         </div>
                       </div>
                     </div>

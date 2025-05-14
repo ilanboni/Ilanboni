@@ -527,54 +527,11 @@ export default function SharedPropertyDetailsPage() {
         </div>
         
         <div>
-          {property.matchBuyers && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Compratori Compatibili</CardTitle>
-                <CardDescription>
-                  Potenziali acquirenti interessati a questo tipo di immobile
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {matchingBuyers ? (
-                  matchingBuyers.length > 0 ? (
-                    <div className="space-y-4">
-                      {matchingBuyers.map((buyer: any) => (
-                        <div key={buyer.id} className="border rounded-md p-3 hover:bg-gray-50">
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-center">
-                              <User className="h-5 w-5 text-gray-400 mr-2" />
-                              <div>
-                                <p className="font-medium">{buyer.firstName} {buyer.lastName}</p>
-                                <p className="text-sm text-gray-500">{buyer.email || buyer.phone}</p>
-                              </div>
-                            </div>
-                            <Badge variant="outline">{buyer.urgent ? "Urgente" : "Standard"}</Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center py-6">
-                      Nessun compratore compatibile trovato
-                    </p>
-                  )
-                ) : (
-                  <div className="space-y-3 py-2">
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full" onClick={() => setLocation("/clients/type/buyer")}>
-                  <User className="h-4 w-4 mr-2" />
-                  Gestisci compratori
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
+          {/* Componente per i potenziali acquirenti interessati */}
+          <SharedPropertyMatchingBuyers 
+            sharedPropertyId={property.id} 
+            isAcquired={property.isAcquired}
+          />
           
           {/* Activity feed could be added here in the future */}
           <Card className="mt-6">
@@ -587,6 +544,9 @@ export default function SharedPropertyDetailsPage() {
               </p>
             </CardContent>
           </Card>
+          
+          {/* Task Management per la proprietà condivisa */}
+          <SharedPropertyTasks sharedPropertyId={property.id} />
         </div>
       </div>
     </div>
