@@ -76,7 +76,7 @@ export const properties = pgTable("properties", {
 // Shared properties (for multi-agency listings)
 export const sharedProperties = pgTable("shared_properties", {
   id: serial("id").primaryKey(),
-  propertyId: integer("property_id").notNull().references(() => properties.id),
+  propertyId: integer("property_id").references(() => properties.id),
   address: text("address").notNull(),
   city: text("city"),
   size: integer("size"),
