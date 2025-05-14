@@ -54,17 +54,24 @@ export default function SharedPropertiesPage() {
   const { data: sharedProperties, isLoading, isError } = useQuery({
     queryKey: ['/api/shared-properties', filters],
     queryFn: async ({ queryKey }) => {
-      const [_, filters] = queryKey;
-      const queryParams = new URLSearchParams();
-      if (filters.stage) queryParams.set('stage', filters.stage);
-      if (filters.search) queryParams.set('search', filters.search);
+      try {
+        const [_, filters] = queryKey;
+        const queryParams = new URLSearchParams();
+        if (filters.stage) queryParams.set('stage', filters.stage);
+        if (filters.search) queryParams.set('search', filters.search);
 
-      const response = await fetch(`/api/shared-properties?${queryParams}`);
-      if (!response.ok) {
-        throw new Error('Errore nel caricamento delle proprietà condivise');
+        const response = await fetch(`/api/shared-properties?${queryParams}`);
+        if (!response.ok) {
+          throw new Error('Errore nel caricamento delle proprietà condivise');
+        }
+        return response.json() as Promise<SharedProperty[]>;
+      } catch (error) {
+        console.error("Errore nel caricamento delle proprietà condivise:", error);
+        throw error;
       }
-      return response.json() as Promise<SharedProperty[]>;
-    }
+    },
+    retry: 1,
+    retryDelay: 1000
   });
 
   // Handle search
