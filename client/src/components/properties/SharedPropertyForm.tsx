@@ -71,10 +71,20 @@ export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitti
       console.log("Campo agency2Name:", initialData.agency2Name);
       console.log("Campo agency3Name:", initialData.agency3Name);
       
-      // Reset del form con tutti i dati
+      // Reset del form con tutti i dati - cloniamo l'oggetto per evitare riferimenti mantenuti
+      const cleanData = JSON.parse(JSON.stringify(initialData));
+      
       form.reset({
         ...defaultValues,
-        ...initialData
+        ...cleanData,
+        // Forziamo esplicitamente questi campi
+        floor: cleanData.floor || "",
+        agency1Name: cleanData.agency1Name || "",
+        agency1Link: cleanData.agency1Link || "",
+        agency2Name: cleanData.agency2Name || "",
+        agency2Link: cleanData.agency2Link || "",
+        agency3Name: cleanData.agency3Name || "",
+        agency3Link: cleanData.agency3Link || ""
       });
     }
   }, [initialData, form, defaultValues]);
