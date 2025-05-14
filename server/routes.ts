@@ -1621,6 +1621,204 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Altri endpoint API esistenti
   
+  // API per le statistiche di ricerca (analytics)
+  app.get("/api/analytics/searches", async (req: Request, res: Response) => {
+    try {
+      // Fetch tutti i buyer dal database
+      const buyersData = await db
+        .select()
+        .from(buyers)
+        .innerJoin(clients, eq(buyers.clientId, clients.id));
+      
+      // Calcolare statistiche per zone (aree di ricerca)
+      const zoneStats: Record<string, { count: number }> = {};
+      buyersData.forEach(buyer => {
+        if (buyer.clients.city) {
+          const zone = buyer.clients.city.split(',')[0].trim();
+          if (!zoneStats[zone]) {
+            zoneStats[zone] = { count: 0 };
+          }
+          zoneStats[zone].count += 1;
+        }
+      });
+      
+      // Calcolare statistiche per fasce di prezzo
+      const priceRangeStats: Record<string, { count: number }> = {
+        'Fino a €150k': { count: 0 },
+        '€150k - €300k': { count: 0 },
+        '€300k - €500k': { count: 0 },
+        '€500k - €800k': { count: 0 },
+        'Oltre €800k': { count: 0 }
+      };
+      
+      buyersData.forEach(buyer => {
+        const maxPrice = buyer.buyers.maxPrice;
+        if (!maxPrice) return;
+        
+        if (maxPrice <= 150000) {
+          priceRangeStats['Fino a €150k'].count += 1;
+        } else if (maxPrice <= 300000) {
+          priceRangeStats['€150k - €300k'].count += 1;
+        } else if (maxPrice <= 500000) {
+          priceRangeStats['€300k - €500k'].count += 1;
+        } else if (maxPrice <= 800000) {
+          priceRangeStats['€500k - €800k'].count += 1;
+        } else {
+          priceRangeStats['Oltre €800k'].count += 1;
+        }
+      });
+      
+      // Calcolare statistiche per dimensioni (metri quadri)
+      const sizeRangeStats: Record<string, { count: number }> = {
+        'Fino a 50 m²': { count: 0 },
+        '50 - 80 m²': { count: 0 },
+        '80 - 120 m²': { count: 0 },
+        '120 - 200 m²': { count: 0 },
+        'Oltre 200 m²': { count: 0 }
+      };
+      
+      buyersData.forEach(buyer => {
+        const minSize = buyer.buyers.minSize;
+        if (!minSize) return;
+        
+        if (minSize <= 50) {
+          sizeRangeStats['Fino a 50 m²'].count += 1;
+        } else if (minSize <= 80) {
+          sizeRangeStats['50 - 80 m²'].count += 1;
+        } else if (minSize <= 120) {
+          sizeRangeStats['80 - 120 m²'].count += 1;
+        } else if (minSize <= 200) {
+          sizeRangeStats['120 - 200 m²'].count += 1;
+        } else {
+          sizeRangeStats['Oltre 200 m²'].count += 1;
+        }
+      });
+      
+      // Convertire in array e calcolare percentuali
+      const totalBuyers = buyersData.length || 1; // Evita divisione per zero
+      
+      const zones = Object.entries(zoneStats)
+        .map(([name, { count }]) => ({
+          name,
+          count,
+          percentage: Math.round((count / totalBuyers) * 100)
+        }))
+        .sort((a, b) => b.count - a.count);
+      
+      const priceRanges = Object.entries(priceRangeStats)
+        .map(([range, { count }]) => ({
+          range,
+          count,
+          percentage: Math.round((count / totalBuyers) * 100)
+        }))
+        .sort((a, b) => b.count - a.count);
+      
+      const sizeRanges = Object.entries(sizeRangeStats)
+        .map(([range, { count }]) => ({
+          range,
+          count,
+          percentage: Math.round((count / totalBuyers) * 100)
+        }))
+        .sort((a, b) => b.count - a.count);
+      
+      // Restituire i risultati
+      res.json({
+        zones,
+        priceRanges,
+        sizeRanges
+      });
+    } catch (error) {
+      console.error("Error calculating search analytics:", error);
+      res.status(500).json({ error: "Error calculating search analytics" });
+    }
+  });
+  
+  // API per la classifica delle proprietà condivise
+  app.get("/api/analytics/shared-properties-ranking", async (req: Request, res: Response) => {
+    try {
+      // Fetch proprietà condivise
+      const sharedProps = await db
+        .select()
+        .from(sharedProperties);
+        
+      // Per ogni proprietà, calcola il numero di potenziali interessati
+      const rankedProperties = await Promise.all(sharedProps.map(async (property) => {
+        const buyersData = await db
+          .select()
+          .from(buyers)
+          .innerJoin(clients, eq(buyers.clientId, clients.id));
+          
+        // Calcola quanti buyer potrebbero essere interessati
+        const interestedBuyers = buyersData.filter(buyer => {
+          if (!property.size || !property.price) return false;
+          
+          const matchesSize = !buyer.buyers.minSize || property.size >= buyer.buyers.minSize * 0.9;
+          const matchesPrice = !buyer.buyers.maxPrice || property.price <= buyer.buyers.maxPrice * 1.1;
+          
+          return matchesSize && matchesPrice;
+        });
+        
+        // Calcola match percentage medio
+        let totalMatchScore = 0;
+        
+        interestedBuyers.forEach(buyer => {
+          let matchScore = 0;
+          let totalCriteria = 0;
+          
+          if (buyer.buyers.minSize && property.size) {
+            totalCriteria++;
+            const sizeRatio = property.size / buyer.buyers.minSize;
+            if (sizeRatio >= 1 && sizeRatio <= 1.5) {
+              matchScore += 1;
+            } else if (sizeRatio >= 0.9 && sizeRatio < 1) {
+              matchScore += 0.7;
+            } else if (sizeRatio > 1.5) {
+              matchScore += 0.5;
+            }
+          }
+          
+          if (buyer.buyers.maxPrice && property.price) {
+            totalCriteria++;
+            const priceRatio = property.price / buyer.buyers.maxPrice;
+            if (priceRatio <= 1) {
+              matchScore += 1;
+            } else if (priceRatio > 1 && priceRatio <= 1.1) {
+              matchScore += 0.7;
+            }
+          }
+          
+          totalMatchScore += totalCriteria > 0 ? (matchScore / totalCriteria) : 0.5;
+        });
+        
+        const averageMatchPercentage = interestedBuyers.length > 0
+          ? Math.round((totalMatchScore / interestedBuyers.length) * 100)
+          : 0;
+          
+        return {
+          id: property.id,
+          address: property.address || 'Indirizzo non specificato',
+          city: property.city || 'Città non specificata',
+          size: property.size,
+          price: property.price,
+          interestedBuyersCount: interestedBuyers.length,
+          matchPercentage: averageMatchPercentage,
+          stage: property.stage || 'address_found',
+          isAcquired: property.isAcquired || false
+        };
+      }));
+      
+      // Ordina per numero di potenziali interessati (decrescente)
+      const sortedProperties = rankedProperties.sort((a, b) => 
+        b.interestedBuyersCount - a.interestedBuyersCount
+      );
+      
+      res.json(sortedProperties);
+    } catch (error) {
+      console.error("Error fetching shared properties ranking:", error);
+      res.status(500).json({ error: "Error fetching shared properties ranking" });
+    }
+  });
+  
   // Registra i router per API specifiche
   app.use("/api/geocode", geocodeRouter);
 
