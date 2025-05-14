@@ -74,12 +74,19 @@ export default function SharedPropertyDetailsPage() {
   const { data: property, isLoading, isError, error } = useQuery({
     queryKey: ['/api/shared-properties', params.id],
     queryFn: async () => {
-      const response = await fetch(`/api/shared-properties/${params.id}`);
-      if (!response.ok) {
-        throw new Error('Errore nel caricamento dei dettagli della proprietà condivisa');
+      try {
+        const response = await fetch(`/api/shared-properties/${params.id}`);
+        if (!response.ok) {
+          throw new Error('Errore nel caricamento dei dettagli della proprietà condivisa');
+        }
+        return response.json() as Promise<SharedProperty>;
+      } catch (error) {
+        console.error(`Errore nel caricamento della proprietà condivisa ID ${params.id}:`, error);
+        throw error;
       }
-      return response.json() as Promise<SharedProperty>;
-    }
+    },
+    retry: 1,
+    retryDelay: 1000
   });
   
   // Fetch matching buyers if property has the matchBuyers flag
