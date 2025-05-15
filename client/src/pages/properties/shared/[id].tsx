@@ -9,6 +9,7 @@ import { AlertCircle, ArrowLeft, CalendarRange, Edit, ExternalLink, MapPin, Phon
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryClient } from "@/lib/queryClient";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
@@ -661,26 +662,28 @@ export default function SharedPropertyDetailsPage() {
         </div>
         
         <div>
-          {/* Componente per i potenziali acquirenti interessati */}
-          <SharedPropertyMatchingBuyers 
-            sharedPropertyId={property.id} 
-            isAcquired={property.isAcquired}
-          />
-          
-          {/* Activity feed could be added here in the future */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Attività recenti</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-500 text-center py-6">
-                Le attività recenti saranno mostrate qui
-              </p>
-            </CardContent>
-          </Card>
-          
-          {/* Task Management per la proprietà condivisa */}
-          <SharedPropertyTasks sharedPropertyId={property.id} />
+          {/* Schede per le diverse funzionalità */}
+          <Tabs defaultValue="matching" className="w-full mb-6">
+            <TabsList className="mb-4 grid grid-cols-2 w-full">
+              <TabsTrigger value="matching">
+                Potenziali interessati
+              </TabsTrigger>
+              <TabsTrigger value="tasks">
+                Attività
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="matching">
+              <SharedPropertyMatchingBuyers 
+                sharedPropertyId={property.id} 
+                isAcquired={property.isAcquired}
+              />
+            </TabsContent>
+            
+            <TabsContent value="tasks">
+              <SharedPropertyTasks sharedPropertyId={property.id} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
