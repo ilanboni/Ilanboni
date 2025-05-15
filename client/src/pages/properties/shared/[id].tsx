@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { InsertSharedProperty, SharedProperty } from "@shared/schema";
 import { SharedPropertyForm } from "@/components/properties/SharedPropertyForm";
+import { SharedPropertySimpleForm } from "@/components/properties/SharedPropertySimpleForm";
 import { apiRequest } from "@/lib/queryClient";
 import SharedPropertyTasks from "@/components/properties/SharedPropertyTasks";
 import SharedPropertyMatchingBuyers from "@/components/properties/SharedPropertyMatchingBuyers";
@@ -426,17 +427,22 @@ export default function SharedPropertyDetailsPage() {
                   <h3 className="text-lg font-semibold mb-3 mt-6">Link Agenzie</h3>
                   
                   <div className="space-y-3">
-                    {property.agency1Link ? (
+                    {property.agency1Name || property.agency1Link ? (
                       <div className="flex justify-between items-center border-b pb-2">
-                        <Label>Agenzia 1</Label>
-                        <a 
-                          href={property.agency1Link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline flex items-center"
-                        >
-                          Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                        </a>
+                        <div>
+                          <Label className="block">Agenzia 1</Label>
+                          {property.agency1Name && <span className="text-sm">{property.agency1Name}</span>}
+                        </div>
+                        {property.agency1Link && (
+                          <a 
+                            href={property.agency1Link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:underline flex items-center"
+                          >
+                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <div className="border-b pb-2 text-gray-500 text-sm">
@@ -444,17 +450,22 @@ export default function SharedPropertyDetailsPage() {
                       </div>
                     )}
                     
-                    {property.agency2Link ? (
+                    {property.agency2Name || property.agency2Link ? (
                       <div className="flex justify-between items-center border-b pb-2">
-                        <Label>Agenzia 2</Label>
-                        <a 
-                          href={property.agency2Link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline flex items-center"
-                        >
-                          Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                        </a>
+                        <div>
+                          <Label className="block">Agenzia 2</Label>
+                          {property.agency2Name && <span className="text-sm">{property.agency2Name}</span>}
+                        </div>
+                        {property.agency2Link && (
+                          <a 
+                            href={property.agency2Link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:underline flex items-center"
+                          >
+                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <div className="border-b pb-2 text-gray-500 text-sm">
@@ -462,17 +473,22 @@ export default function SharedPropertyDetailsPage() {
                       </div>
                     )}
                     
-                    {property.agency3Link ? (
+                    {property.agency3Name || property.agency3Link ? (
                       <div className="flex justify-between items-center border-b pb-2">
-                        <Label>Agenzia 3</Label>
-                        <a 
-                          href={property.agency3Link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline flex items-center"
-                        >
-                          Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                        </a>
+                        <div>
+                          <Label className="block">Agenzia 3</Label>
+                          {property.agency3Name && <span className="text-sm">{property.agency3Name}</span>}
+                        </div>
+                        {property.agency3Link && (
+                          <a 
+                            href={property.agency3Link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:underline flex items-center"
+                          >
+                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <div className="border-b pb-2 text-gray-500 text-sm">

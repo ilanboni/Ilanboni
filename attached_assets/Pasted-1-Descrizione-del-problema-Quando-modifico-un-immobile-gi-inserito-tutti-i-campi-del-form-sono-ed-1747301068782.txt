@@ -1,0 +1,73 @@
+1. Descrizione del problema
+Quando modifico un immobile già inserito, tutti i campi del form sono editabili tranne i sei campi relativi alle agenzie (Agenzia 1, Agenzia 2, Agenzia 3 e Link Agenzia 1, Link Agenzia 2, Link Agenzia 3): non è possibile digitare nulla al loro interno.
+
+2. Comportamento atteso
+Durante la modifica, tutti i campi devono poter essere aggiornati con nuovi valori.
+
+3. Comportamento effettivo
+Gli input delle agenzie risultano “bloccati” (pur non essendo disabilitati via HTML), non ricevono eventi di digitazione né modifiche.
+
+4. Passi per riprodurre il problema
+
+Aprire l’app su Replit all’indirizzo <tuo-url-replit>
+
+Inserire un nuovo immobile compilando tutti i campi, comprese Agenzia 1/Link Agenzia 1 ecc.
+
+Salvare l’immobile (viene registrato correttamente).
+
+Cliccare su “Modifica” di quell’immobile.
+
+Provare a digitare nei campi “Agenzia 1/2/3” o “Link Agenzia 1/2/3”: il cursore appare ma la tastiera non immette testo.
+
+5. Codice rilevante
+(Incolla qui il frammento di HTML/JSX e lo snippet di JavaScript che gestisce il binding del form. Ad esempio:)
+
+html
+Copia
+Modifica
+<!-- input per Agenzia 1 -->
+<input 
+  type="text" 
+  id="agency1" 
+  name="agency1" 
+  value={this.state.agency1} 
+  onChange={this.handleChange} 
+/>
+js
+Copia
+Modifica
+handleChange(e) {
+  const { name, value } = e.target;
+  this.setState({ [name]: value });
+}
+6. Log della console (se presenti errori)
+(Apri la console del browser, copia eventuali errori rossi o warning.)
+
+7. Ambiente di esecuzione
+
+Browser: Chrome 113.0.5672.63 (Windows 10)
+
+Versione Replit: (usa la versione di runtime indicata in “Packages” o “Replit.toml”)
+
+Framework: React 17.0.2 / plain JS / altro
+
+Dipendenze principali: …
+
+8. Screenshot / GIF
+(allega uno screenshot o una GIF che mostri il click nell’input e l’impossibilità di digitare)
+
+9. Note aggiuntive
+
+Ho provato a ispezionare l’elemento: non ha l’attributo disabled, nè readonly.
+
+Non ci sono overlay o CSS che sovrascrivono il puntatore.
+
+Il problema è comparso da due giorni, probabilmente dopo l’ultimo aggiornamento del template del form.
+
+Se riuscissero a verificare:
+
+Che gli input abbiano effettivamente un listener onChange attivo
+
+Che lo state venga aggiornato correttamente (magari aggiungendo un console.log dentro handleChange)
+
+Che non ci siano errori di binding (es. name diverso da state)
