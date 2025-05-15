@@ -1029,6 +1029,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Errore durante il recupero delle attività dell'immobile" });
     }
   });
+  
+  // Endpoint per ottenere le attività di una proprietà condivisa
+  app.get("/api/shared-properties/:id/tasks", async (req: Request, res: Response) => {
+    try {
+      const sharedPropertyId = parseInt(req.params.id);
+      if (isNaN(sharedPropertyId)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const tasks = await storage.getTasksBySharedPropertyId(sharedPropertyId);
+      res.json(tasks);
+    } catch (error) {
+      console.error(`[GET /api/shared-properties/${req.params.id}/tasks]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle attività della proprietà condivisa" });
+    }
+  });
 
   // API per la gestione dei clienti
   
