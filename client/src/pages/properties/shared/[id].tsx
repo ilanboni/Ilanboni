@@ -294,15 +294,110 @@ export default function SharedPropertyDetailsPage() {
           </Button>
           <h1 className="text-3xl font-bold">Modifica Proprietà Condivisa</h1>
         </div>
-        
-        <Card className="p-6">
-          <SharedPropertyForm
-            initialData={property}
-            onSubmit={handleUpdate}
-            onCancel={() => setIsEditing(false)}
-            isSubmitting={updateMutation.isPending}
-          />
-        </Card>
+
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          
+          // Creiamo una copia dei dati della proprietà
+          const updatedProperty = {...property};
+          
+          // Aggiungiamo i valori aggiornati dai campi del form
+          updatedProperty.agency1Name = (document.getElementById('agency1Name') as HTMLInputElement).value;
+          updatedProperty.agency1Link = (document.getElementById('agency1Link') as HTMLInputElement).value;
+          updatedProperty.agency2Name = (document.getElementById('agency2Name') as HTMLInputElement).value;
+          updatedProperty.agency2Link = (document.getElementById('agency2Link') as HTMLInputElement).value;
+          updatedProperty.agency3Name = (document.getElementById('agency3Name') as HTMLInputElement).value;
+          updatedProperty.agency3Link = (document.getElementById('agency3Link') as HTMLInputElement).value;
+          updatedProperty.floor = (document.getElementById('floor') as HTMLInputElement).value;
+          
+          console.log("Dati aggiornati prima dell'invio:", updatedProperty);
+          
+          // Inviamo i dati aggiornati
+          handleUpdate(updatedProperty);
+        }} className="space-y-6">
+          <Card className="p-6 mb-6">
+            <h3 className="text-lg font-medium mb-4">Modifica dati agenzie</h3>
+            
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="floor" className="block text-sm font-medium mb-1">Piano dell'appartamento</label>
+                  <input 
+                    id="floor"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.floor || ""}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="agency1Name" className="block text-sm font-medium mb-1">Nome agenzia 1</label>
+                  <input 
+                    id="agency1Name"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency1Name || ""}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="agency1Link" className="block text-sm font-medium mb-1">Link agenzia 1</label>
+                  <input 
+                    id="agency1Link"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency1Link || ""}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="agency2Name" className="block text-sm font-medium mb-1">Nome agenzia 2</label>
+                  <input 
+                    id="agency2Name"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency2Name || ""}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="agency2Link" className="block text-sm font-medium mb-1">Link agenzia 2</label>
+                  <input 
+                    id="agency2Link"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency2Link || ""}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="agency3Name" className="block text-sm font-medium mb-1">Nome agenzia 3</label>
+                  <input 
+                    id="agency3Name"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency3Name || ""}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="agency3Link" className="block text-sm font-medium mb-1">Link agenzia 3</label>
+                  <input 
+                    id="agency3Link"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency3Link || ""}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-4 mt-6">
+              <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Salvataggio..." : "Salva modifiche"}
+              </Button>
+            </div>
+          </Card>
+        </form>
       </div>
     );
   }
