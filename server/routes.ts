@@ -1126,13 +1126,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/clients", async (req: Request, res: Response) => {
     try {
       // Log completo dei dati ricevuti per diagnosi
+      console.log("===============================================");
+      console.log("[POST /api/clients] INIZIO PROCESSO CREAZIONE CLIENTE");
       console.log("[POST /api/clients] Dati ricevuti:", JSON.stringify(req.body, null, 2));
+      console.log("[POST /api/clients] Headers:", JSON.stringify(req.headers, null, 2));
       
       // Valida i dati in ingresso
       const result = insertClientSchema.safeParse(req.body);
       
       if (!result.success) {
-        console.error("[POST /api/clients] Errore validazione:", result.error.format());
+        console.error("[POST /api/clients] ERRORE VALIDAZIONE:", JSON.stringify(result.error.format(), null, 2));
+        console.error("[POST /api/clients] ERRORE DETAILS:", result.error.issues);
         return res.status(400).json({ 
           error: "Dati cliente non validi", 
           details: result.error.format() 
