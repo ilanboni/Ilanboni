@@ -21,7 +21,7 @@ import { summarizeText } from "./lib/openai";
 import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
 import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
 import geocodeRouter from "./routes/geocode";
-import { convertRequestBodyToSnakeCase } from "./middleware/caseConverter";
+import { convertRequestToSnakeCase } from "./middleware/caseConverter";
 import { camelToSnake, snakeToCamel } from "./utils/caseConverter";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -37,11 +37,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("===============================================\n");
   
   // Applica middleware di conversione camelCase -> snake_case per tutti gli endpoint che gestiscono dati
-  app.use("/api/clients", convertRequestBodyToSnakeCase);
-  app.use("/api/buyers", convertRequestBodyToSnakeCase);
-  app.use("/api/sellers", convertRequestBodyToSnakeCase);
-  app.use("/api/properties", convertRequestBodyToSnakeCase);
-  app.use("/api/shared-properties", convertRequestBodyToSnakeCase);
+  app.use("/api/clients", convertRequestToSnakeCase);
+  app.use("/api/buyers", convertRequestToSnakeCase);
+  app.use("/api/sellers", convertRequestToSnakeCase);
+  app.use("/api/properties", convertRequestToSnakeCase);
+  app.use("/api/shared-properties", convertRequestToSnakeCase);
   
   // API per la gestione delle comunicazioni
 

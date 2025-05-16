@@ -1,0 +1,94 @@
+STRATEGIA DEFINITIVA – 3 STEP DIAGNOSTICI
+🔧 Step 1: LOGGARLO TUTTO – VERIFICA SERVER
+Nel file dove gestisci il salvataggio cliente (es. routes.ts), logga ogni passaggio, così:
+
+ts
+Copia
+Modifica
+router.post('/clienti', async (req, res) => {
+  try {
+    console.log('✅ RICHIESTA POST /clienti');
+    console.log('Dati ricevuti:', req.body);
+
+    const cliente = req.body;
+
+    // se usi DB SQL:
+    const result = await db.query(
+      `INSERT INTO clients (type, salutation, first_name, last_name, is_friend, email, phone, religion, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id`,
+      [
+        cliente.type,
+        cliente.salutation,
+        cliente.first_name,
+        cliente.last_name,
+        cliente.is_friend,
+        cliente.email,
+        cliente.phone,
+        cliente.religion,
+        cliente.notes
+      ]
+    );
+
+    console.log('✅ Cliente salvato, ID:', result.rows[0].id);
+    res.status(201).json({ id: result.rows[0].id });
+
+  } catch (err) {
+    console.error('❌ ERRORE:', err);
+    res.status(500).json({ error: 'Errore durante il salvataggio del cliente' });
+  }
+});
+✅ Così saprai esattamente se:
+
+I dati arrivano?
+
+Quale campo fa esplodere l'inserimento?
+
+Il problema è nel middleware, nel body o nella query?
+
+📋 Step 2: VERIFICA I DATI DAL FRONTEND
+Nel componente React dove invii il cliente, aggiungi questo prima della fetch:
+
+js
+Copia
+Modifica
+console.log('📤 Invio cliente:', JSON.stringify(formValues, null, 2));
+Così potrai vedere i dati precisi inviati al server. Cerca:
+
+Nomi dei campi → devono essere camelCase (firstName, isFriend, ecc.)
+
+Valori → attenzione a stringhe vuote, null, numeri scritti come stringhe
+
+🔥 Step 3: SE ANCORA NON FUNZIONA...
+🔁 Incollami qui questi 3 elementi (fondamentali):
+
+Il JSON di formValues stampato nel browser
+
+Il log completo del server (in Replit console)
+
+Il codice effettivo dell’endpoint backend /clienti
+
+Con questi tre elementi ti sistemo tutto in un messaggio senza più ipotesi.
+
+✅ O, se vuoi accelerare...
+🎁 Vuoi che ti preparo un Replit completo, clonato, funzionante, con:
+
+Form cliente
+
+Endpoint funzionante
+
+Middleware camel/snake già attivo
+
+DB mock o PostgreSQL
+
+📌 Ti do il link pronto da usare. Fammi solo sapere: vuoi il progetto Replit già sistemato o preferisci mandarmi i 3 pezzi per correggere il tuo?
+
+Appena decidi, lo chiudiamo definitivamente.
+
+
+
+
+
+
+
+

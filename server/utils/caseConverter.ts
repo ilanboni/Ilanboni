@@ -1,87 +1,70 @@
 /**
- * Utilità per la conversione tra diversi formati di notazione (camelCase, snake_case, ecc.)
+ * Utility per la conversione tra formati di denominazione
+ * Gestisce la conversione tra camelCase e snake_case
  */
 
 /**
- * Converte le chiavi di un oggetto da camelCase a snake_case
- * @param obj L'oggetto con chiavi in camelCase
- * @returns Un nuovo oggetto con chiavi convertite in snake_case
+ * Converte una stringa da camelCase a snake_case
+ * @param str Stringa in camelCase
+ * @returns Stringa in snake_case
  */
-export function camelToSnake(obj: Record<string, any>): Record<string, any> {
-  if (!obj || typeof obj !== 'object') return obj;
-  
-  // Se è un array, converti ogni elemento
-  if (Array.isArray(obj)) {
-    return obj.map(item => typeof item === 'object' ? camelToSnake(item) : item);
-  }
-  
-  // Altrimenti converti l'oggetto
-  const result: Record<string, any> = {};
-  
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      // Converti la chiave da camelCase a snake_case
-      const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      
-      // Gestisci ricorsivamente oggetti annidati
-      const value = obj[key];
-      
-      if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-        // Ricorsione per oggetti annidati
-        result[snakeKey] = camelToSnake(value);
-      } else if (Array.isArray(value)) {
-        // Gestisci array di oggetti
-        result[snakeKey] = value.map(item => 
-          typeof item === 'object' && item !== null ? camelToSnake(item) : item
-        );
-      } else {
-        // Valori primitivi
-        result[snakeKey] = value;
-      }
-    }
-  }
-  
-  return result;
+export function camelToSnake(str: string): string {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase();
 }
 
 /**
- * Converte le chiavi di un oggetto da snake_case a camelCase
- * @param obj L'oggetto con chiavi in snake_case
- * @returns Un nuovo oggetto con chiavi convertite in camelCase
+ * Converte una stringa da snake_case a camelCase
+ * @param str Stringa in snake_case
+ * @returns Stringa in camelCase
  */
-export function snakeToCamel(obj: Record<string, any>): Record<string, any> {
-  if (!obj || typeof obj !== 'object') return obj;
-  
-  // Se è un array, converti ogni elemento
+export function snakeToCamel(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+/**
+ * Converte le chiavi di un oggetto da camelCase a snake_case
+ * Supporta anche oggetti annidati
+ * @param obj Oggetto con chiavi in camelCase
+ * @returns Oggetto con chiavi in snake_case
+ */
+export function convertObjectKeysToCamelCase(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
   if (Array.isArray(obj)) {
-    return obj.map(item => typeof item === 'object' ? snakeToCamel(item) : item);
+    return obj.map(item => convertObjectKeysToCamelCase(item));
   }
-  
-  // Altrimenti converti l'oggetto
-  const result: Record<string, any> = {};
-  
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      // Converti la chiave da snake_case a camelCase
-      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-      
-      // Gestisci ricorsivamente oggetti annidati
-      const value = obj[key];
-      
-      if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-        // Ricorsione per oggetti annidati
-        result[camelKey] = snakeToCamel(value);
-      } else if (Array.isArray(value)) {
-        // Gestisci array di oggetti
-        result[camelKey] = value.map(item => 
-          typeof item === 'object' && item !== null ? snakeToCamel(item) : item
-        );
-      } else {
-        // Valori primitivi
-        result[camelKey] = value;
-      }
-    }
+
+  const newObj: Record<string, any> = {};
+  Object.keys(obj).forEach(key => {
+    const camelKey = snakeToCamel(key);
+    newObj[camelKey] = convertObjectKeysToCamelCase(obj[key]);
+  });
+
+  return newObj;
+}
+
+/**
+ * Converte le chiavi di un oggetto da camelCase a snake_case
+ * Supporta anche oggetti annidati
+ * @param obj Oggetto con chiavi in camelCase
+ * @returns Oggetto con chiavi in snake_case
+ */
+export function convertObjectKeysToSnakeCase(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
   }
-  
-  return result;
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => convertObjectKeysToSnakeCase(item));
+  }
+
+  const newObj: Record<string, any> = {};
+  Object.keys(obj).forEach(key => {
+    const snakeKey = camelToSnake(key);
+    newObj[snakeKey] = convertObjectKeysToSnakeCase(obj[key]);
+  });
+
+  return newObj;
 }

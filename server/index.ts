@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { fetchRecentWhatsAppMessages } from "./lib/ultramsgApi";
 import directClientRoutes from "./routes/direct-client";
+import { convertRequestToSnakeCase, convertResponseToCamelCase } from "./middleware/caseConverter";
 
 // Intervallo in millisecondi per il polling dei messaggi WhatsApp
 const WHATSAPP_POLLING_INTERVAL = 60000; // 1 minuto
@@ -10,6 +11,8 @@ const WHATSAPP_POLLING_INTERVAL = 60000; // 1 minuto
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(convertRequestToSnakeCase);
+app.use(convertResponseToCamelCase);
 
 // Registra le rotte per l'inserimento diretto di clienti
 app.use('/api/direct-clients', directClientRoutes);
