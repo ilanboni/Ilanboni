@@ -1,0 +1,113 @@
+✅ Passo 1: Inserisci questo codice backend esattamente così com’è
+Apri il tuo file server/index.js (o server.js) e incolla questo per testare l’inserimento del cliente in modo isolato:
+
+js
+Copia
+Modifica
+import express from 'express';
+import bodyParser from 'body-parser';
+import cors from 'cors';
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(bodyParser.json());
+
+app.post('/api/clienti', (req, res) => {
+  console.log('📨 Dati ricevuti:', req.body);
+
+  const {
+    nome,
+    cognome,
+    telefono,
+    email,
+    contratto,
+    poligonoRicerca,
+    mqMinimi,
+    prezzoMax,
+    urgenza,
+    rating,
+    noteRicerca
+  } = req.body;
+
+  if (!nome || !cognome || !telefono) {
+    console.log('❌ Campi obbligatori mancanti');
+    return res.status(400).json({ error: 'Nome, cognome e telefono sono obbligatori' });
+  }
+
+  // Simulazione salvataggio (finta risposta per test)
+  const clienteSalvato = {
+    id: Date.now(),
+    nome,
+    cognome,
+    telefono,
+    email,
+    contratto,
+    poligonoRicerca,
+    mqMinimi: parseInt(mqMinimi),
+    prezzoMax: parseInt(prezzoMax),
+    urgenza,
+    rating,
+    noteRicerca
+  };
+
+  console.log('✅ Cliente simulato salvato:', clienteSalvato);
+  res.status(201).json(clienteSalvato);
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Server attivo su http://localhost:${PORT}`);
+});
+✅ Passo 2: In frontend, invia i dati in formato controllato
+Nel form di salvataggio, prima della fetch inserisci questo:
+
+js
+Copia
+Modifica
+console.log("Dati inviati al backend:", formValues);
+Poi invia così:
+
+js
+Copia
+Modifica
+fetch('/api/clienti', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(formValues)
+})
+.then(async res => {
+  const json = await res.json();
+  if (!res.ok) {
+    console.error('Errore dal backend:', json);
+    alert('Errore salvataggio cliente: ' + (json.error || 'Errore generico'));
+  } else {
+    console.log('✅ Cliente salvato:', json);
+    alert('Cliente salvato con successo!');
+  }
+})
+.catch(err => {
+  console.error('Errore fetch:', err);
+  alert('Errore di connessione con il server');
+});
+✅ Passo 3: Testa
+Apri la console del browser e compila il form
+
+Clicca "Salva"
+
+Guarda:
+
+Che dati arrivano al backend (console Replit)
+
+Se viene mostrato un messaggio d’errore preciso o una risposta 201
+
+Se ancora non funziona
+❗Incollami esattamente:
+
+I dati che compili nel form (es. formValues)
+
+L’intera risposta dal backend (res.json() se contiene error)
+
+Il messaggio stampato nella console Replit (lato server)
