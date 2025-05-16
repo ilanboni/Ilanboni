@@ -89,6 +89,65 @@ async function pollWhatsAppMessages() {
 }
 
 (async () => {
+  // Endpoint di test per la creazione di un cliente
+  app.get("/api/test/create-client", async (req: Request, res: Response) => {
+    try {
+      // Importa e usa il modulo DB
+      const { pool } = await import('./db');
+      
+      // Dati cliente (snake_case)
+      const clientData = {
+        type: "buyer",
+        salutation: "caro",
+        first_name: "Test", 
+        last_name: "SQL",
+        is_friend: false,
+        email: "test@example.com",
+        phone: "393334455667",
+        religion: "none",
+        contract_type: "sale",
+        notes: "Cliente inserito direttamente tramite SQL"
+      };
+      
+      // Inserisci cliente
+      const result = await pool.query(`
+        INSERT INTO clients (
+          type, salutation, first_name, last_name, is_friend, 
+          email, phone, religion, contract_type, notes
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id, type, first_name, last_name, phone
+      `, [
+        clientData.type,
+        clientData.salutation,
+        clientData.first_name,
+        clientData.last_name,
+        clientData.is_friend,
+        clientData.email,
+        clientData.phone,
+        clientData.religion,
+        clientData.contract_type,
+        clientData.notes
+      ]);
+      
+      const cliente = result.rows[0];
+      console.log("✅ Cliente di test creato con successo:", cliente);
+      
+      return res.status(200).json({
+        success: true,
+        message: "Test creazione cliente eseguito con successo",
+        client: cliente
+      });
+    } catch (error) {
+      console.error("Errore test creazione cliente:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Errore durante il test",
+        message: String(error)
+      });
+    }
+  });
+
   // Endpoint di emergenza per inserire direttamente cliente nel database
   app.post("/api/clients/direct-sql", async (req: Request, res: Response) => {
     try {
