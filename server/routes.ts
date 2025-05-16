@@ -7,22 +7,13 @@ import {
   insertSharedPropertySchema,
   insertClientSchema,
   insertBuyerSchema,
-  insertSellerSchema,
-  clients,
-  buyers,
-  properties,
-  sharedProperties,
-  communications
+  insertSellerSchema
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "drizzle-orm";
 import { z } from "zod";
 import { summarizeText } from "./lib/openai";
 import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
 import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
 import geocodeRouter from "./routes/geocode";
-import { convertRequestToSnakeCase } from "./middleware/caseConverter";
-import { camelToSnake, snakeToCamel } from "./utils/caseConverter";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Registra le route per il webhook forwarder
@@ -35,14 +26,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("WEBHOOK FORWARDER KEY:", forwardKey);
   console.log("Usa questa chiave quando configuri webhook.site per inoltrare i messaggi all'app");
   console.log("===============================================\n");
-  
-  // Applica middleware di conversione camelCase -> snake_case per tutti gli endpoint che gestiscono dati
-  app.use("/api/clients", convertRequestToSnakeCase);
-  app.use("/api/buyers", convertRequestToSnakeCase);
-  app.use("/api/sellers", convertRequestToSnakeCase);
-  app.use("/api/properties", convertRequestToSnakeCase);
-  app.use("/api/shared-properties", convertRequestToSnakeCase);
-  
   // API per la gestione delle comunicazioni
 
   // Ottieni tutte le comunicazioni (con filtri opzionali)
@@ -873,36 +856,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Crea una proprietà condivisa
   app.post("/api/shared-properties", async (req: Request, res: Response) => {
     try {
-      console.log("Ricevuta richiesta di creazione proprietà condivisa:", JSON.stringify(req.body, null, 2));
-      
       // Valida i dati in ingresso
       const result = insertSharedPropertySchema.safeParse(req.body);
       
       if (!result.success) {
-        console.log("Errore di validazione:", JSON.stringify(result.error.format(), null, 2));
         return res.status(400).json({ 
           error: "Dati condivisione non validi", 
           details: result.error.format() 
         });
       }
       
-      console.log("Validazione passata, creazione in corso...");
-      
-      // Prepariamo i dati per la creazione, assicurandoci che propertyId possa essere 0 o null
-      const dataToInsert = {
-        ...result.data
-      };
-      
-      // Se propertyId è 0, impostalo a null
-      if (dataToInsert.propertyId === 0) {
-        dataToInsert.propertyId = null;
-      }
-      
-      const newSharedProperty = await storage.createSharedProperty(dataToInsert);
-      console.log("Proprietà condivisa creata con successo:", newSharedProperty.id);
+      const newSharedProperty = await storage.createSharedProperty(result.data);
       res.status(201).json(newSharedProperty);
     } catch (error) {
-      console.error("[POST /api/shared-properties] Errore completo:", error);
+      console.error("[POST /api/shared-properties]", error);
       res.status(500).json({ error: "Errore durante la creazione della proprietà condivisa" });
     }
   });
@@ -1039,22 +1006,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Errore durante il recupero delle attività dell'immobile" });
     }
   });
-  
-  // Endpoint per ottenere le attività di una proprietà condivisa
-  app.get("/api/shared-properties/:id/tasks", async (req: Request, res: Response) => {
-    try {
-      const sharedPropertyId = parseInt(req.params.id);
-      if (isNaN(sharedPropertyId)) {
-        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
-      }
-      
-      const tasks = await storage.getTasksBySharedPropertyId(sharedPropertyId);
-      res.json(tasks);
-    } catch (error) {
-      console.error(`[GET /api/shared-properties/${req.params.id}/tasks]`, error);
-      res.status(500).json({ error: "Errore durante il recupero delle attività della proprietà condivisa" });
-    }
-  });
 
   // API per la gestione dei clienti
   
@@ -1132,261 +1083,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Endpoint di emergenza per la creazione diretta dei clienti
-  app.post("/api/clients/emergency", async (req: Request, res: Response) => {
-    try {
-      console.log("===============================================");
-      console.log("[EMERGENCY] START DIRECT CLIENT CREATION");
-      console.log("[EMERGENCY] Dati ricevuti:", JSON.stringify(req.body, null, 2));
-      
-      // Dati minimi richiesti
-      if (!req.body || !req.body.type || !req.body.firstName || !req.body.lastName || !req.body.phone) {
-        return res.status(400).json({
-          error: "Dati minimi mancanti",
-          details: "Serve almeno type, firstName, lastName e phone"
-        });
-      }
-      
-      // Costruisci manualmente l'oggetto cliente con la mappatura corretta per i nomi colonne
-      const clientData = {
-        type: req.body.type,
-        salutation: req.body.salutation || "",
-        // Mappatura dei campi camelCase ai nomi colonna snake_case
-        first_name: req.body.firstName,
-        last_name: req.body.lastName,
-        is_friend: req.body.isFriend === true,
-        email: req.body.email || "",
-        phone: req.body.phone,
-        religion: req.body.religion || "",
-        birthday: null, // Impostiamo a null per maggiore sicurezza
-        contract_type: req.body.contractType || null,
-        notes: req.body.notes || ""
-      };
-      
-      try {
-        // Inserimento diretto nel database
-        const newClient = await storage.createClient(clientData);
-        console.log("[EMERGENCY] Cliente creato con successo, ID:", newClient.id);
-        
-        // Se è un buyer, crea le preferenze
-        if (req.body.type === "buyer" && req.body.buyer) {
-          try {
-            // Dati minimi per il buyer con mappatura snake_case corretta
-            const buyerData = {
-              client_id: newClient.id,
-              search_area: req.body.buyer.searchArea || null,
-              min_size: parseInt(req.body.buyer.minSize) || null,
-              max_price: parseInt(req.body.buyer.maxPrice) || null,
-              urgency: parseInt(req.body.buyer.urgency) || 3,
-              rating: parseInt(req.body.buyer.rating) || 3,
-              search_notes: req.body.buyer.searchNotes || ""
-            };
-            
-            const newBuyer = await storage.createBuyer(buyerData);
-            console.log("[EMERGENCY] Buyer creato con successo");
-          } catch (buyerError) {
-            console.error("[EMERGENCY] Errore buyer:", buyerError);
-          }
-        }
-        
-        // Se è un seller, crea i dati venditore
-        if (req.body.type === "seller" && req.body.seller) {
-          try {
-            const sellerData = {
-              clientId: newClient.id,
-              propertyId: parseInt(req.body.seller.propertyId) || null
-            };
-            
-            const newSeller = await storage.createSeller(sellerData);
-            console.log("[EMERGENCY] Seller creato con successo");
-          } catch (sellerError) {
-            console.error("[EMERGENCY] Errore seller:", sellerError);
-          }
-        }
-        
-        // Tutto ok
-        return res.status(201).json({
-          success: true,
-          client: newClient,
-          message: "Cliente creato con successo usando procedura di emergenza"
-        });
-      } catch (dbError) {
-        console.error("[EMERGENCY] Database error:", dbError);
-        return res.status(500).json({
-          error: "Errore database",
-          details: String(dbError)
-        });
-      }
-    } catch (error) {
-      console.error("[EMERGENCY] Errore generale:", error);
-      return res.status(500).json({ error: "Errore interno" });
-    }
-  });
-
   // Crea un nuovo cliente
   app.post("/api/clients", async (req: Request, res: Response) => {
     try {
-      // Log completo dei dati ricevuti per diagnosi
-      console.log("===============================================");
-      console.log("[POST /api/clients] INIZIO PROCESSO CREAZIONE CLIENTE");
-      console.log("[POST /api/clients] Dati ricevuti:", JSON.stringify(req.body, null, 2));
+      // Valida i dati in ingresso
+      const result = insertClientSchema.safeParse(req.body);
       
-      // Controllo preliminare dei dati
-      if (!req.body || !req.body.type || !req.body.firstName || !req.body.lastName || !req.body.phone) {
-        console.error("[POST /api/clients] ERRORE: Dati obbligatori mancanti nei dati ricevuti");
-        return res.status(400).json({
-          error: "Dati cliente non validi",
-          details: "Campi obbligatori mancanti: type, firstName, lastName, phone"
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Dati cliente non validi", 
+          details: result.error.format() 
         });
       }
       
-      console.log("[POST /api/clients] Campi obbligatori presenti, procedo con la validazione");
-      
-      // Prepara i dati per la validazione
-      // Copia i dati del cliente per evitare modifiche all'originale
-      const clientData = {
-        type: req.body.type,
-        salutation: req.body.salutation || "",
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        isFriend: !!req.body.isFriend, // Converti in booleano
-        email: req.body.email || "",
-        phone: req.body.phone,
-        religion: req.body.religion || "",
-        birthday: req.body.birthday, // Il formato sarà gestito dalla validazione
-        contractType: req.body.contractType || null,
-        notes: req.body.notes || ""
-      };
-      
-      // Valida i dati in ingresso
-      const result = insertClientSchema.safeParse(clientData);
-      
-      if (!result.success) {
-        console.error("[POST /api/clients] ERRORE VALIDAZIONE:", JSON.stringify(result.error.format(), null, 2));
-        console.error("[POST /api/clients] ERRORE ISSUES:", result.error.issues);
-        
-        // Se la validazione fallisce, reindirizza all'endpoint di emergenza
-        console.log("[POST /api/clients] Tentativo di usare l'endpoint di emergenza");
-        
-        // Costruisci manualmente l'oggetto cliente
-        const emergencyClientData = {
-          type: req.body.type,
-          salutation: req.body.salutation || "",
-          firstName: req.body.firstName,
-          lastName: req.body.lastName,
-          isFriend: req.body.isFriend === true,
-          email: req.body.email || "",
-          phone: req.body.phone,
-          religion: req.body.religion || "",
-          birthday: null, // Impostiamo a null per maggiore sicurezza
-          contractType: req.body.contractType || null,
-          notes: req.body.notes || ""
-        };
-        
-        try {
-          // Inserimento diretto nel database
-          const newClient = await storage.createClient(emergencyClientData);
-          console.log("[POST /api/clients] Cliente creato con procedura di emergenza, ID:", newClient.id);
-          
-          // Se è un buyer, crea le preferenze
-          if (req.body.type === "buyer" && req.body.buyer) {
-            try {
-              // Dati minimi per il buyer
-              const buyerData = {
-                clientId: newClient.id,
-                searchArea: req.body.buyer.searchArea || null,
-                minSize: parseInt(req.body.buyer.minSize) || null,
-                maxPrice: parseInt(req.body.buyer.maxPrice) || null,
-                urgency: parseInt(req.body.buyer.urgency) || 3,
-                rating: parseInt(req.body.buyer.rating) || 3,
-                searchNotes: req.body.buyer.searchNotes || ""
-              };
-              
-              const newBuyer = await storage.createBuyer(buyerData);
-              console.log("[POST /api/clients] Buyer creato con procedura di emergenza");
-            } catch (buyerError) {
-              console.error("[POST /api/clients] Errore buyer procedura emergenza:", buyerError);
-            }
-          }
-          
-          // Se è un seller, crea i dati venditore
-          if (req.body.type === "seller" && req.body.seller) {
-            try {
-              const sellerData = {
-                clientId: newClient.id,
-                propertyId: parseInt(req.body.seller.propertyId) || null
-              };
-              
-              const newSeller = await storage.createSeller(sellerData);
-              console.log("[POST /api/clients] Seller creato con procedura di emergenza");
-            } catch (sellerError) {
-              console.error("[POST /api/clients] Errore seller procedura emergenza:", sellerError);
-            }
-          }
-          
-          // Tutto ok
-          return res.status(201).json(newClient);
-        } catch (dbError) {
-          console.error("[POST /api/clients] Errore database procedura emergenza:", dbError);
-          return res.status(500).json({
-            error: "Errore database",
-            details: String(dbError)
-          });
-        }
-      }
-      
-      console.log("[POST /api/clients] Validazione schema completata con successo");
-      
-      // Crea il cliente
       const newClient = await storage.createClient(result.data);
-      console.log("[POST /api/clients] Cliente creato con successo, ID:", newClient.id);
       
       // Se è un cliente di tipo buyer, crea anche il record buyer corrispondente
       if (newClient.type === "buyer" && req.body.buyer) {
         try {
-          console.log("[POST /api/clients] Creazione buyer per cliente id:", newClient.id);
-          
-          // Assicuriamoci che i campi numerici siano effettivamente numeri
-          let minSize = null;
-          if (req.body.buyer.minSize !== undefined && req.body.buyer.minSize !== null && req.body.buyer.minSize !== '') {
-            const parsedSize = Number(req.body.buyer.minSize);
-            minSize = !isNaN(parsedSize) ? parsedSize : null;
-          }
-          
-          let maxPrice = null;
-          if (req.body.buyer.maxPrice !== undefined && req.body.buyer.maxPrice !== null && req.body.buyer.maxPrice !== '') {
-            const parsedPrice = Number(req.body.buyer.maxPrice);
-            maxPrice = !isNaN(parsedPrice) ? parsedPrice : null;
-          }
-          
-          let urgency = 3;
-          if (req.body.buyer.urgency !== undefined && req.body.buyer.urgency !== null) {
-            const parsedUrgency = Number(req.body.buyer.urgency);
-            urgency = !isNaN(parsedUrgency) ? parsedUrgency : 3;
-          }
-          
-          let rating = 3;
-          if (req.body.buyer.rating !== undefined && req.body.buyer.rating !== null) {
-            const parsedRating = Number(req.body.buyer.rating);
-            rating = !isNaN(parsedRating) ? parsedRating : 3;
-          }
-          
-          const buyerData = {
+          await storage.createBuyer({
             clientId: newClient.id,
             searchArea: req.body.buyer.searchArea || null,
-            minSize: minSize,
-            maxPrice: maxPrice,
-            urgency: urgency,
-            rating: rating,
-            searchNotes: req.body.buyer.searchNotes || ""
-          };
-          
-          console.log("[POST /api/clients] Dati buyer:", JSON.stringify(buyerData, null, 2));
-          
-          const newBuyer = await storage.createBuyer(buyerData);
-          console.log("[POST /api/clients] Buyer creato con successo");
+            minSize: req.body.buyer.minSize || null,
+            maxPrice: req.body.buyer.maxPrice || null,
+            urgency: req.body.buyer.urgency || 3,
+            rating: req.body.buyer.rating || 3,
+            searchNotes: req.body.buyer.searchNotes || null
+          });
         } catch (buyerError) {
-          console.error("[POST /api/clients] Errore creazione buyer:", buyerError);
+          console.error("[POST /api/clients] Error creating buyer:", buyerError);
           // Non blocchiamo la creazione del cliente se fallisce la creazione del buyer
         }
       }
@@ -1394,35 +1119,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Se è un cliente di tipo seller, crea anche il record seller corrispondente
       if (newClient.type === "seller" && req.body.seller) {
         try {
-          console.log("[POST /api/clients] Creazione seller per cliente id:", newClient.id);
-          
-          // Assicuriamoci che l'ID proprietà sia un numero (se presente)
-          let propertyId = null;
-          if (req.body.seller.propertyId !== undefined && req.body.seller.propertyId !== null && req.body.seller.propertyId !== '') {
-            propertyId = Number(req.body.seller.propertyId);
-            // Se la conversione non produce un numero valido, impostiamo a null
-            if (isNaN(propertyId)) propertyId = null;
-          }
-          
-          const sellerData = {
+          await storage.createSeller({
             clientId: newClient.id,
-            propertyId: propertyId
-          };
-          console.log("[POST /api/clients] Dati seller:", JSON.stringify(sellerData, null, 2));
-          
-          const newSeller = await storage.createSeller(sellerData);
-          console.log("[POST /api/clients] Seller creato con successo");
+            propertyId: req.body.seller.propertyId || null
+          });
         } catch (sellerError) {
-          console.error("[POST /api/clients] Errore creazione seller:", sellerError);
+          console.error("[POST /api/clients] Error creating seller:", sellerError);
           // Non blocchiamo la creazione del cliente se fallisce la creazione del seller
         }
       }
       
-      // Ritorna il cliente creato al client
-      console.log("[POST /api/clients] Risposta con stato 201 e dati cliente");
-      return res.status(201).json(newClient);
+      res.status(201).json(newClient);
     } catch (error) {
-      console.error("[POST /api/clients] Errore:", error);
+      console.error("[POST /api/clients]", error);
       res.status(500).json({ error: "Errore durante la creazione del cliente" });
     }
   });
@@ -1904,204 +1613,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Altri endpoint API esistenti
-  
-  // API per le statistiche di ricerca (analytics)
-  app.get("/api/analytics/searches", async (req: Request, res: Response) => {
-    try {
-      // Fetch tutti i buyer dal database
-      const buyersData = await db
-        .select()
-        .from(buyers)
-        .innerJoin(clients, eq(buyers.clientId, clients.id));
-      
-      // Calcolare statistiche per zone (aree di ricerca)
-      const zoneStats: Record<string, { count: number }> = {};
-      buyersData.forEach(buyer => {
-        if (buyer.clients.city) {
-          const zone = buyer.clients.city.split(',')[0].trim();
-          if (!zoneStats[zone]) {
-            zoneStats[zone] = { count: 0 };
-          }
-          zoneStats[zone].count += 1;
-        }
-      });
-      
-      // Calcolare statistiche per fasce di prezzo
-      const priceRangeStats: Record<string, { count: number }> = {
-        'Fino a €150k': { count: 0 },
-        '€150k - €300k': { count: 0 },
-        '€300k - €500k': { count: 0 },
-        '€500k - €800k': { count: 0 },
-        'Oltre €800k': { count: 0 }
-      };
-      
-      buyersData.forEach(buyer => {
-        const maxPrice = buyer.buyers.maxPrice;
-        if (!maxPrice) return;
-        
-        if (maxPrice <= 150000) {
-          priceRangeStats['Fino a €150k'].count += 1;
-        } else if (maxPrice <= 300000) {
-          priceRangeStats['€150k - €300k'].count += 1;
-        } else if (maxPrice <= 500000) {
-          priceRangeStats['€300k - €500k'].count += 1;
-        } else if (maxPrice <= 800000) {
-          priceRangeStats['€500k - €800k'].count += 1;
-        } else {
-          priceRangeStats['Oltre €800k'].count += 1;
-        }
-      });
-      
-      // Calcolare statistiche per dimensioni (metri quadri)
-      const sizeRangeStats: Record<string, { count: number }> = {
-        'Fino a 50 m²': { count: 0 },
-        '50 - 80 m²': { count: 0 },
-        '80 - 120 m²': { count: 0 },
-        '120 - 200 m²': { count: 0 },
-        'Oltre 200 m²': { count: 0 }
-      };
-      
-      buyersData.forEach(buyer => {
-        const minSize = buyer.buyers.minSize;
-        if (!minSize) return;
-        
-        if (minSize <= 50) {
-          sizeRangeStats['Fino a 50 m²'].count += 1;
-        } else if (minSize <= 80) {
-          sizeRangeStats['50 - 80 m²'].count += 1;
-        } else if (minSize <= 120) {
-          sizeRangeStats['80 - 120 m²'].count += 1;
-        } else if (minSize <= 200) {
-          sizeRangeStats['120 - 200 m²'].count += 1;
-        } else {
-          sizeRangeStats['Oltre 200 m²'].count += 1;
-        }
-      });
-      
-      // Convertire in array e calcolare percentuali
-      const totalBuyers = buyersData.length || 1; // Evita divisione per zero
-      
-      const zones = Object.entries(zoneStats)
-        .map(([name, { count }]) => ({
-          name,
-          count,
-          percentage: Math.round((count / totalBuyers) * 100)
-        }))
-        .sort((a, b) => b.count - a.count);
-      
-      const priceRanges = Object.entries(priceRangeStats)
-        .map(([range, { count }]) => ({
-          range,
-          count,
-          percentage: Math.round((count / totalBuyers) * 100)
-        }))
-        .sort((a, b) => b.count - a.count);
-      
-      const sizeRanges = Object.entries(sizeRangeStats)
-        .map(([range, { count }]) => ({
-          range,
-          count,
-          percentage: Math.round((count / totalBuyers) * 100)
-        }))
-        .sort((a, b) => b.count - a.count);
-      
-      // Restituire i risultati
-      res.json({
-        zones,
-        priceRanges,
-        sizeRanges
-      });
-    } catch (error) {
-      console.error("Error calculating search analytics:", error);
-      res.status(500).json({ error: "Error calculating search analytics" });
-    }
-  });
-  
-  // API per la classifica delle proprietà condivise
-  app.get("/api/analytics/shared-properties-ranking", async (req: Request, res: Response) => {
-    try {
-      // Fetch proprietà condivise
-      const sharedProps = await db
-        .select()
-        .from(sharedProperties);
-        
-      // Per ogni proprietà, calcola il numero di potenziali interessati
-      const rankedProperties = await Promise.all(sharedProps.map(async (property) => {
-        const buyersData = await db
-          .select()
-          .from(buyers)
-          .innerJoin(clients, eq(buyers.clientId, clients.id));
-          
-        // Calcola quanti buyer potrebbero essere interessati
-        const interestedBuyers = buyersData.filter(buyer => {
-          if (!property.size || !property.price) return false;
-          
-          const matchesSize = !buyer.buyers.minSize || property.size >= buyer.buyers.minSize * 0.9;
-          const matchesPrice = !buyer.buyers.maxPrice || property.price <= buyer.buyers.maxPrice * 1.1;
-          
-          return matchesSize && matchesPrice;
-        });
-        
-        // Calcola match percentage medio
-        let totalMatchScore = 0;
-        
-        interestedBuyers.forEach(buyer => {
-          let matchScore = 0;
-          let totalCriteria = 0;
-          
-          if (buyer.buyers.minSize && property.size) {
-            totalCriteria++;
-            const sizeRatio = property.size / buyer.buyers.minSize;
-            if (sizeRatio >= 1 && sizeRatio <= 1.5) {
-              matchScore += 1;
-            } else if (sizeRatio >= 0.9 && sizeRatio < 1) {
-              matchScore += 0.7;
-            } else if (sizeRatio > 1.5) {
-              matchScore += 0.5;
-            }
-          }
-          
-          if (buyer.buyers.maxPrice && property.price) {
-            totalCriteria++;
-            const priceRatio = property.price / buyer.buyers.maxPrice;
-            if (priceRatio <= 1) {
-              matchScore += 1;
-            } else if (priceRatio > 1 && priceRatio <= 1.1) {
-              matchScore += 0.7;
-            }
-          }
-          
-          totalMatchScore += totalCriteria > 0 ? (matchScore / totalCriteria) : 0.5;
-        });
-        
-        const averageMatchPercentage = interestedBuyers.length > 0
-          ? Math.round((totalMatchScore / interestedBuyers.length) * 100)
-          : 0;
-          
-        return {
-          id: property.id,
-          address: property.address || 'Indirizzo non specificato',
-          city: property.city || 'Città non specificata',
-          size: property.size,
-          price: property.price,
-          interestedBuyersCount: interestedBuyers.length,
-          matchPercentage: averageMatchPercentage,
-          stage: property.stage || 'address_found',
-          isAcquired: property.isAcquired || false
-        };
-      }));
-      
-      // Ordina per numero di potenziali interessati (decrescente)
-      const sortedProperties = rankedProperties.sort((a, b) => 
-        b.interestedBuyersCount - a.interestedBuyersCount
-      );
-      
-      res.json(sortedProperties);
-    } catch (error) {
-      console.error("Error fetching shared properties ranking:", error);
-      res.status(500).json({ error: "Error fetching shared properties ranking" });
-    }
-  });
   
   // Registra i router per API specifiche
   app.use("/api/geocode", geocodeRouter);

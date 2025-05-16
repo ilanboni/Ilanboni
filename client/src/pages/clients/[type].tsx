@@ -153,48 +153,40 @@ export default function ClientsByTypePage() {
     // Aggiorna il tipo di cliente prima di inviare
     setClientType(data.type as ClientType);
     
-    // Prepara i dati per l'invio (usando una copia per evitare problemi di riferimento)
+    // Prepara i dati per l'invio
     const clientData: any = {
       type: data.type,
-      salutation: data.salutation || "",
+      salutation: data.salutation,
       firstName: data.firstName,
       lastName: data.lastName,
-      isFriend: !!data.isFriend, // Assicura che sia un valore booleano
-      email: data.email || "",
+      isFriend: data.isFriend,
+      email: data.email,
       phone: data.phone,
-      religion: data.religion || "",
-      birthday: data.birthday, // Lasciamo che sia il server a gestire il formato
-      contractType: data.contractType || null,
-      notes: data.notes || ""
+      religion: data.religion,
+      birthday: data.birthday,
+      contractType: data.contractType,
+      notes: data.notes
     };
     
     // Aggiungi i dati specifici in base al tipo di cliente con controlli più rigorosi
     if (data.type === 'buyer') {
       // Gestione più robusta dei valori null/undefined per evitare errori di conversione
-      let minSize = null;
-      if (data.minSize !== undefined && data.minSize !== null && data.minSize !== '') {
-        const parsedSize = Number(data.minSize);
-        minSize = !isNaN(parsedSize) ? parsedSize : null;
-      }
+      const minSize = data.minSize !== undefined && data.minSize !== null && data.minSize !== '' 
+                    ? Number(data.minSize) 
+                    : null;
       
-      let maxPrice = null;
-      if (data.maxPrice !== undefined && data.maxPrice !== null && data.maxPrice !== '') {
-        const parsedPrice = Number(data.maxPrice);
-        maxPrice = !isNaN(parsedPrice) ? parsedPrice : null;
-      }
+      const maxPrice = data.maxPrice !== undefined && data.maxPrice !== null && data.maxPrice !== '' 
+                     ? Number(data.maxPrice) 
+                     : null;
       
       // Assicurati che i valori siano numeri validi
-      let urgency = 3;
-      if (data.urgency !== undefined && data.urgency !== null) {
-        const parsedUrgency = Number(data.urgency);
-        urgency = !isNaN(parsedUrgency) ? parsedUrgency : 3;
-      }
+      const urgency = data.urgency !== undefined && data.urgency !== null 
+                    ? Number(data.urgency) 
+                    : 3;
       
-      let rating = 3;
-      if (data.rating !== undefined && data.rating !== null) {
-        const parsedRating = Number(data.rating);
-        rating = !isNaN(parsedRating) ? parsedRating : 3;
-      }
+      const rating = data.rating !== undefined && data.rating !== null 
+                   ? Number(data.rating) 
+                   : 3;
 
       // Log dettagliato dei valori per il debugging
       console.log("Valori cliente buyer:", {

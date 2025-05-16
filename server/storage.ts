@@ -14,7 +14,6 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, and, or, gte, lte, like, not, isNull, SQL } from "drizzle-orm";
-import { camelToSnake, snakeToCamel } from "./utils/caseConverter";
 
 // Storage interface with CRUD methods for all entities
 export interface IStorage {
@@ -2344,14 +2343,6 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(tasks)
       .where(eq(tasks.propertyId, propertyId))
-      .orderBy(desc(tasks.dueDate));
-  }
-
-  async getTasksBySharedPropertyId(sharedPropertyId: number): Promise<Task[]> {
-    return await db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.sharedPropertyId, sharedPropertyId))
       .orderBy(desc(tasks.dueDate));
   }
 
