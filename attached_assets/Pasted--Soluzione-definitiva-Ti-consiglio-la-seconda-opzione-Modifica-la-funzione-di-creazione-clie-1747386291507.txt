@@ -1,0 +1,85 @@
+🎯 Soluzione definitiva
+💡 Ti consiglio la seconda opzione:
+✅ Modifica la funzione di creazione cliente nel backend per convertire i nomi da camelCase a snake_case prima di inserirli nel database.
+
+Perché?
+Il frontend può continuare a usare camelCase (che è lo standard in JavaScript/React)
+
+Centralizzi la conversione in un solo punto nel backend
+
+Eviti bug futuri e non devi cambiare tutta la tua app
+
+🔧 Come implementarla in modo solido
+1. Aggiungi una funzione per convertire camelCase in snake_case:
+js
+Copia
+Modifica
+function camelToSnake(obj) {
+  const newObj = {};
+  for (const key in obj) {
+    const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+    newObj[snakeKey] = obj[key];
+  }
+  return newObj;
+}
+2. Usala nel tuo endpoint di salvataggio:
+js
+Copia
+Modifica
+app.post('/api/clienti', async (req, res) => {
+  try {
+    console.log('Dati ricevuti (frontend):', req.body);
+
+    const clienteSnakeCase = camelToSnake(req.body);
+    console.log('Dati convertiti (snake_case):', clienteSnakeCase);
+
+    // Inserisci con query SQL o ORM usando snake_case
+    const result = await db.query(
+      `INSERT INTO clients (type, salutation, first_name, last_name, is_friend, email, phone, religion, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [
+        clienteSnakeCase.type,
+        clienteSnakeCase.salutation,
+        clienteSnakeCase.first_name,
+        clienteSnakeCase.last_name,
+        clienteSnakeCase.is_friend,
+        clienteSnakeCase.email,
+        clienteSnakeCase.phone,
+        clienteSnakeCase.religion,
+        clienteSnakeCase.notes
+      ]
+    );
+
+    const clientId = result.rows[0].id;
+
+    // Se è un buyer, salva le preferenze
+    if (clienteSnakeCase.type === 'buyer') {
+      const buyerSnakeCase = camelToSnake(req.body.preferences);
+      await db.query(
+        `INSERT INTO buyers (client_id, min_size, max_price, urgency, rating, search_notes)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          clientId,
+          buyerSnakeCase.min_size,
+          buyerSnakeCase.max_price,
+          buyerSnakeCase.urgency,
+          buyerSnakeCase.rating,
+          buyerSnakeCase.search_notes
+        ]
+      );
+    }
+
+    res.status(201).json({ id: clientId, message: 'Cliente salvato con successo' });
+
+  } catch (err) {
+    console.error('Errore salvataggio cliente:', err);
+    res.status(500).json({ error: 'Errore durante il salvataggio del cliente' });
+  }
+});
+✅ Risultato
+Il frontend continua a usare camelCase (firstName, isFriend, minSize, ecc.)
+
+Il backend converte tutto a snake_case solo al momento dell’inserimento
+
+Il salvataggio funziona per tutti i tipi di clienti (compratori o venditori)
+
