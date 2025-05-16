@@ -1137,18 +1137,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Costruisci manualmente l'oggetto cliente
+      // Costruisci manualmente l'oggetto cliente con la mappatura corretta per i nomi colonne
       const clientData = {
         type: req.body.type,
         salutation: req.body.salutation || "",
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        isFriend: req.body.isFriend === true,
+        // Mappatura dei campi camelCase ai nomi colonna snake_case
+        first_name: req.body.firstName,
+        last_name: req.body.lastName,
+        is_friend: req.body.isFriend === true,
         email: req.body.email || "",
         phone: req.body.phone,
         religion: req.body.religion || "",
         birthday: null, // Impostiamo a null per maggiore sicurezza
-        contractType: req.body.contractType || null,
+        contract_type: req.body.contractType || null,
         notes: req.body.notes || ""
       };
       
@@ -1160,15 +1161,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Se è un buyer, crea le preferenze
         if (req.body.type === "buyer" && req.body.buyer) {
           try {
-            // Dati minimi per il buyer
+            // Dati minimi per il buyer con mappatura snake_case corretta
             const buyerData = {
-              clientId: newClient.id,
-              searchArea: req.body.buyer.searchArea || null,
-              minSize: parseInt(req.body.buyer.minSize) || null,
-              maxPrice: parseInt(req.body.buyer.maxPrice) || null,
+              client_id: newClient.id,
+              search_area: req.body.buyer.searchArea || null,
+              min_size: parseInt(req.body.buyer.minSize) || null,
+              max_price: parseInt(req.body.buyer.maxPrice) || null,
               urgency: parseInt(req.body.buyer.urgency) || 3,
               rating: parseInt(req.body.buyer.rating) || 3,
-              searchNotes: req.body.buyer.searchNotes || ""
+              search_notes: req.body.buyer.searchNotes || ""
             };
             
             const newBuyer = await storage.createBuyer(buyerData);
