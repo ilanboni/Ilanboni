@@ -1148,21 +1148,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (newClient.type === "buyer" && req.body.buyer) {
         try {
           console.log("[POST /api/clients] Creazione buyer per cliente id:", newClient.id);
+          
+          // Assicuriamoci che i campi numerici siano effettivamente numeri
+          const minSize = req.body.buyer.minSize !== undefined && req.body.buyer.minSize !== null && req.body.buyer.minSize !== '' 
+            ? Number(req.body.buyer.minSize) 
+            : null;
+          
+          const maxPrice = req.body.buyer.maxPrice !== undefined && req.body.buyer.maxPrice !== null && req.body.buyer.maxPrice !== '' 
+            ? Number(req.body.buyer.maxPrice) 
+            : null;
+          
+          const urgency = req.body.buyer.urgency !== undefined && req.body.buyer.urgency !== null 
+            ? Number(req.body.buyer.urgency) 
+            : 3;
+          
+          const rating = req.body.buyer.rating !== undefined && req.body.buyer.rating !== null 
+            ? Number(req.body.buyer.rating) 
+            : 3;
+          
           const buyerData = {
             clientId: newClient.id,
             searchArea: req.body.buyer.searchArea || null,
-            minSize: req.body.buyer.minSize || null,
-            maxPrice: req.body.buyer.maxPrice || null,
-            urgency: req.body.buyer.urgency || 3,
-            rating: req.body.buyer.rating || 3,
-            searchNotes: req.body.buyer.searchNotes || null
+            minSize: minSize,
+            maxPrice: maxPrice,
+            urgency: urgency,
+            rating: rating,
+            searchNotes: req.body.buyer.searchNotes || ""
           };
+          
           console.log("[POST /api/clients] Dati buyer:", JSON.stringify(buyerData, null, 2));
           
           const newBuyer = await storage.createBuyer(buyerData);
           console.log("[POST /api/clients] Buyer creato:", JSON.stringify(newBuyer, null, 2));
         } catch (buyerError) {
           console.error("[POST /api/clients] Error creating buyer:", buyerError);
+          console.error("[POST /api/clients] Error details:", buyerError instanceof Error ? buyerError.message : String(buyerError));
           // Non blocchiamo la creazione del cliente se fallisce la creazione del buyer
         }
       }
@@ -1171,9 +1191,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (newClient.type === "seller" && req.body.seller) {
         try {
           console.log("[POST /api/clients] Creazione seller per cliente id:", newClient.id);
+          
+          // Assicuriamoci che l'ID proprietà sia un numero (se presente)
+          let propertyId = null;
+          if (req.body.seller.propertyId !== undefined && req.body.seller.propertyId !== null && req.body.seller.propertyId !== '') {
+            propertyId = parseInt(req.body.seller.propertyId);
+            // Se la conversione non produce un numero valido, impostiamo a null
+            if (isNaN(propertyId)) propertyId = null;
+          }
+          
           const sellerData = {
             clientId: newClient.id,
-            propertyId: req.body.seller.propertyId || null
+            propertyId: propertyId
           };
           console.log("[POST /api/clients] Dati seller:", JSON.stringify(sellerData, null, 2));
           
@@ -1181,6 +1210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[POST /api/clients] Seller creato:", JSON.stringify(newSeller, null, 2));
         } catch (sellerError) {
           console.error("[POST /api/clients] Error creating seller:", sellerError);
+          console.error("[POST /api/clients] Error details:", sellerError instanceof Error ? sellerError.message : String(sellerError));
           // Non blocchiamo la creazione del cliente se fallisce la creazione del seller
         }
       }
