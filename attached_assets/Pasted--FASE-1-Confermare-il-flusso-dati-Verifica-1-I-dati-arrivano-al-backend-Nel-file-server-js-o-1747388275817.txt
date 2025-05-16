@@ -1,0 +1,119 @@
+✅ FASE 1 – Confermare il flusso dati
+👉 Verifica 1: I dati arrivano al backend?
+Nel file server.js o index.js, inserisci:
+
+js
+Copia
+Modifica
+app.post('/api/clienti', async (req, res) => {
+  console.log('✅ Richiesta ricevuta su /api/clienti');
+  console.log('📨 Dati dal frontend:', req.body);
+
+  res.status(200).json({ message: 'Dati ricevuti' }); // solo per test
+});
+Poi nel browser:
+
+Compila il form cliente
+
+Clicca "Salva"
+
+Guarda la console Replit: i dati si stampano?
+
+❌ Se NO → Il problema è nel fetch (frontend), o non hai app.use(express.json()) nel backend
+
+👉 Verifica 2: Hai incluso express.json()?
+Nel tuo server.js/index.js, assicurati che ci sia questo:
+
+js
+Copia
+Modifica
+import express from 'express';
+const app = express();
+app.use(express.json());
+❌ Se manca express.json(), req.body sarà undefined → errore garantito
+
+✅ FASE 2 – Inserire nel database
+Hai 2 tabelle: clients e buyers (o sellers)
+
+Codice completo e funzionante, con query SQL e conversione snake_case:
+js
+Copia
+Modifica
+function camelToSnake(obj) {
+  const result = {};
+  for (let key in obj) {
+    const snake = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+    result[snake] = obj[key];
+  }
+  return result;
+}
+
+app.post('/api/clienti', async (req, res) => {
+  try {
+    const data = req.body;
+    const cliente = camelToSnake(data);
+    const preferenze = camelToSnake(data.preferences || {});
+
+    // Inserisci cliente
+    const result = await db.query(`
+      INSERT INTO clients (type, salutation, first_name, last_name, is_friend, email, phone, religion, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id
+    `, [
+      cliente.type,
+      cliente.salutation,
+      cliente.first_name,
+      cliente.last_name,
+      cliente.is_friend,
+      cliente.email,
+      cliente.phone,
+      cliente.religion,
+      cliente.notes
+    ]);
+
+    const clientId = result.rows[0].id;
+
+    if (cliente.type === 'buyer') {
+      await db.query(`
+        INSERT INTO buyers (client_id, min_size, max_price, urgency, rating, search_notes)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [
+        clientId,
+        preferenze.min_size,
+        preferenze.max_price,
+        preferenze.urgency,
+        preferenze.rating,
+        preferenze.search_notes
+      ]);
+    }
+
+    res.status(201).json({ id: clientId, message: 'Cliente creato con successo' });
+
+  } catch (err) {
+    console.error('❌ Errore durante il salvataggio:', err);
+    res.status(500).json({ error: 'Errore salvataggio cliente' });
+  }
+});
+✅ FASE 3 – Testare con dati giusti
+Esempio di dati da inviare (dal form):
+json
+Copia
+Modifica
+{
+  "type": "buyer",
+  "salutation": "Caro",
+  "firstName": "Mario",
+  "lastName": "Rossi",
+  "isFriend": false,
+  "email": "mario@prova.it",
+  "phone": "3311122233",
+  "religion": "none",
+  "notes": "test",
+  "preferences": {
+    "minSize": 60,
+    "maxPrice": 250000,
+    "urgency": 3,
+    "rating": 4,
+    "searchNotes": "zona verde"
+  }
+}
