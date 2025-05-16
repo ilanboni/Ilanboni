@@ -85,6 +85,131 @@ async function pollWhatsAppMessages() {
 }
 
 (async () => {
+  // Endpoint di emergenza per inserire direttamente cliente nel database
+  app.post("/api/clients/direct-sql", async (req: Request, res: Response) => {
+    try {
+      console.log("=============================================");
+      console.log("RICHIESTA INSERIMENTO DIRETTO SQL CLIENTE");
+      console.log("Dati ricevuti:", JSON.stringify(req.body, null, 2));
+      
+      if (!req.body || !req.body.type || !req.body.firstName || !req.body.lastName || !req.body.phone) {
+        return res.status(400).json({
+          success: false,
+          error: "Dati obbligatori mancanti",
+          detail: "Servono almeno type, firstName, lastName e phone"
+        });
+      }
+      
+      const { pool } = require('./db');
+      
+      // Crea query SQL per cliente (usa snake_case per i nomi colonne)
+      const clientQuery = `
+        INSERT INTO clients (
+          type, 
+          salutation, 
+          first_name, 
+          last_name, 
+          is_friend, 
+          email, 
+          phone, 
+          religion,
+          contract_type, 
+          notes
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+        ) RETURNING id;
+      `;
+      
+      // Parametri per la query cliente
+      const clientParams = [
+        req.body.type,
+        req.body.salutation || "",
+        req.body.firstName,
+        req.body.lastName,
+        req.body.isFriend === true,
+        req.body.email || "",
+        req.body.phone,
+        req.body.religion || "",
+        req.body.contractType || null,
+        req.body.notes || ""
+      ];
+      
+      // Esegui query cliente
+      const clientResult = await pool.query(clientQuery, clientParams);
+      const clientId = clientResult.rows[0].id;
+      
+      console.log("Cliente creato con ID:", clientId);
+      
+      // Se è buyer, crea anche preferenze
+      if (req.body.type === "buyer" && req.body.buyer) {
+        try {
+          // Normalizza i valori numerici
+          const minSize = parseInt(String(req.body.buyer.minSize)) || null;
+          const maxPrice = parseInt(String(req.body.buyer.maxPrice)) || null;
+          const urgency = parseInt(String(req.body.buyer.urgency)) || 3;
+          const rating = parseInt(String(req.body.buyer.rating)) || 3;
+          
+          // Query SQL per buyer (usa snake_case)
+          const buyerQuery = `
+            INSERT INTO buyers (
+              client_id,
+              search_area,
+              min_size,
+              max_price,
+              urgency,
+              rating,
+              search_notes
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7
+            ) RETURNING id;
+          `;
+          
+          // Parametri query buyer
+          const buyerParams = [
+            clientId,
+            JSON.stringify(req.body.buyer.searchArea || null),
+            minSize,
+            maxPrice,
+            urgency,
+            rating,
+            req.body.buyer.searchNotes || ""
+          ];
+          
+          // Esegui query buyer
+          const buyerResult = await pool.query(buyerQuery, buyerParams);
+          const buyerId = buyerResult.rows[0].id;
+          
+          console.log("Buyer creato con ID:", buyerId);
+          
+          return res.status(201).json({
+            success: true,
+            client: { id: clientId, type: req.body.type },
+            buyer: { id: buyerId, minSize, maxPrice }
+          });
+        } catch (buyerError) {
+          console.error("Errore creazione buyer:", buyerError);
+          return res.status(201).json({
+            success: true,
+            client: { id: clientId, type: req.body.type },
+            warning: "Cliente creato ma errore nella creazione buyer",
+            error: String(buyerError)
+          });
+        }
+      } else {
+        return res.status(201).json({
+          success: true,
+          client: { id: clientId, type: req.body.type }
+        });
+      }
+    } catch (error) {
+      console.error("ERRORE inserimento diretto:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: String(error)
+      });
+    }
+  });
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
