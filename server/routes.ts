@@ -1125,22 +1125,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Crea un nuovo cliente
   app.post("/api/clients", async (req: Request, res: Response) => {
     try {
+      // Log completo dei dati ricevuti per diagnosi
+      console.log("[POST /api/clients] Dati ricevuti:", JSON.stringify(req.body, null, 2));
+      
       // Valida i dati in ingresso
       const result = insertClientSchema.safeParse(req.body);
       
       if (!result.success) {
+        console.error("[POST /api/clients] Errore validazione:", result.error.format());
         return res.status(400).json({ 
           error: "Dati cliente non validi", 
           details: result.error.format() 
         });
       }
       
+      console.log("[POST /api/clients] Dati validati:", JSON.stringify(result.data, null, 2));
+      
       const newClient = await storage.createClient(result.data);
+      console.log("[POST /api/clients] Cliente creato:", JSON.stringify(newClient, null, 2));
       
       // Se è un cliente di tipo buyer, crea anche il record buyer corrispondente
       if (newClient.type === "buyer" && req.body.buyer) {
         try {
-          await storage.createBuyer({
+          console.log("[POST /api/clients] Creazione buyer per cliente id:", newClient.id);
+          const buyerData = {
             clientId: newClient.id,
             searchArea: req.body.buyer.searchArea || null,
             minSize: req.body.buyer.minSize || null,
@@ -1148,7 +1156,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             urgency: req.body.buyer.urgency || 3,
             rating: req.body.buyer.rating || 3,
             searchNotes: req.body.buyer.searchNotes || null
-          });
+          };
+          console.log("[POST /api/clients] Dati buyer:", JSON.stringify(buyerData, null, 2));
+          
+          const newBuyer = await storage.createBuyer(buyerData);
+          console.log("[POST /api/clients] Buyer creato:", JSON.stringify(newBuyer, null, 2));
         } catch (buyerError) {
           console.error("[POST /api/clients] Error creating buyer:", buyerError);
           // Non blocchiamo la creazione del cliente se fallisce la creazione del buyer
@@ -1158,10 +1170,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Se è un cliente di tipo seller, crea anche il record seller corrispondente
       if (newClient.type === "seller" && req.body.seller) {
         try {
-          await storage.createSeller({
+          console.log("[POST /api/clients] Creazione seller per cliente id:", newClient.id);
+          const sellerData = {
             clientId: newClient.id,
             propertyId: req.body.seller.propertyId || null
-          });
+          };
+          console.log("[POST /api/clients] Dati seller:", JSON.stringify(sellerData, null, 2));
+          
+          const newSeller = await storage.createSeller(sellerData);
+          console.log("[POST /api/clients] Seller creato:", JSON.stringify(newSeller, null, 2));
         } catch (sellerError) {
           console.error("[POST /api/clients] Error creating seller:", sellerError);
           // Non blocchiamo la creazione del cliente se fallisce la creazione del seller
@@ -1170,7 +1187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(newClient);
     } catch (error) {
-      console.error("[POST /api/clients]", error);
+      console.error("[POST /api/clients] Errore:", error);
       res.status(500).json({ error: "Errore durante la creazione del cliente" });
     }
   });
