@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salvataggio Diretto Cliente</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+    h1 { color: #2c3e50; }
+    .box { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+    textarea { width: 100%; height: 200px; font-family: monospace; margin-bottom: 10px; }
+    button { background: #3498db; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; }
+    .success { color: green; font-weight: bold; }
+    .error { color: red; font-weight: bold; }
+    .code { font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Salvataggio Diretto Cliente</h1>
+  <p>Questo tool permette di inserire un cliente direttamente nel database usando una query SQL diretta.</p>
+  
+  <div class="box">
+    <h2>Istruzioni</h2>
+    <ol>
+      <li>Modifica i dati cliente nel JSON qui sotto come necessario</li>
+      <li>Clicca "Salva Cliente" per inviare la richiesta al server</li>
+      <li>Verifica il risultato nella sezione "Risposta"</li>
+    </ol>
+  </div>
+  
+  <div class="box">
+    <h2>Dati Cliente</h2>
+    <textarea id="clientData">
+{
+  "type": "buyer",
+  "salutation": "egr_dott",
+  "firstName": "Mario",
+  "lastName": "Rossi",
+  "phone": "393401234567",
+  "email": "mario.rossi@example.com",
+  "religion": "none",
+  "contractType": "sale",
+  "notes": "Cliente inserito tramite form diretto",
+  "isFriend": false,
+  "buyer": {
+    "minSize": 50,
+    "maxPrice": 300000,
+    "urgency": 3,
+    "rating": 4,
+    "searchNotes": "Cerca in zona centrale",
+    "searchArea": {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[9.15, 45.47], [9.16, 45.46], [9.17, 45.47], [9.15, 45.47]]]
+      }
+    }
+  }
+}
+    </textarea>
+    <button id="saveButton">Salva Cliente</button>
+  </div>
+  
+  <div class="box" id="responseBox" style="display:none;">
+    <h2>Risposta</h2>
+    <div id="status"></div>
+    <pre id="response" class="code"></pre>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const saveButton = document.getElementById('saveButton');
+      const clientDataTextarea = document.getElementById('clientData');
+      const responseBox = document.getElementById('responseBox');
+      const statusDiv = document.getElementById('status');
+      const responseDiv = document.getElementById('response');
+      
+      saveButton.addEventListener('click', async function() {
+        try {
+          // Parse JSON data
+          const clientData = JSON.parse(clientDataTextarea.value);
+          
+          // Mostra lo stato di invio
+          responseBox.style.display = 'block';
+          statusDiv.innerHTML = 'Invio richiesta in corso...';
+          statusDiv.className = '';
+          
+          // Invia richiesta diretta al database
+          const response = await fetch('/api/sql-client-direct', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(clientData)
+          });
+          
+          // Ottieni risposta
+          const result = await response.json();
+          
+          // Mostra risultato
+          if (response.ok) {
+            statusDiv.innerHTML = `✅ Cliente salvato con successo! ID: ${result.client?.id || 'N/A'}`;
+            statusDiv.className = 'success';
+          } else {
+            statusDiv.innerHTML = `❌ Errore: ${result.error || 'Errore durante il salvataggio'}`;
+            statusDiv.className = 'error';
+          }
+          
+          responseDiv.textContent = JSON.stringify(result, null, 2);
+          
+        } catch (error) {
+          console.error('Errore:', error);
+          
+          responseBox.style.display = 'block';
+          statusDiv.innerHTML = `❌ Errore: ${error.message}`;
+          statusDiv.className = 'error';
+          responseDiv.textContent = error.stack || error.toString();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

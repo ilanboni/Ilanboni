@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { fetchRecentWhatsAppMessages } from "./lib/ultramsgApi";
 import directClientRoutes from "./routes/direct-client";
+import sqlDirectRouter from "./routes/sql-direct";
 import { convertRequestToSnakeCase, convertResponseToCamelCase } from "./middleware/caseConverter";
 
 // Intervallo in millisecondi per il polling dei messaggi WhatsApp
