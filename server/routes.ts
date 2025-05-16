@@ -21,6 +21,8 @@ import { summarizeText } from "./lib/openai";
 import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
 import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
 import geocodeRouter from "./routes/geocode";
+import { convertRequestBodyToSnakeCase } from "./middleware/caseConverter";
+import { camelToSnake, snakeToCamel } from "./utils/caseConverter";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Registra le route per il webhook forwarder
@@ -33,6 +35,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("WEBHOOK FORWARDER KEY:", forwardKey);
   console.log("Usa questa chiave quando configuri webhook.site per inoltrare i messaggi all'app");
   console.log("===============================================\n");
+  
+  // Applica middleware di conversione camelCase -> snake_case per tutti gli endpoint che gestiscono dati
+  app.use("/api/clients", convertRequestBodyToSnakeCase);
+  app.use("/api/buyers", convertRequestBodyToSnakeCase);
+  app.use("/api/sellers", convertRequestBodyToSnakeCase);
+  app.use("/api/properties", convertRequestBodyToSnakeCase);
+  app.use("/api/shared-properties", convertRequestBodyToSnakeCase);
+  
   // API per la gestione delle comunicazioni
 
   // Ottieni tutte le comunicazioni (con filtri opzionali)
