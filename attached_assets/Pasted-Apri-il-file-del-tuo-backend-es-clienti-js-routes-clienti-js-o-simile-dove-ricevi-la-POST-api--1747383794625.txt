@@ -1,0 +1,79 @@
+Apri il file del tuo backend (es. clienti.js, routes/clienti.js, o simile) dove ricevi la POST /api/clienti, e sostituisci tutto con questo codice temporaneo per loggare i dati in ingresso:
+
+js
+Copia
+Modifica
+app.post('/api/clienti', async (req, res) => {
+  try {
+    console.log('Ricevuta richiesta POST /api/clienti');
+    console.log('Dati ricevuti:', req.body);
+
+    // Validazione minima
+    if (!req.body.nome || !req.body.cognome || !req.body.telefono) {
+      return res.status(400).json({ error: 'Campi obbligatori mancanti' });
+    }
+
+    // Simulazione di salvataggio (puoi sostituire con il tuo ORM/DB)
+    const nuovoCliente = {
+      ...req.body,
+      id: Date.now() // solo per test
+    };
+
+    console.log('Cliente simulato salvato:', nuovoCliente);
+    res.status(201).json(nuovoCliente);
+  } catch (err) {
+    console.error('❌ Errore durante il salvataggio cliente:', err);
+    res.status(500).json({ error: 'Errore interno nel salvataggio del cliente' });
+  }
+});
+Obiettivo:
+Vedere nella console Replit se i dati arrivano
+
+Capire se l’errore è nel parsing (req.body), nella logica o nel database
+
+✅ 2. Controlla nel frontend cosa invii
+Nel file dove invii i dati (ClientForm, submitCliente, ecc.), inserisci questo log prima della fetch:
+
+js
+Copia
+Modifica
+console.log('Invio dati cliente:', formValues);
+
+fetch('/api/clienti', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(formValues)
+})
+.then(res => res.json())
+.then(data => {
+  console.log('Risposta:', data);
+})
+.catch(err => {
+  console.error('Errore fetch:', err);
+});
+Obiettivo:
+Verificare che tutti i campi siano valorizzati correttamente
+
+Controllare che i numeri non siano stringhe ("100" invece di 100)
+
+Vedere se arriva una risposta utile dal server
+
+✅ 3. Se l’errore persiste...
+Incollami qui la struttura completa di formValues (esempio reale di dati che invii), tipo:
+
+json
+Copia
+Modifica
+{
+  "nome": "Marco",
+  "cognome": "Rossi",
+  "telefono": "3331234567",
+  "email": "marco@example.com",
+  "contratto": "Vendita",
+  "poligonoRicerca": [[9.19, 45.46], [9.20, 45.46], ...],
+  "mqMinimi": "100",
+  "prezzoMax": "400000",
+  ...
+}
