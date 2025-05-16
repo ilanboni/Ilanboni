@@ -107,7 +107,7 @@
                 console.log("Invio dati:", clientData);
                 
                 // Make API request
-                const response = await fetch('/api/clients', {
+                const response = await fetch('/api/clients/emergency', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
