@@ -18,6 +18,9 @@ app.use(convertResponseToCamelCase);
 // Registra le rotte per l'inserimento diretto di clienti
 app.use('/api/direct-clients', directClientRoutes);
 
+// Registra la nuova rotta ultra-diretta per SQL
+app.use('/api/sql-client-direct', sqlDirectRouter);
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
