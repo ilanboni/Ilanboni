@@ -182,8 +182,21 @@ export const insertClientSchema = z.object({
   contractType: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
-export const insertBuyerSchema = createInsertSchema(buyers).omit({ id: true });
-export const insertSellerSchema = createInsertSchema(sellers).omit({ id: true });
+// Redefine buyer schema manually to be more permissive
+export const insertBuyerSchema = z.object({
+  clientId: z.number(),
+  searchArea: z.any().optional().nullable(),
+  minSize: z.number().optional().nullable(),
+  maxPrice: z.number().optional().nullable(),
+  urgency: z.number().optional().nullable().default(3),
+  rating: z.number().optional().nullable().default(3),
+  searchNotes: z.string().optional().nullable()
+});
+// Redefine seller schema manually to be more permissive
+export const insertSellerSchema = z.object({
+  clientId: z.number(),
+  propertyId: z.number().optional().nullable()
+});
 export const insertPropertySchema = createInsertSchema(properties).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSharedPropertySchema = createInsertSchema(sharedProperties)
   .omit({ id: true })
