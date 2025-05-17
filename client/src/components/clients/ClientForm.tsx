@@ -52,22 +52,22 @@ const clientFormSchema = z.object({
   lastName: z.string().min(1, "Il cognome è necessario"),
   isFriend: z.boolean().default(false),
   email: z.string().email("Indirizzo email non valido").optional().or(z.literal("")),
-  phone: z.string().min(6, "Numero di telefono non valido"),
+  phone: z.string().min(6, "Numero di telefono non valido").regex(/^[0-9+\s-]*$/, "Inserisci un numero di telefono valido"),
   religion: z.string().optional().or(z.literal("")),
   birthday: z.date().optional().nullable(),
-  contractType: z.enum(["rent", "sale"]).optional(),
+  contractType: z.enum(["rent", "sale"]).optional().nullable(),
   notes: z.string().optional().or(z.literal("")),
   // Buyer-specific fields
   searchArea: z.any().optional().nullable(),
-  minSize: z.union([z.number().min(0), z.string(), z.null(), z.undefined()]),
-  maxPrice: z.union([z.number().min(0), z.string(), z.null(), z.undefined()]),
+  minSize: z.union([z.number().min(0), z.string().regex(/^\d*$/, "Inserisci solo numeri").transform(val => val === "" ? null : Number(val)), z.null(), z.undefined()]),
+  maxPrice: z.union([z.number().min(0), z.string().regex(/^\d*$/, "Inserisci solo numeri").transform(val => val === "" ? null : Number(val)), z.null(), z.undefined()]),
   urgency: z.union([z.number().min(1).max(5), z.null(), z.undefined()]).optional(),
   rating: z.union([z.number().min(1).max(5), z.null(), z.undefined()]).optional(),
   searchNotes: z.string().optional().or(z.literal("")),
   // Seller-specific fields
   propertyAddress: z.string().optional().or(z.literal("")),
-  propertySize: z.union([z.number().min(0), z.string(), z.null(), z.undefined()]),
-  propertyPrice: z.union([z.number().min(0), z.string(), z.null(), z.undefined()]),
+  propertySize: z.union([z.number().min(0), z.string().regex(/^\d*$/, "Inserisci solo numeri").transform(val => val === "" ? null : Number(val)), z.null(), z.undefined()]),
+  propertyPrice: z.union([z.number().min(0), z.string().regex(/^\d*$/, "Inserisci solo numeri").transform(val => val === "" ? null : Number(val)), z.null(), z.undefined()]),
   propertyNotes: z.string().optional().or(z.literal(""))
 });
 
