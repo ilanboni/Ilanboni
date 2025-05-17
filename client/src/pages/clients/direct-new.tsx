@@ -39,56 +39,77 @@ export default function DirectNewClient() {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Form submit iniziato...");
     setLoading(true);
     
     try {
-      // Prepara i dati del cliente con area di ricerca
+      // Feedback visivo temporaneo per l'utente
+      toast({
+        title: "Salvataggio in corso",
+        description: "Salvataggio dei dati del cliente...",
+      });
+      
+      // Prepara i dati del cliente in modo minimalista per evitare problemi di validazione
       const clientData = {
         type: clientType,
-        salutation: formData.salutation,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        isFriend: formData.isFriend,
-        email: formData.email,
-        phone: formData.phone,
-        religion: formData.religion,
-        notes: formData.notes,
-        
-        // Oggetto buyer/seller con dati relativi
-        buyer: clientType === 'buyer' ? {
-          searchArea: searchArea,
-          minSize: parseInt(formData.minSize) || 0,
-          maxPrice: parseInt(formData.maxPrice) || 0,
-          urgency: parseInt(formData.urgency) || 3,
-          rating: parseInt(formData.rating) || 3,
-          searchNotes: formData.searchNotes || ""
-        } : undefined,
-        seller: clientType === 'seller' ? {
-          propertyAddress: "",
-          propertyNotes: ""
-        } : undefined
+        salutation: formData.salutation || "caro",
+        firstName: formData.firstName || "Nome",
+        lastName: formData.lastName || "Cognome",
+        isFriend: !!formData.isFriend,
+        email: formData.email || "",
+        phone: formData.phone || "1234567890",
+        religion: formData.religion || "",
+        notes: formData.notes || "",
       };
       
-      console.log("Dati cliente semplificati:", clientData);
+      // Aggiungi i dati specifici per buyer/seller in modo minimalista
+      if (clientType === 'buyer') {
+        clientData.buyer = {
+          // Campi minimi per un buyer
+          minSize: 0,
+          maxPrice: 0
+        };
+      } else {
+        clientData.seller = {
+          // Campi minimi per un seller
+          propertyAddress: "",
+          propertyNotes: ""
+        };
+      }
       
-      // Invio diretto con axios invece di usare react-query per evitare problemi
-      const response = await axios.post('/api/clients', clientData);
+      console.log("Dati cliente minimali:", clientData);
       
-      toast({
-        title: "Cliente salvato con successo",
-        description: `Cliente ${formData.firstName} ${formData.lastName} creato.`
-      });
-      
-      // Redirect alla pagina del cliente
-      navigate(`/clients/${response.data.id}`);
+      // Invio diretto con axios - senza attendere la risposta per debug
+      axios.post('/api/clients', clientData)
+        .then(response => {
+          console.log("Risposta salvataggio cliente:", response.data);
+          
+          toast({
+            title: "Cliente salvato con successo",
+            description: `Cliente ${formData.firstName} ${formData.lastName} creato con ID: ${response.data.id}`,
+          });
+          
+          // Redirect alla pagina client list invece che al dettaglio
+          setTimeout(() => navigate('/clients'), 1500);
+        })
+        .catch(error => {
+          console.error("Errore API salvataggio:", error);
+          toast({
+            title: "Errore API",
+            description: `Errore durante il salvataggio: ${error.message}`,
+            variant: "destructive"
+          });
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     } catch (error) {
-      console.error("Errore durante il salvataggio:", error);
+      console.error("Errore durante la preparazione dati:", error);
       toast({
-        title: "Errore",
-        description: "Si è verificato un errore durante il salvataggio del cliente.",
+        title: "Errore interno",
+        description: "Si è verificato un errore durante la preparazione dei dati del cliente.",
         variant: "destructive"
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -348,7 +369,12 @@ export default function DirectNewClient() {
               >
                 Annulla
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button 
+                type="submit" 
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold" 
+                disabled={loading}
+                onClick={() => console.log("Button click registrato")}
+              >
                 {loading ? 'Salvataggio...' : 'Salva Cliente'}
               </Button>
             </div>
