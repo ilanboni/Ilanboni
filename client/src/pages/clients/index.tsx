@@ -43,6 +43,7 @@ export default function ClientsPage() {
     queryKey: ['/api/clients', clientTypeFilter, searchQuery, sortOrder],
     queryFn: async () => {
       try {
+        console.log("Avvio recupero clienti...");
         // Usa la vera API per ottenere i clienti
         const params = new URLSearchParams();
         if (clientTypeFilter !== "all") {
@@ -53,10 +54,26 @@ export default function ClientsPage() {
         }
         
         const url = `/api/clients${params.toString() ? `?${params.toString()}` : ''}`;
-        const response = await apiRequest('GET', url);
+        console.log("URL richiesta:", url);
+        
+        // Usa fetch direttamente per diagnosticare meglio
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Risposta API non valida: ${response.status} ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log("Dati ricevuti:", data);
         
         let clients = Array.isArray(data) ? data : [];
+        console.log("Clienti trovati:", clients.length);
         
         // Ordina i risultati
         if (sortOrder === "newest") {
@@ -70,9 +87,17 @@ export default function ClientsPage() {
         return clients;
       } catch (error) {
         console.error("Errore nel recupero dei clienti:", error);
+        toast({
+          title: "Errore di connessione",
+          description: "Non è stato possibile recuperare i clienti. Riprova più tardi.",
+          variant: "destructive"
+        });
         return [];
       }
-    }
+    },
+    staleTime: 1000 * 60, // 1 minuto
+    retryDelay: 1000, // Riprova dopo 1 secondo in caso di errore
+    retry: 3 // Massimo 3 tentativi
   });
   
   // Handle client actions
