@@ -6,6 +6,8 @@ import MapVisualization from "@/components/dashboard/MapVisualization";
 import TasksAndAlerts from "@/components/dashboard/TasksAndAlerts";
 import RecentClients from "@/components/dashboard/RecentClients";
 import MarketAnalysis from "@/components/dashboard/MarketAnalysis";
+import SearchAnalytics from "@/components/dashboard/SearchAnalytics";
+import SharedPropertiesRanking from "@/components/dashboard/SharedPropertiesRanking";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -61,12 +63,18 @@ export default function Dashboard() {
           
           {/* Map area with active polygons */}
           <MapVisualization />
+          
+          {/* Search Analytics - New Component */}
+          <SearchAnalytics />
         </div>
         
         {/* Right Column */}
         <div className="space-y-6">
           {/* Tasks and Alerts */}
           <TasksAndAlerts />
+          
+          {/* Shared Properties Ranking - New Component */}
+          <SharedPropertiesRanking />
           
           {/* Recent clients */}
           <RecentClients />

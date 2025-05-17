@@ -1,0 +1,78 @@
+import React, { useState } from 'react';
+
+export default function AddressAutocomplete({ onSelect }) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = async (value) => {
+    setQuery(value);
+    if (value.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(value)}&limit=5`);
+      const data = await res.json();
+      setSuggestions(data.features);
+    } catch (err) {
+      console.error('Errore nella ricerca indirizzi:', err);
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelect = (feature) => {
+    const { coordinates } = feature.geometry;
+    const { name, street, city, country } = feature.properties;
+    const address = `${name || ''} ${street || ''}, ${city || ''}, ${country || ''}`;
+    setQuery(address);
+    setSuggestions([]);
+    onSelect({
+      address,
+      lat: coordinates[1],
+      lng: coordinates[0]
+    });
+  };
+
+  return (
+    <div style={{ position: 'relative', maxWidth: '400px' }}>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => handleSearch(e.target.value)}
+        placeholder="Inserisci indirizzo"
+        style={{ width: '100%', padding: '8px' }}
+      />
+      {loading && <div style={{ fontSize: '12px' }}>Caricamento...</div>}
+      {suggestions.length > 0 && (
+        <ul style={{
+          listStyle: 'none',
+          margin: 0,
+          padding: '5px',
+          border: '1px solid #ccc',
+          background: '#fff',
+          position: 'absolute',
+          width: '100%',
+          zIndex: 10
+        }}>
+          {suggestions.map((feature, index) => {
+            const { name, street, city } = feature.properties;
+            return (
+              <li
+                key={index}
+                onClick={() => handleSelect(feature)}
+                style={{ padding: '5px', cursor: 'pointer' }}
+              >
+                {name || ''} {street || ''}, {city || ''}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

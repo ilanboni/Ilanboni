@@ -2346,6 +2346,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(tasks.dueDate));
   }
 
+  async getTasksBySharedPropertyId(sharedPropertyId: number): Promise<Task[]> {
+    return await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.sharedPropertyId, sharedPropertyId))
+      .orderBy(desc(tasks.dueDate));
+  }
+
   async createTask(task: InsertTask): Promise<Task> {
     const result = await db.insert(tasks).values(task).returning();
     return result[0];

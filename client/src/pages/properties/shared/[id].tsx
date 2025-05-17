@@ -9,12 +9,16 @@ import { AlertCircle, ArrowLeft, CalendarRange, Edit, ExternalLink, MapPin, Phon
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryClient } from "@/lib/queryClient";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { InsertSharedProperty, SharedProperty } from "@shared/schema";
 import { SharedPropertyForm } from "@/components/properties/SharedPropertyForm";
+import { SharedPropertySimpleForm } from "@/components/properties/SharedPropertySimpleForm";
 import { apiRequest } from "@/lib/queryClient";
+import SharedPropertyTasks from "@/components/properties/SharedPropertyTasks";
+import SharedPropertyMatchingBuyers from "@/components/properties/SharedPropertyMatchingBuyers";
 
 function getStageColor(stage: string) {
   switch (stage) {
@@ -72,12 +76,19 @@ export default function SharedPropertyDetailsPage() {
   const { data: property, isLoading, isError, error } = useQuery({
     queryKey: ['/api/shared-properties', params.id],
     queryFn: async () => {
-      const response = await fetch(`/api/shared-properties/${params.id}`);
-      if (!response.ok) {
-        throw new Error('Errore nel caricamento dei dettagli della proprietà condivisa');
+      try {
+        const response = await fetch(`/api/shared-properties/${params.id}`);
+        if (!response.ok) {
+          throw new Error('Errore nel caricamento dei dettagli della proprietà condivisa');
+        }
+        return response.json() as Promise<SharedProperty>;
+      } catch (error) {
+        console.error(`Errore nel caricamento della proprietà condivisa ID ${params.id}:`, error);
+        throw error;
       }
-      return response.json() as Promise<SharedProperty>;
-    }
+    },
+    retry: 1,
+    retryDelay: 1000
   });
   
   // Fetch matching buyers if property has the matchBuyers flag
@@ -99,6 +110,7 @@ export default function SharedPropertyDetailsPage() {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async (data: InsertSharedProperty) => {
+      console.log("Dati da inviare all'API:", data);
       return apiRequest(`/api/shared-properties/${params.id}`, {
         method: 'PATCH',
         data
@@ -173,7 +185,22 @@ export default function SharedPropertyDetailsPage() {
   });
   
   const handleUpdate = (data: InsertSharedProperty) => {
-    updateMutation.mutate(data);
+    console.log("Dati completi da inviare per modifica:", data);
+
+    // Assicuriamoci che i campi agency siano correttamente definiti
+    const dataToSend = {
+      ...data,
+      floor: data.floor || "",
+      agency1Name: data.agency1Name || "",
+      agency1Link: data.agency1Link || "",
+      agency2Name: data.agency2Name || "",
+      agency2Link: data.agency2Link || "",
+      agency3Name: data.agency3Name || "",
+      agency3Link: data.agency3Link || ""
+    };
+    
+    console.log("Dati finali dopo pulizia:", dataToSend);
+    updateMutation.mutate(dataToSend);
   };
   
   const handleDelete = () => {
@@ -268,15 +295,110 @@ export default function SharedPropertyDetailsPage() {
           </Button>
           <h1 className="text-3xl font-bold">Modifica Proprietà Condivisa</h1>
         </div>
-        
-        <Card className="p-6">
-          <SharedPropertyForm
-            initialData={property}
-            onSubmit={handleUpdate}
-            onCancel={() => setIsEditing(false)}
-            isSubmitting={updateMutation.isPending}
-          />
-        </Card>
+
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          
+          // Creiamo una copia dei dati della proprietà
+          const updatedProperty = {...property};
+          
+          // Aggiungiamo i valori aggiornati dai campi del form
+          updatedProperty.agency1Name = (document.getElementById('agency1Name') as HTMLInputElement).value;
+          updatedProperty.agency1Link = (document.getElementById('agency1Link') as HTMLInputElement).value;
+          updatedProperty.agency2Name = (document.getElementById('agency2Name') as HTMLInputElement).value;
+          updatedProperty.agency2Link = (document.getElementById('agency2Link') as HTMLInputElement).value;
+          updatedProperty.agency3Name = (document.getElementById('agency3Name') as HTMLInputElement).value;
+          updatedProperty.agency3Link = (document.getElementById('agency3Link') as HTMLInputElement).value;
+          updatedProperty.floor = (document.getElementById('floor') as HTMLInputElement).value;
+          
+          console.log("Dati aggiornati prima dell'invio:", updatedProperty);
+          
+          // Inviamo i dati aggiornati
+          handleUpdate(updatedProperty);
+        }} className="space-y-6">
+          <Card className="p-6 mb-6">
+            <h3 className="text-lg font-medium mb-4">Modifica dati agenzie</h3>
+            
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="floor" className="block text-sm font-medium mb-1">Piano dell'appartamento</label>
+                  <input 
+                    id="floor"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.floor || ""}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="agency1Name" className="block text-sm font-medium mb-1">Nome agenzia 1</label>
+                  <input 
+                    id="agency1Name"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency1Name || ""}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="agency1Link" className="block text-sm font-medium mb-1">Link agenzia 1</label>
+                  <input 
+                    id="agency1Link"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency1Link || ""}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="agency2Name" className="block text-sm font-medium mb-1">Nome agenzia 2</label>
+                  <input 
+                    id="agency2Name"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency2Name || ""}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="agency2Link" className="block text-sm font-medium mb-1">Link agenzia 2</label>
+                  <input 
+                    id="agency2Link"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency2Link || ""}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="agency3Name" className="block text-sm font-medium mb-1">Nome agenzia 3</label>
+                  <input 
+                    id="agency3Name"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency3Name || ""}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="agency3Link" className="block text-sm font-medium mb-1">Link agenzia 3</label>
+                  <input 
+                    id="agency3Link"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    defaultValue={property.agency3Link || ""}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-4 mt-6">
+              <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Salvataggio..." : "Salva modifiche"}
+              </Button>
+            </div>
+          </Card>
+        </form>
       </div>
     );
   }
@@ -401,17 +523,22 @@ export default function SharedPropertyDetailsPage() {
                   <h3 className="text-lg font-semibold mb-3 mt-6">Link Agenzie</h3>
                   
                   <div className="space-y-3">
-                    {property.agency1Link ? (
+                    {property.agency1Name || property.agency1Link ? (
                       <div className="flex justify-between items-center border-b pb-2">
-                        <Label>Agenzia 1</Label>
-                        <a 
-                          href={property.agency1Link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline flex items-center"
-                        >
-                          Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                        </a>
+                        <div>
+                          <Label className="block">Agenzia 1</Label>
+                          {property.agency1Name && <span className="text-sm">{property.agency1Name}</span>}
+                        </div>
+                        {property.agency1Link && (
+                          <a 
+                            href={property.agency1Link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:underline flex items-center"
+                          >
+                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <div className="border-b pb-2 text-gray-500 text-sm">
@@ -419,17 +546,22 @@ export default function SharedPropertyDetailsPage() {
                       </div>
                     )}
                     
-                    {property.agency2Link ? (
+                    {property.agency2Name || property.agency2Link ? (
                       <div className="flex justify-between items-center border-b pb-2">
-                        <Label>Agenzia 2</Label>
-                        <a 
-                          href={property.agency2Link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline flex items-center"
-                        >
-                          Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                        </a>
+                        <div>
+                          <Label className="block">Agenzia 2</Label>
+                          {property.agency2Name && <span className="text-sm">{property.agency2Name}</span>}
+                        </div>
+                        {property.agency2Link && (
+                          <a 
+                            href={property.agency2Link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:underline flex items-center"
+                          >
+                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <div className="border-b pb-2 text-gray-500 text-sm">
@@ -437,17 +569,22 @@ export default function SharedPropertyDetailsPage() {
                       </div>
                     )}
                     
-                    {property.agency3Link ? (
+                    {property.agency3Name || property.agency3Link ? (
                       <div className="flex justify-between items-center border-b pb-2">
-                        <Label>Agenzia 3</Label>
-                        <a 
-                          href={property.agency3Link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:underline flex items-center"
-                        >
-                          Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                        </a>
+                        <div>
+                          <Label className="block">Agenzia 3</Label>
+                          {property.agency3Name && <span className="text-sm">{property.agency3Name}</span>}
+                        </div>
+                        {property.agency3Link && (
+                          <a 
+                            href={property.agency3Link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary-600 hover:underline flex items-center"
+                          >
+                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
+                          </a>
+                        )}
                       </div>
                     ) : (
                       <div className="border-b pb-2 text-gray-500 text-sm">
@@ -525,66 +662,28 @@ export default function SharedPropertyDetailsPage() {
         </div>
         
         <div>
-          {property.matchBuyers && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Compratori Compatibili</CardTitle>
-                <CardDescription>
-                  Potenziali acquirenti interessati a questo tipo di immobile
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {matchingBuyers ? (
-                  matchingBuyers.length > 0 ? (
-                    <div className="space-y-4">
-                      {matchingBuyers.map((buyer: any) => (
-                        <div key={buyer.id} className="border rounded-md p-3 hover:bg-gray-50">
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-center">
-                              <User className="h-5 w-5 text-gray-400 mr-2" />
-                              <div>
-                                <p className="font-medium">{buyer.firstName} {buyer.lastName}</p>
-                                <p className="text-sm text-gray-500">{buyer.email || buyer.phone}</p>
-                              </div>
-                            </div>
-                            <Badge variant="outline">{buyer.urgent ? "Urgente" : "Standard"}</Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center py-6">
-                      Nessun compratore compatibile trovato
-                    </p>
-                  )
-                ) : (
-                  <div className="space-y-3 py-2">
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                    <Skeleton className="h-14 w-full" />
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full" onClick={() => setLocation("/clients/type/buyer")}>
-                  <User className="h-4 w-4 mr-2" />
-                  Gestisci compratori
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
-          
-          {/* Activity feed could be added here in the future */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Attività recenti</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-500 text-center py-6">
-                Le attività recenti saranno mostrate qui
-              </p>
-            </CardContent>
-          </Card>
+          {/* Schede per le diverse funzionalità */}
+          <Tabs defaultValue="matching" className="w-full mb-6">
+            <TabsList className="mb-4 grid grid-cols-2 w-full">
+              <TabsTrigger value="matching">
+                Potenziali interessati
+              </TabsTrigger>
+              <TabsTrigger value="tasks">
+                Attività
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="matching">
+              <SharedPropertyMatchingBuyers 
+                sharedPropertyId={property.id} 
+                isAcquired={property.isAcquired}
+              />
+            </TabsContent>
+            
+            <TabsContent value="tasks">
+              <SharedPropertyTasks sharedPropertyId={property.id} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
