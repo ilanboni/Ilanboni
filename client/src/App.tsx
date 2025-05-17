@@ -20,6 +20,7 @@ import SharedPropertiesPage from "@/pages/properties/shared/index";
 import SharedPropertyDetailPage from "@/pages/properties/shared/[id]";
 import NewSharedPropertyPage from "@/pages/properties/shared/new";
 import SimpleNewClientPage from "@/pages/clients/simple-new";
+import DirectNewClientPage from "@/pages/clients/direct-new";
 import AppointmentsPage from "@/pages/appointments/index";
 import CommunicationsPage from "@/pages/communications/index";
 import CommunicationDetailPage from "@/pages/communications/[id]";
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/clients" component={ClientsPage} />
       <Route path="/clients/new" component={ClientsByTypePage} />
+      <Route path="/clients/direct-new" component={DirectNewClientPage} />
       <Route path="/clients/edit/:id" component={ClientsByTypePage} />
       <Route path="/clients/modify/:id" component={ClientsByTypePage} />
       <Route path="/clients/type/:type" component={ClientsByTypePage} />
