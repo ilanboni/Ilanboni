@@ -108,16 +108,33 @@ export default function ClientsByTypePage() {
       const url = isEditMode ? `/api/clients/${clientId}` : '/api/clients';
       
       try {
-        const response = await apiRequest(method, url, data);
+        // Usa fetch direttamente invece di apiRequest per maggiore controllo sulla risposta
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
         
-        // Se la risposta non è ok, tenta di ottenere i dettagli dell'errore
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error("Errore risposta server:", errorData);
-          throw new Error(errorData.error || "Errore sconosciuto");
+        // Controlla il tipo di contenuto della risposta prima di provare a parsare come JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const responseData = await response.json();
+          
+          if (!response.ok) {
+            console.error("Errore risposta server:", responseData);
+            throw new Error(responseData.error || `Errore ${response.status}: ${response.statusText}`);
+          }
+          
+          return responseData;
+        } else {
+          // Se non è JSON, leggi come testo per debugging
+          const textResponse = await response.text();
+          console.error("Risposta non-JSON ricevuta:", textResponse.substring(0, 500));
+          throw new Error(`Errore nel formato della risposta: previsto JSON, ricevuto ${contentType || 'unknown'}`);
         }
-        
-        return await response.json();
       } catch (error) {
         console.error("Errore durante la richiesta API:", error);
         throw error;
