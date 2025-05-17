@@ -168,7 +168,13 @@ export const marketInsights = pgTable("market_insights", {
 
 // Create insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
-export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertClientSchema = createInsertSchema(clients)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    // Rendi anche il campo birthday opzionale per evitare problemi di validazione
+    birthday: z.date().nullable().optional(),
+    contractType: z.enum(["rent", "sale"]).nullable().optional(),
+  });
 export const insertBuyerSchema = createInsertSchema(buyers).omit({ id: true });
 export const insertSellerSchema = createInsertSchema(sellers).omit({ id: true });
 export const insertPropertySchema = createInsertSchema(properties).omit({ id: true, createdAt: true, updatedAt: true });
