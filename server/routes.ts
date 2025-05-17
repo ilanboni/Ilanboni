@@ -1125,53 +1125,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Crea un nuovo cliente
   app.post("/api/clients", async (req: Request, res: Response) => {
     try {
+      // Log dei dati ricevuti per debug
+      console.log("[POST /api/clients] Dati ricevuti:", JSON.stringify(req.body, null, 2));
+      
       // Valida i dati in ingresso
       const result = insertClientSchema.safeParse(req.body);
       
       if (!result.success) {
+        console.error("[POST /api/clients] Errore di validazione:", result.error.format());
         return res.status(400).json({ 
           error: "Dati cliente non validi", 
           details: result.error.format() 
         });
       }
       
-      const newClient = await storage.createClient(result.data);
+      console.log("[POST /api/clients] Dati validati:", JSON.stringify(result.data, null, 2));
       
-      // Se è un cliente di tipo buyer, crea anche il record buyer corrispondente
-      if (newClient.type === "buyer" && req.body.buyer) {
-        try {
-          await storage.createBuyer({
-            clientId: newClient.id,
-            searchArea: req.body.buyer.searchArea || null,
-            minSize: req.body.buyer.minSize || null,
-            maxPrice: req.body.buyer.maxPrice || null,
-            urgency: req.body.buyer.urgency || 3,
-            rating: req.body.buyer.rating || 3,
-            searchNotes: req.body.buyer.searchNotes || null
-          });
-        } catch (buyerError) {
-          console.error("[POST /api/clients] Error creating buyer:", buyerError);
-          // Non blocchiamo la creazione del cliente se fallisce la creazione del buyer
+      try {
+        const newClient = await storage.createClient(result.data);
+        console.log("[POST /api/clients] Cliente creato con successo:", newClient);
+        
+        // Se è un cliente di tipo buyer, crea anche il record buyer corrispondente
+        if (newClient.type === "buyer" && req.body.buyer) {
+          try {
+            console.log("[POST /api/clients] Creazione buyer:", JSON.stringify(req.body.buyer, null, 2));
+            const buyerData = {
+              clientId: newClient.id,
+              searchArea: req.body.buyer.searchArea || null,
+              minSize: req.body.buyer.minSize || null,
+              maxPrice: req.body.buyer.maxPrice || null,
+              urgency: req.body.buyer.urgency || 3,
+              rating: req.body.buyer.rating || 3,
+              searchNotes: req.body.buyer.searchNotes || null
+            };
+            
+            console.log("[POST /api/clients] Dati buyer elaborati:", JSON.stringify(buyerData, null, 2));
+            const buyer = await storage.createBuyer(buyerData);
+            console.log("[POST /api/clients] Buyer creato con successo:", buyer);
+          } catch (buyerError) {
+            console.error("[POST /api/clients] Errore creazione buyer:", buyerError);
+            // Non blocchiamo la creazione del cliente se fallisce la creazione del buyer
+          }
         }
-      }
-      
-      // Se è un cliente di tipo seller, crea anche il record seller corrispondente
-      if (newClient.type === "seller" && req.body.seller) {
-        try {
-          await storage.createSeller({
-            clientId: newClient.id,
-            propertyId: req.body.seller.propertyId || null
-          });
-        } catch (sellerError) {
-          console.error("[POST /api/clients] Error creating seller:", sellerError);
-          // Non blocchiamo la creazione del cliente se fallisce la creazione del seller
+        
+        // Se è un cliente di tipo seller, crea anche il record seller corrispondente
+        if (newClient.type === "seller" && req.body.seller) {
+          try {
+            console.log("[POST /api/clients] Creazione seller:", req.body.seller);
+            const seller = await storage.createSeller({
+              clientId: newClient.id,
+              propertyId: req.body.seller.propertyId || null
+            });
+            console.log("[POST /api/clients] Seller creato con successo:", seller);
+          } catch (sellerError) {
+            console.error("[POST /api/clients] Errore creazione seller:", sellerError);
+            // Non blocchiamo la creazione del cliente se fallisce la creazione del seller
+          }
         }
+        
+        res.status(201).json(newClient);
+      } catch (clientCreationError) {
+        console.error("[POST /api/clients] Errore specifico durante creazione cliente:", clientCreationError);
+        res.status(500).json({ 
+          error: "Errore specifico durante la creazione del cliente", 
+          details: clientCreationError.toString() 
+        });
       }
-      
-      res.status(201).json(newClient);
     } catch (error) {
-      console.error("[POST /api/clients]", error);
-      res.status(500).json({ error: "Errore durante la creazione del cliente" });
+      console.error("[POST /api/clients] Errore generale:", error);
+      res.status(500).json({ 
+        error: "Errore durante la creazione del cliente", 
+        details: error.toString() 
+      });
     }
   });
   
