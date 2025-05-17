@@ -106,8 +106,22 @@ export default function ClientsByTypePage() {
       // Usa API reali per salvare i dati del cliente
       const method = isEditMode ? 'PATCH' : 'POST';
       const url = isEditMode ? `/api/clients/${clientId}` : '/api/clients';
-      const response = await apiRequest(method, url, data);
-      return await response.json();
+      
+      try {
+        const response = await apiRequest(method, url, data);
+        
+        // Se la risposta non è ok, tenta di ottenere i dettagli dell'errore
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Errore risposta server:", errorData);
+          throw new Error(errorData.error || "Errore sconosciuto");
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error("Errore durante la richiesta API:", error);
+        throw error;
+      }
     },
     onSuccess: (response) => {
       // Invalidate clients query to refetch the list
@@ -136,10 +150,17 @@ export default function ClientsByTypePage() {
         navigate("/clients");
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error("Errore nella mutation:", error);
+      
+      let errorMessage = `Si è verificato un errore durante il ${isEditMode ? 'aggiornamento' : 'salvataggio'} del cliente.`;
+      if (error && error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Errore",
-        description: `Si è verificato un errore durante il ${isEditMode ? 'aggiornamento' : 'salvataggio'} del cliente.`,
+        description: errorMessage,
         variant: "destructive",
       });
     }
