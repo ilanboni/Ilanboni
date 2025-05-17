@@ -19,6 +19,7 @@ import NewPropertyPage from "@/pages/properties/new";
 import SharedPropertiesPage from "@/pages/properties/shared/index";
 import SharedPropertyDetailPage from "@/pages/properties/shared/[id]";
 import NewSharedPropertyPage from "@/pages/properties/shared/new";
+import SimpleNewClientPage from "@/pages/clients/simple-new";
 import AppointmentsPage from "@/pages/appointments/index";
 import CommunicationsPage from "@/pages/communications/index";
 import CommunicationDetailPage from "@/pages/communications/[id]";
