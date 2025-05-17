@@ -174,81 +174,54 @@ export default function ClientsByTypePage() {
     // Aggiorna il tipo di cliente prima di inviare
     setClientType(data.type as ClientType);
     
-    // Prepara i dati per l'invio
-    const clientData: any = {
-      type: data.type,
-      salutation: data.salutation,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      isFriend: data.isFriend,
-      email: data.email,
-      phone: data.phone,
-      religion: data.religion,
-      birthday: data.birthday,
-      contractType: data.contractType,
-      notes: data.notes
-    };
-    
-    // Aggiungi i dati specifici in base al tipo di cliente con controlli più rigorosi
-    if (data.type === 'buyer') {
-      // Gestione più robusta dei valori null/undefined per evitare errori di conversione
-      const minSize = data.minSize !== undefined && data.minSize !== null && data.minSize !== '' 
-                    ? Number(data.minSize) 
-                    : null;
+    try {
+      // Crea una versione semplificata dei dati del cliente, concentrandosi solo sui campi obbligatori
+      const clientData: any = {
+        type: data.type,
+        salutation: data.salutation || "",
+        firstName: data.firstName || "",
+        lastName: data.lastName || "",
+        isFriend: !!data.isFriend,
+        email: data.email || "",
+        phone: data.phone || "",
+        religion: data.religion || "",
+        notes: data.notes || "",
+      };
       
-      const maxPrice = data.maxPrice !== undefined && data.maxPrice !== null && data.maxPrice !== '' 
-                     ? Number(data.maxPrice) 
-                     : null;
+      // Rimuovi esplicitamente i campi problematici
+      // Il server userà i valori di default per questi campi
       
-      // Assicurati che i valori siano numeri validi
-      const urgency = data.urgency !== undefined && data.urgency !== null 
-                    ? Number(data.urgency) 
-                    : 3;
+      // Aggiungi i dati specifici in base al tipo di cliente in modo semplificato
+      if (data.type === 'buyer') {
+        clientData.buyer = {
+          // Invia solo i dati più semplici possibile
+          searchArea: data.searchArea || null,
+          minSize: data.minSize ? parseInt(data.minSize, 10) : null,
+          maxPrice: data.maxPrice ? parseInt(data.maxPrice, 10) : null,
+          urgency: 3, // valore di default
+          rating: 3,  // valore di default
+          searchNotes: data.searchNotes || ""
+        };
+      } else if (data.type === 'seller') {
+        clientData.seller = {
+          propertyAddress: data.propertyAddress || "",
+          propertyNotes: data.propertyNotes || ""
+        };
+      }
       
-      const rating = data.rating !== undefined && data.rating !== null 
-                   ? Number(data.rating) 
-                   : 3;
-
-      // Log dettagliato dei valori per il debugging
-      console.log("Valori cliente buyer:", {
-        searchArea: data.searchArea,
-        minSize: { raw: data.minSize, processed: minSize },
-        maxPrice: { raw: data.maxPrice, processed: maxPrice },
-        urgency: { raw: data.urgency, processed: urgency },
-        rating: { raw: data.rating, processed: rating }
+      // Log dei dati formattati per debug
+      console.log("Dati semplificati inviati al server:", clientData);
+      
+      // Invia i dati formattati
+      saveClientMutation.mutate(clientData);
+    } catch (error) {
+      console.error("Errore durante la preparazione dei dati:", error);
+      toast({
+        title: "Errore",
+        description: `Si è verificato un errore durante la preparazione dei dati del cliente: ${error}`,
+        variant: "destructive",
       });
-      
-      clientData.buyer = {
-        searchArea: data.searchArea,
-        minSize: minSize,
-        maxPrice: maxPrice,
-        urgency: urgency,
-        rating: rating,
-        searchNotes: data.searchNotes || ""
-      };
-    } else if (data.type === 'seller') {
-      // Gestione più robusta dei valori numerici per il venditore
-      const propertySize = data.propertySize !== undefined && data.propertySize !== null && data.propertySize !== '' 
-                         ? Number(data.propertySize) 
-                         : 0;
-      
-      const propertyPrice = data.propertyPrice !== undefined && data.propertyPrice !== null && data.propertyPrice !== '' 
-                          ? Number(data.propertyPrice) 
-                          : 0;
-      
-      clientData.seller = {
-        propertyAddress: data.propertyAddress || "",
-        propertySize: propertySize,
-        propertyPrice: propertyPrice,
-        propertyNotes: data.propertyNotes || ""
-      };
     }
-    
-    // Log dei dati formattati per debug
-    console.log("Dati inviati al server:", clientData);
-    
-    // Invia i dati formattati
-    saveClientMutation.mutate(clientData);
   };
   
   // Handle cancel button click
