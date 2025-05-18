@@ -113,17 +113,34 @@ export default function ClientsPage() {
   
   const handleDeleteClient = async (client: ClientWithDetails) => {
     try {
-      // Chiama la vera API per eliminare il cliente
-      const response = await apiRequest('DELETE', `/api/clients/${client.id}`);
-      await response.json(); // Processa la risposta anche se non la utilizziamo
+      console.log(`Eliminazione cliente ${client.id} in corso...`);
       
-      toast({
-        title: "Cliente eliminato",
-        description: `${client.firstName} ${client.lastName} è stato eliminato con successo.`,
+      // Usa fetch direttamente per avere maggiore controllo sulla risposta
+      const response = await fetch(`/api/clients/${client.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json'
+        }
       });
       
-      refetch();
+      if (response.status === 204) {
+        console.log(`Cliente ${client.id} eliminato con successo (status 204)`);
+        
+        // Notifica utente
+        toast({
+          title: "Cliente eliminato",
+          description: `${client.firstName} ${client.lastName} è stato eliminato con successo.`,
+        });
+        
+        // Forza rinfresco dati
+        queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+        await refetch();
+      } else {
+        console.error(`Errore eliminazione cliente: status ${response.status}`);
+        throw new Error(`Errore eliminazione cliente: status ${response.status}`);
+      }
     } catch (error) {
+      console.error("Errore eliminazione cliente:", error);
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante l'eliminazione del cliente.",
