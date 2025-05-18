@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import type { ClientType } from "@/types";
@@ -29,6 +29,7 @@ import { Helmet } from "react-helmet";
 export default function ClientsPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // State for filtering
   const [clientTypeFilter, setClientTypeFilter] = useState<ClientType | "all">("all");
@@ -102,8 +103,9 @@ export default function ClientsPage() {
   
   // Handle client actions
   const handleEditClient = (client: ClientWithDetails) => {
-    // Usa la route modify/ID che è più esplicita e ci permette di controllare meglio 
-    navigate(`/clients/modify/${client.id}`);
+    console.log(`Navigando alla pagina di modifica per il cliente ${client.id}`);
+    // Usa la route edit/:id che è esplicitamente mappata nel router
+    navigate(`/clients/edit/${client.id}`);
   };
   
   const handleViewClient = (client: ClientWithDetails) => {
@@ -133,7 +135,7 @@ export default function ClientsPage() {
         });
         
         // Forza rinfresco dati
-        queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+        await queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
         await refetch();
       } else {
         console.error(`Errore eliminazione cliente: status ${response.status}`);
