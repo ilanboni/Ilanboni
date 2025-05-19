@@ -191,9 +191,41 @@ export class UltraMsgClient {
       
       // Cerca il cliente in base al numero di telefono
       const client = await storage.getClientByPhone(phone);
+      
+      // Se il numero non è registrato, invece di ignorare il messaggio,
+      // lo registriamo comunque come messaggio da un numero sconosciuto
       if (!client) {
         console.warn(`[ULTRAMSG] Messaggio da numero non registrato: ${phone}`);
-        return null;
+        
+        // Crea una comunicazione speciale per messaggi da numeri non registrati
+        // Utilizziamo il cliente con ID 1 come 'catch-all' per messaggi non identificati
+        const defaultClientId = 14; // Utilizza il cliente Ilan Boni come default
+        
+        // Prepara i dati per il database
+        const communicationData: InsertCommunication = {
+          clientId: defaultClientId, // Utilizza un cliente di default per numeri non registrati
+          type: 'whatsapp',
+          subject: `Messaggio WhatsApp da numero non registrato (${phone})`,
+          content: webhookData.body || '',
+          summary: `Messaggio da numero non registrato: ${phone.substring(0, 40)}...`,
+          direction: 'inbound',
+          needsFollowUp: true,
+          status: 'pending',
+          propertyId: null,
+          responseToId: null
+        };
+        
+        console.log("[ULTRAMSG] Salvando messaggio da numero non registrato:", communicationData);
+        
+        try {
+          // Salva nel database
+          const unknownComm = await storage.createCommunication(communicationData);
+          console.log("[ULTRAMSG] Messaggio da numero non registrato salvato con ID:", unknownComm.id);
+          return unknownComm;
+        } catch (saveError) {
+          console.error("[ULTRAMSG] Errore nel salvare messaggio da numero non registrato:", saveError);
+          return null;
+        }
       }
       
       console.log("[ULTRAMSG] Cliente trovato:", client.id, client.firstName, client.lastName);
