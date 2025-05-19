@@ -1,0 +1,615 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { InsertSharedProperty, insertSharedPropertySchema } from "@shared/schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { MapSelector } from "@/components/maps/MapSelector";
+import { Label } from "@/components/ui/label";
+import React, { useState, useEffect } from "react";
+
+// Extend the shared property schema with validations
+const formSchema = insertSharedPropertySchema.extend({
+  address: z.string().min(1, "L'indirizzo è obbligatorio"),
+});
+
+type SharedPropertyFormProps = {
+  initialData?: Partial<InsertSharedProperty>;
+  onSubmit: (data: z.infer<typeof formSchema>) => void;
+  onCancel: () => void;
+  isSubmitting?: boolean;
+};
+
+export function SharedPropertyForm({ initialData, onSubmit, onCancel, isSubmitting = false }: SharedPropertyFormProps) {
+  const [locationData, setLocationData] = useState<{lat?: number; lng?: number} | null>(
+    initialData?.location as {lat?: number; lng?: number} | null
+  );
+
+  // Prepare default values combining defaults with initialData
+  const defaultValues = {
+    propertyId: null, // Impostiamo esplicitamente a null invece di 0 
+    address: "",
+    city: "",
+    size: 0,
+    price: 0,
+    type: "apartment",
+    ownerName: "",
+    ownerPhone: "",
+    ownerEmail: "",
+    ownerNotes: "",
+    floor: "",
+    agency1Name: "",
+    agency1Link: "",
+    agency2Name: "",
+    agency2Link: "",
+    agency3Name: "",
+    agency3Link: "",
+    rating: 3,
+    stage: "address_found",
+    stageResult: "",
+    isAcquired: false,
+    matchBuyers: false,
+    ...(initialData || {})
+  };
+
+  // Initialize the form
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: defaultValues,
+  });
+  
+  // Use useEffect to reset form values when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      console.log("Dati iniziali completi:", initialData);
+      console.log("Campo floor:", initialData.floor);
+      console.log("Campo agency1Name:", initialData.agency1Name);
+      console.log("Campo agency2Name:", initialData.agency2Name);
+      console.log("Campo agency3Name:", initialData.agency3Name);
+      
+      // Reset del form con tutti i dati - cloniamo l'oggetto per evitare riferimenti mantenuti
+      const cleanData = JSON.parse(JSON.stringify(initialData));
+      
+      form.reset({
+        ...defaultValues,
+        ...cleanData,
+        // Forziamo esplicitamente questi campi
+        floor: cleanData.floor || "",
+        agency1Name: cleanData.agency1Name || "",
+        agency1Link: cleanData.agency1Link || "",
+        agency2Name: cleanData.agency2Name || "",
+        agency2Link: cleanData.agency2Link || "",
+        agency3Name: cleanData.agency3Name || "",
+        agency3Link: cleanData.agency3Link || ""
+      });
+    }
+  }, [initialData, form, defaultValues]);
+
+  // Implementiamo funzioni di supporto per aggiornare manualmente ogni campo
+  const handleAgency1NameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency1Name", e.target.value);
+  };
+  
+  const handleAgency1LinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency1Link", e.target.value);
+  };
+  
+  const handleAgency2NameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency2Name", e.target.value);
+  };
+  
+  const handleAgency2LinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency2Link", e.target.value);
+  };
+  
+  const handleAgency3NameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency3Name", e.target.value);
+  };
+  
+  const handleAgency3LinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("agency3Link", e.target.value);
+  };
+  
+  const handleFloorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("floor", e.target.value);
+  };
+
+  const handleSubmit = (values: z.infer<typeof formSchema>) => {
+    // Include location data from map and log che cosa viene inviato
+    console.log("Valori form prima dell'invio:", values);
+    
+    const formData = {
+      ...values,
+      location: locationData,
+      // Assicuriamoci che i campi siano presenti anche se vuoti
+      floor: values.floor || "",
+      agency1Name: values.agency1Name || "",
+      agency1Link: values.agency1Link || "",
+      agency2Name: values.agency2Name || "",
+      agency2Link: values.agency2Link || "",
+      agency3Name: values.agency3Name || "",
+      agency3Link: values.agency3Link || ""
+    };
+    
+    console.log("Dati completi da inviare:", formData);
+    onSubmit(formData);
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+        <Card className="p-6">
+          <h3 className="text-lg font-medium mb-4">Informazioni di base</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Indirizzo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Via Roma, 123" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Città</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Milano" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="size"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Metratura (m²)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="80" 
+                      {...field} 
+                      value={field.value ?? 0}
+                      onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prezzo (€)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="250000" 
+                      {...field} 
+                      value={field.value ?? 0}
+                      onChange={(e) => field.onChange(e.target.value === "" ? null : parseInt(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipologia</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || "apartment"}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona tipologia" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="apartment">Appartamento</SelectItem>
+                      <SelectItem value="house">Casa</SelectItem>
+                      <SelectItem value="villa">Villa</SelectItem>
+                      <SelectItem value="penthouse">Attico</SelectItem>
+                      <SelectItem value="commercial">Commerciale</SelectItem>
+                      <SelectItem value="land">Terreno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="rating"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Valutazione importanza (1-5)</FormLabel>
+                  <Select onValueChange={(value) => field.onChange(parseInt(value))} value={(field.value ?? 3).toString()}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona importanza" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="1">1 - Bassa</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
+                      <SelectItem value="3">3 - Media</SelectItem>
+                      <SelectItem value="4">4</SelectItem>
+                      <SelectItem value="5">5 - Alta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Indica quanto è importante questa proprietà per la tua agenzia
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-medium mb-4">Posizione sulla mappa</h3>
+          <div className="h-96 mb-4">
+            <MapSelector
+              initialLocation={locationData}
+              onLocationSelected={(location) => setLocationData(location)}
+              address={form.getValues("address") + ", " + form.getValues("city")}
+              autoGeocode={true}
+            />
+          </div>
+          <FormDescription>
+            La posizione viene geocodificata automaticamente in base all'indirizzo inserito
+          </FormDescription>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-medium mb-4">Fase della proprietà</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="stage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fase attuale</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || "address_found"}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona fase" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="address_found">Indirizzo trovato</SelectItem>
+                      <SelectItem value="owner_found">Proprietario trovato</SelectItem>
+                      <SelectItem value="owner_contact_found">Contatto proprietario trovato</SelectItem>
+                      <SelectItem value="owner_contacted">Proprietario contattato</SelectItem>
+                      <SelectItem value="result">Risultato</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {form.watch('stage') === 'result' && (
+              <FormField
+                control={form.control}
+                name="stageResult"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Risultato</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona risultato" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="acquired">Acquisito</SelectItem>
+                        <SelectItem value="rejected">Rifiutato</SelectItem>
+                        <SelectItem value="pending">In attesa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
+              name="isAcquired"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Proprietà acquisita</FormLabel>
+                    <FormDescription>
+                      Indica se la proprietà è stata acquisita dalla tua agenzia
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value === true}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="matchBuyers"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Abbina ai potenziali acquirenti</FormLabel>
+                    <FormDescription>
+                      Se acquisita, abbina automaticamente ai potenziali acquirenti
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value === true}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <h3 className="text-lg font-medium mb-4">Informazioni proprietario</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="ownerName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome proprietario</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Mario Rossi" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="ownerPhone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefono proprietario</FormLabel>
+                  <FormControl>
+                    <Input placeholder="+39 123 456 7890" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="ownerEmail"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email proprietario</FormLabel>
+                  <FormControl>
+                    <Input placeholder="mario.rossi@example.com" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="ownerNotes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Note sul proprietario</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Note informative sul proprietario..." 
+                      className="resize-none" 
+                      {...field} 
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="floor"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Piano dell'appartamento</FormLabel>
+                  <FormControl>
+                    <input 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="es. 3° piano" 
+                      onChange={handleFloorChange}
+                      value={form.getValues("floor") || ""}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Inserisci il piano dell'appartamento (es. "Piano terra", "1° piano", "Attico")
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <h3 className="text-lg font-medium mb-4">Link altre agenzie</h3>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="agency1Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome agenzia 1</FormLabel>
+                    <FormControl>
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="es. Immobiliare Rossi" 
+                        onChange={handleAgency1NameChange}
+                        value={form.getValues("agency1Name") || ""} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="agency1Link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link agenzia 1</FormLabel>
+                    <FormControl>
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="https://example.com/property/1234" 
+                        onChange={handleAgency1LinkChange}
+                        value={form.getValues("agency1Link") || ""} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="agency2Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome agenzia 2</FormLabel>
+                    <FormControl>
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="es. Immobiliare Bianchi" 
+                        onChange={handleAgency2NameChange}
+                        value={form.getValues("agency2Name") || ""} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="agency2Link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link agenzia 2</FormLabel>
+                    <FormControl>
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="https://example.com/property/1234" 
+                        onChange={handleAgency2LinkChange}
+                        value={form.getValues("agency2Link") || ""} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="agency3Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome agenzia 3</FormLabel>
+                    <FormControl>
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="es. Immobiliare Verdi" 
+                        onChange={handleAgency3NameChange}
+                        value={form.getValues("agency3Name") || ""} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="agency3Link"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link agenzia 3</FormLabel>
+                    <FormControl>
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="https://example.com/property/1234" 
+                        onChange={handleAgency3LinkChange}
+                        value={form.getValues("agency3Link") || ""} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+        </Card>
+
+        <div className="flex justify-between">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            Annulla
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin mr-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                </div>
+                Salvataggio...
+              </>
+            ) : "Salva proprietà condivisa"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}

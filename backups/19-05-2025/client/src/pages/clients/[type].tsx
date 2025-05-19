@@ -225,7 +225,6 @@ export default function ClientsByTypePage() {
         email: data.email || "",
         phone: data.phone || "",
         religion: data.religion || "",
-        contractType: data.contractType || null,
         notes: data.notes || "",
       };
       
