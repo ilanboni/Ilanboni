@@ -71,8 +71,10 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
     console.log(`[ULTRAMSG DEBUG] Instance ID: ${process.env.ULTRAMSG_INSTANCE_ID}`);
     console.log(`[ULTRAMSG DEBUG] API Key presente: ${process.env.ULTRAMSG_API_KEY ? 'Sì' : 'No'}`);
     
-    // Aggiungi timestamp per recuperare solo messaggi più recenti dell'ultimo polling
-    const lastPollTime = parseInt(process.env.LAST_POLL_TIMESTAMP || '0');
+    // MODIFICA: Forziamo il reset del timestamp per recuperare nuovamente i messaggi recenti
+    // e testare la funzionalità dell'agente virtuale
+    // Commento: in produzione, questo dovrebbe usare il timestamp dell'ultimo polling
+    const lastPollTime = 0; // Forziamo a 0 per recuperare tutti i messaggi recenti
     const currentTime = Math.floor(Date.now() / 1000);
     
     // Aggiorna il timestamp per il prossimo polling
