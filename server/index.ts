@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { fetchRecentWhatsAppMessages } from "./lib/ultramsgApi";
+import diagnosticRouter from "./diagnostic-webhook";
 
 // Intervallo in millisecondi per il polling dei messaggi WhatsApp
 const WHATSAPP_POLLING_INTERVAL = 60000; // 1 minuto
@@ -20,6 +21,9 @@ console.log(`🤖 Agente virtuale ${process.env.ENABLE_VIRTUAL_AGENT === 'true' 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Aggiungi il router diagnostico per webhook WhatsApp
+app.use('/api/diagnostic', diagnosticRouter);
 
 app.use((req, res, next) => {
   const start = Date.now();
