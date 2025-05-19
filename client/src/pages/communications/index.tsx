@@ -41,9 +41,27 @@ export default function CommunicationsPage() {
     queryKey: ["/api/clients"],
   });
   
-  // Function to get client name by id
-  const getClientName = (clientId: number) => {
+  // Function to get client name by id and detect unknown numbers
+  const getClientName = (clientId: number, subject?: string) => {
     const client = clients?.find(c => c.id === clientId);
+    
+    // Verifica se è un messaggio da numero non registrato
+    if (subject && subject.includes("da numero non registrato")) {
+      // Estrae il numero di telefono dal soggetto, se presente
+      const phoneMatch = subject.match(/\(([^)]+)\)/);
+      const phoneNumber = phoneMatch ? phoneMatch[1] : "";
+      
+      return (
+        <div className="flex flex-col">
+          <span>{client ? `${client.firstName} ${client.lastName}` : `Cliente #${clientId}`}</span>
+          <span className="text-xs font-medium text-orange-600 bg-orange-50 rounded px-1.5 py-0.5 inline-block mt-1">
+            <i className="fas fa-exclamation-circle mr-1"></i> 
+            Numero non registrato: {phoneNumber}
+          </span>
+        </div>
+      );
+    }
+    
     return client ? `${client.firstName} ${client.lastName}` : `Cliente #${clientId}`;
   };
   // Apply filters and search to communications
@@ -263,7 +281,7 @@ export default function CommunicationsPage() {
                         <TableCell>
                           <Link href={`/clients/${comm.clientId}`}>
                             <div className="text-primary-700 hover:underline cursor-pointer">
-                              {getClientName(comm.clientId)}
+                              {getClientName(comm.clientId, comm.subject)}
                             </div>
                           </Link>
                         </TableCell>
