@@ -119,11 +119,18 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
       console.log(`Verifica ${allMessages.length} messaggi recenti (approccio globale)...`);
       
       for (const message of allMessages) {
-        // Ignora i messaggi inviati da noi
-        if (message.from === "390235981509@c.us" || message.from === process.env.ULTRAMSG_PHONE_NUMBER) {
+        // Ignora solo i messaggi che abbiamo effettivamente inviato noi
+        // fromMe è il vero indicatore se un messaggio è stato inviato dal nostro numero
+        if (message.fromMe === true) {
           console.log(`Ignora messaggio in uscita: ${message.body.substring(0, 20)}...`);
           ignoredCount++;
           continue;
+        }
+        
+        // Se il messaggio proviene dal numero configurato ma non è marcato come fromMe
+        // potrebbe essere una risposta che dobbiamo elaborare
+        if (message.from === "390235981509@c.us" && !message.fromMe) {
+          console.log(`⚠️ Messaggio speciale da numero configurato ma non marcato come nostro: ${message.body.substring(0, 20)}...`);
         }
         
         console.log(`Trovato messaggio potenziale: da ${message.from}, a ${message.to}, corpo: ${message.body.substring(0, 20)}...`);
@@ -189,10 +196,14 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
         // Elabora ogni messaggio
         for (const message of messages) {
           // Ignora i messaggi inviati da noi
-          if (message.fromMe) {
+          if (message.fromMe === true) {
+            console.log(`Ignora messaggio in uscita [chat ${chatId}]: ${message.body?.substring(0, 20) || '(no body)'}...`);
             ignoredCount++;
             continue;
           }
+          
+          // Log più dettagliato per la diagnosi
+          console.log(`Messaggio in entrata [chat ${chatId}]: ${message.from}, corpo: ${message.body?.substring(0, 20) || '(no body)'}...`);
           
           // Controlla se abbiamo già questo messaggio nel database
           const messageId = message.id || `${message.from}:${message.time}`;
