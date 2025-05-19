@@ -95,8 +95,8 @@ export async function createFollowUpTaskIfNeeded(
         title: `Follow-up per ${client.firstName} ${client.lastName}`,
         description: `Nessuna risposta alla comunicazione "${communication.subject}" del ${new Date(communication.createdAt).toLocaleDateString("it-IT")}. Contattare nuovamente il cliente.`,
         clientId,
-        propertyId: propertyId || null,
-        dueDate: followUpDate,
+        propertyId: propertyId ?? null,
+        dueDate: followUpDate.toISOString().substring(0, 10), // Converte in formato stringa YYYY-MM-DD
         status: "pending",
         assignedTo: null
       };
@@ -133,10 +133,14 @@ export async function processClientResponse(
     // Analizza il sentimento della risposta
     const sentimentResult = await analyzeSentiment(responseText);
     
+    // Calcoliamo la data di follow-up, se necessario
+    const followUpDate = sentimentResult.shouldFollowUp ? 
+      addDays(new Date(), 3).toISOString().substring(0, 10) : null;
+    
     // Crea una nuova comunicazione per la risposta
     const responseData = {
       clientId,
-      propertyId: propertyId || null,
+      propertyId: propertyId ?? null,
       sharedPropertyId: null,
       type: "response",
       subject: "Risposta del cliente",
@@ -145,12 +149,13 @@ export async function processClientResponse(
       direction: "inbound",
       createdBy: null,
       needsFollowUp: sentimentResult.shouldFollowUp,
-      followUpDate: sentimentResult.shouldFollowUp ? addDays(new Date(), 3) : null,
+      followUpDate,
       status: "completed",
       sentiment: sentimentResult.sentiment,
       sentimentScore: sentimentResult.score,
       responseToId: originalCommunicationId,
-      autoFollowUpSent: false
+      autoFollowUpSent: false,
+      externalId: null
     };
     
     // Salva la comunicazione

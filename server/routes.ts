@@ -1559,6 +1559,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (communication) {
           console.log("[WEBHOOK] Comunicazione salvata:", communication);
           
+          // Se questo messaggio è una risposta ad un messaggio precedente, analizza il sentimento
+          if (!normalizedWebhook.from_me) {
+            try {
+              const { processClientResponse } = await import('./services/sentimentAnalysis');
+              
+              // Controllo se questa è una risposta a un messaggio precedente
+              // Cerca l'ultimo messaggio inviato da noi a questo cliente
+              const client = await storage.getClientByPhone(normalizedWebhook.from);
+              if (client) {
+                // Trova le comunicazioni precedenti in uscita per questo cliente
+                const clientCommunications = await storage.getCommunicationsByClientId(client.id);
+                const lastOutboundComm = clientCommunications
+                  .filter(comm => comm.direction === "outbound")
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+                
+                if (lastOutboundComm) {
+                  // Elabora questa risposta come una risposta al messaggio precedente
+                  console.log("[SENTIMENT] Analisi sentimento della risposta al messaggio:", lastOutboundComm.id);
+                  await processClientResponse(
+                    communication.content,
+                    lastOutboundComm.id,
+                    client.id,
+                    lastOutboundComm.propertyId ?? undefined
+                  );
+                  console.log("[SENTIMENT] Analisi sentimento completata");
+                }
+              }
+            } catch (err) {
+              console.error("[SENTIMENT] Errore durante l'analisi del sentimento:", err);
+            }
+          }
+          
           // Crea un task per il follow-up se necessario
           if (communication.needsFollowUp) {
             const dueDate = new Date();
