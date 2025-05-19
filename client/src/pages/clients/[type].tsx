@@ -36,25 +36,25 @@ export default function ClientsByTypePage() {
   let clientId: number | null = null;
   if (isEditMode) {
     console.log("Debugging URLs - params:", params);
+    console.log("Location pathname:", window.location.pathname);
     
-    // Controlla i parametri nell'ordine di priorità
-    if (params.id && !isNaN(parseInt(params.id))) {
+    // Controlla prima se siamo in una rotta di tipo /clients/edit/123
+    const pathMatch = window.location.pathname.match(/\/clients\/(?:edit|modify)\/(\d+)$/);
+    if (pathMatch && pathMatch[1]) {
+      clientId = parseInt(pathMatch[1]);
+      console.log("ID trovato dall'URL completa:", clientId);
+    } 
+    // Se non trovato dall'URL, controlla altre fonti
+    else if (params.id && !isNaN(parseInt(params.id))) {
       // Caso /clients/:type/:id
       clientId = parseInt(params.id);
       console.log("ID trovato nel parametro id:", clientId);
-    } else if (params.type?.startsWith("edit/")) {
-      // Caso /clients/edit/123
-      const idPart = params.type.substring(5);
-      if (!isNaN(parseInt(idPart))) {
-        clientId = parseInt(idPart);
-        console.log("ID trovato nel formato edit/XXX:", clientId);
-      }
-    } else if (params.type?.startsWith("modify/")) {
-      // Caso /clients/modify/123
-      const idPart = params.type.substring(7);
-      if (!isNaN(parseInt(idPart))) {
-        clientId = parseInt(idPart);
-        console.log("ID trovato nel formato modify/XXX:", clientId);
+    } else if (params.type?.includes("/")) {
+      // Caso /clients/edit/123 dove "edit/123" è in params.type
+      const parts = params.type.split("/");
+      if (parts.length > 1 && !isNaN(parseInt(parts[1]))) {
+        clientId = parseInt(parts[1]);
+        console.log("ID trovato splittando params.type:", clientId);
       }
     } else if (params.type?.startsWith("edit") && params.type.length > 4) {
       // Caso /clients/edit123
