@@ -1577,6 +1577,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (lastOutboundComm) {
                   // Elabora questa risposta come una risposta al messaggio precedente
                   console.log("[SENTIMENT] Analisi sentimento della risposta al messaggio:", lastOutboundComm.id);
+                  
+                  // Associa la risposta alla proprietà originale
+                  if (lastOutboundComm.propertyId) {
+                    console.log(`[PROPERTY-LINKING] Associazione risposta con immobile ID: ${lastOutboundComm.propertyId}`);
+                    // Aggiorna la comunicazione con propertyId
+                    await storage.updateCommunication(communication.id, {
+                      propertyId: lastOutboundComm.propertyId,
+                      responseToId: lastOutboundComm.id
+                    });
+                  }
+                  
                   await processClientResponse(
                     communication.content,
                     lastOutboundComm.id,
