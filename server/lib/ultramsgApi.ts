@@ -127,11 +127,10 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
           continue;
         }
         
-        // Se il messaggio proviene dal numero configurato ma non è marcato come fromMe
-        // potrebbe essere una risposta che dobbiamo elaborare
-        if (message.from === "390235981509@c.us" && !message.fromMe) {
-          console.log(`⚠️ Messaggio speciale da numero configurato ma non marcato come nostro: ${message.body.substring(0, 20)}...`);
-        }
+        // Tutti i messaggi in entrata potrebbero essere risposte che dobbiamo elaborare
+        // Non filtriamo più per un numero specifico, ma solo per la direzione (inbound/outbound)
+        // in base al flag fromMe che è l'indicatore affidabile
+        console.log(`⚠️ Elaborazione messaggio in entrata da ${message.from}, fromMe=${message.fromMe}: ${message.body.substring(0, 20)}...`);
         
         console.log(`Trovato messaggio potenziale: da ${message.from}, a ${message.to}, corpo: ${message.body.substring(0, 20)}...`);
         

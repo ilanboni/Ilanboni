@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Communication, InsertCommunication, Client, Property } from '@shared/schema';
 import { storage } from '../storage';
 import { summarizeText } from './openai';
+import { config } from '../config';
 
 // Constants and types for UltraMsg
 interface UltraMsgMessageResponse {
@@ -192,13 +193,29 @@ export class UltraMsgClient {
       // Cerca il cliente in base al numero di telefono
       const client = await storage.getClientByPhone(phone);
       
+      // Verifica se il numero corrisponde al tuo numero di WhatsApp configurato
+      // Utilizza la configurazione dal file config.ts che è già importato in cima al file
+      const configuredNumber = (config.agentPhoneNumber || '').replace(/^\+/, '');
+      // Normalizza il numero configurato nello stesso modo
+      const normalizedConfiguredNumber = configuredNumber.replace(/\s+/g, '').replace(/[-()]/g, '');
+      
+      console.log(`[ULTRAMSG] Confronto numeri: ricevuto=${phone}, configurato=${normalizedConfiguredNumber}`);
+      
+      // Se il numero mittente è lo stesso numero configurato, non trattarlo come non registrato
+      if (phone === normalizedConfiguredNumber) {
+        console.log(`[ULTRAMSG] Il messaggio proviene dal numero dell'agente configurato, ma non è marcato come fromMe`);
+        // In questo caso, il messaggio è probabilmente una risposta da un altro dispositivo con lo stesso numero
+        // Lo trattiamo come un messaggio in uscita che è stato inviato da un altro strumento
+        return null;
+      }
+      
       // Se il numero non è registrato, invece di ignorare il messaggio,
       // lo registriamo comunque come messaggio da un numero sconosciuto
       if (!client) {
         console.warn(`[ULTRAMSG] Messaggio da numero non registrato: ${phone}`);
         
         // Crea una comunicazione speciale per messaggi da numeri non registrati
-        // Utilizziamo il cliente con ID 1 come 'catch-all' per messaggi non identificati
+        // Utilizziamo un cliente specifico come 'catch-all' per messaggi non identificati
         const defaultClientId = 14; // Utilizza il cliente Ilan Boni come default
         
         // Prepara i dati per il database
