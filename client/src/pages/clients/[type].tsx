@@ -89,10 +89,33 @@ export default function ClientsByTypePage() {
     // Quando in modalità modifica, usiamo l'API per ottenere i dati del cliente
     queryFn: async () => {
       if (!clientId) return null;
-      const response = await apiRequest('GET', `/api/clients/${clientId}`);
-      return await response.json();
+      console.log(`Fetching client data for ID ${clientId}`);
+      try {
+        // Usa fetch direttamente per maggiore controllo e debugging
+        const response = await fetch(`/api/clients/${clientId}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          console.error(`Error fetching client: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          console.error(`Response body: ${errorText}`);
+          throw new Error(`Error fetching client: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Client data loaded successfully:`, data);
+        return data;
+      } catch (error) {
+        console.error("Error fetching client data:", error);
+        throw error;
+      }
     },
-    enabled: isEditMode && !!clientId
+    enabled: isEditMode && !!clientId,
+    retry: 1
   });
   
   // Per i clienti compratori in modalità modifica, recuperiamo anche i dati di ricerca
