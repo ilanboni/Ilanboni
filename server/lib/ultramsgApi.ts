@@ -76,12 +76,12 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
     // Usa un timestamp recente per recuperare solo i messaggi nuovi
     // ma abbastanza indietro da catturare messaggi che potrebbero essere stati persi
     const currentTime = Math.floor(Date.now() / 1000);
-    // Imposta un intervallo di 10 minuti indietro per limitare i messaggi analizzati e evitare loop
-    const tenMinutesAgo = currentTime - 600; 
-    const lastPollTime = tenMinutesAgo;
+    // Imposta un intervallo di 15 minuti indietro per catturare tutti i messaggi recenti
+    const fifteenMinutesAgo = currentTime - 900; 
+    const lastPollTime = fifteenMinutesAgo;
     
     console.log(`[ULTRAMSG DEBUG] Polling WhatsApp eseguito alle ${new Date().toISOString()}`);
-    console.log(`[ULTRAMSG DEBUG] Recupero messaggi dagli ultimi 10 minuti: ${new Date(tenMinutesAgo * 1000).toISOString()}`);
+    console.log(`[ULTRAMSG DEBUG] Recupero messaggi dagli ultimi 15 minuti: ${new Date(fifteenMinutesAgo * 1000).toISOString()}`);
     
     const allMessagesResponse = await axios.get(allMessagesUrl, {
       params: {
