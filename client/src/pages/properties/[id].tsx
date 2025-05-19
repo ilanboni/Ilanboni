@@ -224,10 +224,22 @@ export default function PropertyDetailPage() {
     }
   }, [property, form, id, queryClient]);
   
-  // Fetch property communications
+  // Fetch property communications with the same dynamic key approach
   const { data: communications, isLoading: isCommunicationsLoading } = useQuery<Communication[]>({
-    queryKey: ["/api/properties", id, "communications"],
-    enabled: !isNaN(id),
+    queryKey: [`property-${id}-communications`, id],
+    queryFn: async () => {
+      console.log("Caricamento comunicazioni per immobile ID:", id);
+      
+      const response = await fetch(`/api/properties/${id}/communications`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      console.log("Comunicazioni caricate:", data);
+      return data;
+    },
+    staleTime: 0,
+    enabled: !isNaN(id) && id > 0,
   });
   
   // Fetch clients data for displaying in communications
