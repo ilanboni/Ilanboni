@@ -2069,6 +2069,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registra i router per API specifiche
   app.use("/api/geocode", geocodeRouter);
 
+  // Endpoint per controllare e configurare l'agente virtuale
+  app.get("/api/agent/status", async (req: Request, res: Response) => {
+    const isEnabled = process.env.ENABLE_VIRTUAL_AGENT === 'true';
+    res.status(200).json({
+      enabled: isEnabled
+    });
+  });
+  
+  app.post("/api/agent/configure", async (req: Request, res: Response) => {
+    try {
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          message: "Il parametro 'enabled' deve essere un valore booleano"
+        });
+      }
+      
+      // Importazione dinamica per evitare dipendenze circolari
+      const { configureAutoResponseSystem } = await import('./services/virtualAgent');
+      const result = await configureAutoResponseSystem(enabled);
+      
+      // Imposta la variabile d'ambiente per il polling
+      process.env.ENABLE_VIRTUAL_AGENT = enabled ? 'true' : 'false';
+      
+      res.status(200).json({
+        success: true,
+        enabled: enabled,
+        message: `Agente virtuale ${enabled ? 'abilitato' : 'disabilitato'} con successo`
+      });
+    } catch (error: any) {
+      console.error("Errore nella configurazione dell'agente virtuale:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Errore nella configurazione dell'agente virtuale"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
