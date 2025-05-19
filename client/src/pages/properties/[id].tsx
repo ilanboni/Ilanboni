@@ -164,27 +164,33 @@ export default function PropertyDetailPage() {
     },
   });
   
-  // Fetch property details
-  const { data: propertyData, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails[]>({
-    queryKey: ["/api/properties", id],
-    queryFn: async ({ queryKey }) => {
-      // Estrai l'ID dal queryKey
-      const propertyId = queryKey[1];
-      console.log("Caricamento proprietà ID:", propertyId);
+  // Fetch property details with key tied to ID to ensure refresh on ID change
+  const { data: property, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails>({
+    queryKey: [`property-${id}`, id],
+    queryFn: async () => {
+      console.log("Caricamento proprietà ID:", id);
       
-      const response = await fetch(`/api/properties/${propertyId}`);
+      const response = await fetch(`/api/properties/${id}`);
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
       const data = await response.json();
       console.log("Dati proprietà caricati:", data);
+      
+      // Verifica dei dati
+      if (!data || !data.id) {
+        console.error("Dati della proprietà non validi:", data);
+        throw new Error('Dati della proprietà non validi');
+      }
+      
+      // Ritorna l'immobile direttamente, non un array
       return data;
     },
-    enabled: !isNaN(id)
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    staleTime: 0, // Forza il refetch quando cambia l'ID
+    enabled: !isNaN(id) && id > 0
   });
-  
-  // Estrai la prima proprietà dall'array
-  const property = propertyData && propertyData.length > 0 ? propertyData[0] : null;
   
   // Aggiornamento dei valori del form quando property viene caricato
   useEffect(() => {
