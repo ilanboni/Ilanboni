@@ -167,11 +167,25 @@ export default function PropertyDetailPage() {
   // Fetch property details
   const { data: propertyData, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails[]>({
     queryKey: ["/api/properties", id],
-    enabled: !isNaN(id)
+    queryFn: async () => {
+      console.log("Caricamento proprietà ID:", id);
+      const response = await fetch(`/api/properties/${id}`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      console.log("Dati proprietà caricati:", data);
+      return data;
+    },
+    enabled: !isNaN(id),
+    // Imposto staleTime a 0 per forzare il ricaricamento quando cambia l'ID
+    staleTime: 0,
+    cacheTime: 0
   });
   
   // Estrai la prima proprietà dall'array
   const property = propertyData && propertyData.length > 0 ? propertyData[0] : null;
+  console.log("Rendering address:", property?.address);
   
   // Aggiornamento dei valori del form quando property viene caricato
   useEffect(() => {
