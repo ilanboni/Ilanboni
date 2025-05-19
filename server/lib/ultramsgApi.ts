@@ -71,11 +71,22 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
     console.log(`[ULTRAMSG DEBUG] Instance ID: ${process.env.ULTRAMSG_INSTANCE_ID}`);
     console.log(`[ULTRAMSG DEBUG] API Key presente: ${process.env.ULTRAMSG_API_KEY ? 'Sì' : 'No'}`);
     
+    // Aggiungi timestamp per recuperare solo messaggi più recenti dell'ultimo polling
+    const lastPollTime = parseInt(process.env.LAST_POLL_TIMESTAMP || '0');
+    const currentTime = Math.floor(Date.now() / 1000);
+    
+    // Aggiorna il timestamp per il prossimo polling
+    process.env.LAST_POLL_TIMESTAMP = currentTime.toString();
+    
+    console.log(`[ULTRAMSG DEBUG] Polling per messaggi dal timestamp: ${lastPollTime} (${new Date(lastPollTime * 1000).toISOString()})`);
+    
     const allMessagesResponse = await axios.get(allMessagesUrl, {
       params: {
         token: process.env.ULTRAMSG_API_KEY,
         limit: 50,
-        order: "desc"
+        order: "desc",
+        // Se abbiamo un timestamp precedente, filtra per messaggi più recenti
+        ...(lastPollTime > 0 ? { min_time: lastPollTime } : {})
       }
     });
     
