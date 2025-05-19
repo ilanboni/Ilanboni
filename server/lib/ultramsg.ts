@@ -209,6 +209,12 @@ export class UltraMsgClient {
         summary = messageContent.length > 50 ? `${messageContent.substring(0, 47)}...` : messageContent;
       }
 
+      // Trova l'ultima comunicazione in uscita per questo client per collegare questa risposta all'immobile
+      const clientCommunications = await storage.getCommunicationsByClientId(client.id);
+      const lastOutboundComm = clientCommunications
+        .filter(comm => comm.direction === "outbound")
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      
       // Prepara i dati per il database
       const communicationData: InsertCommunication = {
         clientId: client.id,
@@ -218,7 +224,11 @@ export class UltraMsgClient {
         summary,
         direction: 'inbound',
         needsFollowUp: true,
-        status: 'pending'
+        status: 'pending',
+        // Collega alla proprietà dell'ultimo messaggio inviato se presente
+        propertyId: lastOutboundComm?.propertyId || null,
+        // Registra quale messaggio sta rispondendo
+        responseToId: lastOutboundComm?.id || null
       };
       
       // Salva nel database
