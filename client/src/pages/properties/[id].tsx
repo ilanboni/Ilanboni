@@ -211,6 +211,23 @@ export default function PropertyDetailPage() {
     enabled: !isNaN(id),
   });
   
+  // Fetch clients data for displaying in communications
+  const { data: clientsData } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+    enabled: !isNaN(id),
+  });
+  
+  // Create a map of client names by ID for quick lookup
+  const clientNamesById = React.useMemo(() => {
+    const map: Record<number, string> = {};
+    if (clientsData) {
+      clientsData.forEach(client => {
+        map[client.id] = `${client.firstName} ${client.lastName}`;
+      });
+    }
+    return map;
+  }, [clientsData]);
+  
   // Fetch property appointments
   const { data: appointments, isLoading: isAppointmentsLoading } = useQuery<Appointment[]>({
     queryKey: ["/api/properties", id, "appointments"],
@@ -771,7 +788,9 @@ export default function PropertyDetailPage() {
                         <div className="flex justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
-                              {comm.clientName || "Sistema"}
+                              {comm.direction === "inbound" ? 
+                                "Cliente #" + comm.clientId : 
+                                "Sistema"}
                             </span>
                             {getCommunicationTypeBadge(comm.type)}
                           </div>
