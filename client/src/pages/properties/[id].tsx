@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -218,7 +218,7 @@ export default function PropertyDetailPage() {
   });
   
   // Create a map of client names by ID for quick lookup
-  const clientNamesById = React.useMemo(() => {
+  const clientNamesById = useMemo(() => {
     const map: Record<number, string> = {};
     if (clientsData) {
       clientsData.forEach(client => {
@@ -788,8 +788,8 @@ export default function PropertyDetailPage() {
                         <div className="flex justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
-                              {comm.direction === "inbound" ? 
-                                "Cliente #" + comm.clientId : 
+                              {comm.direction === "inbound" && comm.clientId ? 
+                                clientNamesById[comm.clientId] || `Cliente #${comm.clientId}` : 
                                 "Sistema"}
                             </span>
                             {getCommunicationTypeBadge(comm.type)}
