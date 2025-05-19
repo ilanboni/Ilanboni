@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getUltraMsgClient } from './ultramsg';
 import { storage } from '../storage';
+import { config } from '../config';
 
 /**
  * Invia un messaggio WhatsApp attraverso UltraMsg
@@ -144,10 +145,30 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
           continue;
         }
         
+        // Utilizza la configurazione dell'agente importata all'inizio del file
+        const agentNumber = (config.agentPhoneNumber || '').replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+        
+        // Determina la direzione corretta del messaggio
+        // Se il messaggio proviene dal numero dell'agente o ha come destinatario un numero diverso
+        // dall'agente, allora è un messaggio in uscita (from_me = true)
+        let isFromMe = false;
+        
+        // Normalizza i numeri per il confronto
+        const normalizedFrom = message.from.replace(/@c\.us$/, '');
+        const normalizedTo = message.to.replace(/@c\.us$/, '');
+        
+        // Verifica se il messaggio proviene effettivamente dal numero dell'agente
+        if (normalizedFrom.includes(agentNumber)) {
+            isFromMe = true;
+            console.log(`[ULTRAMSG] Messaggio dal numero dell'agente ${normalizedFrom} identificato come in uscita`);
+        }
+        
+        console.log(`[ULTRAMSG] Analisi direzione: from=${normalizedFrom}, agentNumber=${agentNumber}, isFromMe=${isFromMe}`);
+        
         // Normalizza i dati del messaggio per il processore di webhook
         const webhookData = {
           event_type: "message",
-          from_me: false,
+          from_me: isFromMe,
           from: message.from,
           to: message.to,
           body: message.body,
