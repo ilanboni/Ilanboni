@@ -240,6 +240,34 @@ export class UltraMsgClient {
       // Salva nel database
       const communication = await storage.createCommunication(communicationData);
       
+      // Verifica se l'agente virtuale è abilitato
+      if (process.env.ENABLE_VIRTUAL_AGENT === 'true') {
+        try {
+          console.log(`[VIRTUAL-AGENT] Messaggio ricevuto da ${client.firstName} ${client.lastName}, attivazione elaborazione asincrona`);
+          
+          // Utilizziamo un import() dinamico per evitare dipendenze circolari
+          // La risposta viene gestita in modo asincrono per non bloccare la risposta al webhook
+          import('../services/virtualAgent')
+            .then(module => {
+              const { handleClientMessage } = module;
+              return handleClientMessage(communication.id);
+            })
+            .then(result => {
+              if (result.success) {
+                console.log(`[VIRTUAL-AGENT] Risposta automatica generata e inviata con successo: ${result.message}`);
+              } else {
+                console.warn(`[VIRTUAL-AGENT] Impossibile generare risposta automatica: ${result.message}`);
+              }
+            })
+            .catch(error => {
+              console.error("[VIRTUAL-AGENT] Errore nell'elaborazione della risposta automatica:", error);
+            });
+        } catch (error) {
+          console.error("[VIRTUAL-AGENT] Errore generale nell'attivazione dell'agente virtuale:", error);
+          // Non interrompiamo il flusso in caso di errore dell'agente virtuale
+        }
+      }
+      
       return communication;
     } catch (error) {
       console.error('Errore nel processare il webhook in arrivo:', error);
