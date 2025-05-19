@@ -147,13 +147,19 @@ export class UltraMsgClient {
       const eventType = webhookData.event_type || webhookData.type || 'message';
       
       // Verifica che sia un messaggio in arrivo e non un messaggio inviato da noi
-      if (eventType !== 'message' || isFromMe) {
+      if ((eventType !== 'message' && eventType !== 'chat') || isFromMe) {
         console.log("[ULTRAMSG] Webhook ignorato: non è un messaggio in arrivo o è stato inviato da noi", {
           event_type: eventType,
           from_me: isFromMe
         });
         return null;
       }
+      
+      console.log("[ULTRAMSG] Messaggio in arrivo valido rilevato:", {
+        event_type: eventType,
+        from_me: isFromMe,
+        from: webhookData.from
+      });
 
       // Estrai il numero di telefono (gestisce diversi formati)
       let phone = webhookData.from || webhookData.author || webhookData.sender || '';

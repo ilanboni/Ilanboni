@@ -1460,6 +1460,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("[WEBHOOK] Body completo:", JSON.stringify(req.body, null, 2));
       console.log("[WEBHOOK] Query params:", JSON.stringify(req.query, null, 2));
       
+      // GESTIONE DIRETTA PER IL FORMATO DI TEST
+      if (req.body.data && req.body.data.from && req.body.data.from.includes('@c.us') && !req.body.data.fromMe) {
+        try {
+          const messageData = req.body.data;
+          console.log("[WEBHOOK-DIRETTO] Rilevato formato di test webhook, elaborazione diretta");
+          
+          // Estrai il numero di telefono senza @c.us
+          const phone = messageData.from.replace(/@c\.us$/, '');
+          
+          // Cerca il cliente nel database
+          const client = await storage.getClientByPhone(phone);
+          
+          if (client) {
+            console.log(`[WEBHOOK-DIRETTO] Cliente trovato: ${client.id}, ${client.firstName} ${client.lastName}`);
+            
+            // Trova l'ultima comunicazione in uscita per questo cliente
+            const clientCommunications = await storage.getCommunicationsByClientId(client.id);
+            const lastOutboundComm = clientCommunications
+              .filter(comm => comm.direction === "outbound")
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+            
+            console.log("[WEBHOOK-DIRETTO] Ultima comunicazione in uscita:", lastOutboundComm?.id, "propertyId:", lastOutboundComm?.propertyId);
+            
+            // Prepara i dati per la nuova comunicazione
+            const communicationData = {
+              clientId: client.id,
+              propertyId: lastOutboundComm?.propertyId || null,
+              type: 'whatsapp',
+              subject: 'Messaggio WhatsApp ricevuto',
+              content: messageData.body,
+              summary: messageData.body.length > 50 ? `${messageData.body.substring(0, 47)}...` : messageData.body,
+              direction: 'inbound',
+              needsFollowUp: true,
+              status: 'pending',
+              responseToId: lastOutboundComm?.id || null,
+              externalId: messageData.id
+            };
+            
+            // Crea la comunicazione nel database
+            const communication = await storage.createCommunication(communicationData);
+            console.log("[WEBHOOK-DIRETTO] Comunicazione creata:", communication.id);
+            
+            // Analisi del sentimento
+            if (lastOutboundComm) {
+              const { processClientResponse } = await import('./services/sentimentAnalysis');
+              console.log("[SENTIMENT] Analisi sentimento della risposta al messaggio:", lastOutboundComm.id);
+              
+              await processClientResponse(
+                messageData.body,
+                lastOutboundComm.id,
+                client.id,
+                lastOutboundComm.propertyId ?? undefined
+              );
+              
+              console.log("[SENTIMENT] Analisi sentimento completata");
+            }
+            
+            console.log("=== FINE ANALISI WEBHOOK ULTRAMSG (SUCCESSO ELABORAZIONE DIRETTA) ===");
+            res.status(200).json({ success: true, message: "Webhook elaborato con successo (metodo diretto)" });
+            return;
+          } else {
+            console.log(`[WEBHOOK-DIRETTO] Cliente non trovato per il numero: ${phone}`);
+          }
+        } catch (directError) {
+          console.error("[WEBHOOK-DIRETTO] Errore nell'elaborazione diretta:", directError);
+        }
+      }
+      
       // Verifica se è una notifica di messaggio valida
       const webhookData = req.body;
       
