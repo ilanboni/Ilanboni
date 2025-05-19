@@ -147,11 +147,13 @@ export class UltraMsgClient {
       const isFromMe = webhookData.from_me === true || webhookData.fromMe === true;
       const eventType = webhookData.event_type || webhookData.type || 'message';
       
-      // Verifica che sia un messaggio in arrivo e non un messaggio inviato da noi
-      if ((eventType !== 'message' && eventType !== 'chat') || isFromMe) {
-        console.log("[ULTRAMSG] Webhook ignorato: non è un messaggio in arrivo o è stato inviato da noi", {
-          event_type: eventType,
-          from_me: isFromMe
+      // Ottieni il numero dell'agente dalla configurazione
+      const agentPhoneNumber = config.agentPhoneNumber;
+      
+      // Verifica che sia un messaggio valido
+      if (eventType !== 'message' && eventType !== 'chat') {
+        console.log("[ULTRAMSG] Webhook ignorato: non è un messaggio", {
+          event_type: eventType
         });
         return null;
       }
@@ -176,6 +178,13 @@ export class UltraMsgClient {
       
       if (!phone) {
         console.warn('[ULTRAMSG] Numero di telefono mancante o non valido nel webhook');
+        return null;
+      }
+      
+      // CORREZIONE: Gestisci il caso in cui il numero del mittente corrisponde al numero dell'agente
+      // In questo caso, nonostante UltraMsg indichi "fromMe=false", il messaggio è in realtà inviato dall'agente
+      if (phone === agentPhoneNumber) {
+        console.log("[ULTRAMSG] Il messaggio proviene dal numero dell'agente, ignoriamo");
         return null;
       }
       

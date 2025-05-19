@@ -1835,7 +1835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         event_type: "message",
         from_me: false,
         from: client.phone,
-        to: "123456789", // Numero dell'agente
+        to: config.agentPhoneNumber, // Numero dell'agente dalla configurazione
         body: message,
         media_url: "",
         mime_type: "text/plain"
