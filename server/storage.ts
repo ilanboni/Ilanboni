@@ -81,6 +81,7 @@ export interface IStorage {
   getCommunications(filters?: { type?: string; status?: string }): Promise<Communication[]>;
   getCommunicationsByClientId(clientId: number): Promise<Communication[]>;
   getCommunicationsByPropertyId(propertyId: number): Promise<Communication[]>;
+  getCommunicationsByResponseToId(responseToId: number): Promise<Communication[]>;
   getLastCommunicationByClientId(clientId: number): Promise<Communication | undefined>;
   createCommunication(communication: InsertCommunication): Promise<Communication>;
   updateCommunication(id: number, data: Partial<InsertCommunication>): Promise<Communication | undefined>;
@@ -2171,6 +2172,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(communications)
       .where(eq(communications.propertyId, propertyId))
+      .orderBy(desc(communications.createdAt));
+  }
+  
+  async getCommunicationsByResponseToId(responseToId: number): Promise<Communication[]> {
+    return await db
+      .select()
+      .from(communications)
+      .where(eq(communications.responseToId, responseToId))
       .orderBy(desc(communications.createdAt));
   }
 
