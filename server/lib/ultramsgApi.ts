@@ -71,16 +71,16 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
     console.log(`[ULTRAMSG DEBUG] Instance ID: ${process.env.ULTRAMSG_INSTANCE_ID}`);
     console.log(`[ULTRAMSG DEBUG] API Key presente: ${process.env.ULTRAMSG_API_KEY ? 'Sì' : 'No'}`);
     
-    // MODIFICA: Forziamo il reset del timestamp per recuperare nuovamente i messaggi recenti
-    // e testare la funzionalità dell'agente virtuale
-    // Commento: in produzione, questo dovrebbe usare il timestamp dell'ultimo polling
-    const lastPollTime = 0; // Forziamo a 0 per recuperare tutti i messaggi recenti
+    // Test del sistema di polling - approccio alternativo
+    // Usa un timestamp recente per recuperare solo i messaggi nuovi
+    // ma abbastanza indietro da catturare messaggi che potrebbero essere stati persi
     const currentTime = Math.floor(Date.now() / 1000);
+    // Imposta un intervallo di 1 ora indietro per essere sicuri di catturare tutti i messaggi recenti
+    const oneHourAgo = currentTime - 3600; 
+    const lastPollTime = oneHourAgo;
     
-    // Aggiorna il timestamp per il prossimo polling
-    process.env.LAST_POLL_TIMESTAMP = currentTime.toString();
-    
-    console.log(`[ULTRAMSG DEBUG] Polling per messaggi dal timestamp: ${lastPollTime} (${new Date(lastPollTime * 1000).toISOString()})`);
+    console.log(`[ULTRAMSG DEBUG] Polling WhatsApp eseguito alle ${new Date().toISOString()}`);
+    console.log(`[ULTRAMSG DEBUG] Recupero messaggi dall'ultima ora: ${new Date(oneHourAgo * 1000).toISOString()}`);
     
     const allMessagesResponse = await axios.get(allMessagesUrl, {
       params: {
