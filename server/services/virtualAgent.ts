@@ -3,6 +3,7 @@ import { db } from "../db";
 import { eq, and, desc } from "drizzle-orm";
 import { communications, properties, clients, sharedProperties } from "@shared/schema";
 import { sendWhatsAppMessage } from "../lib/ultramsgApi";
+import { ChatCompletionMessageParam } from "openai/resources";
 
 // Inizializza OpenAI con la chiave API
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -104,12 +105,22 @@ export async function handleClientMessage(
     const systemPrompt = generateSystemPrompt(client, propertyDetails, isFormalStyle, isSharedProperty);
 
     // Genera la risposta con OpenAI
+    const messages: ChatCompletionMessageParam[] = [
+      { role: "system", content: systemPrompt }
+    ];
+    
+    // Aggiungi la storia delle conversazioni
+    for (const msg of conversationHistory) {
+      messages.push({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content as string
+      });
+    }
+    
+    // Richiesta a OpenAI
     const response = await openai.chat.completions.create({
       model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...conversationHistory,
-      ],
+      messages: messages,
       temperature: 0.7,
       max_tokens: 500,
     });
@@ -121,7 +132,7 @@ export async function handleClientMessage(
     }
 
     // Salva la risposta come nuova comunicazione
-    const [newCommunication] = await db
+    const insertResult = await db
       .insert(communications)
       .values({
         clientId: client.id,
@@ -139,6 +150,10 @@ export async function handleClientMessage(
         autoFollowUpSent: false,
       })
       .returning();
+    
+    const newCommunication = Array.isArray(insertResult) && insertResult.length > 0 
+      ? insertResult[0] 
+      : null;
 
     // Invia la risposta via WhatsApp
     const phoneNumber = client.phone;

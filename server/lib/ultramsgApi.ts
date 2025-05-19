@@ -2,6 +2,37 @@ import axios from 'axios';
 import { getUltraMsgClient } from './ultramsg';
 import { storage } from '../storage';
 
+/**
+ * Invia un messaggio WhatsApp attraverso UltraMsg
+ * @param phoneNumber Numero di telefono del destinatario
+ * @param message Testo del messaggio da inviare
+ * @returns Risultato dell'invio
+ */
+export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<{success: boolean, messageId?: string, error?: string}> {
+  try {
+    const ultraMsgClient = getUltraMsgClient();
+    const response = await ultraMsgClient.sendMessage(phoneNumber, message);
+    
+    if (response && response.sent) {
+      return {
+        success: true,
+        messageId: response.id || undefined
+      };
+    } else {
+      return {
+        success: false,
+        error: response.error || 'Errore sconosciuto nell\'invio del messaggio'
+      };
+    }
+  } catch (error: any) {
+    console.error('Errore nell\'invio del messaggio WhatsApp:', error);
+    return {
+      success: false,
+      error: error.message || 'Errore durante l\'invio del messaggio WhatsApp'
+    };
+  }
+}
+
 interface UltraMsgApiMessage {
   id: string;
   body: string;
