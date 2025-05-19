@@ -1731,6 +1731,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Endpoint per testare l'analisi del sentimento avanzata
+  app.post("/api/sentiment/analyze", async (req: Request, res: Response) => {
+    try {
+      const { text, clientId, propertyId, commId } = req.body;
+      
+      if (!text || !clientId) {
+        return res.status(400).json({
+          success: false,
+          error: "Parametri mancanti",
+          message: "Fornire almeno text e clientId"
+        });
+      }
+      
+      // Ottieni i dati del cliente
+      const client = await storage.getClient(parseInt(clientId));
+      if (!client) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Cliente non trovato"
+        });
+      }
+      
+      // Ottieni i dati della proprietà, se fornita
+      let propertyInfo = {};
+      if (propertyId) {
+        const property = await storage.getProperty(parseInt(propertyId));
+        if (property) {
+          propertyInfo = {
+            address: property.address,
+            type: property.type
+          };
+        }
+      }
+      
+      // Esegui l'analisi del sentimento
+      const { analyzeSentiment } = await import('./services/sentimentAnalysis');
+      const result = await analyzeSentiment(
+        text,
+        `${client.firstName} ${client.lastName}`,
+        propertyInfo
+      );
+      
+      // Se è stato fornito un ID comunicazione, simula una risposta completa
+      if (commId) {
+        const { processClientResponse } = await import('./services/sentimentAnalysis');
+        try {
+          await processClientResponse(
+            text,
+            parseInt(commId),
+            client.id,
+            propertyId ? parseInt(propertyId) : undefined
+          );
+        } catch (err) {
+          console.error("[SENTIMENT-TEST] Errore nella simulazione della risposta completa:", err);
+        }
+      }
+      
+      // Restituisci i risultati
+      res.status(200).json({
+        success: true,
+        message: "Analisi del sentimento completata",
+        result,
+        clientInfo: {
+          id: client.id,
+          name: `${client.firstName} ${client.lastName}`,
+          isFriend: client.isFriend
+        },
+        propertyId: propertyId ? parseInt(propertyId) : null
+      });
+    } catch (error) {
+      console.error("Errore durante l'analisi del sentimento:", error);
+      res.status(500).json({
+        success: false,
+        error: "Errore interno",
+        message: error.message
+      });
+    }
+  });
+  
   app.post("/api/whatsapp/test-webhook", async (req: Request, res: Response) => {
     try {
       const { clientId, message } = req.body;

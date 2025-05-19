@@ -12,38 +12,77 @@ interface SentimentAnalysisResult {
   score: number; // 0-100
   keywords: string[];
   shouldFollowUp: boolean;
+  suggestedResponse?: string;
+  taskSuggestion?: {
+    title: string;
+    description: string;
+    priority: "high" | "medium" | "low";
+    dueDate: number; // giorni entro cui completare il task
+  };
 }
 
 /**
  * Analizza il sentimento di un messaggio utilizzando OpenAI
  * @param text Il testo da analizzare
+ * @param clientName Nome del cliente per personalizzazione
+ * @param propertyInfo Informazioni sulla proprietà (opzionale)
  * @returns Il risultato dell'analisi del sentimento
  */
-export async function analyzeSentiment(text: string): Promise<SentimentAnalysisResult> {
+export async function analyzeSentiment(
+  text: string, 
+  clientName: string = "", 
+  propertyInfo: { address?: string, type?: string } = {}
+): Promise<SentimentAnalysisResult> {
   try {
     // Crea la richiesta per OpenAI con istruzioni specifiche per l'analisi del sentimento
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // il modello più recente di OpenAI
+      model: "gpt-4o", // il modello più recente di OpenAI (rilasciato dopo maggio 2023)
       messages: [
         {
           role: "system",
           content: 
-            "Sei un esperto di analisi del sentimento nel settore immobiliare. " +
-            "Analizza il messaggio del cliente e determina se il tono è positivo, " +
-            "negativo o neutro. Valuta anche il livello di interesse all'acquisto " +
-            "o affitto. Rispondi con un JSON che include: " +
-            "- sentiment: 'positive', 'negative', or 'neutral' " +
+            "Sei un esperto di analisi del sentimento nel settore immobiliare italiano. " +
+            "Analizza il messaggio del cliente e fornisci un'analisi dettagliata. " +
+            "Valuta anche il livello di interesse all'acquisto o affitto e se ci sono richieste specifiche. " +
+            "Rispondi con un JSON che include: " +
+            "- sentiment: 'positive', 'negative', o 'neutral' " +
             "- score: un numero da 0 a 100 (dove 100 è molto positivo) " +
             "- keywords: array di parole chiave rilevanti " +
-            "- shouldFollowUp: true se il messaggio richiede un follow-up, false se è conclusivo"
+            "- shouldFollowUp: true se il messaggio richiede un follow-up, false se è conclusivo " +
+            "- suggestedResponse: una risposta personalizzata da inviare al cliente, che utilizzi il mirroring del suo linguaggio e tono comunicativo " +
+            "- taskSuggestion: un oggetto con suggerimenti per un task di follow-up che include: " +
+            "  - title: titolo breve e chiaro del task " +
+            "  - description: descrizione dettagliata di ciò che l'agente deve fare " +
+            "  - priority: 'high', 'medium', o 'low' in base all'urgenza " +
+            "  - dueDate: numero di giorni entro cui completare il task (1-7 in base all'urgenza)"
         },
-        { role: "user", content: text }
+        { 
+          role: "user", 
+          content: `Messaggio del cliente: "${text}"
+                   ${clientName ? `Nome cliente: ${clientName}` : ""}
+                   ${propertyInfo.address ? `Indirizzo proprietà: ${propertyInfo.address}` : ""}
+                   ${propertyInfo.type ? `Tipologia: ${propertyInfo.type}` : ""}`
+        }
       ],
       response_format: { type: "json_object" }
     });
 
     // Estrai e restituisci il risultato dell'analisi
     const result = JSON.parse(response.choices[0].message.content) as SentimentAnalysisResult;
+    
+    // Log dei risultati per debug
+    console.log("[SENTIMENT ANALYSIS] Risultato:", {
+      sentiment: result.sentiment,
+      score: result.score,
+      keywords: result.keywords,
+      shouldFollowUp: result.shouldFollowUp,
+      taskSuggestion: result.taskSuggestion ? {
+        title: result.taskSuggestion.title,
+        priority: result.taskSuggestion.priority,
+        dueDate: result.taskSuggestion.dueDate
+      } : "Nessun task suggerito"
+    });
+    
     return result;
   } catch (error) {
     console.error("Errore durante l'analisi del sentimento:", error);
@@ -52,7 +91,14 @@ export async function analyzeSentiment(text: string): Promise<SentimentAnalysisR
       sentiment: "neutral",
       score: 50,
       keywords: [],
-      shouldFollowUp: true
+      shouldFollowUp: true,
+      suggestedResponse: "Mi scuso, non sono riuscito ad elaborare correttamente la sua richiesta. Potrebbe ripeterla, per favore?",
+      taskSuggestion: {
+        title: "Rispondere al cliente",
+        description: "Il sistema non è riuscito ad analizzare correttamente il messaggio. Rivedere manualmente e rispondere.",
+        priority: "high",
+        dueDate: 1
+      }
     };
   }
 }
@@ -130,12 +176,48 @@ export async function processClientResponse(
   propertyId?: number
 ): Promise<void> {
   try {
-    // Analizza il sentimento della risposta
-    const sentimentResult = await analyzeSentiment(responseText);
+    console.log(`[SENTIMENT] Elaborazione risposta cliente (ID: ${clientId}) alla comunicazione ${originalCommunicationId}`);
+    
+    // Ottieni informazioni del cliente
+    const client = await storage.getClient(clientId);
+    if (!client) {
+      throw new Error(`Cliente con ID ${clientId} non trovato`);
+    }
+    
+    // Ottieni informazioni sulla proprietà, se presente
+    let propertyInfo: { address?: string, type?: string } = {};
+    if (propertyId) {
+      const property = await storage.getProperty(propertyId);
+      if (property) {
+        propertyInfo = {
+          address: property.address,
+          type: property.type
+        };
+      }
+    }
+    
+    // Ottieni la comunicazione originale
+    const originalComm = await storage.getCommunication(originalCommunicationId);
+    
+    // Nome completo del cliente
+    const clientName = `${client.firstName} ${client.lastName}`;
+    
+    // Analizza il sentimento della risposta con informazioni contestuali
+    const sentimentResult = await analyzeSentiment(
+      responseText,
+      clientName,
+      propertyInfo
+    );
     
     // Calcoliamo la data di follow-up, se necessario
     const followUpDate = sentimentResult.shouldFollowUp ? 
-      addDays(new Date(), 3).toISOString().substring(0, 10) : null;
+      addDays(new Date(), sentimentResult.taskSuggestion?.dueDate || 3).toISOString().substring(0, 10) : null;
+    
+    // Prepara la descrizione per il riassunto
+    let summaryText = `Sentimento: ${sentimentResult.sentiment}, Punteggio: ${sentimentResult.score}`;
+    if (sentimentResult.keywords && sentimentResult.keywords.length > 0) {
+      summaryText += `, Parole chiave: ${sentimentResult.keywords.join(', ')}`;
+    }
     
     // Crea una nuova comunicazione per la risposta
     const responseData = {
@@ -145,7 +227,7 @@ export async function processClientResponse(
       type: "response",
       subject: "Risposta del cliente",
       content: responseText,
-      summary: `Sentimento: ${sentimentResult.sentiment}, Punteggio: ${sentimentResult.score}`,
+      summary: summaryText,
       direction: "inbound",
       createdBy: null,
       needsFollowUp: sentimentResult.shouldFollowUp,
@@ -159,9 +241,46 @@ export async function processClientResponse(
     };
     
     // Salva la comunicazione
-    await storage.createCommunication(responseData);
+    const savedCommunication = await storage.createCommunication(responseData);
     
-    console.log(`Risposta del cliente elaborata con sentimento: ${sentimentResult.sentiment}`);
+    // Se l'analisi suggerisce un task, crealo automaticamente
+    if (sentimentResult.taskSuggestion) {
+      const priorityToScore = {
+        "high": 1,
+        "medium": 2,
+        "low": 3
+      };
+      
+      // Verifica se il cliente è amico per determinare il linguaggio appropriato
+      const isFriend = client.isFriend || false;
+      const salutation = client.salutation || "egr_dott";
+      
+      // Crea il task con la risposta suggerita
+      const taskData: InsertTask = {
+        type: "followUp",
+        title: sentimentResult.taskSuggestion.title,
+        description: `${sentimentResult.taskSuggestion.description}\n\n` +
+                    `Cliente: ${client.firstName} ${client.lastName}\n` +
+                    `${propertyId ? `Proprietà: ${propertyInfo.address || 'ID: ' + propertyId}\n` : ''}` +
+                    `Messaggio originale: "${responseText}"\n\n` +
+                    `Risposta suggerita: "${sentimentResult.suggestedResponse || 'Nessuna risposta suggerita'}"`,
+        clientId,
+        propertyId: propertyId ?? null,
+        dueDate: addDays(new Date(), sentimentResult.taskSuggestion.dueDate || 3).toISOString().substring(0, 10),
+        status: "pending",
+        priority: priorityToScore[sentimentResult.taskSuggestion.priority] || 2,
+        assignedTo: null
+      };
+      
+      const createdTask = await storage.createTask(taskData);
+      
+      console.log(`[SENTIMENT] Task creato automaticamente (ID: ${createdTask.id}) con priorità ${sentimentResult.taskSuggestion.priority}`);
+    }
+    
+    console.log(`[SENTIMENT] Risposta del cliente elaborata con successo: sentimento=${sentimentResult.sentiment}, score=${sentimentResult.score}`);
+    if (sentimentResult.suggestedResponse) {
+      console.log(`[SENTIMENT] Risposta suggerita: "${sentimentResult.suggestedResponse}"`);
+    }
   } catch (error) {
     console.error("Errore durante l'elaborazione della risposta del cliente:", error);
   }
