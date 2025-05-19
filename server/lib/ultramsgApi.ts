@@ -36,6 +36,10 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
     
     // Recupera tutti i messaggi recenti senza filtro per chat
     const allMessagesUrl = `https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE_ID}/messages`;
+    console.log(`[ULTRAMSG DEBUG] Esecuzione polling all'URL: ${allMessagesUrl}`);
+    console.log(`[ULTRAMSG DEBUG] Instance ID: ${process.env.ULTRAMSG_INSTANCE_ID}`);
+    console.log(`[ULTRAMSG DEBUG] API Key presente: ${process.env.ULTRAMSG_API_KEY ? 'Sì' : 'No'}`);
+    
     const allMessagesResponse = await axios.get(allMessagesUrl, {
       params: {
         token: process.env.ULTRAMSG_API_KEY,
@@ -44,6 +48,16 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
       }
     });
     
+    console.log(`[ULTRAMSG DEBUG] Messaggio più recente: ${
+      allMessagesResponse.data.messages && allMessagesResponse.data.messages.length > 0 
+      ? JSON.stringify(allMessagesResponse.data.messages[0]) 
+      : 'Nessun messaggio trovato'
+    }`);
+    console.log(`[ULTRAMSG DEBUG] Numero totale messaggi recuperati: ${
+      allMessagesResponse.data.messages ? allMessagesResponse.data.messages.length : 0
+    }`);
+    
+    // Log originale mantenuto per compatibilità
     console.log("Risposta API messaggi recenti:", JSON.stringify(allMessagesResponse.data));
     
     const chatIds = chatsResponse.data.map((chat: any) => chat.id);

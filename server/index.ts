@@ -62,10 +62,10 @@ async function pollWhatsAppMessages() {
   }
   
   try {
-    // Uso un timestamp per i log di debug solo ogni 5 minuti
+    // Forza sempre il logging dettagliato per la diagnosi
     const now = new Date();
     const minutes = now.getMinutes();
-    const isVerboseLogging = minutes % 5 === 0;
+    const isVerboseLogging = true; // Sempre true per debug
     
     if (isVerboseLogging) {
       console.log(`📩 [${now.toLocaleTimeString()}] Verifica nuovi messaggi WhatsApp...`);
