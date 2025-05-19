@@ -18,6 +18,7 @@ import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "drizzle-orm";
 import { z } from "zod";
 import { summarizeText } from "./lib/openai";
+import { config } from "./config";
 import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
 import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
 import geocodeRouter from "./routes/geocode";
