@@ -136,11 +136,13 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
         console.log(`Trovato messaggio potenziale: da ${message.from}, a ${message.to}, corpo: ${message.body.substring(0, 20)}...`);
         
         // Controlla se abbiamo già questo messaggio nel database
-        const messageId = message.id || `${message.from}:${message.created_at}`;
+        // Genera un ID univoco per questo messaggio
+        const messageId = message.id || `${message.from}:${message.time}`;
+        console.log(`[ULTRAMSG] Verifica esistenza messaggio con ID esterno: ${messageId}`);
         const existingMessage = await storage.getCommunicationByExternalId(messageId);
         
         if (existingMessage) {
-          console.log(`Messaggio ${messageId} già presente nel database`);
+          console.log(`[ULTRAMSG] Messaggio ${messageId} già presente nel database con ID: ${existingMessage.id}`);
           ignoredCount++;
           continue;
         }
@@ -227,10 +229,11 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
           
           // Controlla se abbiamo già questo messaggio nel database
           const messageId = message.id || `${message.from}:${message.time}`;
+          console.log(`[ULTRAMSG] Verifica esistenza messaggio con ID esterno: ${messageId}`);
           const existingMessage = await storage.getCommunicationByExternalId(messageId);
           
           if (existingMessage) {
-            console.log(`Messaggio ${messageId} già presente nel database`);
+            console.log(`[ULTRAMSG] Messaggio ${messageId} già presente nel database con ID: ${existingMessage.id}`);
             ignoredCount++;
             continue;
           }
@@ -246,6 +249,8 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
             mime_type: message.type === "chat" ? "text/plain" : message.type,
             external_id: messageId
           };
+          console.log(`[ULTRAMSG] Impostato external_id: ${messageId} per il messaggio`);
+          
           
           // Usa il processore di webhook esistente
           const ultraMsgClient = getUltraMsgClient();

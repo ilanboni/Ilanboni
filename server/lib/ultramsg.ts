@@ -229,7 +229,8 @@ export class UltraMsgClient {
           needsFollowUp: true,
           status: 'pending',
           propertyId: null,
-          responseToId: null
+          responseToId: null,
+          externalId: webhookData.external_id || `${phone}-${Date.now()}`
         };
         
         console.log("[ULTRAMSG] Salvando messaggio da numero non registrato:", communicationData);
@@ -283,7 +284,9 @@ export class UltraMsgClient {
         // Collega alla proprietà dell'ultimo messaggio inviato se presente
         propertyId: lastOutboundComm?.propertyId || null,
         // Registra quale messaggio sta rispondendo
-        responseToId: lastOutboundComm?.id || null
+        responseToId: lastOutboundComm?.id || null,
+        // Imposta l'ID esterno del messaggio per evitare duplicati
+        externalId: webhookData.external_id || `${phone}-${Date.now()}`
       };
       
       // Salva nel database
