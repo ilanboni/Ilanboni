@@ -5,7 +5,7 @@ import { fetchRecentWhatsAppMessages } from "./lib/ultramsgApi";
 import diagnosticRouter from "./diagnostic-webhook";
 
 // Intervallo in millisecondi per il polling dei messaggi WhatsApp
-const WHATSAPP_POLLING_INTERVAL = 60000; // 1 minuto
+const WHATSAPP_POLLING_INTERVAL = 15000; // 15 secondi (aumentata frequenza per test)
 
 // Importa lo scheduler per i follow-up automatici
 import { startFollowUpScheduler } from "./services/followUpScheduler";
