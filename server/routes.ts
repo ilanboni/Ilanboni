@@ -1407,6 +1407,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Endpoint alternativo per invio diretto messaggi WhatsApp
+  app.post("/api/whatsapp/test-direct-send", async (req: Request, res: Response) => {
+    try {
+      console.log("[ULTRAMSG DIRECT] Ricevuta richiesta di invio diretto:", req.body);
+      const { clientId, phoneNumber, message } = req.body;
+      
+      if (!clientId || !phoneNumber || !message) {
+        console.log("[ULTRAMSG DIRECT] Parametri mancanti:", { clientId, phoneNumber, message });
+        return res.status(400).json({ 
+          success: false,
+          message: "Parametri mancanti. Richiesti: clientId, phoneNumber, message" 
+        });
+      }
+      
+      // Creazione diretta client UltraMsg
+      if (!process.env.ULTRAMSG_INSTANCE_ID || !process.env.ULTRAMSG_API_KEY) {
+        console.log("[ULTRAMSG DIRECT] Variabili ambiente mancanti!");
+        return res.status(500).json({ 
+          success: false,
+          message: "Configurazione UltraMsg non trovata" 
+        });
+      }
+      
+      try {
+        console.log("[ULTRAMSG DIRECT] Creazione params per richiesta API");
+        const params = new URLSearchParams();
+        params.append('to', phoneNumber.replace(/^\+/, ''));
+        params.append('body', message);
+        
+        console.log("[ULTRAMSG DIRECT] Invio richiesta API UltraMsg");
+        const response = await axios.post(
+          `https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE_ID}/messages/chat`,
+          params,
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            params: {
+              token: process.env.ULTRAMSG_API_KEY
+            }
+          }
+        );
+        
+        console.log("[ULTRAMSG DIRECT] Risposta API:", response.data);
+        
+        if (response.data.sent !== "true" && response.data.sent !== true) {
+          return res.status(500).json({
+            success: false,
+            message: `Errore nell'invio del messaggio: ${response.data.error || response.data.message || 'Unknown error'}`
+          });
+        }
+        
+        // Salva comunicazione nel database
+        const client = await storage.getClient(parseInt(clientId));
+        if (!client) {
+          console.log("[ULTRAMSG DIRECT] Cliente non trovato:", clientId);
+          return res.status(404).json({ 
+            success: false,
+            message: "Cliente non trovato"
+          });
+        }
+        
+        // Genera un riassunto
+        let summary = message.length > 50 ? `${message.substring(0, 47)}...` : message;
+        
+        // Salva nel database
+        const communicationData: InsertCommunication = {
+          clientId,
+          type: 'whatsapp',
+          subject: 'Messaggio WhatsApp',
+          content: message,
+          summary,
+          direction: 'outbound',
+          needsFollowUp: false,
+          status: 'completed'
+        };
+        
+        const communication = await storage.createCommunication(communicationData);
+        console.log("[ULTRAMSG DIRECT] Comunicazione salvata nel DB:", communication.id);
+        
+        return res.status(200).json({
+          success: true,
+          message: "Messaggio WhatsApp inviato con successo",
+          msgId: response.data.id,
+          communication
+        });
+      } catch (apiError: any) {
+        console.error("[ULTRAMSG DIRECT] Errore API UltraMsg:", apiError);
+        
+        if (axios.isAxiosError(apiError) && apiError.response) {
+          console.error("[ULTRAMSG DIRECT] Dettagli errore API:", apiError.response.data);
+        }
+        
+        return res.status(500).json({ 
+          success: false,
+          message: "Errore durante l'invio del messaggio WhatsApp", 
+          details: apiError.message || "Errore API sconosciuto" 
+        });
+      }
+    } catch (error: any) {
+      console.error("[ULTRAMSG DIRECT] Errore generale:", error);
+      return res.status(500).json({ 
+        success: false,
+        message: "Errore durante l'invio del messaggio WhatsApp", 
+        details: error.message || "Errore sconosciuto" 
+      });
+    }
+  });
+  
   // Endpoint per inviare messaggi WhatsApp tramite UltraMsg
   app.post("/api/whatsapp/send", async (req: Request, res: Response) => {
     try {

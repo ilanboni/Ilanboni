@@ -100,33 +100,65 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
   const onSubmit = async (data: FormData) => {
     console.log("Invio messaggio WhatsApp:", data, "a cliente:", client);
     
-    // Prima prova l'endpoint di test per verificare che le richieste API funzionino
+    if (!client) {
+      toast({
+        title: "Errore",
+        description: "Nessun cliente selezionato",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      console.log("TEST - Chiamata all'endpoint di test...");
-      const testResponse = await fetch('/api/whatsapp/test', {
+      // Invece di usare la mutation, facciamo una chiamata diretta all'API UltraMsg
+      console.log("Tentativo di invio diretto del messaggio...");
+      form.formState.isSubmitting = true;
+      
+      const response = await fetch('/api/whatsapp/test-direct-send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          clientId: client?.id,
-          message: data.message,
-          isTest: true
+          clientId: client.id,
+          phoneNumber: client.phone,
+          message: data.message
         })
       });
       
-      const testResult = await testResponse.json();
-      console.log("TEST - Risposta dal test:", testResult);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Errore nell'invio del messaggio");
+      }
       
-      // Se il test funziona, procedi con l'invio del messaggio
-      sendMessageMutation.mutate(data);
-    } catch (testError) {
-      console.error("TEST - Errore nel test:", testError);
+      const result = await response.json();
+      console.log("Risposta invio diretto:", result);
+      
+      // Simuliamo il comportamento della mutation di successo
       toast({
-        title: "Errore nel test di connessione",
-        description: "Impossibile verificare la connessione con il server. " + testError,
+        title: "Messaggio inviato",
+        description: "Il messaggio WhatsApp è stato inviato con successo",
+      });
+      
+      // Reset form e chiudi modale
+      form.reset();
+      onClose();
+      
+      // Invalida le query per aggiornare la lista delle comunicazioni
+      queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/clients/${client.id}/communications`] 
+      });
+      
+    } catch (error: any) {
+      console.error("Errore nell'invio del messaggio:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile inviare il messaggio WhatsApp",
         variant: "destructive",
       });
+    } finally {
+      form.formState.isSubmitting = false;
     }
   };
 
