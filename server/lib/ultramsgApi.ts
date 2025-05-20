@@ -147,6 +147,18 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
           continue;
         }
         
+        // Log extra per diagnosi problemi di numeri di telefono
+        console.log(`[ULTRAMSG] Diagnosi formato numeri di telefono:`);
+        // Normalizza il numero di telefono del mittente (rimuovi @c.us e altri formati speciali)
+        let fromPhone = message.from.replace(/@c\.us$/i, '').replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+        console.log(`[ULTRAMSG] Numero mittente normalizzato: ${fromPhone}`);
+        let clientTest = await storage.getClientByPhone(fromPhone);
+        if (clientTest) {
+          console.log(`[ULTRAMSG] ✅ SUCCESSO! Cliente trovato con numero normalizzato: ${clientTest.id}, ${clientTest.firstName} ${clientTest.lastName}`);
+        } else {
+          console.log(`[ULTRAMSG] ❌ ERRORE: Nessun cliente trovato con numero normalizzato: ${fromPhone}`);
+        }
+        
         // Utilizza la configurazione dell'agente importata all'inizio del file
         const agentNumber = (config.agentPhoneNumber || '').replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
         
