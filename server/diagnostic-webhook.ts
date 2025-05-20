@@ -107,4 +107,70 @@ router.get('/test-messages', async (req: Request, res: Response) => {
   }
 });
 
+// Endpoint per configurare automaticamente il webhook UltraMsg
+router.post('/configure-webhook', async (req: Request, res: Response) => {
+  try {
+    console.log("Configurazione automatica webhook UltraMsg");
+    
+    if (!process.env.ULTRAMSG_INSTANCE_ID || !process.env.ULTRAMSG_API_KEY) {
+      return res.status(400).json({
+        success: false,
+        error: "Credenziali UltraMsg mancanti"
+      });
+    }
+    
+    // URL dell'API UltraMsg per configurare il webhook
+    const hookUrl = `https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE_ID}/webhook`;
+    
+    // Determina l'URL del webhook basato sull'ambiente
+    const baseUrl = process.env.REPLIT_SLUG 
+      ? `https://${process.env.REPLIT_SLUG}.replit.app` 
+      : (process.env.BASE_URL || 'http://localhost:5000');
+    
+    const webhookUrl = `${baseUrl}/api/whatsapp/webhook`;
+    console.log(`Configurazione webhook su: ${webhookUrl}`);
+    
+    // Invia la richiesta per aggiornare il webhook
+    const updateResponse = await axios.post(
+      hookUrl,
+      new URLSearchParams({
+        webhook: webhookUrl
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        params: {
+          token: process.env.ULTRAMSG_API_KEY
+        }
+      }
+    );
+    
+    if (updateResponse.data && updateResponse.data.status === 'success') {
+      console.log("✅ Webhook UltraMsg aggiornato con successo");
+      return res.status(200).json({
+        success: true,
+        message: "Webhook UltraMsg aggiornato con successo",
+        webhook_url: webhookUrl,
+        response: updateResponse.data
+      });
+    } else {
+      console.error("❌ Errore nell'aggiornamento del webhook:", updateResponse.data);
+      return res.status(400).json({
+        success: false,
+        error: "Errore nell'aggiornamento del webhook",
+        details: updateResponse.data
+      });
+    }
+  } catch (error: any) {
+    console.error("Errore nella configurazione del webhook:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Errore nella configurazione del webhook",
+      details: error.message || "Errore sconosciuto",
+      axios_error: error.response?.data
+    });
+  }
+});
+
 export default router;
