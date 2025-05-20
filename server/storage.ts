@@ -853,15 +853,6 @@ export class MemStorage implements IStorage {
   }
   
   // Shared property methods
-  async getSharedProperty(id: number): Promise<SharedProperty | undefined> {
-    return this.sharedPropertyStore.get(id);
-  }
-  
-  async getSharedPropertyByPropertyId(propertyId: number): Promise<SharedProperty | undefined> {
-    return Array.from(this.sharedPropertyStore.values()).find(
-      (shared) => shared.propertyId === propertyId
-    );
-  }
   
   async createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty> {
     const id = this.sharedPropertyIdCounter++;
