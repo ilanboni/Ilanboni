@@ -1400,29 +1400,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint per inviare messaggi WhatsApp tramite UltraMsg
   app.post("/api/whatsapp/send", async (req: Request, res: Response) => {
     try {
+      console.log("[ULTRAMSG] Ricevuta richiesta di invio messaggio:", req.body);
       const { clientId, message, priority } = req.body;
       
       if (!clientId || !message) {
+        console.log("[ULTRAMSG] Dati mancanti nella richiesta");
         return res.status(400).json({ 
           error: "Dati mancanti", 
           details: "clientId e message sono campi obbligatori" 
         });
       }
       
+      console.log("[ULTRAMSG] Recupero dati cliente:", clientId);
       // Ottieni il cliente
       const client = await storage.getClient(parseInt(clientId));
       if (!client) {
+        console.log("[ULTRAMSG] Cliente non trovato:", clientId);
         return res.status(404).json({ error: "Cliente non trovato" });
       }
       
+      console.log("[ULTRAMSG] Dati cliente recuperati:", client.id, client.firstName, client.lastName, client.phone);
+      
       if (!client.phone) {
+        console.log("[ULTRAMSG] Cliente senza numero di telefono");
         return res.status(400).json({ error: "Il cliente non ha un numero di telefono registrato" });
       }
       
       try {
+        console.log("[ULTRAMSG] Inizializzazione client UltraMsg");
         // Ottieni il client di UltraMsg
         const ultraMsgClient = getUltraMsgClient();
         
+        console.log("[ULTRAMSG] Client inizializzato, tentativo invio messaggio a:", client.phone);
         // Invia il messaggio e salvalo nel database
         const communication = await ultraMsgClient.sendAndStoreCommunication(
           client.id, 
