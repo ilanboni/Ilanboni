@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
+import { AIAssistantResponseModal } from "@/components/communications/AIAssistantResponseModal";
 import { useToast } from "@/hooks/use-toast";
 import { 
   type ClientWithDetails, 
@@ -42,8 +43,13 @@ export default function ClientDetailPage() {
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isAIResponseModalOpen, setIsAIResponseModalOpen] = useState(false);
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [propertyBeingNotified, setPropertyBeingNotified] = useState<number | null>(null);
+  const [incomingMessage, setIncomingMessage] = useState<Communication | null>(null);
+  const [aiGeneratedResponse, setAiGeneratedResponse] = useState("");
+  const [detectedProperties, setDetectedProperties] = useState<{ id: number; address: string }[]>([]);
+  const [conversationThread, setConversationThread] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -328,6 +334,83 @@ export default function ClientDetailPage() {
         return <Badge variant="outline">{type}</Badge>;
     }
   };
+  
+  // Funzione per gestire i nuovi messaggi in arrivo
+  const handleNewMessage = async (message: Communication) => {
+    // Solo per messaggi in arrivo
+    if (message.direction !== "inbound") return;
+    
+    try {
+      // Chiama l'API per generare una risposta AI
+      const response = await fetch(`/api/ai/generate-response`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messageId: message.id,
+          clientId: message.clientId
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Errore nella generazione della risposta AI");
+      }
+      
+      const data = await response.json();
+      
+      // Imposta i dati per il modal
+      setIncomingMessage(message);
+      setAiGeneratedResponse(data.generatedResponse || "");
+      setDetectedProperties(data.properties || []);
+      setConversationThread(data.conversationThread || "");
+      
+      // Apri il modal con la risposta dell'AI
+      setIsAIResponseModalOpen(true);
+      
+      // Cambia il tab alle comunicazioni per mostrare il messaggio
+      setActiveTab("communications");
+      
+    } catch (error) {
+      console.error("Errore nell'elaborazione del messaggio:", error);
+      toast({
+        title: "Errore",
+        description: "Non è stato possibile generare una risposta assistita dall'IA",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Monitora i nuovi messaggi in arrivo
+  useEffect(() => {
+    if (communications && communications.length > 0 && client) {
+      // Ordina i messaggi per data di creazione (più recenti prima)
+      const sortedMessages = [...communications].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      // Prendi il messaggio più recente
+      const latestMessage = sortedMessages[0];
+      
+      // Se è un messaggio in arrivo e non è stato ancora elaborato, elaboralo
+      if (latestMessage && 
+          latestMessage.direction === "inbound" && 
+          latestMessage.clientId === client.id) {
+        
+        // Verifica se è un nuovo messaggio controllando il tempo di creazione
+        // (entro gli ultimi 30 secondi)
+        const messageTime = latestMessage.createdAt ? new Date(latestMessage.createdAt) : new Date();
+        const now = new Date();
+        const isRecent = (now.getTime() - messageTime.getTime()) < 30000; // 30 secondi
+        
+        if (isRecent) {
+          handleNewMessage(latestMessage);
+        }
+      }
+    }
+  }, [communications, client]);
   
   return (
     <>
@@ -1410,6 +1493,17 @@ export default function ClientDetailPage() {
         isOpen={isWhatsAppModalOpen} 
         onClose={() => setIsWhatsAppModalOpen(false)} 
         client={client}
+      />
+      
+      {/* AI Assistant Response Modal */}
+      <AIAssistantResponseModal
+        isOpen={isAIResponseModalOpen}
+        onClose={() => setIsAIResponseModalOpen(false)}
+        client={client}
+        incomingMessage={incomingMessage}
+        aiGeneratedResponse={aiGeneratedResponse}
+        detectedProperties={detectedProperties}
+        conversationThread={conversationThread}
       />
     </>
   );
