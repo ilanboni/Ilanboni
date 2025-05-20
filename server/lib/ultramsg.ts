@@ -40,14 +40,19 @@ export class UltraMsgClient {
    */
   async sendMessage(phoneNumber: string, message: string, priority?: number): Promise<UltraMsgMessageResponse> {
     try {
+      console.log('[ULTRAMSG] Tentativo di invio messaggio a:', phoneNumber);
+      
       // Formatta il numero di telefono (rimuovi eventuali + iniziali)
       const formattedPhone = phoneNumber.replace(/^\+/, '');
+      console.log('[ULTRAMSG] Numero formattato:', formattedPhone);
       
       // Prepara il payload
       const payload: UltraMsgMessage = {
         to: formattedPhone,
         body: message,
       };
+      
+      console.log('[ULTRAMSG] Payload preparato:', payload);
       
       // Se è specificata una priorità, aggiungila
       if (priority !== undefined && priority >= 0 && priority <= 10) {
@@ -60,20 +65,33 @@ export class UltraMsgClient {
         params.append(key, String(value));
       });
 
-      const response = await axios.post<UltraMsgMessageResponse>(
-        `${this.apiUrl}/messages/chat`,
-        params,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          params: {
-            token: this.apiToken
+      console.log('[ULTRAMSG] Invio richiesta API a:', `${this.apiUrl}/messages/chat`);
+      console.log('[ULTRAMSG] Con token:', this.apiToken ? 'Presente (nascosto)' : 'MANCANTE');
+      console.log('[ULTRAMSG] Con parametri:', params.toString());
+      
+      try {
+        const response = await axios.post<UltraMsgMessageResponse>(
+          `${this.apiUrl}/messages/chat`,
+          params,
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            params: {
+              token: this.apiToken
+            }
           }
+        );
+        
+        console.log('[ULTRAMSG] Risposta API:', JSON.stringify(response.data));
+        return response.data;
+      } catch (axiosError) {
+        console.error('[ULTRAMSG] Errore nella chiamata API:', axiosError.message);
+        if (axiosError.response) {
+          console.error('[ULTRAMSG] Dettagli risposta errore:', JSON.stringify(axiosError.response.data));
         }
-      );
-
-      return response.data;
+        throw axiosError;
+      }
     } catch (error) {
       console.error('Errore nell\'invio del messaggio WhatsApp:', error);
       if (axios.isAxiosError(error) && error.response) {
