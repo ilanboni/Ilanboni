@@ -342,7 +342,7 @@ export default function ClientDetailPage() {
     
     try {
       // Chiama l'API per generare una risposta AI
-      const response = await fetch(`/api/ai/generate-response`, {
+      const response = await fetch(`/api/ai-assistant/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -359,11 +359,13 @@ export default function ClientDetailPage() {
       
       const data = await response.json();
       
+      console.log("Risposta AI ricevuta:", data);
+      
       // Imposta i dati per il modal
       setIncomingMessage(message);
-      setAiGeneratedResponse(data.generatedResponse || "");
-      setDetectedProperties(data.properties || []);
-      setConversationThread(data.conversationThread || "");
+      setAiGeneratedResponse(data.aiResponse || "");
+      setDetectedProperties(data.detectedProperties || []);
+      setConversationThread(data.threadName || "");
       
       // Apri il modal con la risposta dell'AI
       setIsAIResponseModalOpen(true);
@@ -384,6 +386,8 @@ export default function ClientDetailPage() {
   // Monitora i nuovi messaggi in arrivo
   useEffect(() => {
     if (communications && communications.length > 0 && client) {
+      console.log("Comunicazioni rilevate:", communications.length);
+      
       // Ordina i messaggi per data di creazione (più recenti prima)
       const sortedMessages = [...communications].sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
@@ -393,6 +397,7 @@ export default function ClientDetailPage() {
       
       // Prendi il messaggio più recente
       const latestMessage = sortedMessages[0];
+      console.log("Ultimo messaggio:", latestMessage);
       
       // Se è un messaggio in arrivo e non è stato ancora elaborato, elaboralo
       if (latestMessage && 
@@ -400,13 +405,19 @@ export default function ClientDetailPage() {
           latestMessage.clientId === client.id) {
         
         // Verifica se è un nuovo messaggio controllando il tempo di creazione
-        // (entro gli ultimi 30 secondi)
+        // (entro gli ultimi 120 secondi per test)
         const messageTime = latestMessage.createdAt ? new Date(latestMessage.createdAt) : new Date();
         const now = new Date();
-        const isRecent = (now.getTime() - messageTime.getTime()) < 30000; // 30 secondi
+        const timeDiffSeconds = (now.getTime() - messageTime.getTime()) / 1000;
+        console.log(`Messaggio ricevuto ${timeDiffSeconds} secondi fa`);
+        
+        const isRecent = timeDiffSeconds < 120; // 120 secondi per test
         
         if (isRecent) {
+          console.log("Elaborazione messaggio recente:", latestMessage.content);
           handleNewMessage(latestMessage);
+        } else {
+          console.log("Messaggio troppo vecchio per essere elaborato automaticamente");
         }
       }
     }
