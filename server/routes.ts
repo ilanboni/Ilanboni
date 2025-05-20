@@ -18,6 +18,7 @@ import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "drizzle-orm";
 import { z } from "zod";
 import { summarizeText } from "./lib/openai";
+import axios from "axios";
 import { config } from "./config";
 import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
 import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
@@ -1430,8 +1431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Importa axios direttamente
-      const axios = require('axios');
+      // Non è necessario importare axios qui, viene già importato all'inizio del file
       
       try {
         console.log("[ULTRAMSG DIRECT] Creazione params per richiesta API");
