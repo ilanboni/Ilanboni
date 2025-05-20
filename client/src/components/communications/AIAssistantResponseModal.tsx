@@ -1,38 +1,30 @@
-import { useState, useEffect } from "react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+import { ClientWithDetails, Communication } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 
-import { type ClientWithDetails, type Communication } from "@shared/schema";
-
-// Definizione dello schema per il form
+// Schema per la validazione dei form
 const responseFormSchema = z.object({
-  manualResponse: z.string(),
+  response: z.string().min(2, {
+    message: "La risposta deve contenere almeno 2 caratteri",
+  }),
 });
 
 type ResponseFormValues = z.infer<typeof responseFormSchema>;
@@ -54,266 +46,218 @@ export function AIAssistantResponseModal({
   incomingMessage,
   aiGeneratedResponse,
   detectedProperties,
-  conversationThread,
+  conversationThread
 }: AIAssistantResponseModalProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("ai");
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"ai" | "manual">("ai");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form setup per la risposta manuale
-  const form = useForm<ResponseFormValues>({
+  // Form per risposta manuale
+  const manualForm = useForm<ResponseFormValues>({
     resolver: zodResolver(responseFormSchema),
     defaultValues: {
-      manualResponse: "",
+      response: "",
     },
   });
 
-  // Invia la risposta generata dall'IA
-  const sendAIResponse = async () => {
-    if (!client || !incomingMessage) {
-      toast({
-        title: "Errore",
-        description: "Informazioni mancanti per inviare la risposta",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Form per risposta IA
+  const aiForm = useForm<ResponseFormValues>({
+    resolver: zodResolver(responseFormSchema),
+    defaultValues: {
+      response: aiGeneratedResponse,
+    },
+  });
 
+  const onSubmitAIResponse = async (data: ResponseFormValues) => {
+    if (!client || !incomingMessage) return;
+    
+    setIsLoading(true);
     try {
-      setIsSubmitting(true);
+      const payload = {
+        phone: client.phone,
+        message: data.response,
+        clientId: client.id,
+        responseToId: incomingMessage.id
+      };
       
-      const response = await fetch('/api/whatsapp/test-direct-send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          clientId: client.id,
-          phoneNumber: client.phone,
-          message: aiGeneratedResponse,
-          responseToId: incomingMessage.id,
-          threadName: conversationThread,
-          relatedPropertyIds: detectedProperties.map(p => p.id),
-        })
+      await apiRequest("/api/whatsapp/send", "POST", payload);
+
+      toast({
+        title: "Risposta inviata con successo",
+        description: "Il messaggio è stato inviato al cliente.",
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Errore nell'invio della risposta");
+
+      // Invalida le query per aggiornare i dati
+      queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
+      if (client.id) {
+        queryClient.invalidateQueries({ queryKey: ['/api/clients', client.id, 'communications'] });
       }
       
-      const result = await response.json();
-      console.log("Risposta AI inviata:", result);
-      
-      toast({
-        title: "Risposta inviata",
-        description: "La risposta IA è stata inviata con successo",
-      });
-      
-      // Invalida le query per aggiornare le comunicazioni
-      queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/clients/${client.id}/communications`] 
-      });
-      
-      // Chiudi il modal
       onClose();
-    } catch (error: any) {
-      console.error("Errore nell'invio della risposta IA:", error);
+    } catch (error) {
+      console.error("Errore nell'invio della risposta:", error);
       toast({
-        title: "Errore",
-        description: error.message || "Impossibile inviare la risposta",
+        title: "Errore nell'invio della risposta",
+        description: "Si è verificato un problema durante l'invio del messaggio.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
-  // Handler per inviare la risposta manuale
   const onSubmitManualResponse = async (data: ResponseFormValues) => {
-    if (!client || !incomingMessage || !data.manualResponse.trim()) {
-      toast({
-        title: "Errore",
-        description: "Informazioni mancanti o risposta vuota",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!client || !incomingMessage) return;
+    
+    setIsLoading(true);
     try {
-      setIsSubmitting(true);
-      
-      const response = await fetch('/api/whatsapp/test-direct-send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          clientId: client.id,
-          phoneNumber: client.phone,
-          message: data.manualResponse,
-          responseToId: incomingMessage.id,
-          threadName: conversationThread,
-          relatedPropertyIds: detectedProperties.map(p => p.id),
-        })
+      await apiRequest("/api/whatsapp/send", "POST", {
+        phone: client.phone,
+        message: data.response,
+        clientId: client.id,
+        responseToId: incomingMessage.id
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Errore nell'invio della risposta");
+
+      toast({
+        title: "Risposta inviata con successo",
+        description: "Il messaggio è stato inviato al cliente.",
+      });
+
+      // Invalida le query per aggiornare i dati
+      queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
+      if (client.id) {
+        queryClient.invalidateQueries({ queryKey: ['/api/clients', client.id, 'communications'] });
       }
       
-      const result = await response.json();
-      console.log("Risposta manuale inviata:", result);
-      
-      toast({
-        title: "Risposta inviata",
-        description: "La tua risposta è stata inviata con successo",
-      });
-      
-      // Invalida le query per aggiornare le comunicazioni
-      queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/clients/${client.id}/communications`] 
-      });
-      
-      // Reset del form e chiusura modal
-      form.reset();
       onClose();
-    } catch (error: any) {
-      console.error("Errore nell'invio della risposta manuale:", error);
+    } catch (error) {
+      console.error("Errore nell'invio della risposta:", error);
       toast({
-        title: "Errore",
-        description: error.message || "Impossibile inviare la risposta",
+        title: "Errore nell'invio della risposta",
+        description: "Si è verificato un problema durante l'invio del messaggio.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
+
+  // Aggiorna il form AI quando cambia la risposta generata
+  React.useEffect(() => {
+    if (aiGeneratedResponse) {
+      aiForm.setValue("response", aiGeneratedResponse);
+    }
+  }, [aiGeneratedResponse, aiForm]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px]">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Nuovo messaggio
-            <Badge variant="outline" className="ml-2 bg-green-50 text-green-700">
-              {conversationThread}
-            </Badge>
-          </DialogTitle>
+          <DialogTitle>Risposta Assistita</DialogTitle>
           <DialogDescription>
-            {client ? (
-              <>Messaggio ricevuto da {client.firstName} {client.lastName}</>
-            ) : (
-              <>Mittente sconosciuto</>
-            )}
-            {detectedProperties.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {detectedProperties.map((property) => (
-                  <Badge key={property.id} variant="secondary">
-                    {property.address}
-                  </Badge>
-                ))}
-              </div>
+            Un nuovo messaggio è stato ricevuto da{" "}
+            <span className="font-medium">
+              {client ? `${client.firstName} ${client.lastName}` : "cliente sconosciuto"}
+            </span>
+            {conversationThread && (
+              <>
+                {" "}
+                riguardo <span className="font-medium">{conversationThread}</span>
+              </>
             )}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Messaggio ricevuto */}
-          <div>
-            <h4 className="font-medium text-sm mb-1">Messaggio ricevuto:</h4>
-            <Card>
-              <CardContent className="p-3 bg-gray-50">
-                <p className="whitespace-pre-line">
-                  {incomingMessage?.content || ""}
-                </p>
-              </CardContent>
-            </Card>
+        <div className="space-y-4 py-4">
+          {/* Messaggio in arrivo */}
+          <div className="rounded-lg bg-gray-100 p-3 dark:bg-gray-800">
+            <div className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">
+              Messaggio ricevuto:
+            </div>
+            <div className="text-sm">{incomingMessage?.content}</div>
           </div>
 
-          <Separator />
+          {/* Proprietà rilevate (se presenti) */}
+          {detectedProperties.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Proprietà rilevate nel messaggio:</div>
+              <div className="flex flex-wrap gap-2">
+                {detectedProperties.map((property) => (
+                  <Badge key={property.id} variant="outline">
+                    {property.address}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* Tabs per le risposte */}
-          <Tabs defaultValue="ai" onValueChange={(v) => setActiveTab(v as "ai" | "manual")}>
+          {/* Tabs per scegliere tra risposta AI e manuale */}
+          <Tabs defaultValue="ai" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="ai">Risposta assistita IA</TabsTrigger>
-              <TabsTrigger value="manual">Risposta personalizzata</TabsTrigger>
+              <TabsTrigger value="ai">Risposta AI</TabsTrigger>
+              <TabsTrigger value="manual">Risposta Manuale</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="ai" className="space-y-4 mt-4">
-              <Card>
-                <CardContent className="p-4 bg-blue-50">
-                  <p className="whitespace-pre-line text-gray-800">
-                    {aiGeneratedResponse}
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Button 
-                onClick={sendAIResponse} 
-                disabled={isSubmitting}
-                className="w-full gap-2 bg-green-600 hover:bg-green-700"
-              >
-                {isSubmitting && activeTab === "ai" ? (
-                  <>
-                    <span className="animate-spin mr-2">
-                      <i className="fas fa-spinner"></i>
-                    </span>
-                    Invio in corso...
-                  </>
-                ) : (
-                  <>
-                    <i className="fab fa-whatsapp"></i>
-                    <span>Invia risposta IA</span>
-                  </>
-                )}
-              </Button>
-            </TabsContent>
-            
-            <TabsContent value="manual" className="space-y-4 mt-4">
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmitManualResponse)} className="space-y-4">
+            {/* Tab Risposta AI */}
+            <TabsContent value="ai">
+              <Form {...aiForm}>
+                <form onSubmit={aiForm.handleSubmit(onSubmitAIResponse)} className="space-y-4">
                   <FormField
-                    control={form.control}
-                    name="manualResponse"
+                    control={aiForm.control}
+                    name="response"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>La tua risposta</FormLabel>
+                        <FormLabel>Risposta generata dall'assistente virtuale</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Scrivi la tua risposta qui..."
-                            rows={5}
                             {...field}
+                            placeholder="La risposta generata apparirà qui..."
+                            className="min-h-[140px]"
                           />
                         </FormControl>
-                        <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
-                  <Button 
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full gap-2 bg-green-600 hover:bg-green-700"
-                  >
-                    {isSubmitting && activeTab === "manual" ? (
-                      <>
-                        <span className="animate-spin mr-2">
-                          <i className="fas fa-spinner"></i>
-                        </span>
-                        Invio in corso...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fab fa-whatsapp"></i>
-                        <span>Invia la tua risposta</span>
-                      </>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                      Annulla
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? "Invio in corso..." : "Invia Risposta AI"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </TabsContent>
+            
+            {/* Tab Risposta Manuale */}
+            <TabsContent value="manual">
+              <Form {...manualForm}>
+                <form onSubmit={manualForm.handleSubmit(onSubmitManualResponse)} className="space-y-4">
+                  <FormField
+                    control={manualForm.control}
+                    name="response"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>La tua risposta personalizzata</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder="Scrivi la tua risposta personalizzata qui..."
+                            className="min-h-[140px]"
+                          />
+                        </FormControl>
+                      </FormItem>
                     )}
-                  </Button>
+                  />
+                  <DialogFooter>
+                    <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                      Annulla
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? "Invio in corso..." : "Invia Risposta Manuale"}
+                    </Button>
+                  </DialogFooter>
                 </form>
               </Form>
             </TabsContent>
