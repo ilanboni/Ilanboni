@@ -161,6 +161,78 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
     }
   };
 
+  // Stato locale per l'invio in corso
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Modifichiamo onSubmit per utilizzare lo stato locale
+  const onSubmitModified = async (data: FormData) => {
+    console.log("Invio messaggio WhatsApp:", data, "a cliente:", client);
+    
+    if (!client) {
+      toast({
+        title: "Errore",
+        description: "Nessun cliente selezionato",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Impostiamo lo stato di invio in corso
+      setIsSubmitting(true);
+      
+      // Chiamata diretta all'API UltraMsg
+      console.log("Tentativo di invio diretto del messaggio...");
+      
+      const response = await fetch('/api/whatsapp/test-direct-send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clientId: client.id,
+          phoneNumber: client.phone,
+          message: data.message
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Errore nell'invio del messaggio");
+      }
+      
+      const result = await response.json();
+      console.log("Risposta invio diretto:", result);
+      
+      // Notifica di successo
+      toast({
+        title: "Messaggio inviato",
+        description: "Il messaggio WhatsApp è stato inviato con successo",
+      });
+      
+      // Reset form e chiudi modale
+      form.reset();
+      onClose();
+      
+      // Invalida le query per aggiornare la lista delle comunicazioni
+      queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/clients/${client.id}/communications`] 
+      });
+      
+    } catch (error: any) {
+      console.error("Errore nell'invio del messaggio:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile inviare il messaggio WhatsApp",
+        variant: "destructive",
+      });
+    } finally {
+      // Resetta lo stato di invio
+      setIsSubmitting(false);
+    }
+  };
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -176,7 +248,7 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmitModified)} className="space-y-4">
             <FormField
               control={form.control}
               name="message"
@@ -205,10 +277,10 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
               </Button>
               <Button 
                 type="submit"
-                disabled={sendMessageMutation.isPending || !client}
+                disabled={isSubmitting || !client}
                 className="gap-2 bg-green-600 hover:bg-green-700"
               >
-                {sendMessageMutation.isPending ? (
+                {isSubmitting ? (
                   <>
                     <span className="animate-spin mr-2">
                       <i className="fas fa-spinner"></i>
