@@ -29,13 +29,18 @@ const responseFormSchema = z.object({
 
 type ResponseFormValues = z.infer<typeof responseFormSchema>;
 
+interface Property {
+  id: number;
+  address: string;
+}
+
 interface AIAssistantResponseModalProps {
   isOpen: boolean;
   onClose: () => void;
   client: ClientWithDetails | null;
   incomingMessage: Communication | null;
   aiGeneratedResponse: string;
-  detectedProperties: { id: number; address: string }[];
+  detectedProperties: Property[];
   conversationThread: string;
 }
 
@@ -73,14 +78,18 @@ export function AIAssistantResponseModal({
     
     setIsLoading(true);
     try {
-      const payload = {
-        phone: client.phone,
-        message: data.response,
-        clientId: client.id,
-        responseToId: incomingMessage.id
-      };
-      
-      await apiRequest("/api/whatsapp/send", "POST", payload);
+      await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: client.phone,
+          message: data.response,
+          clientId: client.id,
+          responseToId: incomingMessage.id
+        }),
+      });
 
       toast({
         title: "Risposta inviata con successo",
@@ -111,11 +120,17 @@ export function AIAssistantResponseModal({
     
     setIsLoading(true);
     try {
-      await apiRequest("/api/whatsapp/send", "POST", {
-        phone: client.phone,
-        message: data.response,
-        clientId: client.id,
-        responseToId: incomingMessage.id
+      await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: client.phone,
+          message: data.response,
+          clientId: client.id,
+          responseToId: incomingMessage.id
+        }),
       });
 
       toast({
