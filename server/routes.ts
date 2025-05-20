@@ -1435,20 +1435,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         console.log("[ULTRAMSG DIRECT] Creazione params per richiesta API");
-        const params = new URLSearchParams();
-        params.append('to', phoneNumber.replace(/^\+/, ''));
-        params.append('body', message);
+        // Costruisce i parametri esattamente come nella richiesta curl che ha funzionato
+        const formData = new URLSearchParams();
+        formData.append('token', process.env.ULTRAMSG_API_KEY as string);
+        formData.append('to', phoneNumber.replace(/^\+/, ''));
+        formData.append('body', message);
+        
+        console.log("[ULTRAMSG DIRECT] Parametri richiesta:", {
+          url: `https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE_ID}/messages/chat`,
+          to: phoneNumber.replace(/^\+/, ''),
+          hasToken: !!process.env.ULTRAMSG_API_KEY
+        });
         
         console.log("[ULTRAMSG DIRECT] Invio richiesta API UltraMsg");
         const response = await axios.post(
           `https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE_ID}/messages/chat`,
-          params,
+          formData,
           {
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            params: {
-              token: process.env.ULTRAMSG_API_KEY
             }
           }
         );
