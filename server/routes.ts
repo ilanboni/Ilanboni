@@ -1430,6 +1430,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Importa axios direttamente
+      const axios = require('axios');
+      
       try {
         console.log("[ULTRAMSG DIRECT] Creazione params per richiesta API");
         const params = new URLSearchParams();
@@ -1473,8 +1476,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let summary = message.length > 50 ? `${message.substring(0, 47)}...` : message;
         
         // Salva nel database
-        const communicationData: InsertCommunication = {
-          clientId,
+        const communicationData = {
+          clientId: parseInt(clientId),
           type: 'whatsapp',
           subject: 'Messaggio WhatsApp',
           content: message,

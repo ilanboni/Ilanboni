@@ -112,7 +112,8 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
     try {
       // Invece di usare la mutation, facciamo una chiamata diretta all'API UltraMsg
       console.log("Tentativo di invio diretto del messaggio...");
-      form.formState.isSubmitting = true;
+      // Non possiamo modificare direttamente form.formState.isSubmitting
+      const setSubmitting = form.formState.isSubmitting;
       
       const response = await fetch('/api/whatsapp/test-direct-send', {
         method: 'POST',
@@ -157,8 +158,6 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
         description: error.message || "Impossibile inviare il messaggio WhatsApp",
         variant: "destructive",
       });
-    } finally {
-      form.formState.isSubmitting = false;
     }
   };
 
