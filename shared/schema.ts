@@ -132,12 +132,23 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// Thread di conversazione
+export const conversationThreads = pgTable("conversation_threads", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id),
+  name: text("name").notNull(), // Nome del thread (es. "Richiesta Via Roma", "Informazioni Vendita")
+  lastActivityAt: timestamp("last_activity_at").defaultNow(),
+  status: text("status").default("active"), // active, archived, closed
+  createdAt: timestamp("created_at").defaultNow()
+});
+
 // Client communications
 export const communications = pgTable("communications", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").references(() => clients.id),
   propertyId: integer("property_id").references(() => properties.id),
   sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
+  threadId: integer("thread_id").references(() => conversationThreads.id), // Riferimento al thread
   type: text("type").notNull(), // email, call, whatsapp, property_sent, meeting, etc.
   subject: text("subject").notNull(),
   content: text("content"),
@@ -153,6 +164,15 @@ export const communications = pgTable("communications", {
   autoFollowUpSent: boolean("auto_follow_up_sent").default(false), // per sapere se è stato inviato un follow-up automatico
   createdAt: timestamp("created_at").defaultNow(),
   externalId: text("external_id") // ID esterno (es. ID messaggio WhatsApp)
+});
+
+// Associazioni tra messaggi e immobili
+export const communicationProperties = pgTable("communication_properties", {
+  id: serial("id").primaryKey(),
+  communicationId: integer("communication_id").notNull().references(() => communications.id),
+  propertyId: integer("property_id").notNull().references(() => properties.id),
+  relevance: integer("relevance").default(1), // 1-5 scale di rilevanza
+  createdAt: timestamp("created_at").defaultNow()
 });
 
 // Analytics for market insights
@@ -209,7 +229,15 @@ export const insertSharedPropertySchema = createInsertSchema(sharedProperties)
   });
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true });
-export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, createdAt: true });
+export const insertCommunicationSchema = createInsertSchema(communications)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    threadId: z.number().optional().nullable(), // Permettiamo sia null che undefined
+  });
+export const insertConversationThreadSchema = createInsertSchema(conversationThreads)
+  .omit({ id: true, createdAt: true, lastActivityAt: true });
+export const insertCommunicationPropertySchema = createInsertSchema(communicationProperties)
+  .omit({ id: true, createdAt: true });
 export const insertMarketInsightSchema = createInsertSchema(marketInsights).omit({ id: true, createdAt: true });
 
 // Export types
@@ -239,6 +267,12 @@ export type InsertTask = z.infer<typeof insertTaskSchema>;
 
 export type Communication = typeof communications.$inferSelect;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
+
+export type ConversationThread = typeof conversationThreads.$inferSelect;
+export type InsertConversationThread = z.infer<typeof insertConversationThreadSchema>;
+
+export type CommunicationProperty = typeof communicationProperties.$inferSelect;
+export type InsertCommunicationProperty = z.infer<typeof insertCommunicationPropertySchema>;
 
 export type MarketInsight = typeof marketInsights.$inferSelect;
 export type InsertMarketInsight = z.infer<typeof insertMarketInsightSchema>;
