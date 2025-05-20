@@ -97,9 +97,37 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
   });
   
   // Form submission handler
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     console.log("Invio messaggio WhatsApp:", data, "a cliente:", client);
-    sendMessageMutation.mutate(data);
+    
+    // Prima prova l'endpoint di test per verificare che le richieste API funzionino
+    try {
+      console.log("TEST - Chiamata all'endpoint di test...");
+      const testResponse = await fetch('/api/whatsapp/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clientId: client?.id,
+          message: data.message,
+          isTest: true
+        })
+      });
+      
+      const testResult = await testResponse.json();
+      console.log("TEST - Risposta dal test:", testResult);
+      
+      // Se il test funziona, procedi con l'invio del messaggio
+      sendMessageMutation.mutate(data);
+    } catch (testError) {
+      console.error("TEST - Errore nel test:", testError);
+      toast({
+        title: "Errore nel test di connessione",
+        description: "Impossibile verificare la connessione con il server. " + testError,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
