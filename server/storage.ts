@@ -94,6 +94,7 @@ export interface IStorage {
   getTasks(filters?: { status?: string; type?: string }): Promise<Task[]>;
   getTasksByClientId(clientId: number): Promise<Task[]>;
   getTasksByPropertyId(propertyId: number): Promise<Task[]>;
+  getTasksBySharedPropertyId(sharedPropertyId: number): Promise<Task[]>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, data: Partial<InsertTask>): Promise<Task | undefined>;
   completeTask(id: number): Promise<Task | undefined>;
@@ -998,6 +999,12 @@ export class MemStorage implements IStorage {
   async getTasksByPropertyId(propertyId: number): Promise<Task[]> {
     return Array.from(this.taskStore.values()).filter(
       (task) => task.propertyId === propertyId
+    );
+  }
+  
+  async getTasksBySharedPropertyId(sharedPropertyId: number): Promise<Task[]> {
+    return Array.from(this.taskStore.values()).filter(
+      (task) => task.sharedPropertyId === sharedPropertyId
     );
   }
   
