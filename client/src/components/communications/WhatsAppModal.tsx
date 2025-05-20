@@ -98,6 +98,7 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
   
   // Form submission handler
   const onSubmit = (data: FormData) => {
+    console.log("Invio messaggio WhatsApp:", data, "a cliente:", client);
     sendMessageMutation.mutate(data);
   };
 
