@@ -406,19 +406,21 @@ export default function ClientPropertySearchPage() {
                   </div>
                 </div>
                 
-                <div className="flex justify-end mt-4">
+                <div className="mt-6 flex flex-col items-center">
                   <Button 
-                    className="px-6 bg-green-600 hover:bg-green-700 text-white"
+                    className="w-full py-4 text-lg font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg"
                     onClick={saveSearchPreferences}
-                    disabled={!searchArea || searchArea.length < 4}
+                    disabled={!searchArea || searchArea.length < 3}
                   >
-                    Salva Preferenze di Ricerca
+                    SALVA L'AREA DISEGNATA
                   </Button>
-                </div>
-                
-                <div className="mt-2 text-sm text-gray-500">
-                  {(!searchArea || searchArea.length === 0) && "Nessuna area definita. Utilizza i campi sopra o i pulsanti per definire un'area."}
-                  {searchArea && searchArea.length >= 4 && "Area di ricerca definita correttamente."}
+                  
+                  <div className="mt-2 text-sm text-center text-gray-700">
+                    {(!searchArea || searchArea.length === 0) && "Nessuna area definita. Clicca sulla mappa per iniziare a disegnare."}
+                    {searchArea && searchArea.length > 0 && searchArea.length < 3 && "Continua a cliccare: servono almeno 3 punti per definire un'area."}
+                    {searchArea && searchArea.length >= 3 && searchArea.length < 4 && "Clicca 'Chiudi Area' oppure puoi salvare direttamente l'area disegnata."}
+                    {searchArea && searchArea.length >= 4 && "Area completata! Clicca il pulsante sopra per salvare."}
+                  </div>
                 </div>
                 {searchArea && searchArea.length > 0 ? (
                   <p className="text-xs text-green-600 mt-1">
