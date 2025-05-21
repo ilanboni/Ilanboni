@@ -59,6 +59,14 @@ export default function ClientDetailPage() {
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
     queryKey: [`/api/clients/${id}`],
     enabled: !isNaN(id),
+    onSuccess: (data) => {
+      console.log("Cliente caricato:", data);
+      console.log("Tipo cliente:", data?.type);
+      console.log("È acquirente:", data?.type === 'buyer');
+      if (data?.type === 'buyer') {
+        console.log("Dettagli acquirente:", data.buyer);
+      }
+    }
   });
   
   // Fetch client communications
