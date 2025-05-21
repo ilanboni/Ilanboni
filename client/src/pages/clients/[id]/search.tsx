@@ -49,7 +49,6 @@ import {
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import L from "leaflet";
-import { EditControl } from "react-leaflet-draw";
 
 // Fix per l'icona di Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -411,11 +410,7 @@ export default function ClientPropertySearchPage() {
                       />
                     )}
                     
-                    {/* Controlli per disegnare e modificare il poligono */}
-                    <MapDrawControl
-                      onCreated={handleMapDraw}
-                      onDeleted={handleMapDelete}
-                    />
+                    {/* Per ora rimuoviamo il controllo di disegno che causa errori */}
                   </MapContainer>
                 </div>
                 {searchArea && searchArea.length > 0 ? (
