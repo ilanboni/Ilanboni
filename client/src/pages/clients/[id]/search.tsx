@@ -76,85 +76,87 @@ function fixLeafletIcons() {
   }, []);
 }
 
-// Componente per il disegno dei poligoni sulla mappa
+// Componente semplificato per le aree predefinite
 function MapControls({ onSetArea }) {
-  const [points, setPoints] = useState<[number, number][]>([]);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [showPoints, setShowPoints] = useState(false);
-  
+  // Usa il componente useMapEvents solo per il logging
   const map = useMapEvents({
     click: (e) => {
       console.log("Clic sulla mappa:", e.latlng);
-      
-      if (isDrawing) {
-        const newPoint: [number, number] = [e.latlng.lat, e.latlng.lng];
-        const newPoints = [...points, newPoint];
-        setPoints(newPoints);
-        setShowPoints(true);
-        
-        // Se abbiamo almeno 3 punti, aggiorniamo il poligono di ricerca
-        if (newPoints.length >= 3) {
-          // Creiamo una copia con il primo punto alla fine per chiudere il poligono
-          const closedPolygon = [...newPoints, newPoints[0]];
-          onSetArea(closedPolygon);
-        }
-      }
     }
   });
-  
-  // Funzione per iniziare/fermare il disegno del poligono
-  const toggleDrawing = () => {
-    if (isDrawing) {
-      // Ferma il disegno senza aggiungere altri punti
-      setIsDrawing(false);
-      
-      // Se abbiamo almeno 3 punti, assicuriamoci che il poligono sia chiuso
-      if (points.length >= 3) {
-        // Solo se non è già chiuso (l'ultimo punto non è uguale al primo)
-        const firstPoint = points[0];
-        const lastPoint = points[points.length - 1];
-        
-        if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
-          // Crea una copia con il primo punto alla fine per chiudere il poligono
-          const closedPolygon = [...points, firstPoint];
-          onSetArea(closedPolygon);
-        }
-      }
-    } else {
-      // Inizia un nuovo disegno
-      setPoints([]);
-      setShowPoints(false);
-      onSetArea([]);
-      setIsDrawing(true);
-    }
-  };
   
   return (
     <div className="absolute bottom-4 right-4 z-[1000]">
       <div className="bg-white p-2 rounded-md shadow-md">
-        <div className="mb-2 text-sm text-center">
-          {isDrawing ? 'Clicca sulla mappa per disegnare il poligono' : 'Premi per iniziare a disegnare'}
+        <h4 className="text-center text-sm font-medium mb-2">Aree Predefinite</h4>
+        
+        <div className="flex flex-col gap-2">
+          <Button
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => {
+              // Area esempio attorno a Milano centro
+              const milanoArea = [
+                [45.4742, 9.1800], // NW
+                [45.4742, 9.2000], // NE
+                [45.4542, 9.2000], // SE
+                [45.4542, 9.1800], // SW
+                [45.4742, 9.1800]  // Chiudi il poligono
+              ];
+              onSetArea(milanoArea);
+            }}
+          >
+            Milano Centro
+          </Button>
+          
+          <Button
+            size="sm"
+            className="bg-green-600 hover:bg-green-700 text-white"
+            onClick={() => {
+              // Area più ampia attorno a Milano
+              const milanoEstesa = [
+                [45.5200, 9.1500], // NW 
+                [45.5200, 9.2300], // NE
+                [45.4300, 9.2300], // SE
+                [45.4300, 9.1500], // SW
+                [45.5200, 9.1500]  // Chiudi il poligono
+              ];
+              onSetArea(milanoEstesa);
+            }}
+          >
+            Milano Estesa
+          </Button>
+          
+          <Button
+            size="sm"
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+            onClick={() => {
+              // Solo zona Navigli
+              const navigli = [
+                [45.4580, 9.1700], // NW
+                [45.4580, 9.1850], // NE
+                [45.4500, 9.1850], // SE
+                [45.4500, 9.1700], // SW
+                [45.4580, 9.1700]  // Chiudi il poligono
+              ];
+              onSetArea(navigli);
+            }}
+          >
+            Zona Navigli
+          </Button>
+          
+          <Button
+            size="sm"
+            className="bg-red-600 hover:bg-red-700 text-white"
+            onClick={() => {
+              // Reset dell'area
+              onSetArea([]);
+            }}
+          >
+            Cancella Area
+          </Button>
         </div>
-        
-        <Button
-          size="sm"
-          className={`w-full mb-1 ${isDrawing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white`}
-          onClick={toggleDrawing}
-        >
-          {isDrawing ? 'Termina disegno' : 'Disegna area personalizzata'}
-        </Button>
-        
-        {points.length > 0 && (
-          <div className="text-xs text-center mt-1">
-            {points.length} {points.length === 1 ? 'punto' : 'punti'} definiti
-          </div>
-        )}
       </div>
-      
-      {/* Visualizzazione dei punti sulla mappa */}
-      {showPoints && points.map((point, index) => (
-        <Marker key={`point-${index}`} position={point} />
-      ))}
     </div>
   );
 }
