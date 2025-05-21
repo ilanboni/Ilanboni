@@ -28,6 +28,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
+import { useClientPreferences } from "@/hooks/useClientPreferences";
+import { MapContainer, TileLayer, Polygon } from "react-leaflet";
 import { AIAssistantResponseModal } from "@/components/communications/AIAssistantResponseModal";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -492,6 +494,7 @@ export default function ClientDetailPage() {
             <TabsTrigger value="tasks">Note e Attività</TabsTrigger>
             {client?.type === 'buyer' && (
               <>
+                <TabsTrigger value="preferences">Preferenze</TabsTrigger>
                 <TabsTrigger value="matching-properties">Immobili compatibili</TabsTrigger>
                 <TabsTrigger value="matching-shared">Possibili immobili</TabsTrigger>
                 <TabsTrigger value="properties-notification-status">Immobili da inviare</TabsTrigger>
