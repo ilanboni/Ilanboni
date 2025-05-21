@@ -78,103 +78,23 @@ function fixLeafletIcons() {
   }, []);
 }
 
-// Componente per il disegno sulla mappa con react-leaflet-draw
-function MapDrawTools({ onAreaDefined, existingArea }) {
-  // Riferimento al feature group che contiene i disegni
-  const featureGroupRef = useRef(null);
-  
-  // Converti le coordinate nel formato richiesto da Leaflet Draw
-  const formatCoordinates = (coords) => {
-    if (!coords || coords.length === 0) return [];
-    return coords.map(point => ({lat: point[0], lng: point[1]}));
-  };
-  
-  // Ripulisci i livelli quando il componente si monta se ci sono coordinate esistenti
-  useEffect(() => {
-    if (featureGroupRef.current) {
-      // Pulisci i disegni precedenti
-      featureGroupRef.current.clearLayers();
+// Componente per gestire i click sulla mappa
+const MapClickHandler = ({ setSearchArea }) => {
+  const map = useMapEvents({
+    click: (e) => {
+      const { lat, lng } = e.latlng;
+      console.log("Clic sulla mappa:", { lat, lng });
       
-      // Se ci sono coordinate esistenti, aggiungile come poligono iniziale
-      if (existingArea && existingArea.length > 0) {
-        const formattedCoords = formatCoordinates(existingArea);
-        const polygon = L.polygon(formattedCoords);
-        featureGroupRef.current.addLayer(polygon);
-      }
-    }
-  }, []);
+      // Aggiungi il nuovo punto all'area
+      setSearchArea(prevArea => {
+        const newArea = [...(prevArea || [])];
+        newArea.push([lat, lng]);
+        return newArea;
+      });
+    },
+  });
   
-  // Gestisci gli eventi di creazione del disegno
-  const handleCreated = (e) => {
-    const { layerType, layer } = e;
-    
-    if (layerType === 'polygon') {
-      const coordinates = layer.getLatLngs()[0];
-      const formattedCoords = coordinates.map(point => [point.lat, point.lng]);
-      
-      // Assicurati che il poligono si chiuda
-      if (formattedCoords.length > 0 && 
-          (formattedCoords[0][0] !== formattedCoords[formattedCoords.length - 1][0] || 
-           formattedCoords[0][1] !== formattedCoords[formattedCoords.length - 1][1])) {
-        formattedCoords.push([formattedCoords[0][0], formattedCoords[0][1]]);
-      }
-      
-      onAreaDefined(formattedCoords);
-    }
-  };
-  
-  // Gestisci gli eventi di modifica del disegno
-  const handleEdited = (e) => {
-    const layers = e.layers;
-    layers.eachLayer((layer) => {
-      const coordinates = layer.getLatLngs()[0];
-      const formattedCoords = coordinates.map(point => [point.lat, point.lng]);
-      
-      // Assicurati che il poligono si chiuda
-      if (formattedCoords.length > 0 && 
-          (formattedCoords[0][0] !== formattedCoords[formattedCoords.length - 1][0] || 
-           formattedCoords[0][1] !== formattedCoords[formattedCoords.length - 1][1])) {
-        formattedCoords.push([formattedCoords[0][0], formattedCoords[0][1]]);
-      }
-      
-      onAreaDefined(formattedCoords);
-    });
-  };
-  
-  // Gestisci gli eventi di cancellazione del disegno
-  const handleDeleted = () => {
-    onAreaDefined([]);
-  };
-  
-  return (
-    <FeatureGroup ref={featureGroupRef}>
-      <EditControl
-        position="topright"
-        onCreated={handleCreated}
-        onEdited={handleEdited}
-        onDeleted={handleDeleted}
-        draw={{
-          rectangle: false,
-          circle: false,
-          circlemarker: false,
-          marker: false,
-          polyline: false,
-          polygon: {
-            allowIntersection: false,
-            showArea: true,
-            drawError: {
-              color: '#e1e100',
-              message: '<strong>Errore:</strong> Non puoi disegnare poligoni che si intersecano!'
-            },
-            shapeOptions: {
-              color: 'blue',
-              fillColor: 'rgba(0, 0, 255, 0.2)'
-            }
-          }
-        }}
-      />
-    </FeatureGroup>
-  );
+  return null;
 }
 
 export default function ClientPropertySearchPage() {
@@ -414,7 +334,174 @@ export default function ClientPropertySearchPage() {
                 <label className="text-sm font-medium block mb-2">Area di Ricerca</label>
                 
                 <div className="mb-2 text-sm text-gray-600">
-                  Disegna direttamente sulla mappa l'area di ricerca che desideri utilizzando gli strumenti di disegno.
+                  Inserisci le coordinate di un'area rettangolare per definire la zona di ricerca.
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="text-sm font-medium">Coordinate Nord-Ovest</label>
+                    <div className="flex gap-2 mt-1">
+                      <Input 
+                        type="number" 
+                        step="0.0001"
+                        placeholder="Latitudine (es: 45.4742)" 
+                        className="flex-1"
+                        value={searchArea && searchArea[0] ? searchArea[0][0] : ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          if (!isNaN(value)) {
+                            // Crea un'area di esempio se non esiste
+                            const newArea = searchArea && searchArea.length >= 5 ? [...searchArea] : [
+                              [value, 9.1800], // NW
+                              [value, 9.2200], // NE
+                              [45.4500, 9.2200], // SE
+                              [45.4500, 9.1800], // SW
+                              [value, 9.1800], // Chiusura
+                            ];
+                            
+                            // Aggiorna le coordinate
+                            if (newArea.length >= 5) {
+                              newArea[0][0] = value;
+                              newArea[1][0] = value;
+                              newArea[4][0] = value;
+                              setSearchArea(newArea);
+                            }
+                          }
+                        }}
+                      />
+                      <Input 
+                        type="number" 
+                        step="0.0001"
+                        placeholder="Longitudine (es: 9.18)" 
+                        className="flex-1"
+                        value={searchArea && searchArea[0] ? searchArea[0][1] : ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          if (!isNaN(value)) {
+                            // Crea un'area di esempio se non esiste
+                            const newArea = searchArea && searchArea.length >= 5 ? [...searchArea] : [
+                              [45.4742, value], // NW
+                              [45.4742, 9.2200], // NE
+                              [45.4500, 9.2200], // SE
+                              [45.4500, value], // SW
+                              [45.4742, value], // Chiusura
+                            ];
+                            
+                            // Aggiorna le coordinate
+                            if (newArea.length >= 5) {
+                              newArea[0][1] = value;
+                              newArea[3][1] = value;
+                              newArea[4][1] = value;
+                              setSearchArea(newArea);
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium">Coordinate Sud-Est</label>
+                    <div className="flex gap-2 mt-1">
+                      <Input 
+                        type="number" 
+                        step="0.0001"
+                        placeholder="Latitudine (es: 45.45)" 
+                        className="flex-1"
+                        value={searchArea && searchArea[2] ? searchArea[2][0] : ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          if (!isNaN(value)) {
+                            // Crea un'area di esempio se non esiste
+                            const newArea = searchArea && searchArea.length >= 5 ? [...searchArea] : [
+                              [45.4742, 9.1800], // NW
+                              [45.4742, 9.2200], // NE
+                              [value, 9.2200], // SE
+                              [value, 9.1800], // SW
+                              [45.4742, 9.1800], // Chiusura
+                            ];
+                            
+                            // Aggiorna le coordinate
+                            if (newArea.length >= 5) {
+                              newArea[2][0] = value;
+                              newArea[3][0] = value;
+                              setSearchArea(newArea);
+                            }
+                          }
+                        }}
+                      />
+                      <Input 
+                        type="number" 
+                        step="0.0001"
+                        placeholder="Longitudine (es: 9.22)" 
+                        className="flex-1"
+                        value={searchArea && searchArea[2] ? searchArea[2][1] : ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          if (!isNaN(value)) {
+                            // Crea un'area di esempio se non esiste
+                            const newArea = searchArea && searchArea.length >= 5 ? [...searchArea] : [
+                              [45.4742, 9.1800], // NW
+                              [45.4742, value], // NE
+                              [45.4500, value], // SE
+                              [45.4500, 9.1800], // SW
+                              [45.4742, 9.1800], // Chiusura
+                            ];
+                            
+                            // Aggiorna le coordinate
+                            if (newArea.length >= 5) {
+                              newArea[1][1] = value;
+                              newArea[2][1] = value; 
+                              setSearchArea(newArea);
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <Button 
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => {
+                      // Area esempio Milano centro
+                      const milanoArea = [
+                        [45.4742, 9.1800], // NW
+                        [45.4742, 9.2000], // NE
+                        [45.4542, 9.2000], // SE
+                        [45.4542, 9.1800], // SW
+                        [45.4742, 9.1800]  // Chiusura
+                      ];
+                      setSearchArea(milanoArea);
+                    }}
+                  >
+                    Milano Centro
+                  </Button>
+                  
+                  <Button 
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => {
+                      // Area esempio navigli
+                      const navigliArea = [
+                        [45.4580, 9.1700], // NW
+                        [45.4580, 9.1850], // NE
+                        [45.4500, 9.1850], // SE
+                        [45.4500, 9.1700], // SW
+                        [45.4580, 9.1700]  // Chiusura
+                      ];
+                      setSearchArea(navigliArea);
+                    }}
+                  >
+                    Zona Navigli
+                  </Button>
+                  
+                  <Button 
+                    className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    onClick={() => setSearchArea([])}
+                  >
+                    Cancella Area
+                  </Button>
                 </div>
                 
                 <div className="h-[400px] border rounded-md overflow-hidden">
@@ -429,34 +516,37 @@ export default function ClientPropertySearchPage() {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     
-                    {/* Componente per il disegno sulla mappa */}
-                    <MapDrawTools onAreaDefined={setSearchArea} existingArea={searchArea} />
-                    
-                    {/* Mostra il poligono esistente se presente e non stiamo disegnando */}
+                    {/* Mostra il poligono esistente */}
                     {searchArea && searchArea.length > 0 && (
                       <Polygon 
                         positions={searchArea}
                         pathOptions={{ color: 'blue', fillColor: 'rgba(0, 0, 255, 0.2)' }}
                       />
                     )}
+                    
+                    {/* Mostra i marker per ogni punto del poligono */}
+                    {searchArea && searchArea.length > 0 && (
+                      <>
+                        <Marker position={[searchArea[0][0], searchArea[0][1]]} />
+                        <Marker position={[searchArea[2][0], searchArea[2][1]]} />
+                      </>
+                    )}
                   </MapContainer>
                 </div>
                 
-                <div className="flex justify-between mt-2">
+                <div className="flex justify-end mt-4">
                   <Button 
-                    className="px-4 bg-red-600 hover:bg-red-700 text-white"
-                    onClick={() => setSearchArea([])}
-                  >
-                    Cancella Area
-                  </Button>
-                  
-                  <Button 
-                    className="px-4 bg-green-600 hover:bg-green-700 text-white"
+                    className="px-6 bg-green-600 hover:bg-green-700 text-white"
                     onClick={saveSearchPreferences}
-                    disabled={searchArea.length === 0}
+                    disabled={!searchArea || searchArea.length < 4}
                   >
-                    Salva Area
+                    Salva Preferenze di Ricerca
                   </Button>
+                </div>
+                
+                <div className="mt-2 text-sm text-gray-500">
+                  {(!searchArea || searchArea.length === 0) && "Nessuna area definita. Utilizza i campi sopra o i pulsanti per definire un'area."}
+                  {searchArea && searchArea.length >= 4 && "Area di ricerca definita correttamente."}
                 </div>
                 {searchArea && searchArea.length > 0 ? (
                   <p className="text-xs text-green-600 mt-1">
