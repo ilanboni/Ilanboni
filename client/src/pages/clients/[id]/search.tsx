@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,19 @@ import { Helmet } from "react-helmet";
 import { Building, Euro, MapPin, Search, BedDouble, Bath, Calendar, ArrowRight } from "lucide-react";
 import PropertyCard from "@/components/properties/PropertyCard";
 
+// Importazioni per la mappa
+import { 
+  MapContainer, 
+  TileLayer, 
+  Polygon, 
+  useMapEvents, 
+  Marker
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+import L from "leaflet";
+import { EditControl } from "react-leaflet-draw";
+
 export default function ClientPropertySearchPage() {
   const params = useParams();
   const [, navigate] = useLocation();
@@ -52,6 +65,11 @@ export default function ClientPropertySearchPage() {
   const [sizeRange, setSizeRange] = useState<[number, number]>([30, 300]);
   const [propertyType, setPropertyType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Stato per il poligono di ricerca
+  const [searchArea, setSearchArea] = useState<[number, number][]>([]);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([45.4642, 9.1900]); // Milano
+  const mapRef = useRef(null);
   
   // Fetch client details
   const { data: client, isLoading: isLoadingClient } = useQuery({
@@ -119,7 +137,14 @@ export default function ClientPropertySearchPage() {
         setSizeRange([client.buyer.minSize, 300]);
       }
     }
-  }, [client]);
+    
+    // Carica il poligono di ricerca dai dati del cliente
+    if (preferences?.searchArea && preferences.searchArea.length > 0) {
+      setSearchArea(preferences.searchArea);
+      // Centra la mappa sul primo punto del poligono
+      setMapCenter([preferences.searchArea[0][0], preferences.searchArea[0][1]]);
+    }
+  }, [client, preferences]);
   
   // Save search preferences to buyer profile
   const saveSearchPreferences = () => {
@@ -127,8 +152,25 @@ export default function ClientPropertySearchPage() {
       updateBuyerMutation.mutate({
         minSize: sizeRange[0],
         maxPrice: priceRange[1],
+        searchArea: searchArea.length > 0 ? searchArea : null
       });
     }
+  };
+  
+  // Gestisce i disegni sulla mappa (poligoni)
+  const handleMapDraw = (e: any) => {
+    const { layerType, layer } = e;
+    
+    if (layerType === 'polygon') {
+      const drawnPolygon = layer.getLatLngs()[0];
+      const coordinates: [number, number][] = drawnPolygon.map((point: any) => [point.lat, point.lng]);
+      setSearchArea(coordinates);
+    }
+  };
+  
+  // Gestisce la cancellazione dei disegni sulla mappa
+  const handleMapDelete = () => {
+    setSearchArea([]);
   };
   
   // Function to match client with a property
@@ -253,6 +295,58 @@ export default function ClientPropertySearchPage() {
                     <SelectItem value="commercial">Commerciale</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              
+              {/* Mappa per il poligono di ricerca */}
+              <div className="mt-4">
+                <label className="text-sm font-medium block mb-2">Area di Ricerca</label>
+                <div className="h-[300px] border rounded-md overflow-hidden">
+                  {/* La mappa verrà mostrata qui */}
+                  <MapContainer
+                    center={mapCenter}
+                    zoom={13}
+                    style={{ height: '100%', width: '100%' }}
+                    ref={mapRef}
+                  >
+                    <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    />
+                    
+                    {/* Mostra il poligono esistente se presente */}
+                    {searchArea && searchArea.length > 0 && (
+                      <Polygon 
+                        positions={searchArea}
+                        pathOptions={{ color: 'blue', fillColor: 'rgba(0, 0, 255, 0.2)' }}
+                      />
+                    )}
+                    
+                    {/* Controlli per disegnare e modificare il poligono */}
+                    <EditControl
+                      position="topright"
+                      onCreated={handleMapDraw}
+                      onDeleted={handleMapDelete}
+                      draw={{
+                        rectangle: false,
+                        circle: false,
+                        circlemarker: false,
+                        marker: false,
+                        polyline: false,
+                      }}
+                    />
+                  </MapContainer>
+                </div>
+                {searchArea && searchArea.length > 0 ? (
+                  <p className="text-xs text-green-600 mt-1">
+                    <i className="fas fa-check-circle mr-1"></i>
+                    Area di ricerca definita
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">
+                    <i className="fas fa-info-circle mr-1"></i>
+                    Disegna un poligono sulla mappa per definire l'area di ricerca
+                  </p>
+                )}
               </div>
               
               <div className="pt-4">
