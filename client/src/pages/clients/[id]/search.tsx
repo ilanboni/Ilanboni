@@ -76,10 +76,11 @@ function fixLeafletIcons() {
   }, []);
 }
 
-// Componente semplificato per la mappa con supporto disegno poligoni
+// Componente per il disegno dei poligoni sulla mappa
 function MapControls({ onSetArea }) {
   const [points, setPoints] = useState<[number, number][]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [showPoints, setShowPoints] = useState(false);
   
   const map = useMapEvents({
     click: (e) => {
@@ -89,8 +90,9 @@ function MapControls({ onSetArea }) {
         const newPoint: [number, number] = [e.latlng.lat, e.latlng.lng];
         const newPoints = [...points, newPoint];
         setPoints(newPoints);
+        setShowPoints(true);
         
-        // Se abbiamo almeno 3 punti, possiamo chiudere il poligono
+        // Se abbiamo almeno 3 punti, aggiorniamo il poligono di ricerca
         if (newPoints.length >= 3) {
           // Creiamo una copia con il primo punto alla fine per chiudere il poligono
           const closedPolygon = [...newPoints, newPoints[0]];
@@ -103,46 +105,43 @@ function MapControls({ onSetArea }) {
   // Funzione per iniziare/fermare il disegno del poligono
   const toggleDrawing = () => {
     if (isDrawing) {
-      // Ferma il disegno - il poligono è già stato inviato in onSetArea
+      // Ferma il disegno
       setIsDrawing(false);
     } else {
       // Inizia un nuovo disegno
       setPoints([]);
+      setShowPoints(false);
+      onSetArea([]);
       setIsDrawing(true);
     }
   };
   
   return (
-    <div className="absolute bottom-4 right-4 z-500 flex flex-col gap-2">
-      <Button
-        size="sm"
-        className={`${isDrawing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white`}
-        onClick={toggleDrawing}
-      >
-        {isDrawing ? 'Termina disegno' : 'Inizia disegno'}
-      </Button>
+    <div className="absolute bottom-4 right-4 z-[1000]">
+      <div className="bg-white p-2 rounded-md shadow-md">
+        <div className="mb-2 text-sm text-center">
+          {isDrawing ? 'Clicca sulla mappa per disegnare il poligono' : 'Premi per iniziare a disegnare'}
+        </div>
+        
+        <Button
+          size="sm"
+          className={`w-full mb-1 ${isDrawing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white`}
+          onClick={toggleDrawing}
+        >
+          {isDrawing ? 'Termina disegno' : 'Disegna area personalizzata'}
+        </Button>
+        
+        {points.length > 0 && (
+          <div className="text-xs text-center mt-1">
+            {points.length} {points.length === 1 ? 'punto' : 'punti'} definiti
+          </div>
+        )}
+      </div>
       
-      <Button
-        size="sm"
-        className="bg-blue-600 hover:bg-blue-700 text-white"
-        onClick={() => {
-          if (onSetArea) {
-            // Crea un'area esempio attorno a Milano centro
-            const milanoArea = [
-              [45.4742, 9.1800], // NW
-              [45.4742, 9.2000], // NE
-              [45.4542, 9.2000], // SE
-              [45.4542, 9.1800], // SW
-              [45.4742, 9.1800]  // Chiudi il poligono
-            ];
-            onSetArea(milanoArea);
-            setIsDrawing(false);
-            setPoints([]);
-          }
-        }}
-      >
-        Definisci area esempio
-      </Button>
+      {/* Visualizzazione dei punti sulla mappa */}
+      {showPoints && points.map((point, index) => (
+        <Marker key={`point-${index}`} position={point} />
+      ))}
     </div>
   );
 }
@@ -383,23 +382,9 @@ export default function ClientPropertySearchPage() {
               <div className="mt-4">
                 <label className="text-sm font-medium block mb-2">Area di Ricerca</label>
                 
-                {/* Aggiungiamo un pulsante per generare rapidamente un'area di esempio */}
-                <Button 
-                  className="w-full mb-2 bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => {
-                    // Crea un'area esempio attorno a Milano centro
-                    const milanoArea = [
-                      [45.4742, 9.1800], // NW
-                      [45.4742, 9.2000], // NE
-                      [45.4542, 9.2000], // SE
-                      [45.4542, 9.1800], // SW
-                      [45.4742, 9.1800]  // Chiudi il poligono
-                    ];
-                    setSearchArea(milanoArea);
-                  }}
-                >
-                  Definisci area esempio attorno a Milano
-                </Button>
+                <div className="mb-2 text-sm text-gray-600">
+                  Usa i controlli sulla mappa per disegnare l'area di ricerca desiderata.
+                </div>
                 
                 <div className="h-[300px] border rounded-md overflow-hidden">
                   {/* La mappa verrà mostrata qui */}
