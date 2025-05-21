@@ -398,8 +398,146 @@ export default function ClientPropertySearchPage() {
                 <label className="text-sm font-medium block mb-2">Area di Ricerca</label>
                 
                 <div className="mb-2 text-sm text-gray-600">
-                  Usa i controlli sulla mappa per disegnare l'area di ricerca desiderata.
+                  Inserisci le coordinate dell'area di ricerca che desideri:
                 </div>
+                
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div>
+                    <label className="text-xs text-gray-600">Latitudine Nord-Ovest</label>
+                    <Input 
+                      type="number" 
+                      step="0.0001"
+                      placeholder="45.4742" 
+                      value={searchArea && searchArea[0] ? searchArea[0][0] : ""}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          // Crea una copia dell'array esistente o inizializza uno nuovo
+                          let newArea = searchArea && searchArea.length ? [...searchArea] : [
+                            [value, 9.1800], // NW
+                            [value, 9.2000], // NE
+                            [45.4542, 9.2000], // SE
+                            [45.4542, 9.1800], // SW
+                            [value, 9.1800]  // Chiudi il poligono NW
+                          ];
+                          
+                          if (newArea.length >= 5) {
+                            // Aggiorna il primo punto e l'ultimo (che deve essere uguale al primo)
+                            newArea[0][0] = value;
+                            newArea[4][0] = value;
+                            setSearchArea(newArea);
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Longitudine Nord-Ovest</label>
+                    <Input 
+                      type="number" 
+                      step="0.0001"
+                      placeholder="9.1800" 
+                      value={searchArea && searchArea[0] ? searchArea[0][1] : ""}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          let newArea = searchArea && searchArea.length ? [...searchArea] : [
+                            [45.4742, value], // NW
+                            [45.4742, 9.2000], // NE
+                            [45.4542, 9.2000], // SE
+                            [45.4542, value], // SW
+                            [45.4742, value]  // Chiudi il poligono NW
+                          ];
+                          
+                          if (newArea.length >= 5) {
+                            newArea[0][1] = value;
+                            newArea[3][1] = value;
+                            newArea[4][1] = value;
+                            setSearchArea(newArea);
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-gray-600">Latitudine Sud-Est</label>
+                    <Input 
+                      type="number" 
+                      step="0.0001"
+                      placeholder="45.4542" 
+                      value={searchArea && searchArea[2] ? searchArea[2][0] : ""}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          let newArea = searchArea && searchArea.length ? [...searchArea] : [
+                            [45.4742, 9.1800], // NW
+                            [45.4742, 9.2000], // NE
+                            [value, 9.2000], // SE
+                            [value, 9.1800], // SW
+                            [45.4742, 9.1800]  // Chiudi il poligono NW
+                          ];
+                          
+                          if (newArea.length >= 5) {
+                            newArea[2][0] = value;
+                            newArea[3][0] = value;
+                            setSearchArea(newArea);
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Longitudine Sud-Est</label>
+                    <Input 
+                      type="number" 
+                      step="0.0001"
+                      placeholder="9.2000" 
+                      value={searchArea && searchArea[2] ? searchArea[2][1] : ""}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          let newArea = searchArea && searchArea.length ? [...searchArea] : [
+                            [45.4742, 9.1800], // NW
+                            [45.4742, value], // NE
+                            [45.4542, value], // SE
+                            [45.4542, 9.1800], // SW
+                            [45.4742, 9.1800]  // Chiudi il poligono NW
+                          ];
+                          
+                          if (newArea.length >= 5) {
+                            newArea[1][1] = value;
+                            newArea[2][1] = value;
+                            setSearchArea(newArea);
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full mb-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => {
+                    // Crea un'area rettangolare con i valori attuali o default
+                    const lat1 = searchArea && searchArea[0] ? searchArea[0][0] : 45.4742;
+                    const lon1 = searchArea && searchArea[0] ? searchArea[0][1] : 9.1800;
+                    const lat2 = searchArea && searchArea[2] ? searchArea[2][0] : 45.4542;
+                    const lon2 = searchArea && searchArea[2] ? searchArea[2][1] : 9.2000;
+                    
+                    const newArea = [
+                      [lat1, lon1], // NW
+                      [lat1, lon2], // NE
+                      [lat2, lon2], // SE
+                      [lat2, lon1], // SW
+                      [lat1, lon1]  // Chiudi il poligono NW
+                    ];
+                    
+                    setSearchArea(newArea);
+                  }}
+                >
+                  Applica Coordinate
+                </Button>
                 
                 <div className="h-[300px] border rounded-md overflow-hidden">
                   {/* La mappa verrà mostrata qui */}
@@ -421,9 +559,6 @@ export default function ClientPropertySearchPage() {
                         pathOptions={{ color: 'blue', fillColor: 'rgba(0, 0, 255, 0.2)' }}
                       />
                     )}
-                    
-                    {/* Aggiungiamo un controllo semplificato per la mappa */}
-                    <MapControls onSetArea={setSearchArea} />
                   </MapContainer>
                 </div>
                 {searchArea && searchArea.length > 0 ? (
