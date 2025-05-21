@@ -76,22 +76,58 @@ function fixLeafletIcons() {
   }, []);
 }
 
-// Componente semplificato per la mappa
+// Componente semplificato per la mappa con supporto disegno poligoni
 function MapControls({ onSetArea }) {
+  const [points, setPoints] = useState<[number, number][]>([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  
   const map = useMapEvents({
     click: (e) => {
       console.log("Clic sulla mappa:", e.latlng);
+      
+      if (isDrawing) {
+        const newPoint: [number, number] = [e.latlng.lat, e.latlng.lng];
+        const newPoints = [...points, newPoint];
+        setPoints(newPoints);
+        
+        // Se abbiamo almeno 3 punti, possiamo chiudere il poligono
+        if (newPoints.length >= 3) {
+          // Creiamo una copia con il primo punto alla fine per chiudere il poligono
+          const closedPolygon = [...newPoints, newPoints[0]];
+          onSetArea(closedPolygon);
+        }
+      }
     }
   });
   
+  // Funzione per iniziare/fermare il disegno del poligono
+  const toggleDrawing = () => {
+    if (isDrawing) {
+      // Ferma il disegno - il poligono è già stato inviato in onSetArea
+      setIsDrawing(false);
+    } else {
+      // Inizia un nuovo disegno
+      setPoints([]);
+      setIsDrawing(true);
+    }
+  };
+  
   return (
-    <div className="absolute bottom-4 right-4 z-500">
+    <div className="absolute bottom-4 right-4 z-500 flex flex-col gap-2">
+      <Button
+        size="sm"
+        className={`${isDrawing ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white`}
+        onClick={toggleDrawing}
+      >
+        {isDrawing ? 'Termina disegno' : 'Inizia disegno'}
+      </Button>
+      
       <Button
         size="sm"
         className="bg-blue-600 hover:bg-blue-700 text-white"
         onClick={() => {
           if (onSetArea) {
-            // Crea un'area esempio attorno a Milano
+            // Crea un'area esempio attorno a Milano centro
             const milanoArea = [
               [45.4742, 9.1800], // NW
               [45.4742, 9.2000], // NE
@@ -100,6 +136,8 @@ function MapControls({ onSetArea }) {
               [45.4742, 9.1800]  // Chiudi il poligono
             ];
             onSetArea(milanoArea);
+            setIsDrawing(false);
+            setPoints([]);
           }
         }}
       >
