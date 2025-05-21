@@ -382,6 +382,25 @@ export default function ClientPropertySearchPage() {
               {/* Mappa per il poligono di ricerca */}
               <div className="mt-4">
                 <label className="text-sm font-medium block mb-2">Area di Ricerca</label>
+                
+                {/* Aggiungiamo un pulsante per generare rapidamente un'area di esempio */}
+                <Button 
+                  className="w-full mb-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => {
+                    // Crea un'area esempio attorno a Milano centro
+                    const milanoArea = [
+                      [45.4742, 9.1800], // NW
+                      [45.4742, 9.2000], // NE
+                      [45.4542, 9.2000], // SE
+                      [45.4542, 9.1800], // SW
+                      [45.4742, 9.1800]  // Chiudi il poligono
+                    ];
+                    setSearchArea(milanoArea);
+                  }}
+                >
+                  Definisci area esempio attorno a Milano
+                </Button>
+                
                 <div className="h-[300px] border rounded-md overflow-hidden">
                   {/* La mappa verrà mostrata qui */}
                   <MapContainer
