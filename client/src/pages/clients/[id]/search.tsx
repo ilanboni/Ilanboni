@@ -105,8 +105,21 @@ function MapControls({ onSetArea }) {
   // Funzione per iniziare/fermare il disegno del poligono
   const toggleDrawing = () => {
     if (isDrawing) {
-      // Ferma il disegno
+      // Ferma il disegno senza aggiungere altri punti
       setIsDrawing(false);
+      
+      // Se abbiamo almeno 3 punti, assicuriamoci che il poligono sia chiuso
+      if (points.length >= 3) {
+        // Solo se non è già chiuso (l'ultimo punto non è uguale al primo)
+        const firstPoint = points[0];
+        const lastPoint = points[points.length - 1];
+        
+        if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
+          // Crea una copia con il primo punto alla fine per chiudere il poligono
+          const closedPolygon = [...points, firstPoint];
+          onSetArea(closedPolygon);
+        }
+      }
     } else {
       // Inizia un nuovo disegno
       setPoints([]);
