@@ -49,7 +49,96 @@ import {
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import L from "leaflet";
-import { EditControl } from "react-leaflet-draw";
+
+// Fix per l'icona di Leaflet
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Inizializzazioni necessarie per Leaflet
+// Funzione esterna perché non può essere usata direttamente nel componente (hooks al primo livello)
+function fixLeafletIcons() {
+  useEffect(() => {
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: icon,
+      iconUrl: icon,
+      shadowUrl: iconShadow,
+    });
+  }, []);
+}
+
+// Componente per il controllo del disegno sulla mappa
+function MapDrawControl({ onCreated, onDeleted }) {
+  const map = useMapEvents({});
+  
+  useEffect(() => {
+    if (!map) return;
+    
+    // Crea layer gruppo per le features disegnate
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    
+    // Configurazione dei controlli di disegno
+    const drawControl = new L.Control.Draw({
+      position: 'topright',
+      draw: {
+        polyline: false,
+        rectangle: false,
+        circle: false,
+        circlemarker: false,
+        marker: false,
+        polygon: {
+          allowIntersection: false,
+          drawError: {
+            color: '#e1e100',
+            message: '<strong>Errore:</strong> I poligoni non possono intersecarsi!'
+          },
+          shapeOptions: {
+            color: '#3388ff'
+          }
+        }
+      },
+      edit: {
+        featureGroup: drawnItems
+      }
+    });
+    
+    map.addControl(drawControl);
+    
+    // Gestione eventi
+    const handleCreated = (e) => {
+      drawnItems.addLayer(e.layer);
+      if (onCreated) onCreated(e);
+    };
+    
+    const handleDeleted = (e) => {
+      if (onDeleted) onDeleted(e);
+    };
+    
+    map.on(L.Draw.Event.CREATED, handleCreated);
+    map.on(L.Draw.Event.DELETED, handleDeleted);
+    
+    return () => {
+      map.off(L.Draw.Event.CREATED, handleCreated);
+      map.off(L.Draw.Event.DELETED, handleDeleted);
+      map.removeControl(drawControl);
+      if (map.hasLayer(drawnItems)) {
+        map.removeLayer(drawnItems);
+      }
+    };
+  }, [map, onCreated, onDeleted]);
+  
+  return null;
+}
 
 export default function ClientPropertySearchPage() {
   const params = useParams();
