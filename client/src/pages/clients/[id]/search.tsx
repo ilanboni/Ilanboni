@@ -49,6 +49,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import L from "leaflet";
+import { EditControl } from "react-leaflet-draw";
 
 // Fix per l'icona di Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -225,15 +226,15 @@ export default function ClientPropertySearchPage() {
       if (client.buyer.minSize) {
         setSizeRange([client.buyer.minSize, 300]);
       }
+      
+      // Carica il poligono di ricerca dai dati del cliente
+      if (client.buyer.searchArea && client.buyer.searchArea.length > 0) {
+        setSearchArea(client.buyer.searchArea);
+        // Centra la mappa sul primo punto del poligono
+        setMapCenter([client.buyer.searchArea[0][0], client.buyer.searchArea[0][1]]);
+      }
     }
-    
-    // Carica il poligono di ricerca dai dati del cliente
-    if (preferences?.searchArea && preferences.searchArea.length > 0) {
-      setSearchArea(preferences.searchArea);
-      // Centra la mappa sul primo punto del poligono
-      setMapCenter([preferences.searchArea[0][0], preferences.searchArea[0][1]]);
-    }
-  }, [client, preferences]);
+  }, [client]);
   
   // Save search preferences to buyer profile
   const saveSearchPreferences = () => {
@@ -411,17 +412,9 @@ export default function ClientPropertySearchPage() {
                     )}
                     
                     {/* Controlli per disegnare e modificare il poligono */}
-                    <EditControl
-                      position="topright"
+                    <MapDrawControl
                       onCreated={handleMapDraw}
                       onDeleted={handleMapDelete}
-                      draw={{
-                        rectangle: false,
-                        circle: false,
-                        circlemarker: false,
-                        marker: false,
-                        polyline: false,
-                      }}
                     />
                   </MapContainer>
                 </div>
