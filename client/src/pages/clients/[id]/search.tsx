@@ -195,10 +195,50 @@ export default function ClientPropertySearchPage() {
   // Save search preferences to buyer profile
   const saveSearchPreferences = () => {
     if (client?.buyer) {
+      // Assicuriamoci che l'area sia un poligono valido
+      let areaToSave = searchArea;
+      
+      // Se l'area ha almeno 3 punti ma non è chiusa (il primo e l'ultimo punto non coincidono)
+      if (areaToSave.length >= 3) {
+        const firstPoint = areaToSave[0];
+        const lastPoint = areaToSave[areaToSave.length - 1];
+        
+        // Se primo e ultimo punto non coincidono, aggiungi il primo punto alla fine per chiudere il poligono
+        if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
+          areaToSave = [...areaToSave, [firstPoint[0], firstPoint[1]]];
+        }
+      }
+      
+      // Stampa l'area per debug
+      console.log("Salvataggio area:", areaToSave);
+      
+      // Esegui la mutation
       updateBuyerMutation.mutate({
         minSize: sizeRange[0],
         maxPrice: priceRange[1],
-        searchArea: searchArea.length > 0 ? searchArea : null
+        searchArea: areaToSave.length > 0 ? areaToSave : null
+      }, {
+        onSuccess: () => {
+          toast({
+            title: "Area salvata",
+            description: "L'area di ricerca è stata salvata con successo.",
+            variant: "default",
+          });
+        },
+        onError: (error) => {
+          console.error("Errore durante il salvataggio:", error);
+          toast({
+            title: "Errore",
+            description: "Si è verificato un errore durante il salvataggio. Riprova.",
+            variant: "destructive",
+          });
+        }
+      });
+    } else {
+      toast({
+        title: "Impossibile salvare",
+        description: "Nessun cliente acquirente trovato. Aggiorna la pagina e riprova.",
+        variant: "destructive",
       });
     }
   };
