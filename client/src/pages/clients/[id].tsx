@@ -79,6 +79,12 @@ export default function ClientDetailPage() {
     enabled: !isNaN(id),
   });
   
+  // Fetch client preferences (per il poligono di ricerca)
+  const { data: preferences, isLoading: isPreferencesLoading } = useQuery({
+    queryKey: [`/api/clients/${id}/preferences`],
+    enabled: !isNaN(id) && client?.type === "buyer",
+  });
+  
   // Fetch matching properties (per client compratori)
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-properties`],
@@ -879,6 +885,104 @@ export default function ClientDetailPage() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Preferences Tab - Solo per acquirenti */}
+          <TabsContent value="preferences" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle>Preferenze di Ricerca</CardTitle>
+                  <CardDescription>Criteri di ricerca dell'acquirente</CardDescription>
+                </div>
+                <Button 
+                  variant="outline"
+                  className="gap-2"
+                  asChild
+                >
+                  <Link href={`/clients/${id}/search`}>
+                    <i className="fas fa-edit"></i>
+                    <span>Modifica</span>
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isPreferencesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : !preferences ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-5xl mb-4">
+                      <i className="fas fa-map-marker-alt"></i>
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">Nessuna preferenza</h3>
+                    <p>
+                      Non sono state definite preferenze di ricerca per questo cliente.
+                    </p>
+                    <Button 
+                      variant="default"
+                      className="mt-4 gap-2"
+                      asChild
+                    >
+                      <Link href={`/clients/${id}/search`}>
+                        <i className="fas fa-plus"></i>
+                        <span>Imposta preferenze</span>
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Dettagli preferenze */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Budget</h3>
+                        <p>
+                          {preferences.minPrice && preferences.maxPrice
+                            ? `${preferences.minPrice.toLocaleString('it-IT')} € - ${preferences.maxPrice.toLocaleString('it-IT')} €`
+                            : preferences.maxPrice
+                            ? `Fino a ${preferences.maxPrice.toLocaleString('it-IT')} €`
+                            : "Non specificato"}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Superficie</h3>
+                        <p>
+                          {preferences.minSize && preferences.maxSize
+                            ? `${preferences.minSize} m² - ${preferences.maxSize} m²`
+                            : preferences.minSize
+                            ? `Minimo ${preferences.minSize} m²`
+                            : "Non specificata"}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Locali</h3>
+                        <p>
+                          {preferences.minRooms
+                            ? `Minimo ${preferences.minRooms} ${preferences.minRooms === 1 ? 'locale' : 'locali'}`
+                            : "Non specificati"}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">Tipologia</h3>
+                        <p>{preferences.propertyType || "Qualsiasi"}</p>
+                      </div>
+                    </div>
+                    <div className="bg-gray-100 p-4 rounded-md text-center">
+                      <h3 className="text-sm font-medium mb-2">Area di ricerca</h3>
+                      {preferences.searchArea ? (
+                        <div className="font-medium text-green-700">
+                          <i className="fas fa-map-marked-alt mr-2"></i>
+                          Poligono di ricerca definito
+                        </div>
+                      ) : (
+                        <div className="text-gray-500">Nessuna area di ricerca definita</div>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>
