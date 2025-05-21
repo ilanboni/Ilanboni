@@ -44,8 +44,10 @@ import {
   TileLayer, 
   Polygon, 
   useMapEvents, 
-  Marker
+  Marker,
+  FeatureGroup
 } from "react-leaflet";
+import { EditControl } from "react-leaflet-draw";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import L from "leaflet";
@@ -76,88 +78,102 @@ function fixLeafletIcons() {
   }, []);
 }
 
-// Componente semplificato per le aree predefinite
-function MapControls({ onSetArea }) {
-  // Usa il componente useMapEvents solo per il logging
-  const map = useMapEvents({
-    click: (e) => {
-      console.log("Clic sulla mappa:", e.latlng);
+// Componente per il disegno sulla mappa con react-leaflet-draw
+function MapDrawTools({ onAreaDefined, existingArea }) {
+  // Riferimento al feature group che contiene i disegni
+  const featureGroupRef = useRef(null);
+  
+  // Converti le coordinate nel formato richiesto da Leaflet Draw
+  const formatCoordinates = (coords) => {
+    if (!coords || coords.length === 0) return [];
+    return coords.map(point => ({lat: point[0], lng: point[1]}));
+  };
+  
+  // Ripulisci i livelli quando il componente si monta se ci sono coordinate esistenti
+  useEffect(() => {
+    if (featureGroupRef.current) {
+      // Pulisci i disegni precedenti
+      featureGroupRef.current.clearLayers();
+      
+      // Se ci sono coordinate esistenti, aggiungile come poligono iniziale
+      if (existingArea && existingArea.length > 0) {
+        const formattedCoords = formatCoordinates(existingArea);
+        const polygon = L.polygon(formattedCoords);
+        featureGroupRef.current.addLayer(polygon);
+      }
     }
-  });
+  }, []);
+  
+  // Gestisci gli eventi di creazione del disegno
+  const handleCreated = (e) => {
+    const { layerType, layer } = e;
+    
+    if (layerType === 'polygon') {
+      const coordinates = layer.getLatLngs()[0];
+      const formattedCoords = coordinates.map(point => [point.lat, point.lng]);
+      
+      // Assicurati che il poligono si chiuda
+      if (formattedCoords.length > 0 && 
+          (formattedCoords[0][0] !== formattedCoords[formattedCoords.length - 1][0] || 
+           formattedCoords[0][1] !== formattedCoords[formattedCoords.length - 1][1])) {
+        formattedCoords.push([formattedCoords[0][0], formattedCoords[0][1]]);
+      }
+      
+      onAreaDefined(formattedCoords);
+    }
+  };
+  
+  // Gestisci gli eventi di modifica del disegno
+  const handleEdited = (e) => {
+    const layers = e.layers;
+    layers.eachLayer((layer) => {
+      const coordinates = layer.getLatLngs()[0];
+      const formattedCoords = coordinates.map(point => [point.lat, point.lng]);
+      
+      // Assicurati che il poligono si chiuda
+      if (formattedCoords.length > 0 && 
+          (formattedCoords[0][0] !== formattedCoords[formattedCoords.length - 1][0] || 
+           formattedCoords[0][1] !== formattedCoords[formattedCoords.length - 1][1])) {
+        formattedCoords.push([formattedCoords[0][0], formattedCoords[0][1]]);
+      }
+      
+      onAreaDefined(formattedCoords);
+    });
+  };
+  
+  // Gestisci gli eventi di cancellazione del disegno
+  const handleDeleted = () => {
+    onAreaDefined([]);
+  };
   
   return (
-    <div className="absolute bottom-4 right-4 z-[1000]">
-      <div className="bg-white p-2 rounded-md shadow-md">
-        <h4 className="text-center text-sm font-medium mb-2">Aree Predefinite</h4>
-        
-        <div className="flex flex-col gap-2">
-          <Button
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => {
-              // Area esempio attorno a Milano centro
-              const milanoArea = [
-                [45.4742, 9.1800], // NW
-                [45.4742, 9.2000], // NE
-                [45.4542, 9.2000], // SE
-                [45.4542, 9.1800], // SW
-                [45.4742, 9.1800]  // Chiudi il poligono
-              ];
-              onSetArea(milanoArea);
-            }}
-          >
-            Milano Centro
-          </Button>
-          
-          <Button
-            size="sm"
-            className="bg-green-600 hover:bg-green-700 text-white"
-            onClick={() => {
-              // Area più ampia attorno a Milano
-              const milanoEstesa = [
-                [45.5200, 9.1500], // NW 
-                [45.5200, 9.2300], // NE
-                [45.4300, 9.2300], // SE
-                [45.4300, 9.1500], // SW
-                [45.5200, 9.1500]  // Chiudi il poligono
-              ];
-              onSetArea(milanoEstesa);
-            }}
-          >
-            Milano Estesa
-          </Button>
-          
-          <Button
-            size="sm"
-            className="bg-orange-600 hover:bg-orange-700 text-white"
-            onClick={() => {
-              // Solo zona Navigli
-              const navigli = [
-                [45.4580, 9.1700], // NW
-                [45.4580, 9.1850], // NE
-                [45.4500, 9.1850], // SE
-                [45.4500, 9.1700], // SW
-                [45.4580, 9.1700]  // Chiudi il poligono
-              ];
-              onSetArea(navigli);
-            }}
-          >
-            Zona Navigli
-          </Button>
-          
-          <Button
-            size="sm"
-            className="bg-red-600 hover:bg-red-700 text-white"
-            onClick={() => {
-              // Reset dell'area
-              onSetArea([]);
-            }}
-          >
-            Cancella Area
-          </Button>
-        </div>
-      </div>
-    </div>
+    <FeatureGroup ref={featureGroupRef}>
+      <EditControl
+        position="topright"
+        onCreated={handleCreated}
+        onEdited={handleEdited}
+        onDeleted={handleDeleted}
+        draw={{
+          rectangle: false,
+          circle: false,
+          circlemarker: false,
+          marker: false,
+          polyline: false,
+          polygon: {
+            allowIntersection: false,
+            showArea: true,
+            drawError: {
+              color: '#e1e100',
+              message: '<strong>Errore:</strong> Non puoi disegnare poligoni che si intersecano!'
+            },
+            shapeOptions: {
+              color: 'blue',
+              fillColor: 'rgba(0, 0, 255, 0.2)'
+            }
+          }
+        }}
+      />
+    </FeatureGroup>
   );
 }
 
@@ -398,149 +414,10 @@ export default function ClientPropertySearchPage() {
                 <label className="text-sm font-medium block mb-2">Area di Ricerca</label>
                 
                 <div className="mb-2 text-sm text-gray-600">
-                  Inserisci le coordinate dell'area di ricerca che desideri:
+                  Disegna direttamente sulla mappa l'area di ricerca che desideri utilizzando gli strumenti di disegno.
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div>
-                    <label className="text-xs text-gray-600">Latitudine Nord-Ovest</label>
-                    <Input 
-                      type="number" 
-                      step="0.0001"
-                      placeholder="45.4742" 
-                      value={searchArea && searchArea[0] ? searchArea[0][0] : ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) {
-                          // Crea una copia dell'array esistente o inizializza uno nuovo
-                          let newArea = searchArea && searchArea.length ? [...searchArea] : [
-                            [value, 9.1800], // NW
-                            [value, 9.2000], // NE
-                            [45.4542, 9.2000], // SE
-                            [45.4542, 9.1800], // SW
-                            [value, 9.1800]  // Chiudi il poligono NW
-                          ];
-                          
-                          if (newArea.length >= 5) {
-                            // Aggiorna il primo punto e l'ultimo (che deve essere uguale al primo)
-                            newArea[0][0] = value;
-                            newArea[4][0] = value;
-                            setSearchArea(newArea);
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">Longitudine Nord-Ovest</label>
-                    <Input 
-                      type="number" 
-                      step="0.0001"
-                      placeholder="9.1800" 
-                      value={searchArea && searchArea[0] ? searchArea[0][1] : ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) {
-                          let newArea = searchArea && searchArea.length ? [...searchArea] : [
-                            [45.4742, value], // NW
-                            [45.4742, 9.2000], // NE
-                            [45.4542, 9.2000], // SE
-                            [45.4542, value], // SW
-                            [45.4742, value]  // Chiudi il poligono NW
-                          ];
-                          
-                          if (newArea.length >= 5) {
-                            newArea[0][1] = value;
-                            newArea[3][1] = value;
-                            newArea[4][1] = value;
-                            setSearchArea(newArea);
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="text-xs text-gray-600">Latitudine Sud-Est</label>
-                    <Input 
-                      type="number" 
-                      step="0.0001"
-                      placeholder="45.4542" 
-                      value={searchArea && searchArea[2] ? searchArea[2][0] : ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) {
-                          let newArea = searchArea && searchArea.length ? [...searchArea] : [
-                            [45.4742, 9.1800], // NW
-                            [45.4742, 9.2000], // NE
-                            [value, 9.2000], // SE
-                            [value, 9.1800], // SW
-                            [45.4742, 9.1800]  // Chiudi il poligono NW
-                          ];
-                          
-                          if (newArea.length >= 5) {
-                            newArea[2][0] = value;
-                            newArea[3][0] = value;
-                            setSearchArea(newArea);
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">Longitudine Sud-Est</label>
-                    <Input 
-                      type="number" 
-                      step="0.0001"
-                      placeholder="9.2000" 
-                      value={searchArea && searchArea[2] ? searchArea[2][1] : ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) {
-                          let newArea = searchArea && searchArea.length ? [...searchArea] : [
-                            [45.4742, 9.1800], // NW
-                            [45.4742, value], // NE
-                            [45.4542, value], // SE
-                            [45.4542, 9.1800], // SW
-                            [45.4742, 9.1800]  // Chiudi il poligono NW
-                          ];
-                          
-                          if (newArea.length >= 5) {
-                            newArea[1][1] = value;
-                            newArea[2][1] = value;
-                            setSearchArea(newArea);
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                <Button 
-                  className="w-full mb-2 bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => {
-                    // Crea un'area rettangolare con i valori attuali o default
-                    const lat1 = searchArea && searchArea[0] ? searchArea[0][0] : 45.4742;
-                    const lon1 = searchArea && searchArea[0] ? searchArea[0][1] : 9.1800;
-                    const lat2 = searchArea && searchArea[2] ? searchArea[2][0] : 45.4542;
-                    const lon2 = searchArea && searchArea[2] ? searchArea[2][1] : 9.2000;
-                    
-                    const newArea = [
-                      [lat1, lon1], // NW
-                      [lat1, lon2], // NE
-                      [lat2, lon2], // SE
-                      [lat2, lon1], // SW
-                      [lat1, lon1]  // Chiudi il poligono NW
-                    ];
-                    
-                    setSearchArea(newArea);
-                  }}
-                >
-                  Applica Coordinate
-                </Button>
-                
-                <div className="h-[300px] border rounded-md overflow-hidden">
-                  {/* La mappa verrà mostrata qui */}
+                <div className="h-[400px] border rounded-md overflow-hidden">
                   <MapContainer
                     center={mapCenter}
                     zoom={13}
@@ -552,7 +429,10 @@ export default function ClientPropertySearchPage() {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     
-                    {/* Mostra il poligono esistente se presente */}
+                    {/* Componente per il disegno sulla mappa */}
+                    <MapDrawTools onAreaDefined={setSearchArea} existingArea={searchArea} />
+                    
+                    {/* Mostra il poligono esistente se presente e non stiamo disegnando */}
                     {searchArea && searchArea.length > 0 && (
                       <Polygon 
                         positions={searchArea}
@@ -560,6 +440,23 @@ export default function ClientPropertySearchPage() {
                       />
                     )}
                   </MapContainer>
+                </div>
+                
+                <div className="flex justify-between mt-2">
+                  <Button 
+                    className="px-4 bg-red-600 hover:bg-red-700 text-white"
+                    onClick={() => setSearchArea([])}
+                  >
+                    Cancella Area
+                  </Button>
+                  
+                  <Button 
+                    className="px-4 bg-green-600 hover:bg-green-700 text-white"
+                    onClick={saveSearchPreferences}
+                    disabled={searchArea.length === 0}
+                  >
+                    Salva Area
+                  </Button>
                 </div>
                 {searchArea && searchArea.length > 0 ? (
                   <p className="text-xs text-green-600 mt-1">
