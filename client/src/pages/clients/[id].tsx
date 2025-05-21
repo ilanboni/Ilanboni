@@ -408,6 +408,17 @@ export default function ClientDetailPage() {
                     Amico
                   </Badge>
                 )}
+                {client?.type === 'buyer' && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="ml-2 bg-gradient-to-r from-green-100 to-blue-100 border-primary-300"
+                    onClick={() => setLocation(`/clients/${id}/search`)}
+                  >
+                    <MapPin className="w-4 h-4 mr-1" />
+                    Area di Ricerca
+                  </Button>
+                )}
               </div>
             </div>
           </div>

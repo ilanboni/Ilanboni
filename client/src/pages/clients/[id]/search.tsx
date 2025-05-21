@@ -76,68 +76,37 @@ function fixLeafletIcons() {
   }, []);
 }
 
-// Componente per il controllo del disegno sulla mappa
-function MapDrawControl({ onCreated, onDeleted }) {
-  const map = useMapEvents({});
+// Componente semplificato per la mappa
+function MapControls({ onSetArea }) {
+  const map = useMapEvents({
+    click: (e) => {
+      console.log("Clic sulla mappa:", e.latlng);
+    }
+  });
   
-  useEffect(() => {
-    if (!map) return;
-    
-    // Crea layer gruppo per le features disegnate
-    const drawnItems = new L.FeatureGroup();
-    map.addLayer(drawnItems);
-    
-    // Configurazione dei controlli di disegno
-    const drawControl = new L.Control.Draw({
-      position: 'topright',
-      draw: {
-        polyline: false,
-        rectangle: false,
-        circle: false,
-        circlemarker: false,
-        marker: false,
-        polygon: {
-          allowIntersection: false,
-          drawError: {
-            color: '#e1e100',
-            message: '<strong>Errore:</strong> I poligoni non possono intersecarsi!'
-          },
-          shapeOptions: {
-            color: '#3388ff'
+  return (
+    <div className="absolute bottom-4 right-4 z-500">
+      <Button
+        size="sm"
+        className="bg-blue-600 hover:bg-blue-700 text-white"
+        onClick={() => {
+          if (onSetArea) {
+            // Crea un'area esempio attorno a Milano
+            const milanoArea = [
+              [45.4742, 9.1800], // NW
+              [45.4742, 9.2000], // NE
+              [45.4542, 9.2000], // SE
+              [45.4542, 9.1800], // SW
+              [45.4742, 9.1800]  // Chiudi il poligono
+            ];
+            onSetArea(milanoArea);
           }
-        }
-      },
-      edit: {
-        featureGroup: drawnItems
-      }
-    });
-    
-    map.addControl(drawControl);
-    
-    // Gestione eventi
-    const handleCreated = (e) => {
-      drawnItems.addLayer(e.layer);
-      if (onCreated) onCreated(e);
-    };
-    
-    const handleDeleted = (e) => {
-      if (onDeleted) onDeleted(e);
-    };
-    
-    map.on(L.Draw.Event.CREATED, handleCreated);
-    map.on(L.Draw.Event.DELETED, handleDeleted);
-    
-    return () => {
-      map.off(L.Draw.Event.CREATED, handleCreated);
-      map.off(L.Draw.Event.DELETED, handleDeleted);
-      map.removeControl(drawControl);
-      if (map.hasLayer(drawnItems)) {
-        map.removeLayer(drawnItems);
-      }
-    };
-  }, [map, onCreated, onDeleted]);
-  
-  return null;
+        }}
+      >
+        Definisci area esempio
+      </Button>
+    </div>
+  );
 }
 
 export default function ClientPropertySearchPage() {
@@ -410,7 +379,8 @@ export default function ClientPropertySearchPage() {
                       />
                     )}
                     
-                    {/* Per ora rimuoviamo il controllo di disegno che causa errori */}
+                    {/* Aggiungiamo un controllo semplificato per la mappa */}
+                    <MapControls onSetArea={setSearchArea} />
                   </MapContainer>
                 </div>
                 {searchArea && searchArea.length > 0 ? (
