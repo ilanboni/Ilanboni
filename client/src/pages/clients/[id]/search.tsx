@@ -268,21 +268,7 @@ export default function ClientPropertySearchPage() {
     );
   }
   
-  // Handle non-buyer client type
-  if (client && client.type !== "buyer") {
-    return (
-      <div className="bg-yellow-50 text-yellow-800 p-6 rounded-lg text-center">
-        <h2 className="text-xl font-bold mb-2">Tipo cliente non valido</h2>
-        <p className="mb-4">Questa pagina è disponibile solo per i clienti compratori.</p>
-        <button 
-          onClick={() => navigate(`/clients/${clientId}`)}
-          className="bg-yellow-800 text-white px-4 py-2 rounded hover:bg-yellow-700"
-        >
-          Torna al profilo cliente
-        </button>
-      </div>
-    );
-  }
+  // RIMOSSO controllo sul tipo di cliente - consentiamo a tutti i clienti di essere visualizzati
   
   return (
     <>
