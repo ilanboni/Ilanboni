@@ -411,36 +411,53 @@ export default function ClientDetailPage() {
               className="gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
               onClick={() => {
                 if (communications && communications.length > 0) {
-                  // Prendi il messaggio più recente
-                  const latestMessage = [...communications].sort((a, b) => {
-                    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-                    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-                    return dateB.getTime() - dateA.getTime();
-                  })[0];
+                  // Troviamo l'ultimo messaggio in arrivo
+                  const inboundMessages = communications.filter(msg => msg.direction === "inbound");
                   
-                  if (latestMessage) {
-                    // Imposta il messaggio e apri il modal dell'AI Assistant
+                  if (inboundMessages.length > 0) {
+                    // Ordina per data (più recenti prima)
+                    const latestMessage = [...inboundMessages].sort((a, b) => {
+                      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                      return dateB.getTime() - dateA.getTime();
+                    })[0];
+                    
+                    // Imposta il messaggio
                     setIncomingMessage(latestMessage);
                     
-                    // Chiamata API per generare risposta AI
-                    fetch(`/api/ai-assistant/analyze`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                    // Chiama l'API per generare la risposta AI
+                    toast({
+                      title: "Elaborazione in corso",
+                      description: "Sto analizzando il messaggio del cliente...",
+                    });
+                    
+                    fetch("/api/ai-assistant/analyze", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
                         messageId: latestMessage.id,
-                        clientId: latestMessage.clientId
+                        clientId: client?.id
                       })
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error("Errore nella chiamata API");
+                      }
+                      return response.json();
+                    })
                     .then(data => {
                       console.log("Risposta AI ricevuta:", data);
+                      
+                      // Imposta i dati ricevuti
                       setAiGeneratedResponse(data.aiResponse || "");
                       setDetectedProperties(data.detectedProperties || []);
                       setConversationThread(data.threadName || "");
+                      
+                      // Apri il modal
                       setIsAIResponseModalOpen(true);
                     })
                     .catch(error => {
-                      console.error("Errore:", error);
+                      console.error("Errore durante l'analisi:", error);
                       toast({
                         title: "Errore",
                         description: "Non è stato possibile generare una risposta AI",
@@ -449,8 +466,8 @@ export default function ClientDetailPage() {
                     });
                   } else {
                     toast({
-                      title: "Nessun messaggio",
-                      description: "Non ci sono messaggi da analizzare",
+                      title: "Nessun messaggio in arrivo",
+                      description: "Non ci sono messaggi in arrivo da analizzare",
                     });
                   }
                 } else {
