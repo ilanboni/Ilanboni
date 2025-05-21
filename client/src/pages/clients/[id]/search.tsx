@@ -334,177 +334,35 @@ export default function ClientPropertySearchPage() {
                 <label className="text-sm font-medium block mb-2">Area di Ricerca</label>
                 
                 <div className="mb-2 text-sm text-gray-600">
-                  Inserisci le coordinate di un'area rettangolare per definire la zona di ricerca.
+                  <strong>Clicca direttamente sulla mappa</strong> per disegnare l'area di ricerca. Ogni clic aggiunge un punto al poligono.
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="text-sm font-medium">Coordinate Nord-Ovest</label>
-                    <div className="flex gap-2 mt-1">
-                      <Input 
-                        type="number" 
-                        step="0.0001"
-                        placeholder="Latitudine (es: 45.4742)" 
-                        className="flex-1"
-                        value={searchArea && searchArea[0] ? searchArea[0][0] : ""}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          if (!isNaN(value)) {
-                            // Crea un'area di esempio se non esiste
-                            const newArea = searchArea && searchArea.length >= 5 ? [...searchArea] : [
-                              [value, 9.1800], // NW
-                              [value, 9.2200], // NE
-                              [45.4500, 9.2200], // SE
-                              [45.4500, 9.1800], // SW
-                              [value, 9.1800], // Chiusura
-                            ];
-                            
-                            // Aggiorna le coordinate
-                            if (newArea.length >= 5) {
-                              newArea[0][0] = value;
-                              newArea[1][0] = value;
-                              newArea[4][0] = value;
-                              setSearchArea(newArea);
-                            }
-                          }
-                        }}
-                      />
-                      <Input 
-                        type="number" 
-                        step="0.0001"
-                        placeholder="Longitudine (es: 9.18)" 
-                        className="flex-1"
-                        value={searchArea && searchArea[0] ? searchArea[0][1] : ""}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          if (!isNaN(value)) {
-                            // Crea un'area di esempio se non esiste
-                            const newArea = searchArea && searchArea.length >= 5 ? [...searchArea] : [
-                              [45.4742, value], // NW
-                              [45.4742, 9.2200], // NE
-                              [45.4500, 9.2200], // SE
-                              [45.4500, value], // SW
-                              [45.4742, value], // Chiusura
-                            ];
-                            
-                            // Aggiorna le coordinate
-                            if (newArea.length >= 5) {
-                              newArea[0][1] = value;
-                              newArea[3][1] = value;
-                              newArea[4][1] = value;
-                              setSearchArea(newArea);
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium">Coordinate Sud-Est</label>
-                    <div className="flex gap-2 mt-1">
-                      <Input 
-                        type="number" 
-                        step="0.0001"
-                        placeholder="Latitudine (es: 45.45)" 
-                        className="flex-1"
-                        value={searchArea && searchArea[2] ? searchArea[2][0] : ""}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          if (!isNaN(value)) {
-                            // Crea un'area di esempio se non esiste
-                            const newArea = searchArea && searchArea.length >= 5 ? [...searchArea] : [
-                              [45.4742, 9.1800], // NW
-                              [45.4742, 9.2200], // NE
-                              [value, 9.2200], // SE
-                              [value, 9.1800], // SW
-                              [45.4742, 9.1800], // Chiusura
-                            ];
-                            
-                            // Aggiorna le coordinate
-                            if (newArea.length >= 5) {
-                              newArea[2][0] = value;
-                              newArea[3][0] = value;
-                              setSearchArea(newArea);
-                            }
-                          }
-                        }}
-                      />
-                      <Input 
-                        type="number" 
-                        step="0.0001"
-                        placeholder="Longitudine (es: 9.22)" 
-                        className="flex-1"
-                        value={searchArea && searchArea[2] ? searchArea[2][1] : ""}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          if (!isNaN(value)) {
-                            // Crea un'area di esempio se non esiste
-                            const newArea = searchArea && searchArea.length >= 5 ? [...searchArea] : [
-                              [45.4742, 9.1800], // NW
-                              [45.4742, value], // NE
-                              [45.4500, value], // SE
-                              [45.4500, 9.1800], // SW
-                              [45.4742, 9.1800], // Chiusura
-                            ];
-                            
-                            // Aggiorna le coordinate
-                            if (newArea.length >= 5) {
-                              newArea[1][1] = value;
-                              newArea[2][1] = value; 
-                              setSearchArea(newArea);
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="flex gap-2 mb-4">
                   <Button 
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={() => {
-                      // Area esempio Milano centro
-                      const milanoArea = [
-                        [45.4742, 9.1800], // NW
-                        [45.4742, 9.2000], // NE
-                        [45.4542, 9.2000], // SE
-                        [45.4542, 9.1800], // SW
-                        [45.4742, 9.1800]  // Chiusura
-                      ];
-                      setSearchArea(milanoArea);
-                    }}
-                  >
-                    Milano Centro
-                  </Button>
-                  
-                  <Button 
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => {
-                      // Area esempio navigli
-                      const navigliArea = [
-                        [45.4580, 9.1700], // NW
-                        [45.4580, 9.1850], // NE
-                        [45.4500, 9.1850], // SE
-                        [45.4500, 9.1700], // SW
-                        [45.4580, 9.1700]  // Chiusura
-                      ];
-                      setSearchArea(navigliArea);
-                    }}
-                  >
-                    Zona Navigli
-                  </Button>
-                  
-                  <Button 
-                    className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                     onClick={() => setSearchArea([])}
                   >
-                    Cancella Area
+                    Ricomincia da capo
+                  </Button>
+                  
+                  <Button 
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => {
+                      // Chiudi il poligono se ci sono almeno 3 punti
+                      if (searchArea && searchArea.length >= 3) {
+                        const newArea = [...searchArea];
+                        // Aggiungi il primo punto alla fine per chiudere il poligono
+                        newArea.push([searchArea[0][0], searchArea[0][1]]);
+                        setSearchArea(newArea);
+                      }
+                    }}
+                    disabled={!searchArea || searchArea.length < 3}
+                  >
+                    Chiudi Area
                   </Button>
                 </div>
                 
-                <div className="h-[400px] border rounded-md overflow-hidden">
+                <div className="h-[500px] border rounded-md overflow-hidden relative">
                   <MapContainer
                     center={mapCenter}
                     zoom={13}
@@ -516,6 +374,9 @@ export default function ClientPropertySearchPage() {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     
+                    {/* Handler per i click sulla mappa */}
+                    <MapClickHandler setSearchArea={setSearchArea} />
+                    
                     {/* Mostra il poligono esistente */}
                     {searchArea && searchArea.length > 0 && (
                       <Polygon 
@@ -525,13 +386,24 @@ export default function ClientPropertySearchPage() {
                     )}
                     
                     {/* Mostra i marker per ogni punto del poligono */}
-                    {searchArea && searchArea.length > 0 && (
-                      <>
-                        <Marker position={[searchArea[0][0], searchArea[0][1]]} />
-                        <Marker position={[searchArea[2][0], searchArea[2][1]]} />
-                      </>
-                    )}
+                    {searchArea && searchArea.map((point, index) => (
+                      <Marker 
+                        key={`marker-${index}`} 
+                        position={[point[0], point[1]]} 
+                      />
+                    ))}
                   </MapContainer>
+                  
+                  {/* Istruzioni sovrimpresse sulla mappa */}
+                  <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-md z-[1000] max-w-xs">
+                    <h4 className="font-bold text-sm mb-1">Come disegnare:</h4>
+                    <ol className="text-xs ml-4 list-decimal">
+                      <li>Clicca sulla mappa per inserire un vertice dell'area</li>
+                      <li>Continua a cliccare per aggiungere altri punti</li>
+                      <li>Dopo aver inserito almeno 3 punti, premi "Chiudi Area"</li>
+                      <li>Salva con il pulsante in fondo alla pagina</li>
+                    </ol>
+                  </div>
                 </div>
                 
                 <div className="flex justify-end mt-4">
