@@ -44,6 +44,11 @@ export default function ClientDetailPage() {
   const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Monitoriamo i cambiamenti di tab per il debug
+  useEffect(() => {
+    setDebugLogs(logs => [...logs, `Tab attiva: ${activeTab}`]);
+  }, [activeTab]);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isAIResponseModalOpen, setIsAIResponseModalOpen] = useState(false);
   const [isSendingNotification, setIsSendingNotification] = useState(false);
@@ -55,17 +60,22 @@ export default function ClientDetailPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Stato per i log di debug
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  
   // Fetch client details
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
     queryKey: [`/api/clients/${id}`],
     enabled: !isNaN(id),
     onSuccess: (data) => {
-      console.log("Cliente caricato:", data);
-      console.log("Tipo cliente:", data?.type);
-      console.log("È acquirente:", data?.type === 'buyer');
-      if (data?.type === 'buyer') {
-        console.log("Dettagli acquirente:", data.buyer);
-      }
+      // Aggiunge informazioni di debug
+      setDebugLogs(logs => [
+        ...logs,
+        `Cliente caricato: ${data?.firstName} ${data?.lastName}`,
+        `Tipo cliente: ${data?.type}`,
+        `È acquirente: ${data?.type === 'buyer'}`,
+        `Dettagli buyer: ${data?.buyer ? 'presenti' : 'assenti'}`,
+      ]);
     }
   });
   
@@ -365,6 +375,18 @@ export default function ClientDetailPage() {
           content={`Visualizza i dettagli, le comunicazioni e gli appuntamenti di ${client?.firstName} ${client?.lastName}`} 
         />
       </Helmet>
+      
+      {/* Debug Panel - visibile solo in ambiente di sviluppo */}
+      {import.meta.env.DEV && debugLogs.length > 0 && (
+        <div className="my-4 p-4 bg-black text-white text-xs font-mono rounded-md overflow-auto max-h-52">
+          <h4 className="text-green-400 font-bold mb-2">Debug Info:</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            {debugLogs.map((log, i) => (
+              <li key={i}>{log}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
