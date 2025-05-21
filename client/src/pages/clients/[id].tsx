@@ -335,93 +335,8 @@ export default function ClientDetailPage() {
     }
   };
   
-  // Funzione per gestire i nuovi messaggi in arrivo
-  const handleNewMessage = async (message: Communication) => {
-    // Solo per messaggi in arrivo
-    if (message.direction !== "inbound") return;
-    
-    try {
-      // Chiama l'API per generare una risposta AI
-      const response = await fetch(`/api/ai-assistant/analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          messageId: message.id,
-          clientId: message.clientId
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error("Errore nella generazione della risposta AI");
-      }
-      
-      const data = await response.json();
-      
-      console.log("Risposta AI ricevuta:", data);
-      
-      // Imposta i dati per il modal
-      setIncomingMessage(message);
-      setAiGeneratedResponse(data.aiResponse || "");
-      setDetectedProperties(data.detectedProperties || []);
-      setConversationThread(data.threadName || "");
-      
-      // Apri il modal con la risposta dell'AI
-      setIsAIResponseModalOpen(true);
-      
-      // Cambia il tab alle comunicazioni per mostrare il messaggio
-      setActiveTab("communications");
-      
-    } catch (error) {
-      console.error("Errore nell'elaborazione del messaggio:", error);
-      toast({
-        title: "Errore",
-        description: "Non è stato possibile generare una risposta assistita dall'IA",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  // Monitora i nuovi messaggi in arrivo
-  useEffect(() => {
-    if (communications && communications.length > 0 && client) {
-      console.log("Comunicazioni rilevate:", communications.length);
-      
-      // Ordina i messaggi per data di creazione (più recenti prima)
-      const sortedMessages = [...communications].sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      });
-      
-      // Prendi il messaggio più recente
-      const latestMessage = sortedMessages[0];
-      console.log("Ultimo messaggio:", latestMessage);
-      
-      // Se è un messaggio in arrivo e non è stato ancora elaborato, elaboralo
-      if (latestMessage && 
-          latestMessage.direction === "inbound" && 
-          latestMessage.clientId === client.id) {
-        
-        // Verifica se è un nuovo messaggio controllando il tempo di creazione
-        // (entro gli ultimi 120 secondi per test)
-        const messageTime = latestMessage.createdAt ? new Date(latestMessage.createdAt) : new Date();
-        const now = new Date();
-        const timeDiffSeconds = (now.getTime() - messageTime.getTime()) / 1000;
-        console.log(`Messaggio ricevuto ${timeDiffSeconds} secondi fa`);
-        
-        const isRecent = timeDiffSeconds < 120; // 120 secondi per test
-        
-        if (isRecent) {
-          console.log("Elaborazione messaggio recente:", latestMessage.content);
-          handleNewMessage(latestMessage);
-        } else {
-          console.log("Messaggio troppo vecchio per essere elaborato automaticamente");
-        }
-      }
-    }
-  }, [communications, client]);
+  // Rimuoviamo completamente le funzioni di gestione automatica dei messaggi
+  // e utilizzeremo un approccio più semplice per testare l'AI Assistant
   
   return (
     <>
@@ -489,6 +404,65 @@ export default function ClientDetailPage() {
             >
               <i className="fab fa-whatsapp"></i>
               <span>WhatsApp</span>
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+              onClick={() => {
+                if (communications && communications.length > 0) {
+                  // Prendi il messaggio più recente
+                  const latestMessage = [...communications].sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return dateB.getTime() - dateA.getTime();
+                  })[0];
+                  
+                  if (latestMessage) {
+                    // Imposta il messaggio e apri il modal dell'AI Assistant
+                    setIncomingMessage(latestMessage);
+                    
+                    // Chiamata API per generare risposta AI
+                    fetch(`/api/ai-assistant/analyze`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        messageId: latestMessage.id,
+                        clientId: latestMessage.clientId
+                      })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                      console.log("Risposta AI ricevuta:", data);
+                      setAiGeneratedResponse(data.aiResponse || "");
+                      setDetectedProperties(data.detectedProperties || []);
+                      setConversationThread(data.threadName || "");
+                      setIsAIResponseModalOpen(true);
+                    })
+                    .catch(error => {
+                      console.error("Errore:", error);
+                      toast({
+                        title: "Errore",
+                        description: "Non è stato possibile generare una risposta AI",
+                        variant: "destructive"
+                      });
+                    });
+                  } else {
+                    toast({
+                      title: "Nessun messaggio",
+                      description: "Non ci sono messaggi da analizzare",
+                    });
+                  }
+                } else {
+                  toast({
+                    title: "Nessun messaggio",
+                    description: "Non ci sono messaggi da analizzare",
+                  });
+                }
+              }}
+            >
+              <i className="fas fa-robot"></i>
+              <span>Test AI Assistant</span>
             </Button>
           </div>
         </div>
