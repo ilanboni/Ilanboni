@@ -627,38 +627,185 @@ export default function ClientDetailPage() {
                 
                 {/* Interest Information */}
                 {client?.buyer && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Interessi Acquisto</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <span className="text-sm font-medium text-gray-500 block mb-1">Budget massimo</span>
-                        <span>{client.buyer.maxPrice ? `€${client.buyer.maxPrice.toLocaleString()}` : "Non specificato"}</span>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-500 block mb-1">Dimensione min.</span>
-                        <span>{client.buyer.minSize ? `${client.buyer.minSize}m²` : "Non specificata"}</span>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-500 block mb-1">Urgenza</span>
-                        <span>{client.buyer.urgency ? `${client.buyer.urgency}/5` : "Non specificata"}</span>
-                      </div>
-                      {client.buyer.rating && (
+                  <>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Interessi Acquisto</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
                         <div>
-                          <span className="text-sm font-medium text-gray-500 block mb-1">Rating</span>
-                          <span className="flex text-yellow-400">
-                            {Array.from({ length: client.buyer.rating }, (_, i) => (
-                              <i key={i} className="fas fa-star"></i>
-                            ))}
-                            {Array.from({ length: 5 - (client.buyer.rating || 0) }, (_, i) => (
-                              <i key={i} className="far fa-star"></i>
-                            ))}
-                          </span>
+                          <span className="text-sm font-medium text-gray-500 block mb-1">Budget massimo</span>
+                          <span>{client.buyer.maxPrice ? `€${client.buyer.maxPrice.toLocaleString()}` : "Non specificato"}</span>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                        <div>
+                          <span className="text-sm font-medium text-gray-500 block mb-1">Dimensione min.</span>
+                          <span>{client.buyer.minSize ? `${client.buyer.minSize}m²` : "Non specificata"}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-500 block mb-1">Urgenza</span>
+                          <span>{client.buyer.urgency ? `${client.buyer.urgency}/5` : "Non specificata"}</span>
+                        </div>
+                        {client.buyer.rating && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-500 block mb-1">Rating</span>
+                            <span className="flex text-yellow-400">
+                              {Array.from({ length: client.buyer.rating }, (_, i) => (
+                                <i key={i} className="fas fa-star"></i>
+                              ))}
+                              {Array.from({ length: 5 - (client.buyer.rating || 0) }, (_, i) => (
+                                <i key={i} className="far fa-star"></i>
+                              ))}
+                            </span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                    
+                    {/* Area di ricerca */}
+                    <Card>
+                      <CardHeader className="pb-2 flex flex-row justify-between items-center">
+                        <div>
+                          <CardTitle className="text-lg">Area di Ricerca</CardTitle>
+                          <CardDescription>Zona di interesse per l'acquisto</CardDescription>
+                        </div>
+                        {preferences?.searchArea ? (
+                          <Button 
+                            variant="outline"
+                            className="gap-2"
+                            asChild
+                          >
+                            <Link href={`/clients/${id}/search`}>
+                              <i className="fas fa-edit"></i>
+                              <span>Modifica</span>
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="default"
+                            className="gap-2"
+                            asChild
+                          >
+                            <Link href={`/clients/${id}/search`}>
+                              <i className="fas fa-map-marker-alt"></i>
+                              <span>Definisci Area</span>
+                            </Link>
+                          </Button>
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        {isPreferencesLoading ? (
+                          <div className="flex justify-center py-8">
+                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                          </div>
+                        ) : !preferences?.searchArea ? (
+                          <div className="text-center py-4 text-gray-500">
+                            <div className="text-4xl mb-3">
+                              <i className="fas fa-map-marker-alt"></i>
+                            </div>
+                            <h3 className="text-lg font-medium mb-2">Nessuna area definita</h3>
+                            <p className="mb-3">
+                              Non è stata definita un'area di ricerca per questo cliente.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {/* Mappa con area di ricerca */}
+                            <div className="h-64 rounded-md overflow-hidden border border-gray-300">
+                              {(() => {
+                                // Calcola automaticamente il centro della mappa in base all'area
+                                console.log("Panoramica - Dati area di ricerca:", JSON.stringify(preferences.searchArea));
+                                let mapCenter = [45.4642, 9.1900]; // Milano default
+                                let zoomLevel = 12;
+                                
+                                // Estrae le coordinate dal GeoJSON
+                                let coordinates = [];
+                                try {
+                                  // Gestisce sia il caso in cui searchArea sia già un oggetto JSON
+                                  // sia il caso in cui è una stringa JSON
+                                  let searchAreaObj = preferences.searchArea;
+                                  if (typeof preferences.searchArea === 'string') {
+                                    searchAreaObj = JSON.parse(preferences.searchArea);
+                                  }
+                                  
+                                  console.log("Panoramica - Tipo di searchArea:", typeof searchAreaObj);
+                                  
+                                  // Estrae le coordinate in base al formato
+                                  if (searchAreaObj?.type === 'Feature' && 
+                                      searchAreaObj?.geometry?.type === 'Polygon') {
+                                    // Formato GeoJSON completo
+                                    coordinates = searchAreaObj.geometry.coordinates[0];
+                                    
+                                    // Le coordinate in GeoJSON sono [lng, lat], dobbiamo invertirle per Leaflet che usa [lat, lng]
+                                    coordinates = coordinates.map(coord => [coord[1], coord[0]]);
+                                  } else if (Array.isArray(searchAreaObj)) {
+                                    // Formato semplice array di punti
+                                    coordinates = searchAreaObj;
+                                  }
+                                  
+                                  console.log("Panoramica - Coordinate estratte:", coordinates);
+                                  
+                                  if (coordinates.length > 0) {
+                                    // Calcola il centro come media dei punti
+                                    const lats = coordinates.map(point => point[0]);
+                                    const lngs = coordinates.map(point => point[1]);
+                                    
+                                    const avgLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
+                                    const avgLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
+                                    
+                                    mapCenter = [avgLat, avgLng];
+                                    
+                                    // Calcola zoom in base all'estensione dell'area
+                                    const minLat = Math.min(...lats);
+                                    const maxLat = Math.max(...lats);
+                                    const minLng = Math.min(...lngs);
+                                    const maxLng = Math.max(...lngs);
+                                    
+                                    // Se l'area è molto piccola, aumenta lo zoom
+                                    const latDiff = maxLat - minLat;
+                                    const lngDiff = maxLng - minLng;
+                                    
+                                    if (latDiff < 0.01 && lngDiff < 0.01) {
+                                      zoomLevel = 15;
+                                    } else if (latDiff < 0.05 && lngDiff < 0.05) {
+                                      zoomLevel = 13;
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error("Errore parsing dati area:", error);
+                                }
+                                
+                                return (
+                                  <MapContainer 
+                                    center={mapCenter as [number, number]} 
+                                    zoom={zoomLevel} 
+                                    className="h-full w-full"
+                                    style={{ height: '100%', width: '100%' }}
+                                  >
+                                    <TileLayer
+                                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    />
+                                    
+                                    {/* Visualizza il poligono dell'area di ricerca */}
+                                    {coordinates.length > 0 && (
+                                      <Polygon 
+                                        positions={coordinates}
+                                        pathOptions={{ 
+                                          color: 'blue',
+                                          fillColor: 'rgba(0, 0, 255, 0.2)',
+                                          fillOpacity: 0.4
+                                        }}
+                                      />
+                                    )}
+                                  </MapContainer>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </>
                 )}
                 
                 {/* Seller Information */}
