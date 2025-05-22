@@ -33,6 +33,7 @@ import { useClientPreferences } from "@/hooks/useClientPreferences";
 import { MapContainer, TileLayer, Polygon } from "react-leaflet";
 import { AIAssistantResponseModal } from "@/components/communications/AIAssistantResponseModal";
 import { useToast } from "@/hooks/use-toast";
+import PreferenceDetails from "@/components/clients/PreferenceDetails";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -1182,52 +1183,14 @@ export default function ClientDetailPage() {
                 ) : (
                   <div className="space-y-6">
                     {/* Dettagli preferenze */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Budget</h3>
-                        <p>
-                          {preferences.minPrice && preferences.maxPrice
-                            ? `${preferences.minPrice.toLocaleString('it-IT')} € - ${preferences.maxPrice.toLocaleString('it-IT')} €`
-                            : preferences.maxPrice
-                            ? `Fino a ${preferences.maxPrice.toLocaleString('it-IT')} €`
-                            : "Non specificato"}
-                        </p>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Superficie</h3>
-                        <p>
-                          {preferences.minSize && preferences.maxSize
-                            ? `${preferences.minSize} m² - ${preferences.maxSize} m²`
-                            : preferences.minSize
-                            ? `Minimo ${preferences.minSize} m²`
-                            : "Non specificata"}
-                        </p>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Locali</h3>
-                        <p>
-                          {preferences.minRooms
-                            ? `Minimo ${preferences.minRooms} ${preferences.minRooms === 1 ? 'locale' : 'locali'}`
-                            : "Non specificati"}
-                        </p>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Tipologia</h3>
-                        <p>{preferences.propertyType || "Qualsiasi"}</p>
-                      </div>
-                    </div>
+                    <PreferenceDetails preferences={preferences} />
                     
                     {/* Visualizzazione area di ricerca su mappa */}
                     <div className="bg-gray-100 p-4 rounded-md">
-                      <h3 className="text-sm font-medium mb-3 text-center">Area di Ricerca</h3>
+                      <h3 className="text-md font-medium mb-3">Area di Ricerca</h3>
                       
                       {preferences.searchArea ? (
                         <div>
-                          <div className="mb-3 font-medium text-green-700 text-center">
-                            <i className="fas fa-check-circle mr-2"></i>
-                            Poligono di ricerca definito
-                          </div>
-                          
                           {/* Mappa con area di ricerca */}
                           <div className="h-64 rounded-md overflow-hidden border border-gray-300">
                             {(() => {
