@@ -198,7 +198,7 @@ Se non ci sono attività da suggerire, restituisci un array vuoto.
             sql`${communications.direction} = 'incoming'`,
             sql`NOT EXISTS (
               SELECT 1 FROM ${communications} AS c2
-              WHERE c2.clientId = ${communications.clientId}
+              WHERE c2.client_id = ${communications.clientId}
               AND c2.direction = 'outgoing'
               AND c2.createdAt > ${communications.createdAt}
             )`
