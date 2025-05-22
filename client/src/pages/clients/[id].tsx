@@ -770,8 +770,8 @@ export default function ClientDetailPage() {
                             <TableCell className="text-sm">
                               {(() => {
                                 try {
-                                  return formatDistanceToNow(new Date(comm.createdAt), {
-                                    addSuffix: true,
+                                  // Formato data: 21/05/25 14:17
+                                  return format(new Date(comm.createdAt), "dd/MM/yy HH:mm", {
                                     locale: it,
                                   });
                                 } catch (e) {
