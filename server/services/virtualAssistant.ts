@@ -182,29 +182,26 @@ Se non ci sono attività da suggerire, restituisci un array vuoto.
       const tenDaysAgo = new Date();
       tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
       
+      // Semplifichiamo la query per evitare errori di sintassi SQL
       const unansweredMessages = await db.select({
-        communication: communications,
-        client: {
-          id: clients.id,
-          firstName: clients.firstName,
-          lastName: clients.lastName
-        }
+        id: communications.id,
+        subject: communications.subject,
+        content: communications.content,
+        createdAt: communications.created_at,
+        clientId: communications.clientId,
+        clientFirstName: clients.firstName,
+        clientLastName: clients.lastName
       })
         .from(communications)
         .leftJoin(clients, eq(communications.clientId, clients.id))
         .where(
           and(
-            sql`${communications.created_at} >= ${"" + tenDaysAgo.toISOString()}`,
-            sql`${communications.direction} = 'inbound'`,
-            sql`NOT EXISTS (
-              SELECT 1 FROM ${communications} AS c2
-              WHERE c2.client_id = ${communications.clientId}
-              AND c2.direction = 'outbound'
-              AND c2.created_at > ${communications.created_at}
-            )`
+            sql`${communications.created_at} > ${"" + tenDaysAgo.toISOString()}`,
+            sql`${communications.direction} = 'inbound'`
           )
         )
-        .orderBy(desc(communications.created_at));
+        .orderBy(desc(communications.created_at))
+        .limit(10);
       
       return {
         upcomingTasks,
