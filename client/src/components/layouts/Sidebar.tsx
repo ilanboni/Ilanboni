@@ -74,6 +74,7 @@ export default function Sidebar({ className }: SidebarProps) {
           Analisi e Strumenti
         </div>
         
+        <SidebarLink to="/assistente" icon="fas fa-robot">Assistente Virtuale</SidebarLink>
         <SidebarLink to="/analytics" icon="fas fa-chart-pie">Analisi di Mercato</SidebarLink>
         <SidebarLink to="/maps" icon="fas fa-map-marked-alt">Mappe e Ricerca</SidebarLink>
         <SidebarLink to="/settings" icon="fas fa-cog">Impostazioni</SidebarLink>
