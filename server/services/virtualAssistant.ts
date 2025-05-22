@@ -194,13 +194,13 @@ Se non ci sono attività da suggerire, restituisci un array vuoto.
         .leftJoin(clients, eq(communications.clientId, clients.id))
         .where(
           and(
-            sql`${communications.createdAt} >= ${tenDaysAgo}`,
+            sql`${communications.created_at} >= ${tenDaysAgo}`,
             sql`${communications.direction} = 'incoming'`,
             sql`NOT EXISTS (
               SELECT 1 FROM ${communications} AS c2
               WHERE c2.client_id = ${communications.clientId}
               AND c2.direction = 'outgoing'
-              AND c2.createdAt > ${communications.createdAt}
+              AND c2.created_at > ${communications.createdAt}
             )`
           )
         )
