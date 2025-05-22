@@ -2220,6 +2220,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registra i router per API specifiche
   app.use("/api/geocode", geocodeRouter);
 
+  // Endpoint per l'assistente virtuale
+  app.get("/api/virtual-assistant/dashboard", async (req: Request, res: Response) => {
+    try {
+      // Importa l'assistente virtuale
+      const { virtualAssistant } = await import('./services/virtualAssistant');
+      
+      // Ottieni il riepilogo della dashboard
+      const summary = await virtualAssistant.getDashboardSummary();
+      
+      res.status(200).json(summary);
+    } catch (error: any) {
+      console.error("Errore nel recupero dei dati per la dashboard dell'assistente:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Errore nel recupero dei dati per la dashboard"
+      });
+    }
+  });
+
+  app.post("/api/virtual-assistant/analyze-message/:id", async (req: Request, res: Response) => {
+    try {
+      const communicationId = parseInt(req.params.id);
+      if (isNaN(communicationId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "ID comunicazione non valido" 
+        });
+      }
+      
+      // Recupera la comunicazione dal database
+      const communication = await storage.getCommunication(communicationId);
+      if (!communication) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Comunicazione non trovata" 
+        });
+      }
+      
+      // Importa l'assistente virtuale
+      const { virtualAssistant } = await import('./services/virtualAssistant');
+      
+      // Analizza i riferimenti agli immobili nel messaggio
+      const propertyReferences = await virtualAssistant.analyzeMessageForPropertyReferences(communication.content);
+      
+      // Collega il messaggio all'immobile se ci sono riferimenti
+      await virtualAssistant.linkMessageToProperty(communicationId, communication.content);
+      
+      res.status(200).json({
+        success: true,
+        message: "Analisi completata con successo",
+        propertyReferences
+      });
+    } catch (error: any) {
+      console.error("Errore nell'analisi del messaggio:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Errore nell'analisi del messaggio"
+      });
+    }
+  });
+
+  app.post("/api/virtual-assistant/suggest-tasks/:id", async (req: Request, res: Response) => {
+    try {
+      const communicationId = parseInt(req.params.id);
+      if (isNaN(communicationId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "ID comunicazione non valido" 
+        });
+      }
+      
+      // Recupera la comunicazione dal database
+      const communication = await storage.getCommunication(communicationId);
+      if (!communication) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Comunicazione non trovata" 
+        });
+      }
+      
+      // Importa l'assistente virtuale
+      const { virtualAssistant } = await import('./services/virtualAssistant');
+      
+      // Suggerisci task in base alla comunicazione
+      const suggestedTasks = await virtualAssistant.suggestTasksFromCommunication(communicationId, communication.content, communication.clientId);
+      
+      res.status(200).json({
+        success: true,
+        message: "Suggerimenti generati con successo",
+        suggestedTasks
+      });
+    } catch (error: any) {
+      console.error("Errore nella generazione dei suggerimenti:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Errore nella generazione dei suggerimenti"
+      });
+    }
+  });
+
+  app.post("/api/virtual-assistant/create-task", async (req: Request, res: Response) => {
+    try {
+      const taskData = req.body;
+      
+      // Validazione dei dati del task
+      if (!taskData.title || !taskData.clientId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Dati del task incompleti. Titolo e ID cliente sono obbligatori" 
+        });
+      }
+      
+      // Crea il task
+      const newTask = await storage.createTask({
+        title: taskData.title,
+        description: taskData.description || "",
+        dueDate: new Date(taskData.dueDate || new Date()),
+        status: "pending",
+        priority: taskData.priority || 2,
+        clientId: taskData.clientId,
+        propertyId: taskData.propertyId || null,
+        sharedPropertyId: taskData.sharedPropertyId || null,
+        isAutomatic: true
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: "Task creato con successo",
+        task: newTask
+      });
+    } catch (error: any) {
+      console.error("Errore nella creazione del task:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Errore nella creazione del task"
+      });
+    }
+  });
+
   // Endpoint per controllare e configurare l'agente virtuale
   app.get("/api/agent/status", async (req: Request, res: Response) => {
     const isEnabled = process.env.ENABLE_VIRTUAL_AGENT === 'true';
