@@ -24,6 +24,7 @@ import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg
 import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
 import geocodeRouter from "./routes/geocode";
 import { registerAIAssistantRoutes } from "./routes/aiAssistant";
+import virtualAssistantRouter from "./routes/virtualAssistant";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Registra le route per il webhook forwarder
@@ -32,6 +33,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registra le route per l'assistente AI
   await registerAIAssistantRoutes(app);
+  
+  // Registra le route per l'assistente virtuale
+  app.use('/api/virtual-assistant', virtualAssistantRouter);
   
   // Stampa la chiave da usare per il forwarder
   const forwardKey = getForwardKey();

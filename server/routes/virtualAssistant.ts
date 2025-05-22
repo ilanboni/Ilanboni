@@ -90,15 +90,14 @@ router.post('/create-task', async (req: Request, res: Response) => {
     // Inserisci il task nel database
     const [newTask] = await db.insert(tasks)
       .values({
+        type: 'followUp', // Tipo predefinito per i task creati dall'assistente
         title,
         description,
-        dueDate: new Date(dueDate),
-        priority,
+        dueDate: dueDate.toString(), // Converti la data in stringa per soddisfare il tipo richiesto
         status: 'pending',
         clientId,
         propertyId,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: new Date().toISOString()
       })
       .returning();
     

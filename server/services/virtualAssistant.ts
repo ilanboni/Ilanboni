@@ -35,7 +35,6 @@ export class VirtualAssistant {
       const allProperties = await db.select({
         id: properties.id,
         address: properties.address,
-        district: properties.district,
         city: properties.city
       }).from(properties);
 
@@ -45,7 +44,7 @@ Analizza questo messaggio e identifica riferimenti a immobili presenti nel nostr
 Messaggio: "${message}"
 
 Immobili disponibili nel database:
-${allProperties.map(p => `ID: ${p.id} - ${p.address}, ${p.zone || ''}, ${p.city || ''}`).join('\n')}
+${allProperties.map(p => `ID: ${p.id} - ${p.address}, ${p.city || ''}`).join('\n')}
 
 Fornisci un elenco degli immobili menzionati nel messaggio (anche in modo indiretto), con una stima di confidenza (0-1).
 Rispondi SOLO in formato JSON:
