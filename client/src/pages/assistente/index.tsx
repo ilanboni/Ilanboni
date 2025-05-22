@@ -119,14 +119,26 @@ export default function AssistentePage() {
     );
   }
 
-  // Adattiamo il formato dei dati restituiti dall'API
+  // Adattiamo il formato dei dati restituiti dall'API e aggiungiamo controlli di sicurezza
   let upcomingTasks = [];
   let unansweredMessages = [];
   
   if (dashboardData) {
-    // Gestisci la nuova struttura dei dati dell'API
-    upcomingTasks = dashboardData.upcomingTasks?.rows || [];
-    unansweredMessages = dashboardData.unansweredMessages?.rows || [];
+    try {
+      // Gestisci la nuova struttura dei dati dell'API con controlli di null safety
+      upcomingTasks = dashboardData.upcomingTasks?.rows || [];
+      unansweredMessages = dashboardData.unansweredMessages?.rows || [];
+      
+      // Log di debug
+      console.log('Dati ricevuti da dashboard:', {
+        upcomingTasks: JSON.stringify(upcomingTasks).substring(0, 100) + '...',
+        unansweredMessages: JSON.stringify(unansweredMessages).substring(0, 100) + '...',
+      });
+    } catch (error) {
+      console.error('Errore nel processare i dati della dashboard:', error);
+      upcomingTasks = [];
+      unansweredMessages = [];
+    }
   }
 
   return (
@@ -235,7 +247,9 @@ export default function AssistentePage() {
                                 {item.clientFirstName} {item.clientLastName}
                               </p>
                               <Badge variant="outline">
-                                {format(new Date(item.createdAt), "dd/MM/yy HH:mm", { locale: it })}
+                                {item.createdAt 
+                                  ? format(new Date(item.createdAt), "dd/MM/yy HH:mm", { locale: it })
+                                  : "Data non disponibile"}
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-2">
@@ -288,11 +302,13 @@ export default function AssistentePage() {
                                 {task.title}
                               </p>
                               <Badge variant={
-                                new Date(task.dueDate) < new Date() 
+                                task.due_date && new Date(task.due_date) < new Date() 
                                   ? "destructive" 
                                   : "outline"
                               }>
-                                Scadenza: {format(new Date(task.dueDate), "d MMM", { locale: it })}
+                                Scadenza: {task.due_date 
+                                  ? format(new Date(task.due_date), "d MMM", { locale: it })
+                                  : "Non specificata"}
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-2">
