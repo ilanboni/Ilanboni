@@ -1,17 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Helmet } from "react-helmet";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { Bell, CheckCircle, AlertCircle, Calendar, Clock, MessageSquare, HomeIcon } from "lucide-react";
+import { Bell, CheckCircle, Calendar, Clock, MessageSquare, HomeIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+
+// Define interfaces for type safety
+interface PropertyReference {
+  propertyId: number;
+  confidence: number;
+}
+
+interface TaskSuggestion {
+  title: string;
+  description: string;
+  dueDate: Date;
+  priority: number;
+  clientId?: number;
+  propertyId?: number;
+}
 
 export default function AssistentePage() {
   const { toast } = useToast();
@@ -24,29 +39,7 @@ export default function AssistentePage() {
     refetchInterval: 60000, // Aggiorna ogni minuto
   });
 
-  // Mutation per creare un task suggerito
-  const { mutate: createTask } = useMutation({
-    mutationFn: async (taskData: any) => {
-      return await apiRequest('/api/virtual-assistant/create-task', {
-        method: 'POST',
-        body: JSON.stringify(taskData),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/virtual-assistant/dashboard'] });
-      toast({
-        title: "Task creato con successo",
-        description: "Il task è stato aggiunto alla lista delle attività",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Errore nella creazione del task",
-        description: "Si è verificato un errore durante la creazione del task",
-        variant: "destructive",
-      });
-    },
-  });
+  console.log("Dashboard data:", dashboardData);
 
   // Mutation per analizzare un messaggio
   const { mutate: analyzeMessage } = useMutation({
@@ -56,8 +49,8 @@ export default function AssistentePage() {
       });
     },
     onSuccess: (data) => {
-      if (data.propertyReferences && data.propertyReferences.length > 0) {
-        const highConfidenceRefs = data.propertyReferences.filter((ref: any) => ref.confidence > 0.7);
+      if (data?.propertyReferences?.length > 0) {
+        const highConfidenceRefs = data.propertyReferences.filter((ref: PropertyReference) => ref.confidence > 0.7);
         
         if (highConfidenceRefs.length > 0) {
           toast({
@@ -70,6 +63,11 @@ export default function AssistentePage() {
             description: "Non sono stati trovati riferimenti chiari a immobili nel messaggio",
           });
         }
+      } else {
+        toast({
+          title: "Analisi completata",
+          description: "Nessun riferimento a immobili trovato nel messaggio",
+        });
       }
       queryClient.invalidateQueries({ queryKey: ['/api/virtual-assistant/dashboard'] });
     },
@@ -90,10 +88,14 @@ export default function AssistentePage() {
       });
     },
     onSuccess: (data) => {
-      if (data.suggestedTasks && data.suggestedTasks.length > 0) {
+      if (data?.suggestedTasks?.length > 0) {
         toast({
           title: `${data.suggestedTasks.length} task suggeriti`,
           description: "L'assistente virtuale ha suggerito alcuni task in base alla comunicazione",
+        });
+        // Crea automaticamente tutti i task suggeriti
+        data.suggestedTasks.forEach((task: TaskSuggestion) => {
+          createTask(task);
         });
       } else {
         toast({
@@ -111,34 +113,53 @@ export default function AssistentePage() {
     },
   });
 
+  // Mutation per creare un task
+  const { mutate: createTask } = useMutation({
+    mutationFn: async (taskData: any) => {
+      return await apiRequest('/api/virtual-assistant/create-task', {
+        method: 'POST',
+        body: taskData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/virtual-assistant/dashboard'] });
+    },
+    onError: () => {
+      toast({
+        title: "Errore nella creazione del task",
+        description: "Si è verificato un errore durante la creazione del task",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[80vh]">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Caricamento assistente virtuale...</p>
+        </div>
       </div>
     );
   }
 
-  // Adattiamo il formato dei dati restituiti dall'API e aggiungiamo controlli di sicurezza
+  // Prepara i dati dai risultati dell'API
   let upcomingTasks = [];
   let unansweredMessages = [];
   
-  if (dashboardData) {
-    try {
-      // Gestisci la nuova struttura dei dati dell'API con controlli di null safety
-      upcomingTasks = dashboardData.upcomingTasks?.rows || [];
-      unansweredMessages = dashboardData.unansweredMessages?.rows || [];
-      
-      // Log di debug
-      console.log('Dati ricevuti da dashboard:', {
-        upcomingTasks: JSON.stringify(upcomingTasks).substring(0, 100) + '...',
-        unansweredMessages: JSON.stringify(unansweredMessages).substring(0, 100) + '...',
-      });
-    } catch (error) {
-      console.error('Errore nel processare i dati della dashboard:', error);
-      upcomingTasks = [];
-      unansweredMessages = [];
+  try {
+    if (dashboardData?.upcomingTasks?.rows) {
+      upcomingTasks = dashboardData.upcomingTasks.rows;
     }
+    
+    if (dashboardData?.unansweredMessages?.rows) {
+      unansweredMessages = dashboardData.unansweredMessages.rows;
+    }
+    
+    console.log("Processed data:", { upcomingTasks, unansweredMessages });
+  } catch (error) {
+    console.error("Error processing dashboard data:", error);
   }
 
   return (
@@ -247,9 +268,7 @@ export default function AssistentePage() {
                                 {item.clientFirstName} {item.clientLastName}
                               </p>
                               <Badge variant="outline">
-                                {item.createdAt 
-                                  ? format(new Date(item.createdAt), "dd/MM/yy HH:mm", { locale: it })
-                                  : "Data non disponibile"}
+                                {item.createdAt ? format(new Date(item.createdAt), "dd/MM/yy HH:mm", { locale: it }) : "Data non disponibile"}
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-2">
@@ -343,29 +362,33 @@ export default function AssistentePage() {
                 ) : (
                   <div className="space-y-6">
                     {unansweredMessages.map((item: any) => (
-                      <div key={item.communication.id} className="flex flex-col gap-4 rounded-md border p-6">
+                      <div key={item.id} className="flex flex-col gap-4 rounded-md border p-6">
                         <div className="flex items-start gap-4">
                           <Avatar className="h-12 w-12">
                             <AvatarFallback>
-                              {item.client?.firstName?.[0]}{item.client?.lastName?.[0]}
+                              {item.clientFirstName?.[0]}{item.clientLastName?.[0]}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="text-lg font-medium">
-                                  {item.client?.firstName} {item.client?.lastName}
+                                  {item.clientFirstName} {item.clientLastName}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {item.client?.phone}
+                                  Cliente
                                 </p>
                               </div>
                               <div className="text-right">
                                 <Badge className="mb-1" variant="outline">
-                                  {format(new Date(item.communication.createdAt), "PPP", { locale: it })}
+                                  {item.createdAt 
+                                    ? format(new Date(item.createdAt), "dd/MM/yy", { locale: it })
+                                    : "Data non disponibile"}
                                 </Badge>
                                 <p className="text-xs text-muted-foreground">
-                                  {format(new Date(item.communication.createdAt), "HH:mm", { locale: it })}
+                                  {item.createdAt 
+                                    ? format(new Date(item.createdAt), "HH:mm", { locale: it })
+                                    : ""}
                                 </p>
                               </div>
                             </div>
@@ -376,18 +399,16 @@ export default function AssistentePage() {
                         
                         <div className="space-y-3">
                           <p className="text-sm">
-                            {item.communication.body}
+                            {item.content}
                           </p>
-                          
-                          <div className="flex flex-wrap gap-2 pt-2">
-                            <Button variant="outline" onClick={() => analyzeMessage(item.communication.id)}>
-                              Analizza Contenuto
+                          <div className="flex gap-3">
+                            <Button variant="outline" onClick={() => analyzeMessage(item.id)}>
+                              <HomeIcon className="mr-2 h-4 w-4" />
+                              Identifica Immobili
                             </Button>
-                            <Button variant="outline" onClick={() => suggestTasks(item.communication.id)}>
-                              Suggerisci Task
-                            </Button>
-                            <Button variant="default">
-                              Rispondi
+                            <Button variant="outline" onClick={() => suggestTasks(item.id)}>
+                              <Calendar className="mr-2 h-4 w-4" />
+                              Crea Task
                             </Button>
                           </div>
                         </div>
@@ -405,7 +426,7 @@ export default function AssistentePage() {
               <CardHeader>
                 <CardTitle>Task Imminenti</CardTitle>
                 <CardDescription>
-                  Attività da completare nei prossimi giorni
+                  Attività in scadenza che richiedono attenzione
                 </CardDescription>
               </CardHeader>
               <CardContent className="max-h-[600px] overflow-y-auto">
@@ -413,12 +434,12 @@ export default function AssistentePage() {
                   <div className="text-center py-6 text-muted-foreground">
                     <CheckCircle className="mx-auto h-12 w-12 mb-3" />
                     <p className="text-lg">Nessun task imminente</p>
-                    <p className="text-sm text-muted-foreground">Hai completato tutte le attività assegnate</p>
+                    <p className="text-sm text-muted-foreground">Non ci sono attività in scadenza nei prossimi giorni</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     {upcomingTasks.map((task: any) => (
-                      <div key={task.id} className="flex flex-col gap-4 rounded-md border p-6">
+                      <div key={task.id} className="rounded-md border p-6">
                         <div className="flex items-start gap-4">
                           <div className={`h-12 w-12 rounded-full flex items-center justify-center 
                             ${task.status === 'pending' 
@@ -427,49 +448,40 @@ export default function AssistentePage() {
                                 ? 'bg-green-100 text-green-600' 
                                 : 'bg-red-100 text-red-600'}`
                           }>
-                            <Calendar className="h-7 w-7" />
+                            <Calendar className="h-8 w-8" />
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-lg font-medium">
-                                  {task.title}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {task.clientId ? `Cliente: ${task.clientId}` : ""}
-                                  {task.propertyId ? ` | Immobile: ${task.propertyId}` : ""}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <Badge className="mb-1" variant={
-                                  new Date(task.dueDate) < new Date() 
-                                    ? "destructive" 
-                                    : "outline"
-                                }>
-                                  Scadenza: {format(new Date(task.dueDate), "PPP", { locale: it })}
-                                </Badge>
-                              </div>
+                              <h3 className="text-lg font-semibold">{task.title}</h3>
+                              <Badge variant={
+                                task.due_date && new Date(task.due_date) < new Date() 
+                                  ? "destructive" 
+                                  : "outline"
+                              }>
+                                Scadenza: {task.due_date 
+                                  ? format(new Date(task.due_date), "PPP", { locale: it })
+                                  : "Non specificata"}
+                              </Badge>
                             </div>
-                          </div>
-                        </div>
-                        
-                        <Separator />
-                        
-                        <div className="space-y-3">
-                          <p className="text-sm">
-                            {task.description}
-                          </p>
-                          
-                          <div className="flex flex-wrap gap-2 pt-2">
-                            <Button variant="outline">
-                              Dettagli
-                            </Button>
-                            <Button 
-                              variant="default"
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Segna come Completato
-                            </Button>
+                            <p className="mt-2 text-sm">{task.description}</p>
+                            <div className="mt-4 flex items-center gap-4">
+                              {task.client_id && (
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback>C</AvatarFallback>
+                                  </Avatar>
+                                  <p className="text-sm">Cliente ID: {task.client_id}</p>
+                                </div>
+                              )}
+                              {task.property_id && (
+                                <Badge variant="outline">Immobile ID: {task.property_id}</Badge>
+                              )}
+                            </div>
+                            <div className="mt-4 flex justify-end">
+                              <Button variant="outline" size="sm">
+                                Segna come completato
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
