@@ -172,7 +172,7 @@ Se non ci sono attività da suggerire, restituisci un array vuoto.
         .from(tasks)
         .where(
           and(
-            sql`${tasks.dueDate} <= ${threeDaysFromNow}`,
+            sql`${tasks.dueDate} <= ${"" + threeDaysFromNow.toISOString()}`,
             sql`${tasks.status} != 'completed'`
           )
         )
@@ -194,12 +194,12 @@ Se non ci sono attività da suggerire, restituisci un array vuoto.
         .leftJoin(clients, eq(communications.clientId, clients.id))
         .where(
           and(
-            sql`${communications.created_at} >= ${tenDaysAgo}`,
-            sql`${communications.direction} = 'incoming'`,
+            sql`${communications.created_at} >= ${"" + tenDaysAgo.toISOString()}`,
+            sql`${communications.direction} = 'inbound'`,
             sql`NOT EXISTS (
               SELECT 1 FROM ${communications} AS c2
               WHERE c2.client_id = ${communications.clientId}
-              AND c2.direction = 'outgoing'
+              AND c2.direction = 'outbound'
               AND c2.created_at > ${communications.created_at}
             )`
           )
