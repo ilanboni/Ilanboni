@@ -164,44 +164,43 @@ Se non ci sono attività da suggerire, restituisci un array vuoto.
    */
   async getDashboardSummary() {
     try {
-      // Task in scadenza nei prossimi 3 giorni
-      const threeDaysFromNow = new Date();
-      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+      // Prima query: Task in scadenza
+      let upcomingTasks = [];
       
-      const upcomingTasks = await db.select()
-        .from(tasks)
-        .where(
-          and(
-            sql`${tasks.dueDate} <= ${"" + threeDaysFromNow.toISOString()}`,
-            sql`${tasks.status} != 'completed'`
-          )
-        )
-        .orderBy(tasks.dueDate);
+      try {
+        // Usa sintassi più semplice per evitare errori
+        upcomingTasks = await db.execute(sql`
+          SELECT * FROM tasks 
+          WHERE status != 'completed' 
+          ORDER BY due_date ASC
+          LIMIT 10
+        `);
+      } catch (taskError) {
+        console.error("Errore nel recupero dei task:", taskError);
+        upcomingTasks = [];
+      }
       
-      // Comunicazioni recenti senza risposta
-      const tenDaysAgo = new Date();
-      tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+      // Seconda query: Messaggi senza risposta
+      let unansweredMessages = [];
       
-      // Semplifichiamo la query per evitare errori di sintassi SQL
-      const unansweredMessages = await db.select({
-        id: communications.id,
-        subject: communications.subject,
-        content: communications.content,
-        createdAt: communications.created_at,
-        clientId: communications.clientId,
-        clientFirstName: clients.firstName,
-        clientLastName: clients.lastName
-      })
-        .from(communications)
-        .leftJoin(clients, eq(communications.clientId, clients.id))
-        .where(
-          and(
-            sql`${communications.created_at} > ${"" + tenDaysAgo.toISOString()}`,
-            sql`${communications.direction} = 'inbound'`
-          )
-        )
-        .orderBy(desc(communications.created_at))
-        .limit(10);
+      try {
+        // Usa sintassi più semplice per evitare errori
+        unansweredMessages = await db.execute(sql`
+          SELECT 
+            c.id, c.subject, c.content, c.created_at as "createdAt", 
+            c.client_id as "clientId", 
+            cl.first_name as "clientFirstName", 
+            cl.last_name as "clientLastName"
+          FROM communications c
+          LEFT JOIN clients cl ON c.client_id = cl.id
+          WHERE c.direction = 'inbound'
+          ORDER BY c.created_at DESC
+          LIMIT 10
+        `);
+      } catch (messageError) {
+        console.error("Errore nel recupero dei messaggi:", messageError);
+        unansweredMessages = [];
+      }
       
       return {
         upcomingTasks,

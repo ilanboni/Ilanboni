@@ -119,7 +119,15 @@ export default function AssistentePage() {
     );
   }
 
-  const { upcomingTasks = [], unansweredMessages = [] } = dashboardData || {};
+  // Adattiamo il formato dei dati restituiti dall'API
+  let upcomingTasks = [];
+  let unansweredMessages = [];
+  
+  if (dashboardData) {
+    // Gestisci la nuova struttura dei dati dell'API
+    upcomingTasks = dashboardData.upcomingTasks?.rows || [];
+    unansweredMessages = dashboardData.unansweredMessages?.rows || [];
+  }
 
   return (
     <>
@@ -215,29 +223,29 @@ export default function AssistentePage() {
                   ) : (
                     <div className="space-y-4">
                       {unansweredMessages.map((item: any) => (
-                        <div key={item.communication.id} className="flex items-start gap-4 rounded-md border p-4">
+                        <div key={item.id} className="flex items-start gap-4 rounded-md border p-4">
                           <Avatar className="h-10 w-10">
                             <AvatarFallback>
-                              {item.client?.firstName?.[0]}{item.client?.lastName?.[0]}
+                              {item.clientFirstName?.[0]}{item.clientLastName?.[0]}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 space-y-1">
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-medium">
-                                {item.client?.firstName} {item.client?.lastName}
+                                {item.clientFirstName} {item.clientLastName}
                               </p>
                               <Badge variant="outline">
-                                {format(new Date(item.communication.createdAt), "dd/MM/yy HH:mm", { locale: it })}
+                                {format(new Date(item.createdAt), "dd/MM/yy HH:mm", { locale: it })}
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-2">
-                              {item.communication.body}
+                              {item.content}
                             </p>
                             <div className="flex gap-2 pt-2">
-                              <Button variant="outline" size="sm" onClick={() => analyzeMessage(item.communication.id)}>
+                              <Button variant="outline" size="sm" onClick={() => analyzeMessage(item.id)}>
                                 Analizza
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => suggestTasks(item.communication.id)}>
+                              <Button variant="outline" size="sm" onClick={() => suggestTasks(item.id)}>
                                 Suggerisci Task
                               </Button>
                             </div>
