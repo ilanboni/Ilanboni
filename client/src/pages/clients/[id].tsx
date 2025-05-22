@@ -1226,28 +1226,64 @@ export default function ClientDetailPage() {
                           
                           {/* Mappa con area di ricerca */}
                           <div className="h-64 rounded-md overflow-hidden border border-gray-300">
-                            <MapContainer 
-                              center={[45.4642, 9.1900]} 
-                              zoom={12} 
-                              className="h-full w-full"
-                            >
-                              <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                              />
+                            {(() => {
+                              // Calcola automaticamente il centro della mappa in base all'area
+                              console.log("Dati area di ricerca:", JSON.stringify(preferences.searchArea));
+                              let mapCenter = [45.4642, 9.1900]; // Milano default
+                              let zoomLevel = 12;
                               
-                              {/* Visualizza il poligono dell'area di ricerca */}
-                              {preferences.searchArea && (
-                                <Polygon 
-                                  positions={preferences.searchArea}
-                                  pathOptions={{ 
-                                    color: 'blue',
-                                    fillColor: 'rgba(0, 0, 255, 0.2)',
-                                    fillOpacity: 0.4
-                                  }}
-                                />
-                              )}
-                            </MapContainer>
+                              if (preferences.searchArea && preferences.searchArea.length > 0) {
+                                // Calcola il centro come media dei punti
+                                const lats = preferences.searchArea.map(point => point[0]);
+                                const lngs = preferences.searchArea.map(point => point[1]);
+                                
+                                const avgLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
+                                const avgLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
+                                
+                                mapCenter = [avgLat, avgLng];
+                                
+                                // Calcola zoom in base all'estensione dell'area
+                                const minLat = Math.min(...lats);
+                                const maxLat = Math.max(...lats);
+                                const minLng = Math.min(...lngs);
+                                const maxLng = Math.max(...lngs);
+                                
+                                // Se l'area è molto piccola, aumenta lo zoom
+                                const latDiff = maxLat - minLat;
+                                const lngDiff = maxLng - minLng;
+                                
+                                if (latDiff < 0.01 && lngDiff < 0.01) {
+                                  zoomLevel = 15;
+                                } else if (latDiff < 0.05 && lngDiff < 0.05) {
+                                  zoomLevel = 13;
+                                }
+                              }
+                              
+                              return (
+                                <MapContainer 
+                                  center={mapCenter as [number, number]} 
+                                  zoom={zoomLevel} 
+                                  className="h-full w-full"
+                                >
+                                  <TileLayer
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                  />
+                                  
+                                  {/* Visualizza il poligono dell'area di ricerca */}
+                                  {preferences.searchArea && (
+                                    <Polygon 
+                                      positions={preferences.searchArea}
+                                      pathOptions={{ 
+                                        color: 'blue',
+                                        fillColor: 'rgba(0, 0, 255, 0.2)',
+                                        fillOpacity: 0.4
+                                      }}
+                                    />
+                                  )}
+                                </MapContainer>
+                              );
+                            })()}
                           </div>
                           
                           <div className="mt-2 flex justify-center">
