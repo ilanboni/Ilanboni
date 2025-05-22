@@ -30,6 +30,7 @@ import WhatsAppSenderPage from "@/pages/communications/whatsapp";
 import TasksPage from "@/pages/tasks/index";
 import AnalyticsPage from "@/pages/analytics/index";
 import WhatsAppTestPage from "@/pages/testing/whatsapp";
+import AssistentePage from "@/pages/assistente/index";
 
 function Router() {
   return (
@@ -58,6 +59,7 @@ function Router() {
       <Route path="/communications/:id" component={CommunicationDetailPage} />
       <Route path="/tasks" component={TasksPage} />
       <Route path="/analytics" component={AnalyticsPage} />
+      <Route path="/assistente" component={AssistentePage} />
       <Route path="/testing/whatsapp" component={WhatsAppTestPage} />
       <Route component={NotFound} />
     </Switch>
