@@ -1213,16 +1213,75 @@ export default function ClientDetailPage() {
                       </div>
                     </div>
                     
-                    {/* Indicazione area di ricerca */}
-                    <div className="bg-gray-100 p-4 rounded-md text-center">
-                      <h3 className="text-sm font-medium mb-2">Area di Ricerca</h3>
+                    {/* Visualizzazione area di ricerca su mappa */}
+                    <div className="bg-gray-100 p-4 rounded-md">
+                      <h3 className="text-sm font-medium mb-3 text-center">Area di Ricerca</h3>
+                      
                       {preferences.searchArea ? (
-                        <div className="font-medium text-green-700">
-                          <i className="fas fa-check-circle mr-2"></i>
-                          Poligono di ricerca definito
+                        <div>
+                          <div className="mb-3 font-medium text-green-700 text-center">
+                            <i className="fas fa-check-circle mr-2"></i>
+                            Poligono di ricerca definito
+                          </div>
+                          
+                          {/* Mappa con area di ricerca */}
+                          <div className="h-64 rounded-md overflow-hidden border border-gray-300">
+                            <MapContainer 
+                              center={[45.4642, 9.1900]} 
+                              zoom={12} 
+                              className="h-full w-full"
+                            >
+                              <TileLayer
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                              />
+                              
+                              {/* Visualizza il poligono dell'area di ricerca */}
+                              {preferences.searchArea && (
+                                <Polygon 
+                                  positions={preferences.searchArea}
+                                  pathOptions={{ 
+                                    color: 'blue',
+                                    fillColor: 'rgba(0, 0, 255, 0.2)',
+                                    fillOpacity: 0.4
+                                  }}
+                                />
+                              )}
+                            </MapContainer>
+                          </div>
+                          
+                          <div className="mt-2 flex justify-center">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              asChild
+                              className="text-xs"
+                            >
+                              <Link href={`/clients/${id}/search`}>
+                                <i className="fas fa-edit mr-1"></i>
+                                Modifica Area
+                              </Link>
+                            </Button>
+                          </div>
                         </div>
                       ) : (
-                        <div className="text-gray-500">Nessuna area di ricerca definita</div>
+                        <div>
+                          <div className="text-gray-500 text-center mb-3">
+                            Nessuna area di ricerca definita
+                          </div>
+                          <div className="flex justify-center">
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              asChild
+                            >
+                              <Link href={`/clients/${id}/search`}>
+                                <i className="fas fa-map-marker-alt mr-1"></i>
+                                Definisci Area
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
