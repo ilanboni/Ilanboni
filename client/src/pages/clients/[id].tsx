@@ -1232,31 +1232,61 @@ export default function ClientDetailPage() {
                               let mapCenter = [45.4642, 9.1900]; // Milano default
                               let zoomLevel = 12;
                               
-                              if (preferences.searchArea && preferences.searchArea.length > 0) {
-                                // Calcola il centro come media dei punti
-                                const lats = preferences.searchArea.map(point => point[0]);
-                                const lngs = preferences.searchArea.map(point => point[1]);
-                                
-                                const avgLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
-                                const avgLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
-                                
-                                mapCenter = [avgLat, avgLng];
-                                
-                                // Calcola zoom in base all'estensione dell'area
-                                const minLat = Math.min(...lats);
-                                const maxLat = Math.max(...lats);
-                                const minLng = Math.min(...lngs);
-                                const maxLng = Math.max(...lngs);
-                                
-                                // Se l'area è molto piccola, aumenta lo zoom
-                                const latDiff = maxLat - minLat;
-                                const lngDiff = maxLng - minLng;
-                                
-                                if (latDiff < 0.01 && lngDiff < 0.01) {
-                                  zoomLevel = 15;
-                                } else if (latDiff < 0.05 && lngDiff < 0.05) {
-                                  zoomLevel = 13;
+                              // Estrae le coordinate dal GeoJSON
+                              let coordinates = [];
+                              try {
+                                // Gestisce sia il caso in cui searchArea sia già un oggetto JSON
+                                // sia il caso in cui è una stringa JSON
+                                let searchAreaObj = preferences.searchArea;
+                                if (typeof preferences.searchArea === 'string') {
+                                  searchAreaObj = JSON.parse(preferences.searchArea);
                                 }
+                                
+                                console.log("Tipo di searchArea:", typeof searchAreaObj);
+                                
+                                // Estrae le coordinate in base al formato
+                                if (searchAreaObj?.type === 'Feature' && 
+                                    searchAreaObj?.geometry?.type === 'Polygon') {
+                                  // Formato GeoJSON completo
+                                  coordinates = searchAreaObj.geometry.coordinates[0];
+                                  
+                                  // Le coordinate in GeoJSON sono [lng, lat], dobbiamo invertirle per Leaflet che usa [lat, lng]
+                                  coordinates = coordinates.map(coord => [coord[1], coord[0]]);
+                                } else if (Array.isArray(searchAreaObj)) {
+                                  // Formato semplice array di punti
+                                  coordinates = searchAreaObj;
+                                }
+                                
+                                console.log("Coordinate estratte:", coordinates);
+                                
+                                if (coordinates.length > 0) {
+                                  // Calcola il centro come media dei punti
+                                  const lats = coordinates.map(point => point[0]);
+                                  const lngs = coordinates.map(point => point[1]);
+                                  
+                                  const avgLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
+                                  const avgLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
+                                  
+                                  mapCenter = [avgLat, avgLng];
+                                  
+                                  // Calcola zoom in base all'estensione dell'area
+                                  const minLat = Math.min(...lats);
+                                  const maxLat = Math.max(...lats);
+                                  const minLng = Math.min(...lngs);
+                                  const maxLng = Math.max(...lngs);
+                                  
+                                  // Se l'area è molto piccola, aumenta lo zoom
+                                  const latDiff = maxLat - minLat;
+                                  const lngDiff = maxLng - minLng;
+                                  
+                                  if (latDiff < 0.01 && lngDiff < 0.01) {
+                                    zoomLevel = 15;
+                                  } else if (latDiff < 0.05 && lngDiff < 0.05) {
+                                    zoomLevel = 13;
+                                  }
+                                }
+                              } catch (error) {
+                                console.error("Errore parsing dati area:", error);
                               }
                               
                               return (
@@ -1271,9 +1301,9 @@ export default function ClientDetailPage() {
                                   />
                                   
                                   {/* Visualizza il poligono dell'area di ricerca */}
-                                  {preferences.searchArea && (
+                                  {coordinates.length > 0 && (
                                     <Polygon 
-                                      positions={preferences.searchArea}
+                                      positions={coordinates}
                                       pathOptions={{ 
                                         color: 'blue',
                                         fillColor: 'rgba(0, 0, 255, 0.2)',
