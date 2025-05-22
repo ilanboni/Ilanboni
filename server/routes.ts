@@ -371,21 +371,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return map;
         }, {} as Record<number, {notificationId: number, sentAt: Date, status: string}>);
       
-      // Combina le informazioni
-      const propertiesWithStatus = matchingProperties.map(property => {
-        const notificationInfo = sentPropertiesMap[property.id];
-        return {
-          ...property,
-          notificationStatus: notificationInfo ? {
-            notified: true,
-            sentAt: notificationInfo.sentAt,
-            notificationId: notificationInfo.notificationId,
-            status: notificationInfo.status
-          } : {
-            notified: false
-          }
-        };
-      });
+      // Parametro per filtrare immobili già inviati oppure mostrarli tutti
+      const showSent = req.query.showSent === 'true';
+      
+      // Combina le informazioni ed esclude gli immobili già inviati se showSent non è true
+      const propertiesWithStatus = matchingProperties
+        .map(property => {
+          const notificationInfo = sentPropertiesMap[property.id];
+          return {
+            ...property,
+            notificationStatus: notificationInfo ? {
+              notified: true,
+              sentAt: notificationInfo.sentAt,
+              notificationId: notificationInfo.notificationId,
+              status: notificationInfo.status
+            } : {
+              notified: false
+            }
+          };
+        })
+        // Filtra gli immobili già inviati se showSent non è true
+        .filter(property => showSent || !property.notificationStatus.notified);
       
       res.json(propertiesWithStatus);
     } catch (error) {

@@ -126,7 +126,8 @@ export default function ClientDetailPage() {
     queryKey: [`/api/clients/${id}/properties-with-notification-status`],
     enabled: !isNaN(id) && client?.type === "buyer",
     queryFn: async () => {
-      const response = await fetch(`/api/clients/${id}/properties-with-notification-status`);
+      // Non mostrare immobili già inviati (con showSent=false)
+      const response = await fetch(`/api/clients/${id}/properties-with-notification-status?showSent=false`);
       if (!response.ok) {
         if (response.status === 400) {
           return []; // Il cliente non è un compratore
