@@ -275,6 +275,15 @@ export class UltraMsgClient {
       
       console.log("[ULTRAMSG] Cliente trovato:", client.id, client.firstName, client.lastName);
 
+      // Verifica se questo messaggio è già stato registrato (usando l'ID esterno)
+      if (webhookData.external_id) {
+        const existingMessage = await storage.getCommunicationByExternalId(String(webhookData.external_id));
+        if (existingMessage) {
+          console.log(`[ULTRAMSG] Messaggio con ID esterno ${webhookData.external_id} già esistente, ignorato per evitare duplicati`);
+          return existingMessage;
+        }
+      }
+
       // Estrai il contenuto del messaggio (gestisce diversi formati)
       const messageContent = webhookData.body || webhookData.text || webhookData.content || webhookData.message || '';
       console.log("[ULTRAMSG] Contenuto del messaggio:", messageContent);

@@ -12,7 +12,7 @@ import { startFollowUpScheduler } from "./services/followUpScheduler";
 
 // Configura l'agente virtuale (impostazione di default, può essere cambiato tramite API)
 if (process.env.ENABLE_VIRTUAL_AGENT === undefined) {
-  process.env.ENABLE_VIRTUAL_AGENT = 'false'; // Disabilitato di default
+  process.env.ENABLE_VIRTUAL_AGENT = 'true'; // Abilitato per default
 }
 
 // Log iniziale per la configurazione dell'agente virtuale

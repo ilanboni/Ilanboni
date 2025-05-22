@@ -227,7 +227,7 @@ export default function AssistentePage() {
                                 {item.client?.firstName} {item.client?.lastName}
                               </p>
                               <Badge variant="outline">
-                                {format(new Date(item.communication.createdAt), "d MMM", { locale: it })}
+                                {format(new Date(item.communication.createdAt), "dd/MM/yy HH:mm", { locale: it })}
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-2">
