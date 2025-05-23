@@ -46,7 +46,10 @@ export default function MessageResponseModal({ isOpen, onClose, message }: Messa
     if (isOpen && message) {
       setManualResponse("");
       setAiResponse("");
+      setSelectedPropertyId("");
+      setIdentifiedProperties([]);
       generateAIResponse();
+      tryIdentifyProperties();
     }
   }, [isOpen, message]);
 
@@ -78,6 +81,29 @@ export default function MessageResponseModal({ isOpen, onClose, message }: Messa
     }
   };
 
+  // Tenta di identificare automaticamente gli immobili nel messaggio
+  const tryIdentifyProperties = async () => {
+    if (!message) return;
+    
+    try {
+      const response = await apiRequest(`/api/virtual-assistant/analyze-message/${message.id}`, {
+        method: 'POST'
+      });
+      
+      if (response?.propertyReferences && response.propertyReferences.length > 0) {
+        const highConfidenceRefs = response.propertyReferences.filter((ref: any) => ref.confidence > 0.7);
+        setIdentifiedProperties(highConfidenceRefs);
+        
+        if (highConfidenceRefs.length === 1) {
+          // Se c'è solo un immobile identificato con alta confidenza, selezionalo automaticamente
+          setSelectedPropertyId(highConfidenceRefs[0].propertyId.toString());
+        }
+      }
+    } catch (error) {
+      console.error("Errore nell'identificazione automatica degli immobili:", error);
+    }
+  };
+
   // Mutation per inviare messaggio
   const { mutate: sendMessage, isPending: isSending } = useMutation({
     mutationFn: async ({ content, isAI }: { content: string; isAI: boolean }) => {
@@ -89,7 +115,8 @@ export default function MessageResponseModal({ isOpen, onClose, message }: Messa
           clientId: message.clientId,
           message: content,
           isResponse: true,
-          originalMessageId: message.id
+          originalMessageId: message.id,
+          propertyId: selectedPropertyId ? parseInt(selectedPropertyId) : undefined
         }
       });
     },
