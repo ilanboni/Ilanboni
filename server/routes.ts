@@ -2359,6 +2359,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/virtual-assistant/generate-response", async (req: Request, res: Response) => {
+    try {
+      const { messageId, messageContent, clientName } = req.body;
+      
+      // Ottieni informazioni sul cliente per determinare il tono della comunicazione
+      const communication = await storage.getCommunication(messageId);
+      if (!communication) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Comunicazione non trovata" 
+        });
+      }
+
+      const client = await storage.getClient(communication.clientId);
+      let tone = "formale";
+      if (client?.salutation && ["Caro", "Cara", "Ciao"].includes(client.salutation)) {
+        tone = "informale";
+      }
+
+      // Genera risposta AI usando OpenAI
+      const prompt = `Sei un assistente virtuale per un'agenzia immobiliare italiana. 
+      Rispondi al seguente messaggio di un cliente in modo ${tone} e professionale.
+      
+      Nome cliente: ${clientName}
+      Messaggio cliente: "${messageContent}"
+      
+      Genera una risposta appropriata che sia:
+      - ${tone === "formale" ? "Formale e rispettosa" : "Amichevole e cordiale"}
+      - Professionale
+      - Breve ma completa
+      - In italiano
+      
+      Risposta:`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "Sei un assistente virtuale professionale per un'agenzia immobiliare italiana. Rispondi sempre in italiano."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 300,
+        temperature: 0.7
+      });
+
+      const suggestedResponse = completion.choices[0]?.message?.content?.trim() || 
+        "Grazie per il tuo messaggio. Ti risponderemo al più presto.";
+
+      res.json({ 
+        success: true, 
+        suggestedResponse,
+        tone 
+      });
+    } catch (error: any) {
+      console.error("Errore generazione risposta AI:", error);
+      res.status(500).json({ 
+        error: "Errore nella generazione della risposta",
+        suggestedResponse: "Grazie per il tuo messaggio. Ti risponderemo al più presto."
+      });
+    }
+  });
+
   // Endpoint per controllare e configurare l'agente virtuale
   app.get("/api/agent/status", async (req: Request, res: Response) => {
     const isEnabled = process.env.ENABLE_VIRTUAL_AGENT === 'true';
