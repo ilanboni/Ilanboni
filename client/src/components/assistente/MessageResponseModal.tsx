@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bot, User, Send, Loader2 } from "lucide-react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { Bot, User, Send, Loader2, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,6 +32,14 @@ export default function MessageResponseModal({ isOpen, onClose, message }: Messa
   const [aiResponse, setAiResponse] = useState("");
   const [manualResponse, setManualResponse] = useState("");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
+  const [identifiedProperties, setIdentifiedProperties] = useState<any[]>([]);
+
+  // Query per caricare tutte le proprietà disponibili
+  const { data: properties = [] } = useQuery({
+    queryKey: ['/api/properties'],
+    enabled: isOpen,
+  });
 
   // Reset state quando il modal si apre/chiude
   useEffect(() => {
@@ -146,6 +156,58 @@ export default function MessageResponseModal({ isOpen, onClose, message }: Messa
           </CardHeader>
           <CardContent>
             <p className="text-sm">{message.content}</p>
+          </CardContent>
+        </Card>
+
+        {/* Selezione Immobile */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5 text-green-500" />
+              Immobile di Riferimento
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {identifiedProperties.length > 0 && (
+              <div>
+                <Label className="text-sm font-medium text-green-600">
+                  ✓ Immobili identificati automaticamente:
+                </Label>
+                <div className="mt-2 space-y-2">
+                  {identifiedProperties.map((ref: any) => (
+                    <Badge key={ref.propertyId} variant="outline" className="mr-2">
+                      ID: {ref.propertyId} (Confidenza: {Math.round(ref.confidence * 100)}%)
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="property-select">
+                {identifiedProperties.length === 0 
+                  ? "Seleziona immobile (identificazione automatica non riuscita)" 
+                  : "Conferma o cambia immobile di riferimento"}
+              </Label>
+              <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Scegli un immobile..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nessun immobile specifico</SelectItem>
+                  {properties.map((property: any) => (
+                    <SelectItem key={property.id} value={property.id.toString()}>
+                      {property.address}, {property.city} - €{property.price?.toLocaleString('it-IT')} ({property.size}mq)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedPropertyId && (
+                <p className="text-xs text-muted-foreground">
+                  La risposta sarà associata a questo immobile e apparirà anche nella sua scheda comunicazioni.
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 

@@ -416,18 +416,10 @@ export default function AssistentePage() {
                           <p className="text-sm">
                             {item.content}
                           </p>
-                          <div className="flex gap-3">
-                            <Button variant="default" onClick={() => handleOpenResponseModal(item)}>
+                          <div className="flex justify-end">
+                            <Button onClick={() => handleOpenResponseModal(item)}>
                               <Reply className="mr-2 h-4 w-4" />
                               Rispondi
-                            </Button>
-                            <Button variant="outline" onClick={() => analyzeMessage(item.id)}>
-                              <HomeIcon className="mr-2 h-4 w-4" />
-                              Identifica Immobili
-                            </Button>
-                            <Button variant="outline" onClick={() => suggestTasks(item.id)}>
-                              <Calendar className="mr-2 h-4 w-4" />
-                              Crea Task
                             </Button>
                           </div>
                         </div>
