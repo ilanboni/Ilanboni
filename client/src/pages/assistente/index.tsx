@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { Bell, CheckCircle, Calendar, Clock, MessageSquare, HomeIcon, Loader2 } from "lucide-react";
+import { Bell, CheckCircle, Calendar, Clock, MessageSquare, HomeIcon, Loader2, Reply } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import MessageResponseModal from "@/components/assistente/MessageResponseModal";
 
 // Define interfaces for type safety
 interface PropertyReference {
@@ -31,6 +32,8 @@ interface TaskSuggestion {
 export default function AssistentePage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [selectedMessage, setSelectedMessage] = useState<any>(null);
+  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: dashboardData, isLoading } = useQuery({
@@ -132,6 +135,18 @@ export default function AssistentePage() {
       });
     },
   });
+
+  // Funzione per aprire il modal di risposta
+  const handleOpenResponseModal = (message: any) => {
+    setSelectedMessage(message);
+    setIsResponseModalOpen(true);
+  };
+
+  // Funzione per chiudere il modal di risposta
+  const handleCloseResponseModal = () => {
+    setSelectedMessage(null);
+    setIsResponseModalOpen(false);
+  };
 
   if (isLoading) {
     return (

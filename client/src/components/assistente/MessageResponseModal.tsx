@@ -75,7 +75,7 @@ export default function MessageResponseModal({ isOpen, onClose, message }: Messa
       
       return await apiRequest('/api/whatsapp/send', {
         method: 'POST',
-        body: {
+        data: {
           clientId: message.clientId,
           message: content,
           isResponse: true,

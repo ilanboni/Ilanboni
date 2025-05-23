@@ -17,7 +17,13 @@ import {
 import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "drizzle-orm";
 import { z } from "zod";
+import OpenAI from "openai";
 import { summarizeText } from "./lib/openai";
+
+// Inizializza OpenAI
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY,
+});
 import axios from "axios";
 import { config } from "./config";
 import { getUltraMsgClient, sendPropertyMatchNotification } from "./lib/ultramsg";
