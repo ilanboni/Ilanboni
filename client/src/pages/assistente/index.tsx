@@ -417,6 +417,10 @@ export default function AssistentePage() {
                             {item.content}
                           </p>
                           <div className="flex gap-3">
+                            <Button variant="default" onClick={() => handleOpenResponseModal(item)}>
+                              <Reply className="mr-2 h-4 w-4" />
+                              Rispondi
+                            </Button>
                             <Button variant="outline" onClick={() => analyzeMessage(item.id)}>
                               <HomeIcon className="mr-2 h-4 w-4" />
                               Identifica Immobili
@@ -508,6 +512,13 @@ export default function AssistentePage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modal per le risposte ai messaggi */}
+      <MessageResponseModal
+        isOpen={isResponseModalOpen}
+        onClose={handleCloseResponseModal}
+        message={selectedMessage}
+      />
     </>
   );
 }
