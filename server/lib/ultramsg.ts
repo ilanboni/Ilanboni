@@ -108,7 +108,12 @@ export class UltraMsgClient {
    * @param message Testo del messaggio
    * @returns Oggetto comunicazione creato
    */
-  async sendAndStoreCommunication(clientId: number, phone: string, message: string): Promise<Communication> {
+  async sendAndStoreCommunication(
+    clientId: number, 
+    phone: string, 
+    message: string, 
+    additionalParams?: { propertyId?: number | null; responseToId?: number | null }
+  ): Promise<Communication> {
     try {
       // Invia messaggio tramite UltraMsg
       const ultraMsgResponse = await this.sendMessage(phone, message);
@@ -139,11 +144,17 @@ export class UltraMsgClient {
         summary,
         direction: 'outbound',
         needsFollowUp: false,
-        status: 'completed'
+        status: 'completed',
+        propertyId: additionalParams?.propertyId || null,
+        responseToId: additionalParams?.responseToId || null
       };
+      
+      console.log('[ULTRAMSG] Salvando comunicazione con parametri:', communicationData);
       
       // Salva nel database
       const communication = await storage.createCommunication(communicationData);
+      
+      console.log('[ULTRAMSG] Comunicazione salvata con ID:', communication.id, 'propertyId:', communication.propertyId);
       
       return communication;
     } catch (error) {

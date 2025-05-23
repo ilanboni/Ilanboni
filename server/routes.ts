@@ -1579,11 +1579,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const ultraMsgClient = getUltraMsgClient();
         
         console.log("[ULTRAMSG] Client inizializzato, tentativo invio messaggio a:", client.phone);
+        
+        // Prepara i parametri aggiuntivi per la comunicazione
+        const communicationParams = {
+          propertyId: propertyId ? parseInt(propertyId) : null,
+          responseToId: responseToId ? parseInt(responseToId) : null
+        };
+        
+        console.log("[ULTRAMSG] Parametri comunicazione:", communicationParams);
+        
         // Invia il messaggio e salvalo nel database
         const communication = await ultraMsgClient.sendAndStoreCommunication(
           client.id, 
           client.phone, 
-          message
+          message,
+          communicationParams
         );
         
         res.status(201).json({
@@ -2385,7 +2395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Recupera le comunicazioni recenti per contesto
-      const recentCommunications = await storage.getCommunicationsByClient(communication.clientId, 5);
+      const recentCommunications = await storage.getCommunicationsByClientId(communication.clientId, 5);
       const context = recentCommunications
         .filter(comm => comm.id !== messageId)
         .map(comm => `${comm.direction === 'inbound' ? 'Cliente' : 'Agente'}: ${comm.content}`)
