@@ -116,7 +116,7 @@ export default function MessageResponseModal({ isOpen, onClose, message }: Messa
           message: content,
           isResponse: true,
           originalMessageId: message.id,
-          propertyId: selectedPropertyId ? parseInt(selectedPropertyId) : undefined
+          propertyId: selectedPropertyId && selectedPropertyId !== "none" ? parseInt(selectedPropertyId) : undefined
         }
       });
     },
@@ -221,7 +221,7 @@ export default function MessageResponseModal({ isOpen, onClose, message }: Messa
                   <SelectValue placeholder="Scegli un immobile..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nessun immobile specifico</SelectItem>
+                  <SelectItem value="none">Nessun immobile specifico</SelectItem>
                   {properties.map((property: any) => (
                     <SelectItem key={property.id} value={property.id.toString()}>
                       {property.address}, {property.city} - €{property.price?.toLocaleString('it-IT')} ({property.size}mq)

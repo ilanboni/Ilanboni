@@ -1548,7 +1548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/whatsapp/send", async (req: Request, res: Response) => {
     try {
       console.log("[ULTRAMSG] Ricevuta richiesta di invio messaggio:", req.body);
-      const { clientId, message, priority } = req.body;
+      const { clientId, message, priority, propertyId, responseToId } = req.body;
       
       if (!clientId || !message) {
         console.log("[ULTRAMSG] Dati mancanti nella richiesta");
@@ -2384,18 +2384,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tone = "informale";
       }
 
-      // Genera risposta AI usando OpenAI
-      const prompt = `Sei un assistente virtuale per un'agenzia immobiliare italiana. 
-      Rispondi al seguente messaggio di un cliente in modo ${tone} e professionale.
+      // Recupera le comunicazioni recenti per contesto
+      const recentCommunications = await storage.getCommunicationsByClient(communication.clientId, 5);
+      const context = recentCommunications
+        .filter(comm => comm.id !== messageId)
+        .map(comm => `${comm.direction === 'inbound' ? 'Cliente' : 'Agente'}: ${comm.content}`)
+        .join('\n');
+
+      // Genera risposta AI usando OpenAI con contesto migliorato
+      const prompt = `Sei un assistente virtuale esperto per un'agenzia immobiliare italiana. 
       
-      Nome cliente: ${clientName}
-      Messaggio cliente: "${messageContent}"
+      INFORMAZIONI CLIENTE:
+      Nome: ${clientName}
+      Tipo comunicazione: ${tone}
       
-      Genera una risposta appropriata che sia:
-      - ${tone === "formale" ? "Formale e rispettosa" : "Amichevole e cordiale"}
-      - Professionale
-      - Breve ma completa
-      - In italiano
+      CONTESTO CONVERSAZIONE RECENTE:
+      ${context || 'Prima conversazione con questo cliente'}
+      
+      MESSAGGIO CORRENTE DEL CLIENTE:
+      "${messageContent}"
+      
+      ISTRUZIONI:
+      - Rispondi in modo ${tone === "formale" ? "formale e rispettoso" : "amichevole e cordiale"}
+      - Sii specifico e utile, non generico
+      - Se il cliente fa domande su immobili, offri assistenza concreta
+      - Se esprime interesse, proponi prossimi passi (visite, informazioni aggiuntive)
+      - Se il messaggio è molto breve ("Prova", "Ok", etc.), rispondi cordialmente e chiedi come puoi aiutare
+      - Mantieni un tono professionale ma umano
+      - Risposta massimo 2-3 frasi
       
       Risposta:`;
 
