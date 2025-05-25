@@ -974,6 +974,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint per trovare clienti potenziali per una proprietà condivisa
+  app.get("/api/shared-properties/:id/matching-buyers", async (req: Request, res: Response) => {
+    try {
+      const sharedPropertyId = parseInt(req.params.id);
+      if (isNaN(sharedPropertyId)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const sharedProperty = await storage.getSharedProperty(sharedPropertyId);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      // Cerca clienti acquirenti con preferenze compatibili per questa proprietà condivisa
+      const matchingBuyers = await storage.getMatchingBuyersForSharedProperty(sharedPropertyId);
+      
+      console.log(`[GET /api/shared-properties/${sharedPropertyId}/matching-buyers] Trovati ${matchingBuyers.length} clienti compatibili`);
+      
+      res.json(matchingBuyers);
+    } catch (error) {
+      console.error(`[GET /api/shared-properties/${req.params.id}/matching-buyers]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei clienti compatibili" });
+    }
+  });
+
   // Delete shared property
   app.delete("/api/shared-properties/:id", async (req: Request, res: Response) => {
     try {
