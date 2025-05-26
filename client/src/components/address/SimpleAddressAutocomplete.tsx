@@ -94,9 +94,11 @@ export default function SimpleAddressAutocomplete({
         // Utilizzo Nominatim come fallback
         const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&limit=5&addressdetails=1&countrycodes=it`;
         
-        const res = await fetch(nominatimUrl);
-        if (!res.ok) {
-          throw new Error(`Errore Nominatim API: ${res.status}`);
+        const res = await fetch(nominatimUrl).catch(() => null);
+        if (!res || !res.ok) {
+          // Continua senza errore se l'API non è disponibile
+          setSuggestions([]);
+          return;
         }
         
         const data = await res.json();
@@ -121,9 +123,11 @@ export default function SimpleAddressAutocomplete({
         try {
           const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&limit=5&addressdetails=1&countrycodes=it`;
           
-          const res = await fetch(nominatimUrl);
-          if (!res.ok) {
-            throw new Error(`Errore Nominatim API: ${res.status}`);
+          const res = await fetch(nominatimUrl).catch(() => null);
+          if (!res || !res.ok) {
+            // API non disponibile, continua senza errore
+            setSuggestions([]);
+            return;
           }
           
           const data = await res.json();
