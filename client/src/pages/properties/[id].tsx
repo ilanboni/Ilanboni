@@ -315,15 +315,15 @@ export default function PropertyDetailPage() {
           setManualBuyersWithStatus(data);
           setManualBuyersLoading(false);
           
-          // Se ci sono buyer da notificare, cambia tab
+          // Conta i buyer da notificare (senza cambiare tab automaticamente)
           const buyersToNotify = data.filter(b => !b.notificationStatus?.notified);
           console.log("Clienti da notificare (caricamento diretto):", buyersToNotify.length);
-          if (buyersToNotify.length > 0) {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (activeTab === "overview" || urlParams.get('tab') === 'notify') {
-              console.log("Cambio tab a buyersToNotify (diretto)");
-              setActiveTab("buyersToNotify");
-            }
+          
+          // Cambia tab solo se esplicitamente richiesto tramite URL
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get('tab') === 'notify') {
+            console.log("Cambio tab a buyersToNotify (richiesto da URL)");
+            setActiveTab("buyersToNotify");
           }
         })
         .catch(error => {
