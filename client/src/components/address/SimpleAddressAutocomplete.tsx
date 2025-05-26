@@ -112,9 +112,9 @@ export default function SimpleAddressAutocomplete({
     } catch (err) {
       console.error('Errore nella ricerca indirizzi:', err);
       
-      // Se siamo già in modalità Nominatim e fallisce, mostra errore
+      // Se siamo già in modalità Nominatim e fallisce, permettiamo comunque l'inserimento manuale
       if (searchProvider === 'nominatim') {
-        setError('Errore durante la ricerca.');
+        setError('');
         setSuggestions([]);
       } else {
         // Altrimenti prova con Nominatim
@@ -137,7 +137,8 @@ export default function SimpleAddressAutocomplete({
           }
         } catch (fallbackErr) {
           console.error('Fallback Nominatim fallito:', fallbackErr);
-          setError('Errore durante la ricerca.');
+          // Non mostriamo errore per permettere l'inserimento manuale
+          setError('');
           setSuggestions([]);
         }
       }
