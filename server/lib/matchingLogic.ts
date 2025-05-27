@@ -52,13 +52,6 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
         return false;
       }
       
-      // Se non abbiamo un'area di ricerca definita, consideriamo l'immobile come valido
-      if (!buyer.searchArea || !Array.isArray(buyer.searchArea) || buyer.searchArea.length < 3) {
-        console.log(`[Matching] L'acquirente ${buyer.id} non ha un poligono di ricerca valido`, 
-          buyer.searchArea ? `(${buyer.searchArea.length} punti)` : '(undefined)');
-        return true;
-      }
-      
       // Verifico che la posizione dell'immobile sia nel formato corretto
       if (!property.location || !property.location.lat || !property.location.lng) {
         console.log(`[Matching] L'immobile ${property.id} non ha una posizione valida:`, property.location);
@@ -69,20 +62,42 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
       // Creo un punto GeoJSON con la posizione dell'immobile [lng, lat]
       const immobilePoint = point([property.location.lng, property.location.lat]);
       
-      // Creo un poligono GeoJSON con l'area di ricerca del cliente
-      // Turf.js richiede che l'array di coordinate sia chiuso (primo e ultimo punto identici)
-      let searchAreaCoords = [...buyer.searchArea];
+      // Gestisci l'area di ricerca in formato GeoJSON o array semplice
+      let buyerPolygon;
       
-      // Verifica se il poligono è chiuso (il primo e l'ultimo punto devono coincidere)
-      const firstPoint = buyer.searchArea[0];
-      const lastPoint = buyer.searchArea[buyer.searchArea.length - 1];
-      
-      // Se il poligono non è chiuso, lo chiudiamo aggiungendo il primo punto alla fine
-      if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
-        searchAreaCoords.push(firstPoint);
+      if (buyer.searchArea && typeof buyer.searchArea === 'object') {
+        // Se è un oggetto GeoJSON Feature
+        if (buyer.searchArea.type === 'Feature' && buyer.searchArea.geometry) {
+          if (buyer.searchArea.geometry.type === 'Polygon' && buyer.searchArea.geometry.coordinates) {
+            // Usa direttamente le coordinate dal GeoJSON
+            buyerPolygon = polygon(buyer.searchArea.geometry.coordinates);
+          } else {
+            console.log(`[Matching] L'acquirente ${buyer.id} ha una geometria non supportata:`, buyer.searchArea.geometry.type);
+            return false;
+          }
+        } 
+        // Se è un array di coordinate
+        else if (Array.isArray(buyer.searchArea) && buyer.searchArea.length >= 3) {
+          let searchAreaCoords = [...buyer.searchArea];
+          
+          // Verifica se il poligono è chiuso (il primo e l'ultimo punto devono coincidere)
+          const firstPoint = buyer.searchArea[0];
+          const lastPoint = buyer.searchArea[buyer.searchArea.length - 1];
+          
+          // Se il poligono non è chiuso, lo chiudiamo aggiungendo il primo punto alla fine
+          if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
+            searchAreaCoords.push(firstPoint);
+          }
+          
+          buyerPolygon = polygon([searchAreaCoords]);
+        } else {
+          console.log(`[Matching] L'acquirente ${buyer.id} non ha un'area di ricerca valida:`, buyer.searchArea);
+          return false;
+        }
+      } else {
+        console.log(`[Matching] L'acquirente ${buyer.id} non ha definito un'area di ricerca`);
+        return false;
       }
-      
-      const buyerPolygon = polygon([searchAreaCoords]);
       
       // Eseguo il controllo con Turf.js
       const isInPolygon = booleanPointInPolygon(immobilePoint, buyerPolygon);
