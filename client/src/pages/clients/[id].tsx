@@ -105,19 +105,27 @@ export default function ClientDetailPage() {
     enabled: !isNaN(id) && client?.type === "buyer",
   });
   
-  // Fetch matching properties (per client compratori)
+  // Fetch matching properties (per client compratori) - CACHE DISABILITATA per debug
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
-    queryKey: [`/api/clients/${id}/matching-properties`],
+    queryKey: [`/api/clients/${id}/matching-properties`, Date.now()], // Aggiunge timestamp per evitare cache
     enabled: !isNaN(id) && client?.type === "buyer",
+    staleTime: 0, // I dati sono immediatamente considerati obsoleti
+    cacheTime: 0, // Non mantiene cache
+    refetchOnMount: true, // Ricarica sempre al mount
+    refetchOnWindowFocus: false,
     queryFn: async () => {
-      const response = await fetch(`/api/clients/${id}/matching-properties`);
+      console.log(`🔄 Caricamento matching properties per cliente ${id}...`);
+      const response = await fetch(`/api/clients/${id}/matching-properties?t=${Date.now()}`);
       if (!response.ok) {
         if (response.status === 400) {
+          console.log(`❌ Cliente ${id} non è un compratore`);
           return []; // Il cliente non è un compratore
         }
         throw new Error('Errore nel caricamento degli immobili compatibili');
       }
-      return response.json();
+      const data = await response.json();
+      console.log(`✅ Matching properties per cliente ${id}:`, data);
+      return data;
     }
   });
   
