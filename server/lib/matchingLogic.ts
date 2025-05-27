@@ -102,7 +102,16 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
       // Eseguo il controllo con Turf.js
       const isInPolygon = booleanPointInPolygon(immobilePoint, buyerPolygon);
       
-      console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione [${property.location.lng}, ${property.location.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id}`);
+      console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione [${property.location.lng}, ${property.location.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id || buyer.clientId}`);
+      
+      // Aggiungo logging dettagliato per debugging
+      if (!isInPolygon) {
+        console.log(`[Matching] DETTAGLI MATCH FALLITO - Immobile ${property.id}:`);
+        console.log(`  - Indirizzo: ${property.address}`);
+        console.log(`  - Coordinate: [${property.location.lng}, ${property.location.lat}]`);
+        console.log(`  - Acquirente: ${buyer.id || buyer.clientId}`);
+        console.log(`  - Area di ricerca:`, JSON.stringify(buyer.searchArea));
+      }
       
       return isInPolygon;
     } catch (error) {
