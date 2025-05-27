@@ -13,7 +13,7 @@ import {
   type SharedPropertyWithDetails
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, lt, and, or, gte, lte, like, not, isNull, SQL } from "drizzle-orm";
+import { eq, desc, lt, and, or, gte, lte, like, not, isNull, SQL, sql } from "drizzle-orm";
 import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
 
 // Storage interface with CRUD methods for all entities
@@ -2559,10 +2559,15 @@ export class DatabaseStorage implements IStorage {
     console.log(`[matchBuyersForProperty] Cercando acquirenti per immobile ${propertyId}: prezzo €${property.price}, dimensione ${property.size} mq`);
     
     // CORRETTO: La tolleranza deve essere applicata al budget del cliente, non al prezzo dell'immobile
-    // Un cliente con budget €600k dovrebbe vedere immobili fino a €600k, non dover avere budget €715k per un immobile da €650k
+    // Un cliente con budget €600k dovrebbe vedere immobili fino a €660k (600k * 1.1), non dover avere budget €715k per un immobile da €650k
+    
+    // Calcolo i limiti di tolleranza per una query più semplice
+    const maxPriceForTolerance = Math.floor(property.price / 1.1); // Prezzo minimo del budget cliente per vedere questo immobile
+    const minSizeForTolerance = Math.ceil(property.size / 0.9); // Dimensione massima richiesta dal cliente per accettare questo immobile
+    
+    console.log(`[matchBuyersForProperty] Cerco clienti con budget ≥ €${maxPriceForTolerance} e dimensione richiesta ≤ ${minSizeForTolerance} mq`);
     
     // Fase 1: Esegui un filtro preliminare nel database per dimensione e prezzo
-    // Questo riduce il numero di clienti da verificare per la posizione geografica
     const preliminaryMatches = await db
       .select()
       .from(buyers)
@@ -2572,13 +2577,13 @@ export class DatabaseStorage implements IStorage {
           eq(clients.type, "buyer"),
           or(
             isNull(buyers.maxPrice),
-            // CORRETTO: cliente con budget X può vedere immobili fino a X * 1.1
-            gte(sql`${buyers.maxPrice} * 1.1`, property.price)
+            // Cliente deve avere budget sufficiente per l'immobile (con tolleranza 10%)
+            gte(buyers.maxPrice, maxPriceForTolerance)
           ),
           or(
             isNull(buyers.minSize),
-            // CORRETTO: cliente che cerca min Y mq può accettare immobili da Y * 0.9 mq
-            lte(sql`${buyers.minSize} * 0.9`, property.size)
+            // Cliente deve accettare immobili di questa dimensione (con tolleranza 10%)
+            lte(buyers.minSize, minSizeForTolerance)
           )
         )
       );
