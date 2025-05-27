@@ -2114,37 +2114,75 @@ export class DatabaseStorage implements IStorage {
 
   async getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]> {
     const sharedProperty = await this.getSharedProperty(sharedPropertyId);
-    if (!sharedProperty) return [];
+    if (!sharedProperty || !sharedProperty.size || !sharedProperty.price) {
+      return [];
+    }
     
-    // Find buyers with matching criteria
-    const matchingBuyers = await db
+    // Crea un oggetto property temporaneo con le stesse proprietà della proprietà condivisa
+    // necessario per poter utilizzare la funzione isPropertyMatchingBuyerCriteria
+    const tempProperty: Property = {
+      id: -1, // ID temporaneo, non serve per il matching
+      address: sharedProperty.address,
+      city: sharedProperty.city,
+      price: sharedProperty.price,
+      size: sharedProperty.size,
+      type: sharedProperty.type || 'generic',
+      status: 'available',
+      location: sharedProperty.location,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isShared: true,
+      isOwned: false
+    };
+    
+    console.log(`[getMatchingBuyersForSharedProperty] Verifico matching per proprietà condivisa ${sharedPropertyId}`);
+    
+    const matchingBuyers: ClientWithDetails[] = [];
+    
+    // Esegui query per trovare potenziali compratori (filtro iniziale)
+    const potentialBuyers = await db
       .select()
       .from(buyers)
-      .innerJoin(clients, eq(buyers.clientId, clients.id))
       .where(
         and(
-          eq(clients.type, "buyer"),
           or(
             isNull(buyers.maxPrice),
-            gte(buyers.maxPrice, sharedProperty.price || 0)
+            gte(buyers.maxPrice, sharedProperty.price * 1.1) // Tolleranza 10% sul prezzo
           ),
           or(
             isNull(buyers.minSize),
-            lte(buyers.minSize, sharedProperty.size || 0)
+            lte(buyers.minSize, sharedProperty.size / 0.9) // Tolleranza 10% sulla dimensione
           )
         )
       );
     
-    // Get full client details for each matching buyer
-    const clientDetails: ClientWithDetails[] = [];
-    for (const match of matchingBuyers) {
-      const clientDetail = await this.getClientWithDetails(match.clients.id);
-      if (clientDetail) {
-        clientDetails.push(clientDetail);
+    console.log(`[getMatchingBuyersForSharedProperty] Trovati ${potentialBuyers.length} potenziali acquirenti (filtro preliminare)`);
+    
+    // Verifica ogni potenziale acquirente con i criteri completi, inclusa la posizione geografica
+    for (const buyer of potentialBuyers) {
+      const client = await this.getClientWithDetails(buyer.clientId);
+      if (client) {
+        console.log(`[getMatchingBuyersForSharedProperty] Verifico client ${client.id} (${client.firstName} ${client.lastName}) per proprietà condivisa ${sharedPropertyId}`);
+        
+        try {
+          // Verifica tutti i criteri, inclusa la posizione geografica
+          const isMatch = isPropertyMatchingBuyerCriteria(tempProperty, buyer);
+          console.log(`[getMatchingBuyersForSharedProperty] Risultato matching per ${client.firstName} ${client.lastName}: ${isMatch}`);
+          
+          if (isMatch) {
+            console.log(`[getMatchingBuyersForSharedProperty] ✓ Cliente ${client.id} (${client.firstName} ${client.lastName}) corrisponde alla proprietà condivisa ${sharedPropertyId}`);
+            matchingBuyers.push(client);
+          } else {
+            console.log(`[getMatchingBuyersForSharedProperty] ✗ Cliente ${client.id} (${client.firstName} ${client.lastName}) NON corrisponde alla proprietà condivisa ${sharedPropertyId}`);
+          }
+        } catch (error) {
+          console.error(`[getMatchingBuyersForSharedProperty] Errore nel controllo matching per ${client.firstName} ${client.lastName}:`, error);
+        }
       }
     }
     
-    return clientDetails;
+    console.log(`[getMatchingBuyersForSharedProperty] ${matchingBuyers.length} clienti corrispondono alla proprietà condivisa ${sharedPropertyId} dopo tutti i controlli`);
+    return matchingBuyers;
   }
 
   // Communication methods
