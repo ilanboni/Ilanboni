@@ -440,6 +440,24 @@ export default function ClientDetailPage() {
             
             <Button 
               variant="outline"
+              onClick={() => {
+                // Invalida la cache per aggiornare i dati
+                queryClient.invalidateQueries({
+                  queryKey: [`/api/clients/${id}/matching-properties`]
+                });
+                toast({
+                  title: "Dati aggiornati",
+                  description: "I possibili immobili sono stati ricaricati dal server.",
+                });
+              }}
+              className="gap-2"
+            >
+              <i className="fas fa-sync-alt"></i>
+              <span>Aggiorna dati</span>
+            </Button>
+            
+            <Button 
+              variant="outline"
               asChild
               className="gap-2"
             >
