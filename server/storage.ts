@@ -14,6 +14,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, and, or, gte, lte, like, not, isNull, SQL } from "drizzle-orm";
+import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
 
 // Storage interface with CRUD methods for all entities
 export interface IStorage {
@@ -1580,12 +1581,23 @@ export class MemStorage implements IStorage {
     
     // Verifica ogni potenziale acquirente con i criteri completi, inclusa la posizione geografica
     for (const buyer of potentialBuyers) {
-      // Verifica tutti i criteri, inclusa la posizione geografica
-      if (isPropertyMatchingBuyerCriteria(tempProperty, buyer)) {
-        const client = await this.getClientWithDetails(buyer.clientId);
-        if (client) {
-          console.log(`[getMatchingBuyersForSharedProperty] Cliente ${client.id} (${client.firstName} ${client.lastName}) corrisponde alla proprietà condivisa ${sharedPropertyId}`);
-          matchingBuyers.push(client);
+      const client = await this.getClientWithDetails(buyer.clientId);
+      if (client) {
+        console.log(`[getMatchingBuyersForSharedProperty] Verifico client ${client.id} (${client.firstName} ${client.lastName}) per proprietà condivisa ${sharedPropertyId}`);
+        
+        try {
+          // Verifica tutti i criteri, inclusa la posizione geografica
+          const isMatch = isPropertyMatchingBuyerCriteria(tempProperty, buyer);
+          console.log(`[getMatchingBuyersForSharedProperty] Risultato matching per ${client.firstName} ${client.lastName}: ${isMatch}`);
+          
+          if (isMatch) {
+            console.log(`[getMatchingBuyersForSharedProperty] ✓ Cliente ${client.id} (${client.firstName} ${client.lastName}) corrisponde alla proprietà condivisa ${sharedPropertyId}`);
+            matchingBuyers.push(client);
+          } else {
+            console.log(`[getMatchingBuyersForSharedProperty] ✗ Cliente ${client.id} (${client.firstName} ${client.lastName}) NON corrisponde alla proprietà condivisa ${sharedPropertyId}`);
+          }
+        } catch (error) {
+          console.error(`[getMatchingBuyersForSharedProperty] Errore nel controllo matching per ${client.firstName} ${client.lastName}:`, error);
         }
       }
     }
