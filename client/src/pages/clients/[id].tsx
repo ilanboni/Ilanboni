@@ -146,19 +146,27 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Fetch matching shared properties
+  // Fetch matching shared properties - CACHE DISABILITATA per debug
   const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
-    queryKey: [`/api/clients/${id}/matching-shared-properties`],
+    queryKey: [`/api/clients/${id}/matching-shared-properties`, Date.now()], // Aggiunge timestamp per evitare cache
     enabled: !isNaN(id) && client?.type === "buyer",
+    staleTime: 0, // I dati sono immediatamente considerati obsoleti
+    cacheTime: 0, // Non mantiene cache
+    refetchOnMount: true, // Ricarica sempre al mount
+    refetchOnWindowFocus: false,
     queryFn: async () => {
-      const response = await fetch(`/api/clients/${id}/matching-shared-properties`);
+      console.log(`🔄 Caricamento proprietà condivise compatibili per cliente ${id}...`);
+      const response = await fetch(`/api/clients/${id}/matching-shared-properties?t=${Date.now()}`);
       if (!response.ok) {
         if (response.status === 400) {
+          console.log(`❌ Cliente ${id} non è un compratore`);
           return []; // Il cliente non è un compratore
         }
         throw new Error('Errore nel caricamento delle proprietà condivise compatibili');
       }
-      return response.json();
+      const data = await response.json();
+      console.log(`✅ Proprietà condivise compatibili per cliente ${id}:`, data);
+      return data;
     }
   });
   
