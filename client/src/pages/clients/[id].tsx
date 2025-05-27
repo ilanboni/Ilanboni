@@ -431,7 +431,7 @@ export default function ClientDetailPage() {
               variant="outline" 
               asChild
             >
-              <Link href="/clients">
+              <Link to="/clients">
                 <div className="px-2 py-1">
                   <i className="fas fa-arrow-left mr-2"></i> Indietro
                 </div>
@@ -443,7 +443,7 @@ export default function ClientDetailPage() {
               asChild
               className="gap-2"
             >
-              <Link href={`/clients/${id}/edit`}>
+              <Link to={`/clients/edit/${id}`}>
                 <i className="fas fa-edit"></i>
                 <span>Modifica</span>
               </Link>
@@ -663,6 +663,66 @@ export default function ClientDetailPage() {
                       </CardContent>
                     </Card>
                     
+                    {/* Search Area Map */}
+                    {client.buyer.searchArea && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg">Area di Ricerca</CardTitle>
+                          <CardDescription>
+                            Zona geografica di interesse per l'acquisto
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-64 w-full rounded-lg overflow-hidden border">
+                            <MapContainer
+                              style={{ height: "100%", width: "100%" }}
+                              center={[45.464, 9.19]} // Centro di Milano
+                              zoom={13}
+                              scrollWheelZoom={false}
+                            >
+                              <TileLayer
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                              />
+                              {(() => {
+                                try {
+                                  console.log("Dati area di ricerca:", JSON.stringify(client.buyer.searchArea));
+                                  console.log("Tipo di searchArea:", typeof client.buyer.searchArea);
+                                  
+                                  let searchAreaData;
+                                  if (typeof client.buyer.searchArea === 'string') {
+                                    searchAreaData = JSON.parse(client.buyer.searchArea);
+                                  } else {
+                                    searchAreaData = client.buyer.searchArea;
+                                  }
+                                  
+                                  if (searchAreaData?.geometry?.coordinates?.[0]) {
+                                    // Converti coordinate da [lng, lat] a [lat, lng] per Leaflet
+                                    const coordinates = searchAreaData.geometry.coordinates[0].map((coord: number[]) => [coord[1], coord[0]]);
+                                    console.log("Coordinate estratte:", coordinates);
+                                    
+                                    return (
+                                      <Polygon
+                                        positions={coordinates}
+                                        pathOptions={{
+                                          color: "#3b82f6",
+                                          fillColor: "#3b82f6",
+                                          fillOpacity: 0.2,
+                                          weight: 2
+                                        }}
+                                      />
+                                    );
+                                  }
+                                } catch (error) {
+                                  console.error("Errore nel parsing dell'area di ricerca:", error);
+                                }
+                                return null;
+                              })()}
+                            </MapContainer>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
 
                   </>
                 )}
