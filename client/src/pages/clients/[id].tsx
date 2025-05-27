@@ -441,19 +441,30 @@ export default function ClientDetailPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Invalida la cache per aggiornare i dati
+                // Invalida tutte le cache correlate per forzare il refresh completo
                 queryClient.invalidateQueries({
                   queryKey: [`/api/clients/${id}/matching-properties`]
                 });
+                queryClient.invalidateQueries({
+                  queryKey: [`/api/clients/${id}/matching-shared-properties`]
+                });
+                queryClient.invalidateQueries({
+                  queryKey: [`/api/clients/${id}/properties-with-notification-status`]
+                });
+                // Forza il refetch immediato
+                queryClient.refetchQueries({
+                  queryKey: [`/api/clients/${id}/matching-properties`]
+                });
+                
                 toast({
-                  title: "Dati aggiornati",
-                  description: "I possibili immobili sono stati ricaricati dal server.",
+                  title: "Cache svuotata",
+                  description: "Tutti i dati degli immobili sono stati ricaricati dal server.",
                 });
               }}
               className="gap-2"
             >
               <i className="fas fa-sync-alt"></i>
-              <span>Aggiorna dati</span>
+              <span>Svuota cache</span>
             </Button>
             
             <Button 
