@@ -2556,11 +2556,10 @@ export class DatabaseStorage implements IStorage {
     const property = await this.getProperty(propertyId);
     if (!property) return [];
     
-    // Calcola il prezzo con tolleranza (+10%)
-    const priceWithTolerance = Math.floor(property.price * 1.1);
+    console.log(`[matchBuyersForProperty] Cercando acquirenti per immobile ${propertyId}: prezzo €${property.price}, dimensione ${property.size} mq`);
     
-    // Calcola la dimensione con tolleranza (-10%)
-    const sizeWithTolerance = Math.floor(property.size * 0.9);
+    // CORRETTO: La tolleranza deve essere applicata al budget del cliente, non al prezzo dell'immobile
+    // Un cliente con budget €600k dovrebbe vedere immobili fino a €600k, non dover avere budget €715k per un immobile da €650k
     
     // Fase 1: Esegui un filtro preliminare nel database per dimensione e prezzo
     // Questo riduce il numero di clienti da verificare per la posizione geografica
@@ -2573,11 +2572,13 @@ export class DatabaseStorage implements IStorage {
           eq(clients.type, "buyer"),
           or(
             isNull(buyers.maxPrice),
-            gte(buyers.maxPrice, priceWithTolerance) // Tolleranza 10% sul prezzo
+            // CORRETTO: cliente con budget X può vedere immobili fino a X * 1.1
+            gte(sql`${buyers.maxPrice} * 1.1`, property.price)
           ),
           or(
             isNull(buyers.minSize),
-            lte(buyers.minSize, sizeWithTolerance) // Tolleranza 10% sulla dimensione
+            // CORRETTO: cliente che cerca min Y mq può accettare immobili da Y * 0.9 mq
+            lte(sql`${buyers.minSize} * 0.9`, property.size)
           )
         )
       );
