@@ -53,7 +53,7 @@ interface SentPropertiesHistoryProps {
 }
 
 export default function SentPropertiesHistory({ clientId }: SentPropertiesHistoryProps) {
-  const { data: sentProperties, isLoading } = useQuery({
+  const { data: sentProperties, isLoading } = useQuery<SentProperty[]>({
     queryKey: [`/api/clients/${clientId}/sent-properties`],
     enabled: !!clientId,
   });
@@ -108,7 +108,7 @@ export default function SentPropertiesHistory({ clientId }: SentPropertiesHistor
     );
   }
 
-  if (!sentProperties || sentProperties.length === 0) {
+  if (!sentProperties || !Array.isArray(sentProperties) || sentProperties.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -133,11 +133,11 @@ export default function SentPropertiesHistory({ clientId }: SentPropertiesHistor
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
-          Immobili Inviati ({sentProperties.length})
+          Immobili Inviati ({sentProperties?.length || 0})
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {sentProperties.map((sent: SentProperty, index: number) => {
+        {sentProperties?.map((sent: SentProperty, index: number) => {
           // Determina quale immobile è stato inviato
           const isSharedProperty = !!sent.sharedPropertyId;
           const address = isSharedProperty ? sent.sharedPropertyAddress : sent.propertyAddress;
