@@ -472,49 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint per ottenere gli immobili inviati a un cliente
-  app.get("/api/clients/:id/sent-properties", async (req: Request, res: Response) => {
-    try {
-      const clientId = parseInt(req.params.id);
-      if (isNaN(clientId)) {
-        return res.status(400).json({ error: "ID cliente non valido" });
-      }
-      
-      const client = await storage.getClient(clientId);
-      if (!client) {
-        return res.status(404).json({ error: "Cliente non trovato" });
-      }
-      
-      // In questa versione semplificata, considera gli immobili inviati
-      // quelli menzionati nelle comunicazioni con il cliente
-      const communications = await storage.getCommunicationsByClientId(clientId);
-      
-      // Ottiene tutti gli immobili menzionati nelle comunicazioni
-      const propertyIds = Array.from(
-        new Set(
-          communications
-            .filter(c => c.propertyId !== null)
-            .map(c => c.propertyId)
-        )
-      );
-      
-      // Recupera i dettagli degli immobili
-      const sentProperties = [];
-      for (const propertyId of propertyIds) {
-        if (propertyId) {
-          const property = await storage.getProperty(propertyId);
-          if (property) {
-            sentProperties.push(property);
-          }
-        }
-      }
-      
-      res.json(sentProperties);
-    } catch (error) {
-      console.error(`[GET /api/clients/${req.params.id}/sent-properties]`, error);
-      res.status(500).json({ error: "Errore durante il recupero degli immobili inviati" });
-    }
-  });
+
   
   // API per gli immobili
   
@@ -2689,11 +2647,13 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
           propertyPrice: properties.price,
           propertySize: properties.size,
           propertyType: properties.type,
+          propertyLocation: properties.location,
           // Unisci dati dell'immobile condiviso
           sharedPropertyAddress: sharedProperties.address,
           sharedPropertyPrice: sharedProperties.price,
           sharedPropertySize: sharedProperties.size,
           sharedPropertyType: sharedProperties.type,
+          sharedPropertyLocation: sharedProperties.location,
         })
         .from(propertySent)
         .leftJoin(properties, eq(propertySent.propertyId, properties.id))
