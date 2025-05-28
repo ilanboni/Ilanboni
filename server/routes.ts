@@ -8,11 +8,15 @@ import {
   insertClientSchema,
   insertBuyerSchema,
   insertSellerSchema,
+  insertPropertySentSchema,
   clients,
   buyers,
   properties,
   sharedProperties,
-  communications
+  communications,
+  propertySent,
+  tasks,
+  type PropertySent
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "drizzle-orm";
@@ -2523,6 +2527,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+// === FUNZIONI DI UTILITÀ PER PROPERTY SENT TRACKING ===
+
+/**
+ * Calcola la data di reinvio aggiungendo 10 giorni lavorativi
+ * Evita sabati e domeniche
+ */
+function calculateResendDate(startDate: Date): Date {
+  const resendDate = new Date(startDate);
+  let workingDaysAdded = 0;
+  
+  while (workingDaysAdded < 10) {
+    resendDate.setDate(resendDate.getDate() + 1);
+    const dayOfWeek = resendDate.getDay(); // 0 = Domenica, 6 = Sabato
+    
+    // Se non è sabato (6) o domenica (0), conta come giorno lavorativo
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      workingDaysAdded++;
+    }
+  }
+  
+  return resendDate;
+}
+
+/**
+ * Crea un task per il reinvio automatico di un immobile
+ */
+async function createResendTask(propertySentRecord: PropertySent, resendDate: Date): Promise<any> {
+  try {
+    const client = await db.select().from(clients).where(eq(clients.id, propertySentRecord.clientId)).limit(1);
+    if (!client.length) return null;
+    
+    const propertyInfo = propertySentRecord.propertyId 
+      ? await db.select().from(properties).where(eq(properties.id, propertySentRecord.propertyId)).limit(1)
+      : await db.select().from(sharedProperties).where(eq(sharedProperties.id, propertySentRecord.sharedPropertyId!)).limit(1);
+    
+    if (!propertyInfo.length) return null;
+    
+    const [newTask] = await db.insert(tasks).values({
+      type: 'property_resend',
+      title: `Reinvio immobile a ${client[0].firstName} ${client[0].lastName}`,
+      description: `Reinviare automaticamente l'immobile ${propertyInfo[0].address} al cliente ${client[0].firstName} ${client[0].lastName} (messaggio originale del ${new Date(propertySentRecord.sentAt).toLocaleDateString('it-IT')})`,
+      clientId: propertySentRecord.clientId,
+      propertyId: propertySentRecord.propertyId,
+      sharedPropertyId: propertySentRecord.sharedPropertyId,
+      status: 'pending',
+      priority: 3,
+      dueDate: resendDate.toISOString().split('T')[0],
+      assignedTo: 1 // Assegnato all'agente predefinito
+    }).returning();
+    
+    return newTask;
+  } catch (error) {
+    console.error('Errore nella creazione del task di reinvio:', error);
+    return null;
+  }
+}
+
+/**
+ * Crea un task di follow-up in base al sentiment della risposta
+ */
+async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: string): Promise<void> {
+  try {
+    const client = await db.select().from(clients).where(eq(clients.id, propertySentRecord.clientId)).limit(1);
+    if (!client.length) return;
+    
+    const propertyInfo = propertySentRecord.propertyId 
+      ? await db.select().from(properties).where(eq(properties.id, propertySentRecord.propertyId)).limit(1)
+      : await db.select().from(sharedProperties).where(eq(sharedProperties.id, propertySentRecord.sharedPropertyId!)).limit(1);
+    
+    if (!propertyInfo.length) return;
+    
+    let taskData;
+    const dueDate = new Date();
+    
+    switch (sentiment) {
+      case 'positive':
+        // Cliente interessato - task urgente per organizzare visita
+        dueDate.setDate(dueDate.getDate() + 1); // Domani
+        taskData = {
+          type: 'client_follow_up',
+          title: `URGENTE: Cliente interessato a ${propertyInfo[0].address}`,
+          description: `Il cliente ${client[0].firstName} ${client[0].lastName} ha mostrato interesse per l'immobile ${propertyInfo[0].address}. Contattare per organizzare una visita o fornire maggiori informazioni.`,
+          clientId: propertySentRecord.clientId,
+          propertyId: propertySentRecord.propertyId,
+          sharedPropertyId: propertySentRecord.sharedPropertyId,
+          status: 'pending',
+          priority: 5, // Priorità alta
+          dueDate: dueDate.toISOString().split('T')[0],
+          assignedTo: 1
+        };
+        break;
+        
+      case 'negative':
+        // Cliente non interessato - task per risposta educata
+        dueDate.setDate(dueDate.getDate() + 2); // Dopodomani
+        taskData = {
+          type: 'client_response',
+          title: `Rispondere a feedback negativo di ${client[0].firstName} ${client[0].lastName}`,
+          description: `Il cliente ${client[0].firstName} ${client[0].lastName} ha espresso disinteresse per l'immobile ${propertyInfo[0].address}. Preparare una risposta educata e aggiornare le preferenze del cliente.`,
+          clientId: propertySentRecord.clientId,
+          propertyId: propertySentRecord.propertyId,
+          sharedPropertyId: propertySentRecord.sharedPropertyId,
+          status: 'pending',
+          priority: 2, // Priorità media
+          dueDate: dueDate.toISOString().split('T')[0],
+          assignedTo: 1
+        };
+        break;
+        
+      default:
+        // Risposta neutra - task per valutazione
+        dueDate.setDate(dueDate.getDate() + 3); // Tra 3 giorni
+        taskData = {
+          type: 'client_evaluation',
+          title: `Valutare risposta di ${client[0].firstName} ${client[0].lastName}`,
+          description: `Il cliente ${client[0].firstName} ${client[0].lastName} ha risposto in modo neutro riguardo l'immobile ${propertyInfo[0].address}. Valutare se contattare per chiarimenti.`,
+          clientId: propertySentRecord.clientId,
+          propertyId: propertySentRecord.propertyId,
+          sharedPropertyId: propertySentRecord.sharedPropertyId,
+          status: 'pending',
+          priority: 2, // Priorità media
+          dueDate: dueDate.toISOString().split('T')[0],
+          assignedTo: 1
+        };
+    }
+    
+    await db.insert(tasks).values(taskData);
+    console.log(`[FOLLOW-UP] Creato task di follow-up per sentiment ${sentiment}`);
+  } catch (error) {
+    console.error('Errore nella creazione del task di follow-up:', error);
+  }
+}
+
   const httpServer = createServer(app);
+  // === PROPERTY SENT TRACKING ===
+  
+  // Recupera immobili inviati per un cliente
+  app.get("/api/clients/:id/sent-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      console.log(`[API] Recupero immobili inviati per cliente ${clientId}`);
+      
+      const sentProperties = await db
+        .select({
+          id: propertySent.id,
+          propertyId: propertySent.propertyId,
+          sharedPropertyId: propertySent.sharedPropertyId,
+          sentAt: propertySent.sentAt,
+          messageType: propertySent.messageType,
+          messageContent: propertySent.messageContent,
+          clientResponseReceived: propertySent.clientResponseReceived,
+          responseContent: propertySent.responseContent,
+          responseSentiment: propertySent.responseSentiment,
+          responseAnalysis: propertySent.responseAnalysis,
+          responseReceivedAt: propertySent.responseReceivedAt,
+          resendScheduled: propertySent.resendScheduled,
+          resendAt: propertySent.resendAt,
+          // Unisci dati dell'immobile normale
+          propertyAddress: properties.address,
+          propertyPrice: properties.price,
+          propertySize: properties.size,
+          propertyType: properties.type,
+          // Unisci dati dell'immobile condiviso
+          sharedPropertyAddress: sharedProperties.address,
+          sharedPropertyPrice: sharedProperties.price,
+          sharedPropertySize: sharedProperties.size,
+          sharedPropertyType: sharedProperties.type,
+        })
+        .from(propertySent)
+        .leftJoin(properties, eq(propertySent.propertyId, properties.id))
+        .leftJoin(sharedProperties, eq(propertySent.sharedPropertyId, sharedProperties.id))
+        .where(eq(propertySent.clientId, clientId))
+        .orderBy(desc(propertySent.sentAt));
+
+      console.log(`[API] Trovati ${sentProperties.length} immobili inviati per cliente ${clientId}`);
+      res.json(sentProperties);
+    } catch (error) {
+      console.error("Errore nel recupero degli immobili inviati:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // Registra l'invio di un immobile a un cliente
+  app.post("/api/property-sent", async (req: Request, res: Response) => {
+    try {
+      const data = insertPropertySentSchema.parse(req.body);
+      console.log(`[API] Registrando invio immobile:`, data);
+
+      // Calcola la data di reinvio (10 giorni lavorativi dopo)
+      const resendDate = calculateResendDate(new Date());
+      
+      const [newPropertySent] = await db
+        .insert(propertySent)
+        .values({
+          ...data,
+          resendAt: resendDate,
+        })
+        .returning();
+
+      // Crea un task per il reinvio automatico se necessario
+      if (data.resendScheduled !== false) {
+        const resendTask = await createResendTask(newPropertySent, resendDate);
+        if (resendTask) {
+          await db
+            .update(propertySent)
+            .set({ resendTaskId: resendTask.id })
+            .where(eq(propertySent.id, newPropertySent.id));
+        }
+      }
+
+      res.json(newPropertySent);
+    } catch (error) {
+      console.error("Errore nella registrazione dell'invio:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // Aggiorna la risposta del cliente per un immobile inviato
+  app.patch("/api/property-sent/:id/response", async (req: Request, res: Response) => {
+    try {
+      const propertySentId = parseInt(req.params.id);
+      const { responseContent, responseSentiment, responseAnalysis } = req.body;
+      
+      console.log(`[API] Aggiornando risposta per immobile inviato ${propertySentId}`);
+
+      const [updatedPropertySent] = await db
+        .update(propertySent)
+        .set({
+          clientResponseReceived: true,
+          responseContent,
+          responseSentiment,
+          responseAnalysis,
+          responseReceivedAt: new Date(),
+          resendScheduled: false, // Disabilita il reinvio automatico
+        })
+        .where(eq(propertySent.id, propertySentId))
+        .returning();
+
+      // Cancella il task di reinvio se esiste
+      if (updatedPropertySent.resendTaskId) {
+        await db
+          .delete(tasks)
+          .where(eq(tasks.id, updatedPropertySent.resendTaskId));
+      }
+
+      // Crea un task di follow-up in base al sentiment
+      await createFollowUpTask(updatedPropertySent, responseSentiment);
+
+      res.json(updatedPropertySent);
+    } catch (error) {
+      console.error("Errore nell'aggiornamento della risposta:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
   return httpServer;
 }
