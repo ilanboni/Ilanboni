@@ -34,6 +34,7 @@ import { MapContainer, TileLayer, Polygon } from "react-leaflet";
 import { AIAssistantResponseModal } from "@/components/communications/AIAssistantResponseModal";
 import { useToast } from "@/hooks/use-toast";
 import PreferenceDetails from "@/components/clients/PreferenceDetails";
+import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
 import { 
   type ClientWithDetails, 
   type Communication,
