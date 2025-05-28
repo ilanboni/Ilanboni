@@ -29,6 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
 import { useToast } from "@/hooks/use-toast";
+import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -1261,7 +1262,8 @@ export default function ClientDetailPage() {
           
           {/* Immobili Inviati Tab */}
           <TabsContent value="sent-properties" className="space-y-6 mt-6">
-            <Card>
+            <SentPropertiesHistory clientId={id} />
+          </TabsContent>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle>Immobili Inviati</CardTitle>
