@@ -240,6 +240,28 @@ export const insertCommunicationPropertySchema = createInsertSchema(communicatio
   .omit({ id: true, createdAt: true });
 export const insertMarketInsightSchema = createInsertSchema(marketInsights).omit({ id: true, createdAt: true });
 
+// Tabella per tracciare gli immobili inviati ai clienti
+export const propertySent = pgTable("property_sent", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+  messageType: text("message_type").notNull(), // 'formal' | 'informal'
+  messageContent: text("message_content").notNull(),
+  clientResponseReceived: boolean("client_response_received").default(false),
+  responseContent: text("response_content"),
+  responseSentiment: text("response_sentiment"), // 'positive' | 'negative' | 'neutral'
+  responseAnalysis: text("response_analysis"), // Analisi dettagliata dell'IA
+  responseReceivedAt: timestamp("response_received_at"),
+  resendScheduled: boolean("resend_scheduled").default(true),
+  resendAt: timestamp("resend_at"), // Data programmata per il reinvio
+  resendTaskId: integer("resend_task_id").references(() => tasks.id),
+  communicationId: integer("communication_id").references(() => communications.id),
+});
+
+export const insertPropertySentSchema = createInsertSchema(propertySent).omit({ id: true, sentAt: true });
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -276,6 +298,9 @@ export type InsertCommunicationProperty = z.infer<typeof insertCommunicationProp
 
 export type MarketInsight = typeof marketInsights.$inferSelect;
 export type InsertMarketInsight = z.infer<typeof insertMarketInsightSchema>;
+
+export type PropertySent = typeof propertySent.$inferSelect;
+export type InsertPropertySent = z.infer<typeof insertPropertySentSchema>;
 
 // Custom types for front-end usage
 export type ClientWithDetails = Client & {
