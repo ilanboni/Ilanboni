@@ -594,11 +594,15 @@ export default function ClientDetailPage() {
                           const centerLat = coordinates.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / coordinates.length;
                           const centerLng = coordinates.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / coordinates.length;
                           
+                          console.log("🗺️ Centro calcolato:", { centerLat, centerLng });
+                          console.log("🔷 Poligono da visualizzare:", coordinates);
+                          
                           return (
                             <MapContainer
+                              key="search-area-map"
                               style={{ height: "100%", width: "100%" }}
                               center={[centerLat, centerLng]}
-                              zoom={14}
+                              zoom={15}
                               scrollWheelZoom={false}
                             >
                               <TileLayer
@@ -608,10 +612,11 @@ export default function ClientDetailPage() {
                               <Polygon
                                 positions={coordinates}
                                 pathOptions={{
-                                  color: "#3b82f6",
-                                  fillColor: "#3b82f6",
-                                  fillOpacity: 0.3,
-                                  weight: 3
+                                  color: "#ff0000",
+                                  fillColor: "#ff0000",
+                                  fillOpacity: 0.4,
+                                  weight: 4,
+                                  opacity: 1
                                 }}
                               />
                             </MapContainer>
