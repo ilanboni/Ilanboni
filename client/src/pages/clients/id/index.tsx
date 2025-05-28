@@ -573,51 +573,69 @@ export default function ClientDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="h-64 w-full rounded-lg overflow-hidden border">
-                    <MapContainer
-                      style={{ height: "100%", width: "100%" }}
-                      center={[45.464, 9.19]} // Centro di Milano
-                      zoom={13}
-                      scrollWheelZoom={false}
-                    >
-                      <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      />
-                      {(() => {
-                        try {
-                          console.log("Dati area di ricerca:", JSON.stringify(client.buyer.searchArea));
-                          console.log("Tipo di searchArea:", typeof client.buyer.searchArea);
+                    {(() => {
+                      try {
+                        console.log("Dati area di ricerca:", JSON.stringify(client.buyer.searchArea));
+                        console.log("Tipo di searchArea:", typeof client.buyer.searchArea);
+                        
+                        let searchAreaData;
+                        if (typeof client.buyer.searchArea === 'string') {
+                          searchAreaData = JSON.parse(client.buyer.searchArea);
+                        } else {
+                          searchAreaData = client.buyer.searchArea;
+                        }
+                        
+                        if (searchAreaData?.geometry?.coordinates?.[0]) {
+                          // Converti coordinate da [lng, lat] a [lat, lng] per Leaflet
+                          const coordinates = searchAreaData.geometry.coordinates[0].map((coord: number[]) => [coord[1], coord[0]]);
+                          console.log("Coordinate estratte:", coordinates);
                           
-                          let searchAreaData;
-                          if (typeof client.buyer.searchArea === 'string') {
-                            searchAreaData = JSON.parse(client.buyer.searchArea);
-                          } else {
-                            searchAreaData = client.buyer.searchArea;
-                          }
+                          // Calcola il centro del poligono
+                          const centerLat = coordinates.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / coordinates.length;
+                          const centerLng = coordinates.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / coordinates.length;
                           
-                          if (searchAreaData?.geometry?.coordinates?.[0]) {
-                            // Converti coordinate da [lng, lat] a [lat, lng] per Leaflet
-                            const coordinates = searchAreaData.geometry.coordinates[0].map((coord: number[]) => [coord[1], coord[0]]);
-                            console.log("Coordinate estratte:", coordinates);
-                            
-                            return (
+                          return (
+                            <MapContainer
+                              style={{ height: "100%", width: "100%" }}
+                              center={[centerLat, centerLng]}
+                              zoom={14}
+                              scrollWheelZoom={false}
+                            >
+                              <TileLayer
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                              />
                               <Polygon
                                 positions={coordinates}
                                 pathOptions={{
                                   color: "#3b82f6",
                                   fillColor: "#3b82f6",
-                                  fillOpacity: 0.2,
-                                  weight: 2
+                                  fillOpacity: 0.3,
+                                  weight: 3
                                 }}
                               />
-                            );
-                          }
-                        } catch (error) {
-                          console.error("Errore nel parsing dell'area di ricerca:", error);
+                            </MapContainer>
+                          );
                         }
-                        return null;
-                      })()}
-                    </MapContainer>
+                      } catch (error) {
+                        console.error("Errore nel parsing dell'area di ricerca:", error);
+                      }
+                      
+                      // Fallback per quando non c'è un'area di ricerca valida
+                      return (
+                        <MapContainer
+                          style={{ height: "100%", width: "100%" }}
+                          center={[45.464, 9.19]} // Centro di Milano
+                          zoom={13}
+                          scrollWheelZoom={false}
+                        >
+                          <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          />
+                        </MapContainer>
+                      );
+                    })()}
                   </div>
                   <div className="mt-2 flex justify-center">
                     <Button 
