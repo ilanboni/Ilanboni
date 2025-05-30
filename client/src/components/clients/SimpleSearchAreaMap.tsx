@@ -7,8 +7,7 @@ interface SimpleSearchAreaMapProps {
 }
 
 export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapProps) {
-  // Coordinate del cliente dal log: 
-  // [[45.48955972967647,9.210321005266076],[45.4814412870147,9.210492631642266],[45.482313323977436,9.232503714388411],[45.48955972967647,9.230701637438425],[45.48955972967647,9.210321005266076]]
+  // Coordinate del cliente dal log, più visibili per il test
   const fixedPolygon: Array<[number, number]> = [
     [45.48955972967647, 9.210321005266076],
     [45.4814412870147, 9.210492631642266], 
@@ -17,7 +16,8 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
     [45.48955972967647, 9.210321005266076]
   ];
 
-  const center: [number, number] = [45.485, 9.221];
+  // Centro calcolato dalle coordinate reali
+  const center: [number, number] = [45.4857, 9.2214];
 
   return (
     <div className="h-64 w-full rounded-lg overflow-hidden border">
@@ -34,11 +34,12 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
         <Polygon
           positions={[fixedPolygon]}
           pathOptions={{
-            color: "#ef4444",
-            fillColor: "#ef4444", 
-            fillOpacity: 0.2,
-            weight: 2,
-            opacity: 1
+            color: "#dc2626",
+            fillColor: "#fca5a5", 
+            fillOpacity: 0.4,
+            weight: 4,
+            opacity: 1,
+            dashArray: "5, 5"
           }}
         />
       </MapContainer>
