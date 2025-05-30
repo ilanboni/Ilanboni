@@ -1,0 +1,139 @@
+Perfetto! Vedo che la mappa si carica correttamente (Milano con OpenStreetMap), quindi il problema è specifico al poligono. Facciamo un debug più aggressivo.
+
+## 🔧 Test di Debug Sistematico
+
+### 1. Prima cosa: Test Hardcoded Immediato
+
+Modifica temporaneamente il componente mappa e aggiungi questo PRIMA del tuo Polygon esistente:
+
+```tsx
+{/* TEST POLYGON - aggiungi questo temporaneamente */}
+<Polygon 
+  positions={[[[45.4640, 9.1896], [45.4740, 9.1996], [45.4540, 9.1996], [45.4640, 9.1896]]]}
+  pathOptions={{ 
+    color: '#ff0000',
+    fillColor: '#ff0000', 
+    fillOpacity: 0.8,
+    weight: 10,
+    opacity: 1 
+  }} 
+/>
+```
+
+**Se questo appare**: il problema sono i tuoi dati
+**Se non appare**: il problema è nell'import/setup di Leaflet
+
+### 2. Controllo Import e Versioni
+
+Verifica che nel tuo file hai tutti questi import:
+
+```tsx
+import { MapContainer, TileLayer, Polygon } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+```
+
+E nel `package.json` controlla le versioni:
+
+```json
+{
+  "react-leaflet": "^4.0.0",
+  "leaflet": "^1.9.0"
+}
+```
+
+### 3. Debug dei Dati - Console Log Completo
+
+Aggiungi questi log nel componente:
+
+```tsx
+// All'inizio del componente
+console.log("=== MAPPA DEBUG ===");
+console.log("coordinates:", coordinates);
+console.log("coordinates type:", typeof coordinates);
+console.log("coordinates length:", coordinates?.length);
+console.log("defaultPolygon:", defaultPolygon);
+console.log("polygonToShow:", polygonToShow);
+
+// Se polygonToShow ha elementi
+if (polygonToShow && polygonToShow.length > 0) {
+  console.log("First point:", polygonToShow[0]);
+  console.log("Last point:", polygonToShow[polygonToShow.length - 1]);
+  
+  // Verifica che ogni punto sia valido
+  polygonToShow.forEach((point, index) => {
+    if (!Array.isArray(point) || point.length !== 2) {
+      console.error(`❌ Invalid point at index ${index}:`, point);
+    } else {
+      console.log(`✅ Point ${index}: [${point[0]}, ${point[1]}]`);
+    }
+  });
+}
+```
+
+### 4. Controllo Browser DevTools
+
+Apri F12 e:
+
+1. **Console**: Copia qui tutti i log che vedi
+2. **Elements**: Cerca `<path` o `polygon` nel DOM - dovrebbero esserci elementi SVG se il poligono è renderizzato
+3. **Network**: Verifica che non ci siano errori 404
+
+### 5. Test con React Developer Tools
+
+Se hai React DevTools, ispeziona il componente `Polygon` e verifica:
+- Che riceva effettivamente le `positions`
+- Che le `pathOptions` siano corrette
+
+### 6. Versione Semplificata Completamente Isolata
+
+Crea un file di test separato (`TestMap.tsx`):
+
+```tsx
+import React from 'react';
+import { MapContainer, TileLayer, Polygon } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+
+const TestMap = () => {
+  const testPolygon = [
+    [45.4640, 9.1896],
+    [45.4740, 9.1996], 
+    [45.4540, 9.1996],
+    [45.4640, 9.1896]
+  ];
+
+  return (
+    <div style={{ height: '400px', width: '100%' }}>
+      <MapContainer 
+        center={[45.4640, 9.1896]} 
+        zoom={13} 
+        style={{ height: '100%', width: '100%' }}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Polygon 
+          positions={[testPolygon]}
+          pathOptions={{ 
+            color: 'red',
+            fillColor: 'red', 
+            fillOpacity: 0.5,
+            weight: 5,
+            opacity: 1 
+          }} 
+        />
+      </MapContainer>
+    </div>
+  );
+};
+
+export default TestMap;
+```
+
+E usa questo componente al posto della tua mappa attuale.
+
+## 🚨 Domande per Te
+
+1. **Quale versione di react-leaflet stai usando?**
+2. **Il test hardcoded (punto 1) mostra il poligono?**
+3. **Cosa mostrano i console.log?**
+4. **Ci sono errori nella console del browser?**
+
+Fammi sapere i risultati di questi test e potremo identificare esattamente dove sta il problema!​​​​​​​​​​​​​​​​

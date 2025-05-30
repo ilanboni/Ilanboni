@@ -43,11 +43,22 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
+        {/* TEST POLYGON - per debug */}
+        <Polygon 
+          positions={[[[45.4640, 9.1896], [45.4740, 9.1996], [45.4540, 9.1996], [45.4640, 9.1896]]]}
+          pathOptions={{ 
+            color: '#ff0000',
+            fillColor: '#ff0000', 
+            fillOpacity: 0.8,
+            weight: 10,
+            opacity: 1 
+          }} 
+        />
         <Polygon
           positions={[testPolygon]}
           pathOptions={{
-            color: "#ff0000",
-            fillColor: "#ff0000", 
+            color: "#0000ff",
+            fillColor: "#0000ff", 
             fillOpacity: 0.5,
             weight: 5,
             opacity: 1
