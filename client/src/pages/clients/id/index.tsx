@@ -30,7 +30,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/comp
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
 import { useToast } from "@/hooks/use-toast";
 import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
-import SearchAreaMap from "@/components/clients/SearchAreaMap";
+import SimpleSearchAreaMap from "@/components/clients/SimpleSearchAreaMap";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -81,17 +81,14 @@ export default function ClientDetailPage() {
     refetchInterval: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      console.log('🔄 Caricamento matching properties per cliente', id);
       const response = await fetch(`/api/clients/${id}/matching-properties`);
       if (!response.ok) {
         if (response.status === 400) {
-          return []; // Il cliente non è un compratore
+          return [];
         }
         throw new Error('Errore nel caricamento degli immobili compatibili');
       }
-      const data = await response.json();
-      console.log('✅ Matching properties per cliente', id, data);
-      return data;
+      return response.json();
     }
   });
   
@@ -126,17 +123,14 @@ export default function ClientDetailPage() {
     refetchOnMount: false,
     refetchOnReconnect: false,
     queryFn: async () => {
-      console.log('🔄 Caricamento proprietà condivise compatibili per cliente', id);
       const response = await fetch(`/api/clients/${id}/matching-shared-properties`);
       if (!response.ok) {
         if (response.status === 400) {
-          return []; // Il cliente non è un compratore
+          return [];
         }
         throw new Error('Errore nel caricamento delle proprietà condivise compatibili');
       }
-      const data = await response.json();
-      console.log('✅ Proprietà condivise compatibili per cliente', id, data);
-      return data;
+      return response.json();
     }
   });
   
@@ -590,7 +584,7 @@ export default function ClientDetailPage() {
                   <CardDescription>Zona geografica di interesse per l'acquisto</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <SearchAreaMap searchArea={client.buyer.searchArea} />
+                  <SimpleSearchAreaMap searchArea={client.buyer.searchArea} />
                   <div className="mt-2 flex justify-center">
                     <Button 
                       variant="outline" 
