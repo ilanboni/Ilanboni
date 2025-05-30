@@ -571,7 +571,26 @@ export default function ClientDetailPage() {
                   <CardDescription>Zona geografica di interesse per l'acquisto</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <SearchAreaMap searchArea={client.buyer.searchArea} />
+                  {client.buyer.searchArea ? (
+                    <div className="h-64 w-full rounded-lg overflow-hidden border bg-gray-100 flex items-center justify-center">
+                      <div className="text-center p-4">
+                        <div className="text-2xl mb-2">🗺️</div>
+                        <h3 className="font-medium text-gray-700 mb-1">Area di Ricerca Definita</h3>
+                        <p className="text-sm text-gray-600">L'area di ricerca del cliente è stata configurata</p>
+                        <div className="mt-3 text-xs text-gray-500">
+                          Coordinate: {JSON.stringify(client.buyer.searchArea).substring(0, 50)}...
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-64 w-full rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
+                      <div className="text-center p-4 text-gray-500">
+                        <div className="text-2xl mb-2">📍</div>
+                        <h3 className="font-medium mb-1">Nessuna Area di Ricerca</h3>
+                        <p className="text-sm">Non è stata ancora definita un'area di ricerca per questo cliente</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-2 flex justify-center">
                     <Button 
                       variant="outline" 
