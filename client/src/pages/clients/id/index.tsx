@@ -73,11 +73,11 @@ export default function ClientDetailPage() {
     enabled: !isNaN(id),
   });
   
-  // Fetch matching properties (per client compratori)
+  // Fetch matching properties (per client compratori) - TEMPORANEAMENTE DISABILITATO
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-properties`],
-    enabled: !isNaN(id) && client?.type === "buyer",
-    staleTime: Infinity, // Non refresh automatico
+    enabled: false, // Temporaneamente disabilitato per fermare il loop
+    staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -101,9 +101,11 @@ export default function ClientDetailPage() {
   const { data: propertiesWithNotifications, isLoading: isPropertiesWithNotificationsLoading, refetch: refetchPropertiesWithNotifications } = useQuery({
     queryKey: [`/api/clients/${id}/properties-with-notification-status`],
     enabled: !isNaN(id) && client?.type === "buyer",
-    staleTime: 5 * 60 * 1000, // 5 minuti
+    staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
     queryFn: async () => {
       const response = await fetch(`/api/clients/${id}/properties-with-notification-status`);
       if (!response.ok) {
@@ -116,11 +118,11 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Fetch matching shared properties
+  // Fetch matching shared properties - TEMPORANEAMENTE DISABILITATO
   const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-shared-properties`],
-    enabled: !isNaN(id) && client?.type === "buyer",
-    staleTime: Infinity, // Non refresh automatico
+    enabled: false, // Temporaneamente disabilitato per fermare il loop
+    staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,

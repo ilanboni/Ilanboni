@@ -38,10 +38,13 @@ export default function SearchAreaMap({ searchArea }: SearchAreaMapProps) {
         const centerLng = coords.reduce((sum: number, coord: [number, number]) => sum + coord[1], 0) / coords.length;
         
         console.log("🎯 Centro calcolato:", { centerLat, centerLng });
-        console.log("🔷 Coordinate del poligono:", coords);
+        console.log("🔷 Coordinate del poligono per Leaflet:", coords);
+        console.log("🔷 Numero di coordinate:", coords.length);
         
         setCoordinates(coords);
         setCenter([centerLat, centerLng]);
+      } else {
+        console.error("❌ Struttura dati searchArea non valida:", searchAreaData);
       }
     } catch (error) {
       console.error("❌ Errore nel parsing dell'area di ricerca:", error);
@@ -62,17 +65,21 @@ export default function SearchAreaMap({ searchArea }: SearchAreaMapProps) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         {coordinates.length > 0 && (
-          <Polygon
-            positions={coordinates}
-            pathOptions={{
-              color: "#ff0000",
-              fillColor: "#ff0000",
-              fillOpacity: 0.4,
-              weight: 4,
-              opacity: 1
-            }}
-          />
+          <>
+            <Polygon
+              positions={coordinates}
+              pathOptions={{
+                color: "#ff0000",
+                fillColor: "#ff0000",
+                fillOpacity: 0.4,
+                weight: 4,
+                opacity: 1
+              }}
+            />
+            {console.log("🎨 Rendering Polygon con", coordinates.length, "coordinate")}
+          </>
         )}
+        {coordinates.length === 0 && console.log("❌ Nessuna coordinata disponibile per il poligono")}
       </MapContainer>
     </div>
   );
