@@ -1,81 +1,83 @@
 import { MapContainer, TileLayer, Polygon } from "react-leaflet";
 import { useEffect, useState } from "react";
 import "leaflet/dist/leaflet.css";
-import type { LatLngExpression } from "leaflet";
 
 interface SearchAreaMapProps {
   searchArea: any;
 }
 
 export default function SearchAreaMap({ searchArea }: SearchAreaMapProps) {
-  const [coordinates, setCoordinates] = useState<LatLngExpression[]>([]);
-  const [center, setCenter] = useState<[number, number]>([45.464, 9.19]);
+  const [polygonCoords, setPolygonCoords] = useState<Array<[number, number]>>([]);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([45.464, 9.19]);
+  const [hasValidData, setHasValidData] = useState(false);
 
   useEffect(() => {
+    if (!searchArea) {
+      setHasValidData(false);
+      return;
+    }
+
     try {
-      console.log("🗺️ SearchAreaMap - Dati ricevuti:", searchArea);
-      
-      if (!searchArea) {
-        console.log("❌ Nessun searchArea fornito");
-        return;
-      }
-
-      let searchAreaData;
+      let areaData = searchArea;
       if (typeof searchArea === 'string') {
-        searchAreaData = JSON.parse(searchArea);
-      } else {
-        searchAreaData = searchArea;
+        areaData = JSON.parse(searchArea);
       }
 
-      console.log("📍 SearchAreaData processato:", searchAreaData);
-
-      if (searchAreaData?.geometry?.coordinates?.[0]) {
-        // Converti coordinate da [lng, lat] a [lat, lng] per Leaflet
-        const coords = searchAreaData.geometry.coordinates[0].map((coord: number[]) => [coord[1], coord[0]] as [number, number]);
+      if (areaData?.geometry?.coordinates?.[0]) {
+        // Converti da GeoJSON [lng, lat] a Leaflet [lat, lng]
+        const leafletCoords: Array<[number, number]> = areaData.geometry.coordinates[0].map(
+          (coord: number[]) => [coord[1], coord[0]]
+        );
         
-        // Calcola il centro del poligono
-        const centerLat = coords.reduce((sum: number, coord: [number, number]) => sum + coord[0], 0) / coords.length;
-        const centerLng = coords.reduce((sum: number, coord: [number, number]) => sum + coord[1], 0) / coords.length;
+        // Calcola centro per centrare la mappa
+        const avgLat = leafletCoords.reduce((sum, coord) => sum + coord[0], 0) / leafletCoords.length;
+        const avgLng = leafletCoords.reduce((sum, coord) => sum + coord[1], 0) / leafletCoords.length;
         
-        console.log("🎯 Centro calcolato:", { centerLat, centerLng });
-        console.log("🔷 Coordinate del poligono per Leaflet:", coords);
-        console.log("🔷 Numero di coordinate:", coords.length);
-        
-        setCoordinates(coords);
-        setCenter([centerLat, centerLng]);
+        setPolygonCoords(leafletCoords);
+        setMapCenter([avgLat, avgLng]);
+        setHasValidData(true);
       } else {
-        console.error("❌ Struttura dati searchArea non valida:", searchAreaData);
+        setHasValidData(false);
       }
     } catch (error) {
-      console.error("❌ Errore nel parsing dell'area di ricerca:", error);
+      console.error("Errore nel parsing dell'area di ricerca:", error);
+      setHasValidData(false);
     }
   }, [searchArea]);
+
+  if (!hasValidData) {
+    return (
+      <div className="h-64 w-full rounded-lg border bg-gray-50 flex items-center justify-center">
+        <div className="text-center text-gray-500">
+          <div className="text-2xl mb-2">📍</div>
+          <p className="text-sm">Area di ricerca non definita</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-64 w-full rounded-lg overflow-hidden border">
       <MapContainer
-        key={`map-${coordinates.length}`}
+        center={mapCenter}
+        zoom={14}
         style={{ height: "100%", width: "100%" }}
-        center={center}
-        zoom={15}
         scrollWheelZoom={false}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        {coordinates.length > 0 && (
-          <Polygon
-            positions={coordinates}
-            pathOptions={{
-              color: "#ff0000",
-              fillColor: "#ff0000",
-              fillOpacity: 0.4,
-              weight: 4,
-              opacity: 1
-            }}
-          />
-        )}
+        <Polygon
+          positions={polygonCoords}
+          pathOptions={{
+            color: "#dc2626",
+            fillColor: "#dc2626", 
+            fillOpacity: 0.3,
+            weight: 3,
+            opacity: 0.8
+          }}
+        />
       </MapContainer>
     </div>
   );
