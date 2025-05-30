@@ -61,7 +61,7 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <Polygon
-          positions={polygonToShow}
+          positions={[polygonToShow]}
           pathOptions={{
             color: "#ef4444",
             fillColor: "#ef4444", 
