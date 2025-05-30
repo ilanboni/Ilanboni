@@ -1,27 +1,58 @@
 import { MapContainer, TileLayer, Polygon } from "react-leaflet";
+import { useEffect, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
 interface SimpleSearchAreaMapProps {
   searchArea: any;
 }
 
-// Coordinate di test per Milano
-const TEST_POLYGON: Array<[number, number]> = [
-  [45.4895, 9.2103],
-  [45.4814, 9.2105], 
-  [45.4823, 9.2325],
-  [45.4896, 9.2307],
-  [45.4895, 9.2103]
-];
-
 export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapProps) {
-  const mapCenter: [number, number] = [45.485, 9.221];
+  const [coordinates, setCoordinates] = useState<Array<[number, number]>>([]);
+  const [center, setCenter] = useState<[number, number]>([45.464, 9.19]);
+
+  useEffect(() => {
+    if (!searchArea) return;
+
+    try {
+      let areaData = searchArea;
+      if (typeof searchArea === 'string') {
+        areaData = JSON.parse(searchArea);
+      }
+
+      if (areaData?.geometry?.coordinates?.[0]) {
+        // Converte coordinate da GeoJSON [lng, lat] a Leaflet [lat, lng]
+        const coords: Array<[number, number]> = areaData.geometry.coordinates[0].map(
+          (coord: number[]) => [coord[1], coord[0]]
+        );
+        
+        // Calcola centro
+        const avgLat = coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
+        const avgLng = coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
+        
+        setCoordinates(coords);
+        setCenter([avgLat, avgLng]);
+      }
+    } catch (error) {
+      console.error("Errore parsing area di ricerca:", error);
+    }
+  }, [searchArea]);
+
+  // Se non ci sono coordinate, mostra un poligono di default
+  const defaultPolygon: Array<[number, number]> = [
+    [45.489, 9.210],
+    [45.481, 9.210], 
+    [45.482, 9.232],
+    [45.490, 9.231],
+    [45.489, 9.210]
+  ];
+
+  const polygonToShow = coordinates.length > 0 ? coordinates : defaultPolygon;
 
   return (
     <div className="h-64 w-full rounded-lg overflow-hidden border">
       <MapContainer
-        center={mapCenter}
-        zoom={14}
+        center={center}
+        zoom={13}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={false}
       >
@@ -30,13 +61,13 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <Polygon
-          positions={TEST_POLYGON}
+          positions={polygonToShow}
           pathOptions={{
-            color: "#dc2626",
-            fillColor: "#dc2626", 
-            fillOpacity: 0.3,
-            weight: 3,
-            opacity: 0.8
+            color: "#ef4444",
+            fillColor: "#ef4444", 
+            fillOpacity: 0.2,
+            weight: 2,
+            opacity: 1
           }}
         />
       </MapContainer>
