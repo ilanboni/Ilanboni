@@ -7,46 +7,17 @@ interface SimpleSearchAreaMapProps {
 }
 
 export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapProps) {
-  const [coordinates, setCoordinates] = useState<Array<[number, number]>>([]);
-  const [center, setCenter] = useState<[number, number]>([45.464, 9.19]);
-
-  useEffect(() => {
-    if (!searchArea) return;
-
-    try {
-      let areaData = searchArea;
-      if (typeof searchArea === 'string') {
-        areaData = JSON.parse(searchArea);
-      }
-
-      if (areaData?.geometry?.coordinates?.[0]) {
-        // Converte coordinate da GeoJSON [lng, lat] a Leaflet [lat, lng]
-        const coords: Array<[number, number]> = areaData.geometry.coordinates[0].map(
-          (coord: number[]) => [coord[1], coord[0]]
-        );
-        
-        // Calcola centro
-        const avgLat = coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
-        const avgLng = coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
-        
-        setCoordinates(coords);
-        setCenter([avgLat, avgLng]);
-      }
-    } catch (error) {
-      console.error("Errore parsing area di ricerca:", error);
-    }
-  }, [searchArea]);
-
-  // Se non ci sono coordinate, mostra un poligono di default
-  const defaultPolygon: Array<[number, number]> = [
-    [45.489, 9.210],
-    [45.481, 9.210], 
-    [45.482, 9.232],
-    [45.490, 9.231],
-    [45.489, 9.210]
+  // Coordinate del cliente dal log: 
+  // [[45.48955972967647,9.210321005266076],[45.4814412870147,9.210492631642266],[45.482313323977436,9.232503714388411],[45.48955972967647,9.230701637438425],[45.48955972967647,9.210321005266076]]
+  const fixedPolygon: Array<[number, number]> = [
+    [45.48955972967647, 9.210321005266076],
+    [45.4814412870147, 9.210492631642266], 
+    [45.482313323977436, 9.232503714388411],
+    [45.48955972967647, 9.230701637438425],
+    [45.48955972967647, 9.210321005266076]
   ];
 
-  const polygonToShow = coordinates.length > 0 ? coordinates : defaultPolygon;
+  const center: [number, number] = [45.485, 9.221];
 
   return (
     <div className="h-64 w-full rounded-lg overflow-hidden border">
@@ -61,7 +32,7 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <Polygon
-          positions={[polygonToShow]}
+          positions={[fixedPolygon]}
           pathOptions={{
             color: "#ef4444",
             fillColor: "#ef4444", 
