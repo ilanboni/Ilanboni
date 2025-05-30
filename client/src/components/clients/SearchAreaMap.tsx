@@ -12,7 +12,10 @@ export default function SearchAreaMap({ searchArea }: SearchAreaMapProps) {
   const [hasValidData, setHasValidData] = useState(false);
 
   useEffect(() => {
+    console.log("🔍 [SearchAreaMap] Inizializzazione con searchArea:", searchArea);
+    
     if (!searchArea) {
+      console.log("❌ [SearchAreaMap] Nessun searchArea fornito");
       setHasValidData(false);
       return;
     }
@@ -20,27 +23,38 @@ export default function SearchAreaMap({ searchArea }: SearchAreaMapProps) {
     try {
       let areaData = searchArea;
       if (typeof searchArea === 'string') {
+        console.log("📝 [SearchAreaMap] Parsing JSON string");
         areaData = JSON.parse(searchArea);
       }
 
+      console.log("📊 [SearchAreaMap] Dati area processati:", areaData);
+
       if (areaData?.geometry?.coordinates?.[0]) {
+        console.log("✅ [SearchAreaMap] Coordinate trovate:", areaData.geometry.coordinates[0]);
+        
         // Converti da GeoJSON [lng, lat] a Leaflet [lat, lng]
         const leafletCoords: Array<[number, number]> = areaData.geometry.coordinates[0].map(
           (coord: number[]) => [coord[1], coord[0]]
         );
         
+        console.log("🗺️ [SearchAreaMap] Coordinate Leaflet:", leafletCoords);
+        
         // Calcola centro per centrare la mappa
         const avgLat = leafletCoords.reduce((sum, coord) => sum + coord[0], 0) / leafletCoords.length;
         const avgLng = leafletCoords.reduce((sum, coord) => sum + coord[1], 0) / leafletCoords.length;
         
+        console.log("📍 [SearchAreaMap] Centro mappa calcolato:", [avgLat, avgLng]);
+        
         setPolygonCoords(leafletCoords);
         setMapCenter([avgLat, avgLng]);
         setHasValidData(true);
+        console.log("✅ [SearchAreaMap] Setup completato con successo");
       } else {
+        console.log("❌ [SearchAreaMap] Coordinate non valide o mancanti");
         setHasValidData(false);
       }
     } catch (error) {
-      console.error("Errore nel parsing dell'area di ricerca:", error);
+      console.error("❌ [SearchAreaMap] Errore nel parsing dell'area di ricerca:", error);
       setHasValidData(false);
     }
   }, [searchArea]);

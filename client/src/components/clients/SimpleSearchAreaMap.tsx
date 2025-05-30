@@ -16,6 +16,58 @@ interface SimpleSearchAreaMapProps {
 }
 
 export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapProps) {
+  const [polygonCoords, setPolygonCoords] = useState<Array<[number, number]>>([]);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([45.4640, 9.1896]);
+  const [hasValidData, setHasValidData] = useState(false);
+
+  useEffect(() => {
+    console.log("🔍 [SimpleSearchAreaMap] Inizializzazione con searchArea:", searchArea);
+    
+    if (!searchArea) {
+      console.log("❌ [SimpleSearchAreaMap] Nessun searchArea fornito");
+      setHasValidData(false);
+      return;
+    }
+
+    try {
+      let areaData = searchArea;
+      if (typeof searchArea === 'string') {
+        console.log("📝 [SimpleSearchAreaMap] Parsing JSON string");
+        areaData = JSON.parse(searchArea);
+      }
+
+      console.log("📊 [SimpleSearchAreaMap] Dati area processati:", areaData);
+
+      if (areaData?.geometry?.coordinates?.[0]) {
+        console.log("✅ [SimpleSearchAreaMap] Coordinate trovate:", areaData.geometry.coordinates[0]);
+        
+        // Converti da GeoJSON [lng, lat] a Leaflet [lat, lng]
+        const leafletCoords: Array<[number, number]> = areaData.geometry.coordinates[0].map(
+          (coord: number[]) => [coord[1], coord[0]]
+        );
+        
+        console.log("🗺️ [SimpleSearchAreaMap] Coordinate Leaflet:", leafletCoords);
+        
+        // Calcola centro per centrare la mappa
+        const avgLat = leafletCoords.reduce((sum, coord) => sum + coord[0], 0) / leafletCoords.length;
+        const avgLng = leafletCoords.reduce((sum, coord) => sum + coord[1], 0) / leafletCoords.length;
+        
+        console.log("📍 [SimpleSearchAreaMap] Centro mappa calcolato:", [avgLat, avgLng]);
+        
+        setPolygonCoords(leafletCoords);
+        setMapCenter([avgLat, avgLng]);
+        setHasValidData(true);
+        console.log("✅ [SimpleSearchAreaMap] Setup completato con successo");
+      } else {
+        console.log("❌ [SimpleSearchAreaMap] Coordinate non valide o mancanti");
+        setHasValidData(false);
+      }
+    } catch (error) {
+      console.error("❌ [SimpleSearchAreaMap] Errore nel parsing dell'area di ricerca:", error);
+      setHasValidData(false);
+    }
+  }, [searchArea]);
+
   // Poligono di test per Milano - hardcoded per debug
   const testPolygon: Array<[number, number]> = [
     [45.4640, 9.1896],  // Centro Milano
@@ -25,16 +77,14 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
     [45.4640, 9.1796]   // Nord-Ovest
   ];
 
-  // Centro Milano
-  const center: [number, number] = [45.4640, 9.1896];
-
   console.log("🗺️ Test polygon:", testPolygon);
-  console.log("🗺️ Final positions for Leaflet:", [testPolygon]);
+  console.log("🗺️ Real polygon coords:", polygonCoords);
+  console.log("🗺️ Has valid data:", hasValidData);
 
   return (
     <div className="h-64 w-full rounded-lg overflow-hidden border">
       <MapContainer
-        center={center}
+        center={mapCenter}
         zoom={13}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={false}
@@ -43,6 +93,21 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
+        
+        {/* Poligono reale dell'area di ricerca del cliente */}
+        {hasValidData && polygonCoords.length > 0 && (
+          <Polygon
+            positions={polygonCoords}
+            pathOptions={{
+              color: "#22c55e",
+              fillColor: "#22c55e", 
+              fillOpacity: 0.3,
+              weight: 3,
+              opacity: 0.8
+            }}
+          />
+        )}
+        
         {/* TEST POLYGON - per debug */}
         <Polygon 
           positions={[[[45.4640, 9.1896], [45.4740, 9.1996], [45.4540, 9.1996], [45.4640, 9.1896]]]}
@@ -64,7 +129,8 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
             opacity: 1
           }}
         />
-        <Marker position={center}>
+        
+        <Marker position={mapCenter}>
           <Popup>Centro area di ricerca</Popup>
         </Marker>
       </MapContainer>
