@@ -1,0 +1,127 @@
+Capisco la frustrazione! Se la soluzione dell'array wrapper non ha risolto, ci sono altre possibili cause. Facciamo un debug sistematico per identificare il problema reale.
+
+## 🔍 Debug Step-by-Step
+
+### 1. Verifica le Coordinate Raw
+
+Prima aggiungi dei `console.log` per vedere cosa sta succedendo:
+
+```tsx
+// Nel componente dove renderizzi la mappa
+console.log("🗺️ Coordinates raw:", coordinates);
+console.log("🗺️ Default polygon:", defaultPolygon);
+console.log("🗺️ Polygon to show:", polygonToShow);
+console.log("🗺️ Final positions:", [polygonToShow]);
+```
+
+### 2. Verifica il Formato delle Coordinate
+
+Le coordinate devono essere `[latitudine, longitudine]`. Se hai `[longitudine, latitudine]`, il poligono sarà invisibile. Aggiungi questo check:
+
+```tsx
+// Controlla il primo punto
+if (polygonToShow.length > 0) {
+  const firstPoint = polygonToShow[0];
+  console.log("🔍 First point:", firstPoint);
+  console.log("🔍 Lat (should be ~45 for Italy):", firstPoint[0]);
+  console.log("🔍 Lng (should be ~9 for Italy):", firstPoint[1]);
+}
+```
+
+### 3. Forza un Poligono di Test
+
+Sostituisci temporaneamente il tuo poligono con coordinate hardcoded per Milano:
+
+```tsx
+// Poligono di test per Milano
+const testPolygon = [
+  [45.4640, 9.1896],  // Centro Milano
+  [45.4740, 9.1996],  // Nord-Est
+  [45.4540, 9.1996],  // Sud-Est  
+  [45.4540, 9.1796],  // Sud-Ovest
+  [45.4640, 9.1796]   // Nord-Ovest
+];
+
+// Usa questo per il test
+<Polygon 
+  positions={[testPolygon]}
+  pathOptions={{ 
+    color: "#ff0000",     // Rosso vivo
+    fillColor: "#ff0000", 
+    fillOpacity: 0.5,     // Più opaco per vedere meglio
+    weight: 5,            // Bordo più spesso
+    opacity: 1 
+  }} 
+/>
+```
+
+### 4. Controlla i Bounds della Mappa
+
+La mappa potrebbe essere centrata nel posto sbagliato. Aggiungi questo per centrare automaticamente:
+
+```tsx
+// Calcola i bounds del poligono e centra la mappa
+useEffect(() => {
+  if (polygonToShow.length > 0 && mapRef.current) {
+    const bounds = L.latLngBounds(polygonToShow);
+    mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+  }
+}, [polygonToShow]);
+```
+
+### 5. Verifica la Console Browser
+
+Apri gli strumenti sviluppatore (F12) e controlla:
+- **Console**: errori JavaScript
+- **Network**: se le tile della mappa si caricano
+- **Elements**: se il Polygon viene renderizzato nel DOM
+
+## 🚨 Possibili Cause Comuni
+
+**A. Coordinate invertite**
+```tsx
+// ❌ Sbagliato (lng, lat)
+[9.1896, 45.4640]
+
+// ✅ Corretto (lat, lng)  
+[45.4640, 9.1896]
+```
+
+**B. Array vuoto**
+```tsx
+// Se coordinates è vuoto, potresti non avere fallback
+const polygonToShow = coordinates.length > 0 ? coordinates : defaultPolygon;
+```
+
+**C. Z-index del Polygon**
+```tsx
+<Polygon 
+  positions={[polygonToShow]}
+  pathOptions={{ 
+    // ... altri options
+    className: 'search-polygon' // Aggiungi una classe CSS
+  }} 
+/>
+```
+
+## 💡 Soluzione Rapida di Test
+
+Crea un componente temporaneo super semplice:
+
+```tsx
+const TestPolygon = () => {
+  return (
+    <MapContainer center={[45.4640, 9.1896]} zoom={12} style={{ height: '400px' }}>
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <Polygon 
+        positions={[[[45.4640, 9.1896], [45.4740, 9.1996], [45.4540, 9.1996], [45.4540, 9.1796]]]}
+        pathOptions={{ color: 'red', weight: 5, opacity: 1, fillOpacity: 0.5 }}
+      />
+    </MapContainer>
+  );
+};
+```
+
+Se questo funziona, il problema è nei tuoi dati. Se non funziona, il problema è nell'setup di Leaflet.
+
+Puoi condividere i risultati dei console.log e dirmi cosa vedi? Così possiamo restringere il problema!​​​​​​​​​​​​​​​​

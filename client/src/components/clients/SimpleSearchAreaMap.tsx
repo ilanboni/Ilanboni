@@ -16,17 +16,20 @@ interface SimpleSearchAreaMapProps {
 }
 
 export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapProps) {
-  // Coordinate del cliente dal log, più visibili per il test
-  const fixedPolygon: Array<[number, number]> = [
-    [45.48955972967647, 9.210321005266076],
-    [45.4814412870147, 9.210492631642266], 
-    [45.482313323977436, 9.232503714388411],
-    [45.48955972967647, 9.230701637438425],
-    [45.48955972967647, 9.210321005266076]
+  // Poligono di test per Milano - hardcoded per debug
+  const testPolygon: Array<[number, number]> = [
+    [45.4640, 9.1896],  // Centro Milano
+    [45.4740, 9.1996],  // Nord-Est
+    [45.4540, 9.1996],  // Sud-Est  
+    [45.4540, 9.1796],  // Sud-Ovest
+    [45.4640, 9.1796]   // Nord-Ovest
   ];
 
-  // Centro calcolato dalle coordinate reali
-  const center: [number, number] = [45.4857, 9.2214];
+  // Centro Milano
+  const center: [number, number] = [45.4640, 9.1896];
+
+  console.log("🗺️ Test polygon:", testPolygon);
+  console.log("🗺️ Final positions for Leaflet:", [testPolygon]);
 
   return (
     <div className="h-64 w-full rounded-lg overflow-hidden border">
@@ -41,14 +44,13 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <Polygon
-          positions={[fixedPolygon]}
+          positions={[testPolygon]}
           pathOptions={{
-            color: "#dc2626",
-            fillColor: "#fca5a5", 
-            fillOpacity: 0.4,
-            weight: 4,
-            opacity: 1,
-            dashArray: "5, 5"
+            color: "#ff0000",
+            fillColor: "#ff0000", 
+            fillOpacity: 0.5,
+            weight: 5,
+            opacity: 1
           }}
         />
         <Marker position={center}>
