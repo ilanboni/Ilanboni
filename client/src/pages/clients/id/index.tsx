@@ -30,8 +30,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/comp
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
 import { useToast } from "@/hooks/use-toast";
 import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
-import { MapContainer, TileLayer, Polygon } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import SearchAreaMap from "@/components/clients/SearchAreaMap";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -572,76 +571,7 @@ export default function ClientDetailPage() {
                   <CardDescription>Zona geografica di interesse per l'acquisto</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64 w-full rounded-lg overflow-hidden border">
-                    {(() => {
-                      try {
-                        console.log("Dati area di ricerca:", JSON.stringify(client.buyer.searchArea));
-                        console.log("Tipo di searchArea:", typeof client.buyer.searchArea);
-                        
-                        let searchAreaData;
-                        if (typeof client.buyer.searchArea === 'string') {
-                          searchAreaData = JSON.parse(client.buyer.searchArea);
-                        } else {
-                          searchAreaData = client.buyer.searchArea;
-                        }
-                        
-                        if (searchAreaData?.geometry?.coordinates?.[0]) {
-                          // Converti coordinate da [lng, lat] a [lat, lng] per Leaflet
-                          const coordinates = searchAreaData.geometry.coordinates[0].map((coord: number[]) => [coord[1], coord[0]]);
-                          console.log("Coordinate estratte:", coordinates);
-                          
-                          // Calcola il centro del poligono
-                          const centerLat = coordinates.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / coordinates.length;
-                          const centerLng = coordinates.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / coordinates.length;
-                          
-                          console.log("🗺️ Centro calcolato:", { centerLat, centerLng });
-                          console.log("🔷 Poligono da visualizzare:", coordinates);
-                          
-                          return (
-                            <MapContainer
-                              key="search-area-map"
-                              style={{ height: "100%", width: "100%" }}
-                              center={[centerLat, centerLng]}
-                              zoom={15}
-                              scrollWheelZoom={false}
-                            >
-                              <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                              />
-                              <Polygon
-                                positions={coordinates}
-                                pathOptions={{
-                                  color: "#ff0000",
-                                  fillColor: "#ff0000",
-                                  fillOpacity: 0.4,
-                                  weight: 4,
-                                  opacity: 1
-                                }}
-                              />
-                            </MapContainer>
-                          );
-                        }
-                      } catch (error) {
-                        console.error("Errore nel parsing dell'area di ricerca:", error);
-                      }
-                      
-                      // Fallback per quando non c'è un'area di ricerca valida
-                      return (
-                        <MapContainer
-                          style={{ height: "100%", width: "100%" }}
-                          center={[45.464, 9.19]} // Centro di Milano
-                          zoom={13}
-                          scrollWheelZoom={false}
-                        >
-                          <TileLayer
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                          />
-                        </MapContainer>
-                      );
-                    })()}
-                  </div>
+                  <SearchAreaMap searchArea={client.buyer.searchArea} />
                   <div className="mt-2 flex justify-center">
                     <Button 
                       variant="outline" 
