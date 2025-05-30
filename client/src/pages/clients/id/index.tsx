@@ -77,10 +77,13 @@ export default function ClientDetailPage() {
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
-    staleTime: 5 * 60 * 1000, // 5 minuti
+    staleTime: Infinity, // Non refresh automatico
     refetchInterval: false,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
     queryFn: async () => {
+      console.log('🔄 Caricamento matching properties per cliente', id);
       const response = await fetch(`/api/clients/${id}/matching-properties`);
       if (!response.ok) {
         if (response.status === 400) {
@@ -88,7 +91,9 @@ export default function ClientDetailPage() {
         }
         throw new Error('Errore nel caricamento degli immobili compatibili');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('✅ Matching properties per cliente', id, data);
+      return data;
     }
   });
   
@@ -115,10 +120,13 @@ export default function ClientDetailPage() {
   const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-shared-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
-    staleTime: 5 * 60 * 1000, // 5 minuti
+    staleTime: Infinity, // Non refresh automatico
     refetchInterval: false,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
     queryFn: async () => {
+      console.log('🔄 Caricamento proprietà condivise compatibili per cliente', id);
       const response = await fetch(`/api/clients/${id}/matching-shared-properties`);
       if (!response.ok) {
         if (response.status === 400) {
@@ -126,7 +134,9 @@ export default function ClientDetailPage() {
         }
         throw new Error('Errore nel caricamento delle proprietà condivise compatibili');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('✅ Proprietà condivise compatibili per cliente', id, data);
+      return data;
     }
   });
   
