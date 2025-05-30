@@ -77,6 +77,9 @@ export default function ClientDetailPage() {
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
+    staleTime: 5 * 60 * 1000, // 5 minuti
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const response = await fetch(`/api/clients/${id}/matching-properties`);
       if (!response.ok) {
@@ -93,6 +96,9 @@ export default function ClientDetailPage() {
   const { data: propertiesWithNotifications, isLoading: isPropertiesWithNotificationsLoading, refetch: refetchPropertiesWithNotifications } = useQuery({
     queryKey: [`/api/clients/${id}/properties-with-notification-status`],
     enabled: !isNaN(id) && client?.type === "buyer",
+    staleTime: 5 * 60 * 1000, // 5 minuti
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const response = await fetch(`/api/clients/${id}/properties-with-notification-status`);
       if (!response.ok) {
@@ -109,6 +115,9 @@ export default function ClientDetailPage() {
   const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-shared-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
+    staleTime: 5 * 60 * 1000, // 5 minuti
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const response = await fetch(`/api/clients/${id}/matching-shared-properties`);
       if (!response.ok) {
@@ -402,7 +411,7 @@ export default function ClientDetailPage() {
         </div>
         
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
+          <TabsList className="w-full grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
             <TabsTrigger value="overview">Panoramica</TabsTrigger>
             <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
             <TabsTrigger value="appointments">Appuntamenti</TabsTrigger>
