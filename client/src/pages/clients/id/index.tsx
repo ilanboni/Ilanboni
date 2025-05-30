@@ -73,15 +73,13 @@ export default function ClientDetailPage() {
     enabled: !isNaN(id),
   });
   
-  // Fetch matching properties (per client compratori) - TEMPORANEAMENTE DISABILITATO
+  // Fetch matching properties (per client compratori)
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-properties`],
-    enabled: false, // Temporaneamente disabilitato per fermare il loop
-    staleTime: Infinity,
+    enabled: false, // Disabilitato temporaneamente
+    staleTime: 10 * 60 * 1000,
     refetchInterval: false,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
     queryFn: async () => {
       console.log('🔄 Caricamento matching properties per cliente', id);
       const response = await fetch(`/api/clients/${id}/matching-properties`);
@@ -121,7 +119,7 @@ export default function ClientDetailPage() {
   // Fetch matching shared properties - TEMPORANEAMENTE DISABILITATO
   const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-shared-properties`],
-    enabled: false, // Temporaneamente disabilitato per fermare il loop
+    enabled: false, // Disabilitato temporaneamente
     staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,

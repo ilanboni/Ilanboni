@@ -65,21 +65,17 @@ export default function SearchAreaMap({ searchArea }: SearchAreaMapProps) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         {coordinates.length > 0 && (
-          <>
-            <Polygon
-              positions={coordinates}
-              pathOptions={{
-                color: "#ff0000",
-                fillColor: "#ff0000",
-                fillOpacity: 0.4,
-                weight: 4,
-                opacity: 1
-              }}
-            />
-            {console.log("🎨 Rendering Polygon con", coordinates.length, "coordinate")}
-          </>
+          <Polygon
+            positions={coordinates}
+            pathOptions={{
+              color: "#ff0000",
+              fillColor: "#ff0000",
+              fillOpacity: 0.4,
+              weight: 4,
+              opacity: 1
+            }}
+          />
         )}
-        {coordinates.length === 0 && console.log("❌ Nessuna coordinata disponibile per il poligono")}
       </MapContainer>
     </div>
   );
