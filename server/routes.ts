@@ -2861,5 +2861,137 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  app.post("/api/appointment-confirmations/:id/create-client", async (req: Request, res: Response) => {
+    try {
+      const confirmationId = parseInt(req.params.id);
+      
+      // Recupera la conferma
+      const [confirmation] = await db
+        .select()
+        .from(appointmentConfirmations)
+        .where(eq(appointmentConfirmations.id, confirmationId));
+      
+      if (!confirmation) {
+        return res.status(404).json({ error: "Conferma appuntamento non trovata" });
+      }
+      
+      // Cerca l'immobile corrispondente all'indirizzo
+      const properties = await db.select().from(properties);
+      const targetProperty = properties.find(prop => 
+        prop.address.toLowerCase().includes(confirmation.address.toLowerCase().split(',')[0].trim())
+      );
+      
+      if (!targetProperty) {
+        return res.status(404).json({ error: "Immobile non trovato per l'indirizzo specificato" });
+      }
+      
+      // Estrae il nome dall'intestazione
+      const firstName = confirmation.salutation.includes("cara") || confirmation.salutation.includes("caro") || confirmation.salutation.includes("ciao") 
+        ? confirmation.lastName 
+        : ""; // Per titoli formali, il nome non è specificato
+      
+      // Crea il cliente
+      const [newClient] = await db
+        .insert(clients)
+        .values({
+          type: "buyer",
+          salutation: confirmation.salutation,
+          firstName: firstName,
+          lastName: confirmation.lastName,
+          phone: confirmation.phone,
+          email: null,
+          isFriend: confirmation.salutation.includes("caro") || confirmation.salutation.includes("cara") || confirmation.salutation.includes("ciao"),
+          birthday: null,
+          religion: null,
+          contractType: null,
+          notes: `Cliente creato automaticamente dalla conferma appuntamento. Interessato all'immobile in ${targetProperty.address}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      // Crea il buyer con le preferenze basate sull'immobile target
+      const [newBuyer] = await db
+        .insert(buyers)
+        .values({
+          clientId: newClient.id,
+          minPrice: Math.max(0, targetProperty.price - 100000), // Range di prezzo ±100k
+          maxPrice: targetProperty.price + 100000,
+          minSize: Math.max(0, targetProperty.size - 20), // Range metratura ±20mq
+          maxSize: targetProperty.size + 20,
+          propertyType: targetProperty.type,
+          bedrooms: targetProperty.bedrooms,
+          bathrooms: targetProperty.bathrooms,
+          energyClass: targetProperty.energyClass,
+          searchArea: JSON.stringify({
+            center: targetProperty.location,
+            radius: 600 // 600 metri come richiesto
+          }),
+          notes: `Preferenze automatiche basate sull'immobile di interesse: ${targetProperty.address}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      // Crea task per la visita
+      const visitDate = new Date();
+      // Prova a parsare la data dell'appuntamento per impostare la data corretta
+      if (confirmation.appointmentDate.includes("oggi")) {
+        // Data di oggi
+      } else if (confirmation.appointmentDate.includes("domani")) {
+        visitDate.setDate(visitDate.getDate() + 1);
+      }
+      
+      const [visitTask] = await db
+        .insert(tasks)
+        .values({
+          title: `Visita fissata - ${confirmation.lastName}`,
+          description: `Visita all'immobile in ${targetProperty.address} fissata per ${confirmation.appointmentDate}`,
+          type: "visit",
+          status: "pending",
+          priority: "medium",
+          dueDate: visitDate.toISOString(),
+          clientId: newClient.id,
+          propertyId: targetProperty.id,
+          assignedTo: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      // Crea task di follow-up per il feedback (2 ore dopo la visita)
+      const feedbackDate = new Date(visitDate);
+      feedbackDate.setHours(feedbackDate.getHours() + 2);
+      
+      const [feedbackTask] = await db
+        .insert(tasks)
+        .values({
+          title: `Follow-up feedback - ${confirmation.lastName}`,
+          description: `Raccogliere feedback dalla visita all'immobile in ${targetProperty.address}`,
+          type: "follow-up",
+          status: "pending", 
+          priority: "high",
+          dueDate: feedbackDate.toISOString(),
+          clientId: newClient.id,
+          propertyId: targetProperty.id,
+          assignedTo: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      res.json({
+        client: newClient,
+        buyer: newBuyer,
+        tasks: [visitTask, feedbackTask],
+        property: targetProperty
+      });
+      
+    } catch (error) {
+      console.error("Errore nella creazione del cliente dalla conferma:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
   return httpServer;
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Send, Trash2, MessageSquare, Clock } from "lucide-react";
+import { Plus, Send, Trash2, MessageSquare, Clock, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -109,6 +109,27 @@ export default function AppointmentConfirmationsPage() {
       toast({
         title: "Errore",
         description: error.message || "Errore nell'eliminazione della conferma",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create client mutation
+  const createClientMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/appointment-confirmations/${id}/create-client`, {
+      method: "POST",
+    }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointment-confirmations"] });
+      toast({
+        title: "Cliente creato",
+        description: `Cliente ${data.client.lastName} creato con successo con ${data.tasks.length} task associati`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nella creazione del cliente",
         variant: "destructive",
       });
     },
@@ -344,6 +365,16 @@ export default function AppointmentConfirmationsPage() {
                               Invia
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => createClientMutation.mutate(confirmation.id)}
+                            disabled={createClientMutation.isPending}
+                            className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                          >
+                            <UserPlus className="h-4 w-4 mr-1" />
+                            {createClientMutation.isPending ? "Creando..." : "Crea cliente"}
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
