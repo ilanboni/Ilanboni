@@ -2893,19 +2893,12 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       const targetProperty = propertiesList.find(prop => {
         const propComponents = extractAddressComponents(prop.address);
         
-        // Debug logging
-        console.log(`Confronto indirizzo: "${searchAddress}" con "${prop.address}"`);
-        console.log(`Componenti ricerca: [${searchComponents.join(', ')}]`);
-        console.log(`Componenti proprietà: [${propComponents.join(', ')}]`);
-        
         // Controlla se almeno 2 componenti chiave corrispondono
         const matches = searchComponents.filter(comp => 
           propComponents.some(propComp => 
             propComp.includes(comp) || comp.includes(propComp)
           )
         );
-        
-        console.log(`Match trovati: [${matches.join(', ')}] (${matches.length}/2)`);
         
         return matches.length >= 2;
       });
