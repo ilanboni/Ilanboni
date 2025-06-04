@@ -2799,8 +2799,21 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         return res.status(400).json({ error: "Conferma già inviata" });
       }
       
+      // Funzione per convertire il saluto
+      const getSalutationText = (salutation: string) => {
+        const salutations: Record<string, string> = {
+          "egr_dott": "Egr. Dott.",
+          "gentma_sigra": "Gent.ma Sig.ra",
+          "egr_avvto": "Egr. Avv.to",
+          "caro": "Caro",
+          "cara": "Cara",
+          "ciao": "Ciao"
+        };
+        return salutations[salutation] || salutation;
+      };
+
       // Crea il messaggio di conferma
-      const message = `${confirmation.salutation} ${confirmation.lastName}, le confermo appuntamento di ${confirmation.appointmentDate}, in viale Abruzzi 78. La ringrazio. Ilan Boni - Cavour Immobiliare`;
+      const message = `${getSalutationText(confirmation.salutation)} ${confirmation.lastName}, le confermo appuntamento di ${confirmation.appointmentDate}, in ${confirmation.address || "viale Abruzzi 78"}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
       
       // Invia il messaggio WhatsApp
       const ultraMsgClient = getUltraMsgClient();

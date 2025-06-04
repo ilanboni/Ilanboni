@@ -333,10 +333,11 @@ export type SharedPropertyWithDetails = SharedProperty & {
 // Tabella per la gestione delle conferme appuntamenti
 export const appointmentConfirmations = pgTable("appointment_confirmations", {
   id: serial("id").primaryKey(),
-  salutation: text("salutation").notNull(), // "Egr. Dott." | "Gent.ma Sig.ra" etc
+  salutation: text("salutation").notNull(), // "egr_dott", "gentma_sigra", etc
   lastName: text("last_name").notNull(),
   phone: text("phone").notNull(),
   appointmentDate: text("appointment_date").notNull(), // Data e ora dell'appuntamento
+  address: text("address").notNull().default("viale Abruzzi 78"), // Indirizzo dell'appuntamento
   sent: boolean("sent").default(false),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),

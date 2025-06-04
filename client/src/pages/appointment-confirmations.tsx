@@ -37,7 +37,8 @@ export default function AppointmentConfirmationsPage() {
     salutation: "",
     lastName: "",
     phone: "",
-    appointmentDate: ""
+    appointmentDate: "",
+    address: "viale Abruzzi 78"
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -56,7 +57,7 @@ export default function AppointmentConfirmationsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointment-confirmations"] });
       setIsDialogOpen(false);
-      setFormData({ salutation: "", lastName: "", phone: "", appointmentDate: "" });
+      setFormData({ salutation: "", lastName: "", phone: "", appointmentDate: "", address: "viale Abruzzi 78" });
       toast({
         title: "Conferma aggiunta",
         description: "La conferma appuntamento è stata aggiunta con successo",
@@ -252,6 +253,16 @@ export default function AppointmentConfirmationsPage() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="address">Indirizzo appuntamento</Label>
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange("address", e.target.value)}
+                    placeholder="Inserisci indirizzo dell'appuntamento"
+                  />
+                </div>
+
                 <DialogFooter>
                   <Button type="submit" disabled={createConfirmationMutation.isPending}>
                     {createConfirmationMutation.isPending ? "Creazione..." : "Crea Conferma"}
@@ -296,6 +307,7 @@ export default function AppointmentConfirmationsPage() {
                     <TableHead>Cognome</TableHead>
                     <TableHead>Telefono</TableHead>
                     <TableHead>Data e Ora</TableHead>
+                    <TableHead>Indirizzo</TableHead>
                     <TableHead>Stato</TableHead>
                     <TableHead>Azioni</TableHead>
                   </TableRow>
