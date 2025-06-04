@@ -2876,8 +2876,8 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       }
       
       // Cerca l'immobile corrispondente all'indirizzo
-      const properties = await db.select().from(properties);
-      const targetProperty = properties.find(prop => 
+      const propertiesList = await db.select().from(properties);
+      const targetProperty = propertiesList.find(prop => 
         prop.address.toLowerCase().includes(confirmation.address.toLowerCase().split(',')[0].trim())
       );
       
