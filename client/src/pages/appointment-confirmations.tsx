@@ -319,6 +319,7 @@ export default function AppointmentConfirmationsPage() {
                       <TableCell className="font-medium">{confirmation.lastName}</TableCell>
                       <TableCell>{confirmation.phone}</TableCell>
                       <TableCell>{confirmation.appointmentDate}</TableCell>
+                      <TableCell>{confirmation.address}</TableCell>
                       <TableCell>
                         {confirmation.sent ? (
                           <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
