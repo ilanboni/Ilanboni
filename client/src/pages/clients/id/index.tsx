@@ -367,7 +367,7 @@ export default function ClientDetailPage() {
             
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
-                {client?.salutation} {client?.firstName} {client?.lastName}
+                {client?.firstName} {client?.lastName}
               </h1>
               <div className="flex items-center mt-1 space-x-2">
                 {formatClientType(client?.type || "")}
