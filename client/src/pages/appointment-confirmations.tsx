@@ -51,7 +51,7 @@ export default function AppointmentConfirmationsPage() {
   const createConfirmationMutation = useMutation({
     mutationFn: (data: typeof formData) => apiRequest("/api/appointment-confirmations", {
       method: "POST",
-      body: JSON.stringify(data),
+      data: data,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointment-confirmations"] });
@@ -140,11 +140,12 @@ export default function AppointmentConfirmationsPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date) => {
     try {
-      return format(new Date(dateString), "dd/MM/yyyy HH:mm", { locale: it });
+      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+      return format(date, "dd/MM/yyyy HH:mm", { locale: it });
     } catch {
-      return dateString;
+      return typeof dateString === 'string' ? dateString : dateString.toString();
     }
   };
 
