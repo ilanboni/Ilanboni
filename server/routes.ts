@@ -2877,9 +2877,38 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       
       // Cerca l'immobile corrispondente all'indirizzo
       const propertiesList = await db.select().from(properties);
-      const targetProperty = propertiesList.find(prop => 
-        prop.address.toLowerCase().includes(confirmation.address.toLowerCase().split(',')[0].trim())
-      );
+      
+      // Normalizza l'indirizzo di ricerca
+      const searchAddress = confirmation.address.toLowerCase().trim();
+      
+      // Estrae componenti chiave dell'indirizzo
+      const extractAddressComponents = (addr: string) => {
+        const normalized = addr.toLowerCase().replace(/[,\.]/g, ' ').trim();
+        const words = normalized.split(/\s+/).filter(w => w.length > 2);
+        return words;
+      };
+      
+      const searchComponents = extractAddressComponents(searchAddress);
+      
+      const targetProperty = propertiesList.find(prop => {
+        const propComponents = extractAddressComponents(prop.address);
+        
+        // Debug logging
+        console.log(`Confronto indirizzo: "${searchAddress}" con "${prop.address}"`);
+        console.log(`Componenti ricerca: [${searchComponents.join(', ')}]`);
+        console.log(`Componenti proprietà: [${propComponents.join(', ')}]`);
+        
+        // Controlla se almeno 2 componenti chiave corrispondono
+        const matches = searchComponents.filter(comp => 
+          propComponents.some(propComp => 
+            propComp.includes(comp) || comp.includes(propComp)
+          )
+        );
+        
+        console.log(`Match trovati: [${matches.join(', ')}] (${matches.length}/2)`);
+        
+        return matches.length >= 2;
+      });
       
       if (!targetProperty) {
         return res.status(404).json({ error: "Immobile non trovato per l'indirizzo specificato" });
