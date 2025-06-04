@@ -329,3 +329,22 @@ export type SharedPropertyWithDetails = SharedProperty & {
   lastActivity?: Communication | Task;
   matchingBuyers?: ClientWithDetails[];
 };
+
+// Tabella per la gestione delle conferme appuntamenti
+export const appointmentConfirmations = pgTable("appointment_confirmations", {
+  id: serial("id").primaryKey(),
+  salutation: text("salutation").notNull(), // "Egr. Dott." | "Gent.ma Sig.ra" etc
+  lastName: text("last_name").notNull(),
+  phone: text("phone").notNull(),
+  appointmentDate: text("appointment_date").notNull(), // Data e ora dell'appuntamento
+  sent: boolean("sent").default(false),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const insertAppointmentConfirmationSchema = createInsertSchema(appointmentConfirmations)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export type AppointmentConfirmation = typeof appointmentConfirmations.$inferSelect;
+export type InsertAppointmentConfirmation = z.infer<typeof insertAppointmentConfirmationSchema>;

@@ -31,6 +31,7 @@ import TasksPage from "@/pages/tasks/index";
 import AnalyticsPage from "@/pages/analytics/index";
 import WhatsAppTestPage from "@/pages/testing/whatsapp";
 import AssistentePage from "@/pages/assistente/index";
+import AppointmentConfirmationsPage from "@/pages/appointment-confirmations";
 
 function Router() {
   return (
@@ -52,6 +53,7 @@ function Router() {
       {/* Rotta edit rimossa perché ora utilizziamo il dialog modale */}
       <Route path="/properties/:id" component={PropertyDetailPage} />
       <Route path="/appointments" component={AppointmentsPage} />
+      <Route path="/appointment-confirmations" component={AppointmentConfirmationsPage} />
       <Route path="/communications" component={CommunicationsPage} />
       <Route path="/communications/new" component={CommunicationNewPage} />
       <Route path="/communications/whatsapp" component={WhatsAppSenderPage} />

@@ -9,6 +9,7 @@ import {
   insertBuyerSchema,
   insertSellerSchema,
   insertPropertySentSchema,
+  insertAppointmentConfirmationSchema,
   clients,
   buyers,
   properties,
@@ -16,7 +17,9 @@ import {
   communications,
   propertySent,
   tasks,
-  type PropertySent
+  appointmentConfirmations,
+  type PropertySent,
+  type AppointmentConfirmation
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "drizzle-orm";
@@ -2738,6 +2741,109 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       res.json(updatedPropertySent);
     } catch (error) {
       console.error("Errore nell'aggiornamento della risposta:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // API per le conferme appuntamenti
+  app.get("/api/appointment-confirmations", async (req: Request, res: Response) => {
+    try {
+      const confirmations = await db
+        .select()
+        .from(appointmentConfirmations)
+        .orderBy(desc(appointmentConfirmations.createdAt));
+      
+      res.json(confirmations);
+    } catch (error) {
+      console.error("Errore nel caricamento delle conferme appuntamenti:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.post("/api/appointment-confirmations", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertAppointmentConfirmationSchema.parse(req.body);
+      
+      const [newConfirmation] = await db
+        .insert(appointmentConfirmations)
+        .values(validatedData)
+        .returning();
+      
+      res.json(newConfirmation);
+    } catch (error: any) {
+      console.error("Errore nella creazione della conferma appuntamento:", error);
+      
+      if (error.name === "ZodError") {
+        res.status(400).json({ error: "Dati non validi", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Errore interno del server" });
+      }
+    }
+  });
+
+  app.patch("/api/appointment-confirmations/:id/send", async (req: Request, res: Response) => {
+    try {
+      const confirmationId = parseInt(req.params.id);
+      
+      // Recupera la conferma
+      const [confirmation] = await db
+        .select()
+        .from(appointmentConfirmations)
+        .where(eq(appointmentConfirmations.id, confirmationId));
+      
+      if (!confirmation) {
+        return res.status(404).json({ error: "Conferma appuntamento non trovata" });
+      }
+      
+      if (confirmation.sent) {
+        return res.status(400).json({ error: "Conferma già inviata" });
+      }
+      
+      // Crea il messaggio di conferma
+      const message = `${confirmation.salutation} ${confirmation.lastName}, le confermo appuntamento di ${confirmation.appointmentDate}, in viale Abruzzi 78. La ringrazio. Ilan Boni - Cavour Immobiliare`;
+      
+      // Invia il messaggio WhatsApp
+      const ultraMsgClient = getUltraMsgClient();
+      if (ultraMsgClient) {
+        try {
+          await ultraMsgClient.sendMessage(confirmation.phone, message);
+          
+          // Aggiorna lo stato come inviato
+          const [updatedConfirmation] = await db
+            .update(appointmentConfirmations)
+            .set({
+              sent: true,
+              sentAt: new Date(),
+              updatedAt: new Date()
+            })
+            .where(eq(appointmentConfirmations.id, confirmationId))
+            .returning();
+          
+          res.json(updatedConfirmation);
+        } catch (whatsappError: any) {
+          console.error("Errore nell'invio WhatsApp:", whatsappError);
+          res.status(500).json({ error: "Errore nell'invio del messaggio WhatsApp" });
+        }
+      } else {
+        res.status(500).json({ error: "Servizio WhatsApp non configurato" });
+      }
+    } catch (error) {
+      console.error("Errore nell'invio della conferma appuntamento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.delete("/api/appointment-confirmations/:id", async (req: Request, res: Response) => {
+    try {
+      const confirmationId = parseInt(req.params.id);
+      
+      await db
+        .delete(appointmentConfirmations)
+        .where(eq(appointmentConfirmations.id, confirmationId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Errore nell'eliminazione della conferma appuntamento:", error);
       res.status(500).json({ error: "Errore interno del server" });
     }
   });
