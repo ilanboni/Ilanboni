@@ -190,8 +190,8 @@ export function renderAuthPage(req: Request, res: Response) {
         <h2>Configurazione manuale delle credenziali</h2>
         <p>Se preferisci, puoi anche configurare manualmente le seguenti variabili d'ambiente:</p>
         <div class="code">
-            GOOGLE_CALENDAR_CLIENT_ID=445154107730-v53u8u5bk8q0h4u5ijhk4n7lf1hb1pl8.apps.googleusercontent.com<br>
-            GOOGLE_CALENDAR_CLIENT_SECRET=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<br>
+            GOOGLE_CALENDAR_CLIENT_ID=876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com<br>
+            GOOGLE_CALENDAR_CLIENT_SECRET=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<br>
             GOOGLE_CALENDAR_REFRESH_TOKEN=(ottenuto dopo l'autorizzazione)
         </div>
     </body>
