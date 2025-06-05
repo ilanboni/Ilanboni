@@ -30,7 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
 import { useClientPreferences } from "@/hooks/useClientPreferences";
-import { MapContainer, TileLayer, Polygon } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, Circle, Marker } from "react-leaflet";
 import { AIAssistantResponseModal } from "@/components/communications/AIAssistantResponseModal";
 import { useToast } from "@/hooks/use-toast";
 import PreferenceDetails from "@/components/clients/PreferenceDetails";
@@ -742,6 +742,27 @@ export default function ClientDetailPage() {
                                     searchAreaData = client.buyer.searchArea;
                                   }
                                   
+                                  // Check for circular search area format (center + radius)
+                                  if (searchAreaData?.center && searchAreaData?.radius) {
+                                    console.log("Rendering circular search area:", searchAreaData);
+                                    return (
+                                      <>
+                                        <Circle
+                                          center={[searchAreaData.center.lat, searchAreaData.center.lng]}
+                                          radius={searchAreaData.radius}
+                                          pathOptions={{
+                                            color: "#3b82f6",
+                                            fillColor: "#3b82f6",
+                                            fillOpacity: 0.2,
+                                            weight: 2
+                                          }}
+                                        />
+                                        <Marker position={[searchAreaData.center.lat, searchAreaData.center.lng]} />
+                                      </>
+                                    );
+                                  }
+                                  
+                                  // Check for polygon GeoJSON format
                                   if (searchAreaData?.geometry?.coordinates?.[0]) {
                                     // Converti coordinate da [lng, lat] a [lat, lng] per Leaflet
                                     const coordinates = searchAreaData.geometry.coordinates[0].map((coord: number[]) => [coord[1], coord[0]]);

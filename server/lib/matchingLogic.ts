@@ -77,14 +77,15 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
       }
       
       // Verifico che la posizione dell'immobile sia nel formato corretto
-      if (!property.location || !property.location.lat || !property.location.lng) {
+      const propertyLocation = property.location as any;
+      if (!propertyLocation || !propertyLocation.lat || !propertyLocation.lng) {
         console.log(`[Matching] L'immobile ${property.id} non ha una posizione valida:`, property.location);
         return false;
       }
       
       // Utilizzo Turf.js per verificare se il punto è dentro il poligono
       // Creo un punto GeoJSON con la posizione dell'immobile [lng, lat]
-      const immobilePoint = point([property.location.lng, property.location.lat]);
+      const immobilePoint = point([propertyLocation.lng, propertyLocation.lat]);
       
       // Gestisci l'area di ricerca in formato GeoJSON, array semplice o cerchio
       let buyerPolygon;
@@ -146,13 +147,13 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
       // Eseguo il controllo con Turf.js
       const isInPolygon = booleanPointInPolygon(immobilePoint, buyerPolygon);
       
-      console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione [${property.location.lng}, ${property.location.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id || buyer.clientId}`);
+      console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione [${propertyLocation.lng}, ${propertyLocation.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id || buyer.clientId}`);
       
       // Aggiungo logging dettagliato per debugging
       if (!isInPolygon) {
         console.log(`[Matching] DETTAGLI MATCH FALLITO - Immobile ${property.id}:`);
         console.log(`  - Indirizzo: ${property.address}`);
-        console.log(`  - Coordinate: [${property.location.lng}, ${property.location.lat}]`);
+        console.log(`  - Coordinate: [${propertyLocation.lng}, ${propertyLocation.lat}]`);
         console.log(`  - Acquirente: ${buyer.id || buyer.clientId}`);
         console.log(`  - Area di ricerca:`, JSON.stringify(buyer.searchArea));
       }
