@@ -2843,7 +2843,63 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       const ultraMsgClient = getUltraMsgClient();
       if (ultraMsgClient) {
         try {
-          await ultraMsgClient.sendMessage(confirmation.phone, message);
+          const response = await ultraMsgClient.sendMessage(confirmation.phone, message);
+          
+          // Cerca il cliente corrispondente al numero di telefono
+          const normalizedPhone = confirmation.phone.replace(/\D/g, '');
+          const clientsList = await db.select().from(clients);
+          
+          console.log(`[CONFERMA] Ricerca cliente con telefono: ${confirmation.phone} (normalizzato: ${normalizedPhone})`);
+          
+          let targetClient = clientsList.find(client => {
+            const clientPhone = client.phone.replace(/\D/g, '');
+            console.log(`[CONFERMA] Confronto con cliente ${client.id}: ${client.phone} (normalizzato: ${clientPhone})`);
+            const match = clientPhone === normalizedPhone || 
+                         clientPhone.endsWith(normalizedPhone.slice(-10)) ||
+                         normalizedPhone.endsWith(clientPhone.slice(-10));
+            if (match) {
+              console.log(`[CONFERMA] MATCH trovato con cliente ${client.id}`);
+            }
+            return match;
+          });
+          
+          console.log(`[CONFERMA] Cliente trovato:`, targetClient ? `ID ${targetClient.id}` : 'Nessuno');
+          
+          // Se abbiamo trovato il cliente, crea la comunicazione
+          if (targetClient) {
+            const communicationData = {
+              clientId: targetClient.id,
+              type: "whatsapp",
+              subject: "Conferma appuntamento",
+              content: message,
+              direction: "outbound",
+              status: "sent",
+              externalId: response?.id?.toString() || null
+            };
+            
+            const [communication] = await db
+              .insert(communications)
+              .values(communicationData)
+              .returning();
+            
+            // Crea un task di feedback per verificare la conferma dopo 24 ore
+            const feedbackDate = new Date();
+            feedbackDate.setHours(feedbackDate.getHours() + 24);
+            
+            const taskData = {
+              type: "follow_up",
+              title: `Verifica conferma appuntamento - ${confirmation.lastName}`,
+              description: `Verificare se il cliente ha confermato l'appuntamento del ${confirmation.appointmentDate}`,
+              dueDate: feedbackDate.toISOString(),
+              priority: "medium",
+              status: "pending",
+              clientId: targetClient.id,
+              linkedEntityType: "communication",
+              linkedEntityId: communication.id
+            };
+            
+            await db.insert(tasks).values(taskData);
+          }
           
           // Aggiorna lo stato come inviato
           const [updatedConfirmation] = await db

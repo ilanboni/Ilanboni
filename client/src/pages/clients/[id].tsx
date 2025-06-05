@@ -722,8 +722,25 @@ export default function ClientDetailPage() {
                           <div className="h-64 w-full rounded-lg overflow-hidden border">
                             <MapContainer
                               style={{ height: "100%", width: "100%" }}
-                              center={[45.464, 9.19]} // Centro di Milano
-                              zoom={13}
+                              center={(() => {
+                                // Center map on search area if available
+                                try {
+                                  let searchAreaData;
+                                  if (typeof client.buyer.searchArea === 'string') {
+                                    searchAreaData = JSON.parse(client.buyer.searchArea);
+                                  } else {
+                                    searchAreaData = client.buyer.searchArea;
+                                  }
+                                  
+                                  if (searchAreaData?.center) {
+                                    return [searchAreaData.center.lat, searchAreaData.center.lng];
+                                  }
+                                } catch (error) {
+                                  console.error("Error parsing search area for map center:", error);
+                                }
+                                return [45.464, 9.19]; // Default Milano
+                              })()}
+                              zoom={14}
                               scrollWheelZoom={false}
                             >
                               <TileLayer
