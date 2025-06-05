@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, MapPin, User, Settings, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Settings, RefreshCw, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 interface CalendarEvent {
@@ -27,6 +30,8 @@ interface CalendarStatus {
 export default function CalendarPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [authCode, setAuthCode] = useState("");
+  const [isConfiguring, setIsConfiguring] = useState(false);
   
   const { data: events = [], isLoading: eventsLoading } = useQuery<{
     event: CalendarEvent;
@@ -64,6 +69,48 @@ export default function CalendarPage() {
       });
     }
   });
+
+  const configureMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await fetch('/api/oauth/manual-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      if (!response.ok) throw new Error('Errore nella configurazione');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Successo!",
+        description: "Google Calendar configurato correttamente"
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar/status'] });
+      setIsConfiguring(false);
+      setAuthCode("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const generateAuthUrl = () => {
+    const clientId = "876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com";
+    const redirectUri = "https://client-management-system-ilanboni.replit.app/oauth/callback";
+    const scope = "https://www.googleapis.com/auth/calendar";
+    
+    return `https://accounts.google.com/o/oauth2/auth?` +
+      `client_id=${encodeURIComponent(clientId)}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `scope=${encodeURIComponent(scope)}&` +
+      `response_type=code&` +
+      `access_type=offline&` +
+      `prompt=consent`;
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -123,9 +170,70 @@ export default function CalendarPage() {
           <AlertDescription className="flex items-center justify-between">
             <span>{status.message}</span>
             {!status.googleCalendarConfigured && (
-              <Button variant="outline" size="sm">
-                Configura Google Calendar
-              </Button>
+              <Dialog open={isConfiguring} onOpenChange={setIsConfiguring}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Configura Google Calendar
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Configura Google Calendar</DialogTitle>
+                    <DialogDescription>
+                      Segui i passaggi per collegare il tuo account Google Calendar
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Passo 1: Autorizzazione</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Clicca sul link qui sotto per autorizzare l'accesso al tuo Google Calendar
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => window.open(generateAuthUrl(), '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Apri Google per autorizzazione
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="authCode">Passo 2: Inserisci il codice</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Dopo l'autorizzazione, copia e incolla qui il codice che riceverai
+                      </p>
+                      <Textarea
+                        id="authCode"
+                        placeholder="Incolla qui il codice di autorizzazione..."
+                        value={authCode}
+                        onChange={(e) => setAuthCode(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => configureMutation.mutate(authCode)}
+                        disabled={!authCode.trim() || configureMutation.isPending}
+                        className="flex-1"
+                      >
+                        {configureMutation.isPending ? "Configurazione..." : "Completa configurazione"}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setIsConfiguring(false);
+                          setAuthCode("");
+                        }}
+                      >
+                        Annulla
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </AlertDescription>
         </Alert>
