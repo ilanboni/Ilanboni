@@ -27,6 +27,7 @@ import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "
 import { z } from "zod";
 import OpenAI from "openai";
 import { summarizeText } from "./lib/openai";
+import { renderAuthPage, handleOAuthCallback } from "./oauth-helper";
 
 // Inizializza OpenAI
 const openai = new OpenAI({ 
@@ -3207,6 +3208,14 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       res.status(500).json({ error: "Errore interno del server" });
     }
   });
+
+  // ===== OAUTH ENDPOINTS FOR GOOGLE CALENDAR =====
+  
+  // Pagina di setup OAuth
+  app.get("/oauth/setup", renderAuthPage);
+  
+  // Callback OAuth
+  app.get("/oauth/callback", handleOAuthCallback);
 
   return httpServer;
 }
