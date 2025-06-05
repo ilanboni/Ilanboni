@@ -3219,6 +3219,41 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
   
   // Callback OAuth
   app.get("/oauth/callback", handleOAuthCallback);
+  
+  // Endpoint per configurazione manuale del codice OAuth
+  app.post("/api/oauth/manual-setup", async (req: Request, res: Response) => {
+    try {
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ error: 'Codice di autorizzazione mancante' });
+      }
+
+      const { google } = await import('googleapis');
+      
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CALENDAR_CLIENT_ID,
+        process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+        'https://client-management-system-ilanboni.replit.app/oauth/callback'
+      );
+
+      const { tokens } = await oauth2Client.getToken(code);
+      
+      res.json({
+        success: true,
+        message: 'Autorizzazione completata con successo!',
+        refreshToken: tokens.refresh_token,
+        accessToken: tokens.access_token,
+        instructions: 'Aggiungi GOOGLE_CALENDAR_REFRESH_TOKEN=' + tokens.refresh_token + ' alle variabili d\'ambiente'
+      });
+    } catch (error) {
+      console.error('Errore nella configurazione manuale OAuth:', error);
+      res.status(500).json({ 
+        error: 'Errore nella configurazione',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
+    }
+  });
 
   return httpServer;
 }

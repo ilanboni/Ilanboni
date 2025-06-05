@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google Calendar OAuth Manual Setup</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .step { background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; }
+        .code { background: #eee; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; word-break: break-all; }
+        .button { display: inline-block; background: #4285f4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+        .warning { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>Google Calendar OAuth Manual Setup</h1>
+    
+    <div class="warning">
+        <h3>Situazione Attuale</h3>
+        <p>L'app deployata ha un problema con i route OAuth. Usiamo questo metodo manuale per completare l'integrazione.</p>
+    </div>
+
+    <div class="step">
+        <h3>Passo 1: Autorizza l'applicazione</h3>
+        <p>Clicca questo link per autorizzare l'accesso a Google Calendar:</p>
+        <a href="https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar&prompt=consent&response_type=code&client_id=876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fclient-management-system-ilanboni.replit.app%2Foauth%2Fcallback" class="button" target="_blank">Autorizza Google Calendar</a>
+    </div>
+
+    <div class="step">
+        <h3>Passo 2: Copia il codice di autorizzazione</h3>
+        <p>Dopo aver autorizzato, verrai reindirizzato a una pagina 404. <strong>Non preoccuparti!</strong></p>
+        <p>Nell'URL della pagina 404 vedrai qualcosa come:</p>
+        <div class="code">
+            https://client-management-system-ilanboni.replit.app/oauth/callback?code=4/0AfJohXn...&scope=https://www.googleapis.com/auth/calendar
+        </div>
+        <p><strong>Copia tutto il testo dopo "code=" e prima di "&scope"</strong></p>
+    </div>
+
+    <div class="step">
+        <h3>Passo 3: Configurazione manuale</h3>
+        <p>Una volta ottenuto il codice, useremo l'API locale per convertirlo in refresh token.</p>
+        <p>Il tuo sistema locale gestirà automaticamente la conversione del codice in token permanente.</p>
+    </div>
+
+    <div class="step">
+        <h3>Credenziali Configurate</h3>
+        <div class="code">
+            Client ID: 876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com<br>
+            Client Secret: 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<br>
+            Redirect URI: https://client-management-system-ilanboni.replit.app/oauth/callback
+        </div>
+    </div>
+</body>
+</html>
