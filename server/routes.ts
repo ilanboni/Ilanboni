@@ -3270,6 +3270,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
         'https://client-management-system-ilanboni.replit.app/oauth/callback'
       );
+      
+      console.log('[CALENDAR] Using redirect URI:', 'https://client-management-system-ilanboni.replit.app/oauth/callback');
+      console.log('[CALENDAR] Client ID:', process.env.GOOGLE_CALENDAR_CLIENT_ID);
 
       console.log('[CALENDAR] Exchanging authorization code for tokens...');
       const { tokens } = await oauth2Client.getToken(code);
