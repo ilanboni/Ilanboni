@@ -3,7 +3,7 @@ import querystring from 'querystring';
 
 const code = '4/0AUJR-x5sVBy34-L4awZb6tJkJvsKlAIx6TyFsKjDWA3hbQO53PKcPGj-ixEekQNERi9RwQ';
 const clientId = '876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com';
-const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+const clientSecret = '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';
 const redirectUri = 'https://client-management-system-ilanboni.replit.app/oauth/callback';
 
 console.log('🔧 Configurando Google Calendar...');

@@ -3160,12 +3160,23 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     try {
       const eventData = req.body;
       
+      // Handle both startTime/endTime and startDate/endDate for compatibility
+      const startDate = new Date(eventData.startTime || eventData.startDate);
+      const endDate = new Date(eventData.endTime || eventData.endDate);
+      
+      // Validate dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return res.status(400).json({ 
+          error: "Date non valide. Usa il formato ISO 8601 (es. 2025-01-06T10:00:00.000Z)" 
+        });
+      }
+      
       const { googleCalendarService } = await import('./services/googleCalendar');
       const event = await googleCalendarService.createEvent({
-        title: eventData.title,
+        title: eventData.summary || eventData.title,
         description: eventData.description,
-        startDate: new Date(eventData.startDate),
-        endDate: new Date(eventData.endDate),
+        startDate: startDate,
+        endDate: endDate,
         location: eventData.location,
         clientId: eventData.clientId,
         propertyId: eventData.propertyId
