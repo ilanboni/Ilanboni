@@ -33,6 +33,7 @@ import WhatsAppTestPage from "@/pages/testing/whatsapp";
 import AssistentePage from "@/pages/assistente/index";
 import AppointmentConfirmationsPage from "@/pages/appointment-confirmations";
 import CalendarPage from "@/pages/calendar";
+import GoogleOAuthPage from "@/pages/google-oauth";
 
 function Router() {
   return (
@@ -63,6 +64,7 @@ function Router() {
       <Route path="/tasks" component={TasksPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route path="/calendar" component={CalendarPage} />
+      <Route path="/google-oauth" component={GoogleOAuthPage} />
       <Route path="/assistente" component={AssistentePage} />
       <Route path="/testing/whatsapp" component={WhatsAppTestPage} />
       <Route component={NotFound} />

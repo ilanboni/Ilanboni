@@ -3217,9 +3217,28 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
   // Pagina di setup OAuth
   app.get("/oauth/setup", renderAuthPage);
   
+  // Pagina di avvio autorizzazione OAuth
+  app.get("/oauth/auth", renderAuthPage);
+  
   // Callback OAuth
   app.get("/oauth/callback", handleOAuthCallback);
   
+  // Endpoint per ottenere l'URL di autorizzazione Google
+  app.get("/api/oauth/auth-url", async (req: Request, res: Response) => {
+    try {
+      const { getAuthUrl } = await import('./oauth-helper');
+      const authUrl = getAuthUrl();
+      
+      res.json({
+        authUrl,
+        instructions: "Vai all'URL fornito per autorizzare l'accesso a Google Calendar, poi copia il codice di autorizzazione"
+      });
+    } catch (error) {
+      console.error('Errore nella generazione URL autorizzazione:', error);
+      res.status(500).json({ error: 'Errore nella generazione URL autorizzazione' });
+    }
+  });
+
   // Endpoint per configurazione manuale del codice OAuth
   app.post("/api/oauth/manual-setup", async (req: Request, res: Response) => {
     try {
