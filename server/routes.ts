@@ -18,6 +18,7 @@ import {
   propertySent,
   tasks,
   appointmentConfirmations,
+  calendarEvents,
   type PropertySent,
   type AppointmentConfirmation
 } from "@shared/schema";

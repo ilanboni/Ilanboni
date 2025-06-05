@@ -68,6 +68,7 @@ export default function Sidebar({ className }: SidebarProps) {
         <SidebarLink to="/properties/shared" icon="fas fa-exchange-alt">Proprietà Condivise</SidebarLink>
         <SidebarLink to="/appointments" icon="fas fa-calendar-alt">Appuntamenti</SidebarLink>
         <SidebarLink to="/appointment-confirmations" icon="fas fa-calendar-check">Conferme Appuntamenti</SidebarLink>
+        <SidebarLink to="/calendar" icon="fas fa-calendar">Calendario</SidebarLink>
         <SidebarLink to="/communications" icon="fas fa-comments">Comunicazioni</SidebarLink>
         <SidebarLink to="/tasks" icon="fas fa-tasks">Task e Alert</SidebarLink>
         
