@@ -10,6 +10,30 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point, polygon } from '@turf/helpers';
 
 /**
+ * Calcola la distanza tra due punti usando la formula di Haversine
+ * @param lat1 Latitudine del primo punto
+ * @param lng1 Longitudine del primo punto
+ * @param lat2 Latitudine del secondo punto
+ * @param lng2 Longitudine del secondo punto
+ * @returns Distanza in metri
+ */
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371e3; // Raggio della Terra in metri
+  const φ1 = lat1 * Math.PI/180; // φ, λ in radianti
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lng2-lng1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  const d = R * c; // in metri
+  return d;
+}
+
+/**
  * Verifica se un immobile corrisponde alle preferenze di un acquirente,
  * applicando i criteri di tolleranza specificati:
  * - È situato all'interno del poligono di ricerca dell'acquirente
@@ -62,17 +86,37 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
       // Creo un punto GeoJSON con la posizione dell'immobile [lng, lat]
       const immobilePoint = point([property.location.lng, property.location.lat]);
       
-      // Gestisci l'area di ricerca in formato GeoJSON o array semplice
+      // Gestisci l'area di ricerca in formato GeoJSON, array semplice o cerchio
       let buyerPolygon;
       
       if (buyer.searchArea && typeof buyer.searchArea === 'object') {
+        // Se è un oggetto con center e radius (formato cerchio)
+        if ((buyer.searchArea as any).center && (buyer.searchArea as any).radius && 
+            (buyer.searchArea as any).center.lat && (buyer.searchArea as any).center.lng) {
+          
+          // Calcola la distanza tra il punto dell'immobile e il centro del cerchio
+          const searchArea = buyer.searchArea as any;
+          const propertyLocation = property.location as any;
+          
+          // Calcola la distanza in metri usando la formula di Haversine
+          const distance = calculateDistance(
+            propertyLocation.lat, propertyLocation.lng,
+            searchArea.center.lat, searchArea.center.lng
+          );
+          
+          const isInRadius = distance <= searchArea.radius;
+          
+          console.log(`[Matching] Immobile ${property.id} (${property.address}) è a ${Math.round(distance)}m dal centro (raggio: ${searchArea.radius}m) - ${isInRadius ? 'DENTRO' : 'FUORI'}`);
+          
+          return isInRadius;
+        }
         // Se è un oggetto GeoJSON Feature
-        if (buyer.searchArea.type === 'Feature' && buyer.searchArea.geometry) {
-          if (buyer.searchArea.geometry.type === 'Polygon' && buyer.searchArea.geometry.coordinates) {
+        else if ((buyer.searchArea as any).type === 'Feature' && (buyer.searchArea as any).geometry) {
+          if ((buyer.searchArea as any).geometry.type === 'Polygon' && (buyer.searchArea as any).geometry.coordinates) {
             // Usa direttamente le coordinate dal GeoJSON
-            buyerPolygon = polygon(buyer.searchArea.geometry.coordinates);
+            buyerPolygon = polygon((buyer.searchArea as any).geometry.coordinates);
           } else {
-            console.log(`[Matching] L'acquirente ${buyer.id} ha una geometria non supportata:`, buyer.searchArea.geometry.type);
+            console.log(`[Matching] L'acquirente ${buyer.id} ha una geometria non supportata:`, (buyer.searchArea as any).geometry.type);
             return false;
           }
         } 
