@@ -3239,15 +3239,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
-  // Test endpoint to verify routing
-  app.get("/api/oauth/test", (req: Request, res: Response) => {
-    console.log('[OAUTH DEBUG] Test endpoint called');
-    res.json({ success: true, message: "OAuth routes are working" });
-  });
-
-  // Endpoint per configurazione manuale del codice OAuth
-  app.post("/api/oauth/manual-setup", async (req: Request, res: Response) => {
-    console.log('[OAUTH DEBUG] Manual setup endpoint called');
+  // Configurazione Google Calendar diretta
+  app.post("/api/calendar/setup", async (req: Request, res: Response) => {
+    console.log('[CALENDAR] Setup endpoint called');
     try {
       const { code } = req.body;
       
@@ -3255,6 +3249,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         return res.status(400).json({ error: 'Codice di autorizzazione mancante' });
       }
 
+      console.log('[CALENDAR] Processing authorization code:', code.substring(0, 20) + '...');
+
+      // Configure Google Calendar with the authorization code
       const { google } = await import('googleapis');
       
       const oauth2Client = new google.auth.OAuth2(
@@ -3263,19 +3260,20 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         'https://client-management-system-ilanboni.replit.app/oauth/callback'
       );
 
-      console.log('[OAUTH] Exchanging authorization code for tokens...');
+      console.log('[CALENDAR] Exchanging authorization code for tokens...');
       const { tokens } = await oauth2Client.getToken(code);
       
       if (!tokens.refresh_token) {
+        console.log('[CALENDAR] No refresh token received');
         return res.status(400).json({ 
           error: 'Refresh token non ricevuto. Riprova con un nuovo codice di autorizzazione.' 
         });
       }
 
-      // Set the refresh token in the environment (this will persist until server restart)
+      // Configure the refresh token
       process.env.GOOGLE_CALENDAR_REFRESH_TOKEN = tokens.refresh_token;
       
-      console.log('[OAUTH] Google Calendar refresh token configured successfully');
+      console.log('[CALENDAR] Google Calendar configured successfully');
       
       res.json({
         success: true,
@@ -3283,7 +3281,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         configured: true
       });
     } catch (error) {
-      console.error('Errore nella configurazione manuale OAuth:', error);
+      console.error('[CALENDAR] Error in setup:', error);
       res.status(500).json({ 
         error: 'Errore nella configurazione',
         details: error instanceof Error ? error.message : 'Errore sconosciuto'
