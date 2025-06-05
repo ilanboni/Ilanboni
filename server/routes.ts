@@ -2760,6 +2760,30 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  app.get("/api/appointment-confirmations/:id", async (req: Request, res: Response) => {
+    try {
+      const confirmationId = parseInt(req.params.id);
+      
+      if (isNaN(confirmationId)) {
+        return res.status(400).json({ error: "ID conferma non valido" });
+      }
+      
+      const [confirmation] = await db
+        .select()
+        .from(appointmentConfirmations)
+        .where(eq(appointmentConfirmations.id, confirmationId));
+      
+      if (!confirmation) {
+        return res.status(404).json({ error: "Conferma appuntamento non trovata" });
+      }
+      
+      res.json(confirmation);
+    } catch (error) {
+      console.error("Errore nel caricamento della conferma appuntamento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
   app.post("/api/appointment-confirmations", async (req: Request, res: Response) => {
     try {
       const validatedData = insertAppointmentConfirmationSchema.parse(req.body);
@@ -2905,6 +2929,11 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       
       if (!targetProperty) {
         return res.status(404).json({ error: "Immobile non trovato per l'indirizzo specificato" });
+      }
+      
+      // Verifica che la conferma abbia i dati necessari
+      if (!confirmation.lastName || !confirmation.phone || !confirmation.salutation) {
+        return res.status(400).json({ error: "Dati conferma appuntamento incompleti" });
       }
       
       // Estrae il nome dall'intestazione
