@@ -3239,8 +3239,15 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  // Test endpoint to verify routing
+  app.get("/api/oauth/test", (req: Request, res: Response) => {
+    console.log('[OAUTH DEBUG] Test endpoint called');
+    res.json({ success: true, message: "OAuth routes are working" });
+  });
+
   // Endpoint per configurazione manuale del codice OAuth
   app.post("/api/oauth/manual-setup", async (req: Request, res: Response) => {
+    console.log('[OAUTH DEBUG] Manual setup endpoint called');
     try {
       const { code } = req.body;
       
