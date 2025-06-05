@@ -2890,6 +2890,16 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
             };
             
             await db.insert(tasks).values(taskData);
+
+            // Crea l'evento nel calendario
+            try {
+              const { googleCalendarService } = await import('./services/googleCalendar');
+              await googleCalendarService.createEventFromAppointmentConfirmation(confirmation);
+              console.log(`[CALENDAR] Created calendar event for appointment with ${confirmation.lastName}`);
+            } catch (calendarError) {
+              console.error('[CALENDAR] Error creating calendar event:', calendarError);
+              // Non bloccare il processo se il calendario fallisce
+            }
           }
           
           // Aggiorna lo stato come inviato
@@ -3087,6 +3097,112 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       
     } catch (error) {
       console.error("Errore nella creazione del cliente dalla conferma:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // ===== API CALENDARIO =====
+  
+  app.get("/api/calendar/events", async (req: Request, res: Response) => {
+    try {
+      const { start, end } = req.query;
+      
+      let query = db
+        .select({
+          event: calendarEvents,
+          client: clients,
+          property: properties
+        })
+        .from(calendarEvents)
+        .leftJoin(clients, eq(calendarEvents.clientId, clients.id))
+        .leftJoin(properties, eq(calendarEvents.propertyId, properties.id))
+        .orderBy(calendarEvents.startDate);
+
+      const events = await query;
+      
+      res.json(events);
+    } catch (error) {
+      console.error("Errore nel recupero eventi calendario:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.get("/api/calendar/events/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [event] = await db
+        .select({
+          event: calendarEvents,
+          client: clients,
+          property: properties,
+          appointmentConfirmation: appointmentConfirmations
+        })
+        .from(calendarEvents)
+        .leftJoin(clients, eq(calendarEvents.clientId, clients.id))
+        .leftJoin(properties, eq(calendarEvents.propertyId, properties.id))
+        .leftJoin(appointmentConfirmations, eq(calendarEvents.appointmentConfirmationId, appointmentConfirmations.id))
+        .where(eq(calendarEvents.id, id));
+
+      if (!event) {
+        return res.status(404).json({ error: "Evento non trovato" });
+      }
+
+      res.json(event);
+    } catch (error) {
+      console.error("Errore nel recupero evento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.post("/api/calendar/events", async (req: Request, res: Response) => {
+    try {
+      const eventData = req.body;
+      
+      const { googleCalendarService } = await import('./services/googleCalendar');
+      const event = await googleCalendarService.createEvent({
+        title: eventData.title,
+        description: eventData.description,
+        startDate: new Date(eventData.startDate),
+        endDate: new Date(eventData.endDate),
+        location: eventData.location,
+        clientId: eventData.clientId,
+        propertyId: eventData.propertyId
+      });
+
+      res.json(event);
+    } catch (error) {
+      console.error("Errore nella creazione evento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.post("/api/calendar/events/:id/sync", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const { googleCalendarService } = await import('./services/googleCalendar');
+      await googleCalendarService.syncEventToGoogle(id);
+
+      res.json({ success: true, message: "Evento sincronizzato con Google Calendar" });
+    } catch (error) {
+      console.error("Errore nella sincronizzazione evento:", error);
+      res.status(500).json({ error: "Errore nella sincronizzazione" });
+    }
+  });
+
+  app.get("/api/calendar/status", async (req: Request, res: Response) => {
+    try {
+      const { googleCalendarService } = await import('./services/googleCalendar');
+      const isConfigured = googleCalendarService.isGoogleCalendarConfigured();
+      
+      res.json({ 
+        googleCalendarConfigured: isConfigured,
+        message: isConfigured ? 
+          "Google Calendar configurato correttamente" : 
+          "Google Calendar non configurato - inserire credenziali API"
+      });
+    } catch (error) {
+      console.error("Errore nel controllo stato calendario:", error);
       res.status(500).json({ error: "Errore interno del server" });
     }
   });
