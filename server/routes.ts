@@ -3256,14 +3256,24 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         'https://client-management-system-ilanboni.replit.app/oauth/callback'
       );
 
+      console.log('[OAUTH] Exchanging authorization code for tokens...');
       const { tokens } = await oauth2Client.getToken(code);
+      
+      if (!tokens.refresh_token) {
+        return res.status(400).json({ 
+          error: 'Refresh token non ricevuto. Riprova con un nuovo codice di autorizzazione.' 
+        });
+      }
+
+      // Set the refresh token in the environment (this will persist until server restart)
+      process.env.GOOGLE_CALENDAR_REFRESH_TOKEN = tokens.refresh_token;
+      
+      console.log('[OAUTH] Google Calendar refresh token configured successfully');
       
       res.json({
         success: true,
-        message: 'Autorizzazione completata con successo!',
-        refreshToken: tokens.refresh_token,
-        accessToken: tokens.access_token,
-        instructions: 'Aggiungi GOOGLE_CALENDAR_REFRESH_TOKEN=' + tokens.refresh_token + ' alle variabili d\'ambiente'
+        message: 'Google Calendar configurato con successo!',
+        configured: true
       });
     } catch (error) {
       console.error('Errore nella configurazione manuale OAuth:', error);
