@@ -27,7 +27,7 @@ import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "
 import { z } from "zod";
 import OpenAI from "openai";
 import { summarizeText } from "./lib/openai";
-import { renderAuthPage, handleOAuthCallback } from "./oauth-helper";
+import { renderAuthPage, handleOAuthCallback, renderConfigPage } from "./oauth-helper";
 
 // Inizializza OpenAI
 const openai = new OpenAI({ 
@@ -3210,6 +3210,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
   });
 
   // ===== OAUTH ENDPOINTS FOR GOOGLE CALENDAR =====
+  
+  // Pagina di configurazione OAuth (mostra l'URL di redirect corretto)
+  app.get("/oauth/config", renderConfigPage);
   
   // Pagina di setup OAuth
   app.get("/oauth/setup", renderAuthPage);
