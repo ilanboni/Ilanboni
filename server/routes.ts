@@ -2849,21 +2849,12 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
           const normalizedPhone = confirmation.phone.replace(/\D/g, '');
           const clientsList = await db.select().from(clients);
           
-          console.log(`[CONFERMA] Ricerca cliente con telefono: ${confirmation.phone} (normalizzato: ${normalizedPhone})`);
-          
           let targetClient = clientsList.find(client => {
             const clientPhone = client.phone.replace(/\D/g, '');
-            console.log(`[CONFERMA] Confronto con cliente ${client.id}: ${client.phone} (normalizzato: ${clientPhone})`);
-            const match = clientPhone === normalizedPhone || 
-                         clientPhone.endsWith(normalizedPhone.slice(-10)) ||
-                         normalizedPhone.endsWith(clientPhone.slice(-10));
-            if (match) {
-              console.log(`[CONFERMA] MATCH trovato con cliente ${client.id}`);
-            }
-            return match;
+            return clientPhone === normalizedPhone || 
+                   clientPhone.endsWith(normalizedPhone.slice(-10)) ||
+                   normalizedPhone.endsWith(clientPhone.slice(-10));
           });
-          
-          console.log(`[CONFERMA] Cliente trovato:`, targetClient ? `ID ${targetClient.id}` : 'Nessuno');
           
           // Se abbiamo trovato il cliente, crea la comunicazione
           if (targetClient) {

@@ -262,6 +262,28 @@ export const propertySent = pgTable("property_sent", {
 
 export const insertPropertySentSchema = createInsertSchema(propertySent).omit({ id: true, sentAt: true });
 
+// Tabella per gli eventi del calendario
+export const calendarEvents = pgTable("calendar_events", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  location: text("location"),
+  clientId: integer("client_id").references(() => clients.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  appointmentConfirmationId: integer("appointment_confirmation_id").references(() => appointmentConfirmations.id),
+  googleEventId: text("google_event_id"), // ID dell'evento su Google Calendar
+  syncStatus: text("sync_status").default("pending"), // 'pending', 'synced', 'failed'
+  syncError: text("sync_error"),
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -298,6 +320,9 @@ export type InsertCommunicationProperty = z.infer<typeof insertCommunicationProp
 
 export type MarketInsight = typeof marketInsights.$inferSelect;
 export type InsertMarketInsight = z.infer<typeof insertMarketInsightSchema>;
+
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 
 export type PropertySent = typeof propertySent.$inferSelect;
 export type InsertPropertySent = z.infer<typeof insertPropertySentSchema>;
