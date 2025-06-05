@@ -3,12 +3,8 @@ import { google } from 'googleapis';
 
 // Determina l'URL base dell'applicazione
 const getBaseUrl = () => {
-  // Per questa app deployata su Replit, usa sempre l'URL deployato
-  if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
-    return `https://client-management-system-${process.env.REPL_OWNER}.replit.app`;
-  }
-  // Fallback per sviluppo locale
-  return 'http://localhost:5000';
+  // Per questa app deployata su Replit, usa sempre l'URL deployato specifico
+  return 'https://client-management-system-ilanboni.replit.app';
 };
 
 const oauth2Client = new google.auth.OAuth2(

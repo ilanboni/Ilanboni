@@ -34,12 +34,17 @@ class GoogleCalendarService {
     }
 
     try {
-      const auth = new google.auth.OAuth2(clientId, clientSecret);
+      // Use the correct redirect URI that matches Google Cloud Console configuration
+      const auth = new google.auth.OAuth2(
+        clientId, 
+        clientSecret,
+        'https://client-management-system-ilanboni.replit.app/oauth/callback'
+      );
       auth.setCredentials({ refresh_token: refreshToken });
       
       this.calendar = google.calendar({ version: 'v3', auth });
       this.isConfigured = true;
-      console.log('[CALENDAR] Google Calendar service initialized');
+      console.log('[CALENDAR] Google Calendar service initialized with correct redirect URI');
     } catch (error) {
       console.error('[CALENDAR] Error initializing Google Calendar:', error);
       this.isConfigured = false;
