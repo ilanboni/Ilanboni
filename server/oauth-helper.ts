@@ -35,33 +35,82 @@ export function getAuthUrl(): string {
  * Gestisce il callback OAuth e ottiene i token
  */
 export async function handleOAuthCallback(req: Request, res: Response) {
-  const { code } = req.query;
+  const { code, error } = req.query;
+  
+  if (error) {
+    return res.status(400).send(`
+      <html>
+        <head><title>OAuth Error</title></head>
+        <body>
+          <h1>Errore di autorizzazione</h1>
+          <p>Errore: ${error}</p>
+          <p><a href="/calendar">Torna al calendario</a></p>
+        </body>
+      </html>
+    `);
+  }
   
   if (!code || typeof code !== 'string') {
-    return res.status(400).json({ error: 'Authorization code missing' });
+    return res.status(400).send(`
+      <html>
+        <head><title>OAuth Error</title></head>
+        <body>
+          <h1>Codice di autorizzazione mancante</h1>
+          <p><a href="/calendar">Torna al calendario</a></p>
+        </body>
+      </html>
+    `);
   }
 
   try {
+    console.log('[OAUTH] Processing authorization code:', code.substring(0, 20) + '...');
     const { tokens } = await oauth2Client.getToken(code);
     
-    // Restituisci i token (in produzione dovresti salvarli in modo sicuro)
-    res.json({
-      success: true,
-      message: 'Authorization successful! Use these credentials:',
-      credentials: {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        scope: tokens.scope,
-        token_type: tokens.token_type,
-        expiry_date: tokens.expiry_date
-      }
-    });
+    if (tokens.refresh_token) {
+      // Configurazione automatica del refresh token
+      process.env.GOOGLE_CALENDAR_REFRESH_TOKEN = tokens.refresh_token;
+      console.log('[OAUTH] Google Calendar configured successfully');
+      
+      res.send(`
+        <html>
+          <head><title>OAuth Success</title></head>
+          <body>
+            <h1>✅ Google Calendar configurato con successo!</h1>
+            <p>Il calendario è ora sincronizzato. Gli appuntamenti creati nell'app appariranno automaticamente nel tuo Google Calendar.</p>
+            <p><a href="/calendar">Vai al calendario</a></p>
+            <script>
+              setTimeout(() => {
+                window.location.href = '/calendar';
+              }, 3000);
+            </script>
+          </body>
+        </html>
+      `);
+    } else {
+      res.send(`
+        <html>
+          <head><title>OAuth Warning</title></head>
+          <body>
+            <h1>⚠️ Configurazione parziale</h1>
+            <p>Autorizzazione completata ma nessun refresh token ricevuto.</p>
+            <p>Potrebbe essere necessario revocare l'accesso e riprovare.</p>
+            <p><a href="/calendar">Torna al calendario</a></p>
+          </body>
+        </html>
+      `);
+    }
   } catch (error) {
-    console.error('Error getting tokens:', error);
-    res.status(500).json({ 
-      error: 'Failed to get tokens',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    console.error('[OAUTH] Error getting tokens:', error);
+    res.status(500).send(`
+      <html>
+        <head><title>OAuth Error</title></head>
+        <body>
+          <h1>❌ Errore di configurazione</h1>
+          <p>Errore: ${error instanceof Error ? error.message : 'Errore sconosciuto'}</p>
+          <p><a href="/calendar">Torna al calendario</a></p>
+        </body>
+      </html>
+    `);
   }
 }
 
