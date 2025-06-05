@@ -3,10 +3,11 @@ import { google } from 'googleapis';
 
 // Determina l'URL base dell'applicazione
 const getBaseUrl = () => {
-  if (process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1') {
-    // Per Replit Deployments, usa l'URL dell'app deployata
-    return `https://${process.env.REPL_SLUG || 'app'}-${process.env.REPL_OWNER || 'user'}.replit.app`;
+  // Per questa app deployata su Replit, usa sempre l'URL deployato
+  if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+    return `https://client-management-system-${process.env.REPL_OWNER}.replit.app`;
   }
+  // Fallback per sviluppo locale
   return 'http://localhost:5000';
 };
 
