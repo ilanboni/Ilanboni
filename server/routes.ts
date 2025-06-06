@@ -3338,10 +3338,14 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
     try {
       // Usa l'helper OAuth esistente per processare il callback
+      const baseUrl = process.env.REPLIT_DEPLOYMENT === '1' 
+        ? 'https://client-management-system-ilanboni.replit.app' 
+        : `http://localhost:${process.env.PORT || 5000}`;
+      
       const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CALENDAR_CLIENT_ID,
         process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-        `https://client-management-system-ilanboni.replit.app/oauth/callback`
+        `${baseUrl}/oauth/callback`
       );
 
       console.log('[OAUTH CALLBACK] Exchanging code for tokens...');
