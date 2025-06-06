@@ -167,19 +167,25 @@ class GoogleCalendarService {
         throw new Error(`Cannot parse appointment date: ${confirmation.appointmentDate}`);
       }
 
-      // Crea evento di 1 ora per default
+      // Crea evento di 30 minuti come richiesto
       const startDate = appointmentDateTime;
-      const endDate = new Date(appointmentDateTime.getTime() + 60 * 60 * 1000); // +1 ora
+      const endDate = new Date(appointmentDateTime.getTime() + 30 * 60 * 1000); // +30 minuti
+
+      // Formatta nome completo e telefono per il titolo
+      const fullName = confirmation.firstName ? 
+        `${confirmation.firstName} ${confirmation.lastName}` : 
+        confirmation.lastName;
 
       const eventData: CalendarEventData = {
-        title: `Appuntamento - ${confirmation.lastName}`,
-        description: `Appuntamento confermato con ${confirmation.salutation} ${confirmation.lastName}\nTelefono: ${confirmation.phone}`,
+        title: `${fullName} - ${confirmation.phone}`,
+        description: `Appuntamento confermato con ${confirmation.salutation} ${fullName}\nTelefono: ${confirmation.phone}\nIndirizzo: ${confirmation.address}`,
         startDate,
         endDate,
         location: confirmation.address,
         appointmentConfirmationId: confirmation.id
       };
 
+      console.log(`[CALENDAR] Creating event for ${fullName} at ${confirmation.address} on ${appointmentDateTime}`);
       return await this.createEvent(eventData);
     } catch (error) {
       console.error('[CALENDAR] Error creating event from appointment confirmation:', error);
@@ -192,7 +198,7 @@ class GoogleCalendarService {
    */
   private parseAppointmentDate(dateString: string): Date | null {
     try {
-      // Esempi: "7 giugno 2025 ore 15:00", "domani alle 10:00", "oggi alle 13:00"
+      console.log(`[CALENDAR] Parsing appointment date: "${dateString}"`);
       
       // Pattern per date specifiche: "7 giugno 2025 ore 15:00"
       const specificDateRegex = /(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})\s+ore?\s+(\d{1,2}):?(\d{2})?/i;
@@ -212,7 +218,9 @@ class GoogleCalendarService {
         
         const month = monthMap[monthName];
         if (month !== undefined) {
-          return new Date(year, month, day, hour, minute);
+          const parsedDate = new Date(year, month, day, hour, minute);
+          console.log(`[CALENDAR] Parsed specific date: ${parsedDate}`);
+          return parsedDate;
         }
       }
 
@@ -226,6 +234,7 @@ class GoogleCalendarService {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(hour, minute, 0, 0);
+        console.log(`[CALENDAR] Parsed tomorrow date: ${tomorrow}`);
         return tomorrow;
       }
 
@@ -238,15 +247,46 @@ class GoogleCalendarService {
         const minute = parseInt(todayMatch[2] || '0');
         const today = new Date();
         today.setHours(hour, minute, 0, 0);
+        console.log(`[CALENDAR] Parsed today date: ${today}`);
+        return today;
+      }
+
+      // Pattern per ore semplici: "alle 10:00" o "ore 15:30"
+      const timeOnlyRegex = /(alle?\s+|ore?\s+)(\d{1,2}):?(\d{2})?/i;
+      const timeMatch = dateString.match(timeOnlyRegex);
+      
+      if (timeMatch) {
+        const hour = parseInt(timeMatch[2]);
+        const minute = parseInt(timeMatch[3] || '0');
+        // Assume oggi se non specificato
+        const today = new Date();
+        today.setHours(hour, minute, 0, 0);
+        console.log(`[CALENDAR] Parsed time-only as today: ${today}`);
+        return today;
+      }
+
+      // Pattern per numeri di ore: "10:00" o "15"
+      const pureTimeRegex = /^(\d{1,2}):?(\d{2})?$/;
+      const pureTimeMatch = dateString.match(pureTimeRegex);
+      
+      if (pureTimeMatch) {
+        const hour = parseInt(pureTimeMatch[1]);
+        const minute = parseInt(pureTimeMatch[2] || '0');
+        // Assume oggi
+        const today = new Date();
+        today.setHours(hour, minute, 0, 0);
+        console.log(`[CALENDAR] Parsed pure time as today: ${today}`);
         return today;
       }
 
       // Fallback: prova a parsare come data ISO o formato standard
       const parsedDate = new Date(dateString);
       if (!isNaN(parsedDate.getTime())) {
+        console.log(`[CALENDAR] Parsed ISO date: ${parsedDate}`);
         return parsedDate;
       }
 
+      console.log(`[CALENDAR] Could not parse date: "${dateString}"`);
       return null;
     } catch (error) {
       console.error('[CALENDAR] Error parsing appointment date:', error);
