@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { google } from 'googleapis';
 import { 
   insertCommunicationSchema, 
   insertPropertySchema, 
@@ -3300,6 +3301,105 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         error: 'Errore nella configurazione',
         details: error instanceof Error ? error.message : 'Errore sconosciuto'
       });
+    }
+  });
+
+  // OAuth callback route per Google Calendar
+  app.get("/oauth/callback", async (req: Request, res: Response) => {
+    const { code, error } = req.query;
+    
+    console.log('[OAUTH CALLBACK] Received callback with code:', code ? 'Yes' : 'No', 'error:', error);
+    
+    if (error) {
+      return res.status(400).send(`
+        <html>
+          <head><title>OAuth Error</title></head>
+          <body>
+            <h1>❌ Errore di autorizzazione</h1>
+            <p>Errore: ${error}</p>
+            <p><a href="/calendar">Torna al calendario</a></p>
+          </body>
+        </html>
+      `);
+    }
+    
+    if (!code || typeof code !== 'string') {
+      return res.status(400).send(`
+        <html>
+          <head><title>OAuth Error</title></head>
+          <body>
+            <h1>❌ Codice di autorizzazione mancante</h1>
+            <p>Non è stato ricevuto un codice di autorizzazione valido.</p>
+            <p><a href="/calendar">Torna al calendario</a></p>
+          </body>
+        </html>
+      `);
+    }
+
+    try {
+      // Usa l'helper OAuth esistente per processare il callback
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CALENDAR_CLIENT_ID,
+        process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+        `https://client-management-system-ilanboni.replit.app/oauth/callback`
+      );
+
+      console.log('[OAUTH CALLBACK] Exchanging code for tokens...');
+      const { tokens } = await oauth2Client.getToken(code);
+      
+      if (tokens.refresh_token) {
+        // Salva il refresh token come variabile d'ambiente
+        process.env.GOOGLE_CALENDAR_REFRESH_TOKEN = tokens.refresh_token;
+        console.log('[OAUTH CALLBACK] ✅ Google Calendar configurato con successo');
+        
+        res.send(`
+          <html>
+            <head>
+              <title>OAuth Success</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+                .success { color: #28a745; }
+                .button { display: inline-block; background: #4285f4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+              </style>
+            </head>
+            <body>
+              <h1 class="success">✅ Google Calendar configurato con successo!</h1>
+              <p>Il calendario è ora sincronizzato. Gli appuntamenti creati nell'app appariranno automaticamente nel tuo Google Calendar.</p>
+              <a href="/calendar" class="button">Vai al calendario</a>
+              <script>
+                setTimeout(() => {
+                  window.location.href = '/calendar';
+                }, 3000);
+              </script>
+            </body>
+          </html>
+        `);
+      } else {
+        console.log('[OAUTH CALLBACK] ⚠️ Nessun refresh token ricevuto');
+        res.send(`
+          <html>
+            <head><title>OAuth Warning</title></head>
+            <body>
+              <h1>⚠️ Configurazione parziale</h1>
+              <p>Autorizzazione completata ma nessun refresh token ricevuto.</p>
+              <p>Potrebbe essere necessario revocare l'accesso e riprovare.</p>
+              <p><a href="/calendar">Torna al calendario</a></p>
+            </body>
+          </html>
+        `);
+      }
+    } catch (error) {
+      console.error('[OAUTH CALLBACK] ❌ Errore durante lo scambio del codice:', error);
+      res.status(500).send(`
+        <html>
+          <head><title>OAuth Error</title></head>
+          <body>
+            <h1>❌ Errore di configurazione</h1>
+            <p>Errore: ${error instanceof Error ? error.message : 'Errore sconosciuto'}</p>
+            <p><a href="/calendar">Torna al calendario</a></p>
+          </body>
+        </html>
+      `);
     }
   });
 
