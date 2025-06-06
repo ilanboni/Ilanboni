@@ -251,7 +251,7 @@ class GoogleCalendarService {
         return today;
       }
 
-      // Pattern per giorni della settimana con date: "Martedì 10/6, alle ore 10"
+      // Pattern per giorni della settimana con date: "Martedì 10/6, alle ore 10" o "Lunedì 9/6 alle ore 15"
       const weekdayDateRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})\/(\d{1,2}),?\s*alle?\s+ore?\s+(\d{1,2}):?(\d{2})?/i;
       const weekdayMatch = dateString.match(weekdayDateRegex);
       
@@ -265,6 +265,23 @@ class GoogleCalendarService {
         const currentYear = new Date().getFullYear();
         const parsedDate = new Date(currentYear, month, day, hour, minute);
         console.log(`[CALENDAR] Parsed weekday date: ${parsedDate}`);
+        return parsedDate;
+      }
+
+      // Pattern alternativo per giorni senza virgola: "Lunedì 9/6 alle ore 15"
+      const weekdayDateAltRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})\/(\d{1,2})\s+alle?\s+ore?\s+(\d{1,2}):?(\d{2})?/i;
+      const weekdayAltMatch = dateString.match(weekdayDateAltRegex);
+      
+      if (weekdayAltMatch) {
+        const day = parseInt(weekdayAltMatch[2]);
+        const month = parseInt(weekdayAltMatch[3]) - 1; // JavaScript months are 0-based
+        const hour = parseInt(weekdayAltMatch[4]);
+        const minute = parseInt(weekdayAltMatch[5] || '0');
+        
+        // Assume current year if not specified
+        const currentYear = new Date().getFullYear();
+        const parsedDate = new Date(currentYear, month, day, hour, minute);
+        console.log(`[CALENDAR] Parsed weekday date (alt format): ${parsedDate}`);
         return parsedDate;
       }
 
