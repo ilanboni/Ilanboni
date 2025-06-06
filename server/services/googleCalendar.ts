@@ -251,6 +251,23 @@ class GoogleCalendarService {
         return today;
       }
 
+      // Pattern per giorni della settimana con date: "Martedì 10/6, alle ore 10"
+      const weekdayDateRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})\/(\d{1,2}),?\s*alle?\s+ore?\s+(\d{1,2}):?(\d{2})?/i;
+      const weekdayMatch = dateString.match(weekdayDateRegex);
+      
+      if (weekdayMatch) {
+        const day = parseInt(weekdayMatch[2]);
+        const month = parseInt(weekdayMatch[3]) - 1; // JavaScript months are 0-based
+        const hour = parseInt(weekdayMatch[4]);
+        const minute = parseInt(weekdayMatch[5] || '0');
+        
+        // Assume current year if not specified
+        const currentYear = new Date().getFullYear();
+        const parsedDate = new Date(currentYear, month, day, hour, minute);
+        console.log(`[CALENDAR] Parsed weekday date: ${parsedDate}`);
+        return parsedDate;
+      }
+
       // Pattern per ore semplici: "alle 10:00" o "ore 15:30"
       const timeOnlyRegex = /(alle?\s+|ore?\s+)(\d{1,2}):?(\d{2})?/i;
       const timeMatch = dateString.match(timeOnlyRegex);
