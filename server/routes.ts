@@ -2037,16 +2037,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(buyers)
         .innerJoin(clients, eq(buyers.clientId, clients.id));
       
-      // Calcolare statistiche per zone (aree di ricerca)
+      // Calcolare statistiche per zone (aree di ricerca reali)
       const zoneStats: Record<string, { count: number }> = {};
+      
       buyersData.forEach(buyer => {
-        if (buyer.clients.city) {
-          const zone = buyer.clients.city.split(',')[0].trim();
-          if (!zoneStats[zone]) {
-            zoneStats[zone] = { count: 0 };
+        let zoneName = "Area non definita";
+        
+        // Prova a utilizzare l'area di ricerca geografica se presente
+        if (buyer.buyers.searchArea) {
+          try {
+            const searchAreaData = buyer.buyers.searchArea;
+            let searchArea;
+            
+            // Parse l'area di ricerca (può essere string o già oggetto)
+            if (typeof searchAreaData === 'string') {
+              searchArea = JSON.parse(searchAreaData);
+            } else {
+              searchArea = searchAreaData;
+            }
+            
+            let centerLat, centerLng;
+            
+            // Gestisce sia poligoni che cerchi
+            if (searchArea?.geometry?.coordinates && searchArea.geometry.coordinates[0]) {
+              // Poligono GeoJSON
+              const coords = searchArea.geometry.coordinates[0];
+              centerLat = coords.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / coords.length;
+              centerLng = coords.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / coords.length;
+            } else if (searchArea?.center) {
+              // Area circolare
+              centerLat = searchArea.center.lat;
+              centerLng = searchArea.center.lng;
+            }
+            
+            // Determina la zona geografica in base alle coordinate di Milano
+            if (centerLat && centerLng) {
+              if (centerLat > 45.485 && centerLng > 9.200) {
+                zoneName = "Milano Nord-Est";
+              } else if (centerLat > 45.485 && centerLng <= 9.200) {
+                zoneName = "Milano Nord-Ovest";
+              } else if (centerLat <= 45.485 && centerLng > 9.200) {
+                zoneName = "Milano Sud-Est";
+              } else if (centerLat <= 45.485 && centerLng <= 9.200) {
+                zoneName = "Milano Sud-Ovest";
+              } else {
+                zoneName = "Milano Centro";
+              }
+            }
+          } catch (e) {
+            console.log("Errore nel parsing dell'area di ricerca:", e);
+            // Se il parsing fallisce, usa la città come fallback
+            if (buyer.clients.city) {
+              zoneName = buyer.clients.city.split(',')[0].trim();
+            }
           }
-          zoneStats[zone].count += 1;
+        } else if (buyer.clients.city) {
+          // Fallback alla città se non c'è area di ricerca
+          zoneName = buyer.clients.city.split(',')[0].trim();
         }
+        
+        if (!zoneStats[zoneName]) {
+          zoneStats[zoneName] = { count: 0 };
+        }
+        zoneStats[zoneName].count += 1;
       });
       
       // Calcolare statistiche per fasce di prezzo
