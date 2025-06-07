@@ -2946,16 +2946,19 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
             };
             
             await db.insert(tasks).values(taskData);
-
-            // Crea l'evento nel calendario
-            try {
-              const { googleCalendarService } = await import('./services/googleCalendar');
-              await googleCalendarService.createEventFromAppointmentConfirmation(confirmation);
-              console.log(`[CALENDAR] Created calendar event for appointment with ${confirmation.lastName}`);
-            } catch (calendarError) {
-              console.error('[CALENDAR] Error creating calendar event:', calendarError);
-              // Non bloccare il processo se il calendario fallisce
-            }
+          }
+          
+          // Crea sempre l'evento nel calendario, indipendentemente dalla presenza del cliente
+          console.log(`[CALENDAR] Attempting to create calendar event for ${confirmation.lastName}`);
+          try {
+            const { googleCalendarService } = await import('./services/googleCalendar');
+            console.log(`[CALENDAR] Google Calendar service imported successfully`);
+            await googleCalendarService.createEventFromAppointmentConfirmation(confirmation);
+            console.log(`[CALENDAR] Created calendar event for appointment with ${confirmation.lastName}`);
+          } catch (calendarError) {
+            console.error('[CALENDAR] Error creating calendar event:', calendarError);
+            console.error('[CALENDAR] Error details:', JSON.stringify(calendarError, null, 2));
+            // Non bloccare il processo se il calendario fallisce
           }
           
           // Aggiorna lo stato come inviato
