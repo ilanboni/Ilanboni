@@ -268,6 +268,23 @@ class GoogleCalendarService {
         return parsedDate;
       }
 
+      // Pattern per formato "Domenica 8/6, ore 9:30" (senza "alle")
+      const weekdayDateDirectRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})\/(\d{1,2}),?\s*ore?\s+(\d{1,2}):?(\d{2})?/i;
+      const weekdayDirectMatch = dateString.match(weekdayDateDirectRegex);
+      
+      if (weekdayDirectMatch) {
+        const day = parseInt(weekdayDirectMatch[2]);
+        const month = parseInt(weekdayDirectMatch[3]) - 1; // JavaScript months are 0-based
+        const hour = parseInt(weekdayDirectMatch[4]);
+        const minute = parseInt(weekdayDirectMatch[5] || '0');
+        
+        // Assume current year if not specified
+        const currentYear = new Date().getFullYear();
+        const parsedDate = new Date(currentYear, month, day, hour, minute);
+        console.log(`[CALENDAR] Parsed weekday date (direct ore format): ${parsedDate}`);
+        return parsedDate;
+      }
+
       // Pattern alternativo per giorni senza virgola: "Lunedì 9/6 alle ore 15"
       const weekdayDateAltRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})\/(\d{1,2})\s+alle?\s+ore?\s+(\d{1,2}):?(\d{2})?/i;
       const weekdayAltMatch = dateString.match(weekdayDateAltRegex);
