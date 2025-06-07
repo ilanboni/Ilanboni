@@ -305,9 +305,13 @@ class GoogleCalendarService {
         
         // Assume current year if not specified
         const currentYear = new Date().getFullYear();
-        const parsedDate = new Date(currentYear, month, day, hour, minute);
-        console.log(`[CALENDAR] Parsed weekday date (direct ore format): ${parsedDate}`);
-        return parsedDate;
+        
+        // Crea la data in ora locale italiana e converte in UTC
+        const localDate = new Date(currentYear, month, day, hour, minute);
+        const utcDate = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
+        
+        console.log(`[CALENDAR] Parsed weekday date (direct ore format) - Local: ${localDate} -> UTC: ${utcDate}`);
+        return utcDate;
       }
 
       // Pattern alternativo per giorni senza virgola: "Lunedì 9/6 alle ore 15"
@@ -322,9 +326,13 @@ class GoogleCalendarService {
         
         // Assume current year if not specified
         const currentYear = new Date().getFullYear();
-        const parsedDate = new Date(currentYear, month, day, hour, minute);
-        console.log(`[CALENDAR] Parsed weekday date (alt format): ${parsedDate}`);
-        return parsedDate;
+        
+        // Crea la data in ora locale italiana e converte in UTC
+        const localDate = new Date(currentYear, month, day, hour, minute);
+        const utcDate = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
+        
+        console.log(`[CALENDAR] Parsed weekday date (alt format) - Local: ${localDate} -> UTC: ${utcDate}`);
+        return utcDate;
       }
 
       // Pattern per ore semplici: "alle 10:00" o "ore 15:30"
