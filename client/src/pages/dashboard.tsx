@@ -8,6 +8,7 @@ import RecentClients from "@/components/dashboard/RecentClients";
 import MarketAnalysis from "@/components/dashboard/MarketAnalysis";
 import SearchAnalytics from "@/components/dashboard/SearchAnalytics";
 import SharedPropertiesRanking from "@/components/dashboard/SharedPropertiesRanking";
+import WhatsAppSender from "@/components/dashboard/WhatsAppSender";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -70,6 +71,9 @@ export default function Dashboard() {
         
         {/* Right Column */}
         <div className="space-y-6">
+          {/* WhatsApp Sender */}
+          <WhatsAppSender />
+          
           {/* Tasks and Alerts */}
           <TasksAndAlerts />
           
