@@ -264,12 +264,11 @@ class GoogleCalendarService {
         // Assume current year if not specified
         const currentYear = new Date().getFullYear();
         
-        // Crea la data in ora locale italiana e converte in UTC
+        // Mantieni l'orario locale - Google Calendar gestirà il fuso orario
         const localDate = new Date(currentYear, month, day, hour, minute);
-        const utcDate = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
         
-        console.log(`[CALENDAR] Parsed weekday date (alle format) - Local: ${localDate} -> UTC: ${utcDate}`);
-        return utcDate;
+        console.log(`[CALENDAR] Parsed weekday date (alle format) - Local: ${localDate}`);
+        return localDate;
       }
 
       // Pattern per giorni della settimana senza data: "Domenica, ore 10:30"
@@ -299,11 +298,8 @@ class GoogleCalendarService {
         targetDate.setDate(today.getDate() + daysToAdd);
         targetDate.setHours(hour, minute, 0, 0);
         
-        // Converte in UTC
-        const utcDate = new Date(targetDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
-        
-        console.log(`[CALENDAR] Parsed weekday-only date - ${weekdayName} -> Local: ${targetDate} -> UTC: ${utcDate}`);
-        return utcDate;
+        console.log(`[CALENDAR] Parsed weekday-only date - ${weekdayName} -> Local: ${targetDate}`);
+        return targetDate;
       }
 
       // Pattern per giorni della settimana con "alle ore": "Martedì 10/6, alle ore 10" o "Lunedì 9/6 alle ore 15"
@@ -319,12 +315,11 @@ class GoogleCalendarService {
         // Assume current year if not specified
         const currentYear = new Date().getFullYear();
         
-        // Crea la data in ora locale italiana e converte in UTC
+        // Mantieni l'orario locale - Google Calendar gestirà il fuso orario
         const localDate = new Date(currentYear, month, day, hour, minute);
-        const utcDate = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
         
-        console.log(`[CALENDAR] Parsed weekday date - Local: ${localDate} -> UTC: ${utcDate}`);
-        return utcDate;
+        console.log(`[CALENDAR] Parsed weekday date - Local: ${localDate}`);
+        return localDate;
       }
 
       // Pattern per formato "Domenica 8/6, ore 9:30" (senza "alle")
@@ -361,12 +356,11 @@ class GoogleCalendarService {
         // Assume current year if not specified
         const currentYear = new Date().getFullYear();
         
-        // Crea la data in ora locale italiana e converte in UTC
+        // Mantieni l'orario locale - Google Calendar gestirà il fuso orario
         const localDate = new Date(currentYear, month, day, hour, minute);
-        const utcDate = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
         
-        console.log(`[CALENDAR] Parsed weekday date (alt format) - Local: ${localDate} -> UTC: ${utcDate}`);
-        return utcDate;
+        console.log(`[CALENDAR] Parsed weekday date (alt format) - Local: ${localDate}`);
+        return localDate;
       }
 
       // Pattern per ore semplici: "alle 10:00" o "ore 15:30"
