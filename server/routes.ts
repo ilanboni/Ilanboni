@@ -2897,7 +2897,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       
       // Invia il messaggio WhatsApp
       const ultraMsgClient = getUltraMsgClient();
+      console.log(`[ULTRAMSG] Client initialized: ${!!ultraMsgClient}`);
       if (ultraMsgClient) {
+        console.log(`[ULTRAMSG] Attempting to send message to ${confirmation.phone}`);
         try {
           const response = await ultraMsgClient.sendMessage(confirmation.phone, message);
           
