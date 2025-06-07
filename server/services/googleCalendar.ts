@@ -272,6 +272,40 @@ class GoogleCalendarService {
         return utcDate;
       }
 
+      // Pattern per giorni della settimana senza data: "Domenica, ore 10:30"
+      const weekdayOnlyRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica),?\s*ore?\s+(\d{1,2}):?(\d{2})?/i;
+      const weekdayOnlyMatch = dateString.match(weekdayOnlyRegex);
+      
+      if (weekdayOnlyMatch) {
+        const weekdayName = weekdayOnlyMatch[1].toLowerCase();
+        const hour = parseInt(weekdayOnlyMatch[2]);
+        const minute = parseInt(weekdayOnlyMatch[3] || '0');
+        
+        const weekdayMap: { [key: string]: number } = {
+          domenica: 0, lunedì: 1, martedì: 2, mercoledì: 3, giovedì: 4, venerdì: 5, sabato: 6
+        };
+        
+        const targetWeekday = weekdayMap[weekdayName];
+        const today = new Date();
+        const currentWeekday = today.getDay();
+        
+        // Calcola i giorni da aggiungere per arrivare al prossimo giorno specificato
+        let daysToAdd = targetWeekday - currentWeekday;
+        if (daysToAdd <= 0) {
+          daysToAdd += 7; // Se il giorno è oggi o è passato, va alla settimana prossima
+        }
+        
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + daysToAdd);
+        targetDate.setHours(hour, minute, 0, 0);
+        
+        // Converte in UTC
+        const utcDate = new Date(targetDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
+        
+        console.log(`[CALENDAR] Parsed weekday-only date - ${weekdayName} -> Local: ${targetDate} -> UTC: ${utcDate}`);
+        return utcDate;
+      }
+
       // Pattern per giorni della settimana con "alle ore": "Martedì 10/6, alle ore 10" o "Lunedì 9/6 alle ore 15"
       const weekdayDateRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})\/(\d{1,2}),?\s*alle?\s+ore?\s+(\d{1,2}):?(\d{2})?/i;
       const weekdayMatch = dateString.match(weekdayDateRegex);
