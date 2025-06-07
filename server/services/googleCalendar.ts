@@ -263,9 +263,13 @@ class GoogleCalendarService {
         
         // Assume current year if not specified
         const currentYear = new Date().getFullYear();
-        const parsedDate = new Date(currentYear, month, day, hour, minute);
-        console.log(`[CALENDAR] Parsed weekday date (alle format): ${parsedDate}`);
-        return parsedDate;
+        
+        // Crea la data in ora locale italiana e converte in UTC
+        const localDate = new Date(currentYear, month, day, hour, minute);
+        const utcDate = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
+        
+        console.log(`[CALENDAR] Parsed weekday date (alle format) - Local: ${localDate} -> UTC: ${utcDate}`);
+        return utcDate;
       }
 
       // Pattern per giorni della settimana con "alle ore": "Martedì 10/6, alle ore 10" o "Lunedì 9/6 alle ore 15"
@@ -280,9 +284,13 @@ class GoogleCalendarService {
         
         // Assume current year if not specified
         const currentYear = new Date().getFullYear();
-        const parsedDate = new Date(currentYear, month, day, hour, minute);
-        console.log(`[CALENDAR] Parsed weekday date: ${parsedDate}`);
-        return parsedDate;
+        
+        // Crea la data in ora locale italiana e converte in UTC
+        const localDate = new Date(currentYear, month, day, hour, minute);
+        const utcDate = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
+        
+        console.log(`[CALENDAR] Parsed weekday date - Local: ${localDate} -> UTC: ${utcDate}`);
+        return utcDate;
       }
 
       // Pattern per formato "Domenica 8/6, ore 9:30" (senza "alle")
