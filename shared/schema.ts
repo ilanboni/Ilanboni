@@ -284,6 +284,37 @@ export const calendarEvents = pgTable("calendar_events", {
 export const insertCalendarEventSchema = createInsertSchema(calendarEvents)
   .omit({ id: true, createdAt: true, updatedAt: true });
 
+// Tabella per tracciare le email da immobiliare.it
+export const immobiliareEmails = pgTable("immobiliare_emails", {
+  id: serial("id").primaryKey(),
+  emailId: text("email_id").notNull().unique(), // ID univoco dell'email
+  fromAddress: text("from_address").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  htmlBody: text("html_body"),
+  receivedAt: timestamp("received_at").notNull(),
+  processed: boolean("processed").default(false),
+  processingError: text("processing_error"),
+  // Dati estratti dall'email
+  clientName: text("client_name"),
+  clientEmail: text("client_email"), 
+  clientPhone: text("client_phone"),
+  propertyAddress: text("property_address"),
+  propertyType: text("property_type"),
+  propertyPrice: integer("property_price"),
+  propertySize: integer("property_size"),
+  requestType: text("request_type"), // "visita", "informazioni", "contatto"
+  // Collegamenti ai record creati
+  clientId: integer("client_id").references(() => clients.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  taskId: integer("task_id").references(() => tasks.id),
+  communicationId: integer("communication_id").references(() => communications.id),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const insertImmobiliareEmailSchema = createInsertSchema(immobiliareEmails)
+  .omit({ id: true, createdAt: true });
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -374,3 +405,6 @@ export const insertAppointmentConfirmationSchema = createInsertSchema(appointmen
 
 export type AppointmentConfirmation = typeof appointmentConfirmations.$inferSelect;
 export type InsertAppointmentConfirmation = z.infer<typeof insertAppointmentConfirmationSchema>;
+
+export type ImmobiliareEmail = typeof immobiliareEmails.$inferSelect;
+export type InsertImmobiliareEmail = z.infer<typeof insertImmobiliareEmailSchema>;

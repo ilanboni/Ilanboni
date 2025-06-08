@@ -3585,5 +3585,102 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  // ========================================
+  // Email Processing Routes (immobiliare.it)
+  // ========================================
+
+  app.post("/api/emails/webhook", async (req: Request, res: Response) => {
+    try {
+      const { emailId, fromAddress, subject, body, htmlBody, receivedAt } = req.body;
+      
+      console.log('[EMAIL WEBHOOK] Ricevuta notifica email:', {
+        emailId,
+        fromAddress,
+        subject: subject?.substring(0, 50) + '...'
+      });
+
+      // Verifica che sia un'email da immobiliare.it
+      if (!fromAddress.includes('immobiliare.it') && !fromAddress.includes('noreply@immobiliare.it')) {
+        console.log('[EMAIL WEBHOOK] Email ignorata - non da immobiliare.it');
+        return res.status(200).json({ message: 'Email ignorata' });
+      }
+
+      const { emailProcessor } = await import('./services/immobiliareEmailProcessor');
+      
+      await emailProcessor.processEmail({
+        emailId: emailId || `${Date.now()}-${Math.random()}`,
+        fromAddress,
+        subject: subject || 'Oggetto mancante',
+        body: body || '',
+        htmlBody,
+        receivedAt: receivedAt ? new Date(receivedAt) : new Date()
+      });
+
+      res.status(200).json({ message: 'Email elaborata con successo' });
+    } catch (error) {
+      console.error('[EMAIL WEBHOOK] Errore nell\'elaborazione:', error);
+      res.status(500).json({ 
+        error: 'Errore nell\'elaborazione dell\'email',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
+    }
+  });
+
+  app.post("/api/emails/manual-process", async (req: Request, res: Response) => {
+    try {
+      const { subject, body, fromAddress } = req.body;
+      
+      if (!subject || !body) {
+        return res.status(400).json({ error: 'Subject e body sono obbligatori' });
+      }
+
+      const { emailProcessor } = await import('./services/immobiliareEmailProcessor');
+      
+      await emailProcessor.processEmail({
+        emailId: `manual-${Date.now()}`,
+        fromAddress: fromAddress || 'noreply@immobiliare.it',
+        subject,
+        body,
+        receivedAt: new Date()
+      });
+
+      res.status(200).json({ message: 'Email elaborata manualmente con successo' });
+    } catch (error) {
+      console.error('[EMAIL MANUAL] Errore nell\'elaborazione manuale:', error);
+      res.status(500).json({ 
+        error: 'Errore nell\'elaborazione manuale',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
+    }
+  });
+
+  app.get("/api/emails/stats", async (req: Request, res: Response) => {
+    try {
+      const { emailProcessor } = await import('./services/immobiliareEmailProcessor');
+      const stats = await emailProcessor.getProcessingStats();
+      res.json(stats);
+    } catch (error) {
+      console.error('[EMAIL STATS] Errore nel recupero statistiche:', error);
+      res.status(500).json({ error: 'Errore nel recupero delle statistiche' });
+    }
+  });
+
+  app.get("/api/emails", async (req: Request, res: Response) => {
+    try {
+      const { immobiliareEmails } = await import('@shared/schema');
+      const { desc } = await import('drizzle-orm');
+      
+      const emails = await db.select()
+        .from(immobiliareEmails)
+        .orderBy(desc(immobiliareEmails.receivedAt))
+        .limit(50);
+      
+      res.json(emails);
+    } catch (error) {
+      console.error('[EMAIL LIST] Errore nel recupero email:', error);
+      res.status(500).json({ error: 'Errore nel recupero delle email' });
+    }
+  });
+
   return httpServer;
 }
