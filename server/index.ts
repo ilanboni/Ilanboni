@@ -3,9 +3,13 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { fetchRecentWhatsAppMessages } from "./lib/ultramsgApi";
 import diagnosticRouter from "./diagnostic-webhook";
+import { gmailService } from "./services/gmailService";
 
 // Intervallo in millisecondi per il polling dei messaggi WhatsApp
 const WHATSAPP_POLLING_INTERVAL = 15000; // 15 secondi (aumentata frequenza per test)
+
+// Intervallo in millisecondi per il polling delle email Gmail
+const GMAIL_POLLING_INTERVAL = 300000; // 5 minuti
 
 // Importa lo scheduler per i follow-up automatici
 import { startFollowUpScheduler } from "./services/followUpScheduler";
@@ -64,6 +68,26 @@ function startWhatsAppPolling() {
   
   // Imposta il polling periodico
   setInterval(pollWhatsAppMessages, WHATSAPP_POLLING_INTERVAL);
+}
+
+// Funzione che gestisce il polling delle email Gmail
+function startGmailPolling() {
+  console.log("📧 Inizializzazione sistema di polling email Gmail...");
+  
+  // Esegui immediatamente la prima verifica
+  pollGmailMessages();
+  
+  // Imposta il polling periodico
+  setInterval(pollGmailMessages, GMAIL_POLLING_INTERVAL);
+}
+
+// Funzione che esegue il polling delle email Gmail
+async function pollGmailMessages() {
+  try {
+    await gmailService.checkNewEmails();
+  } catch (error) {
+    console.error("❌ Errore durante il polling delle email Gmail:", error);
+  }
 }
 
 // Funzione che esegue il polling effettivo
@@ -132,6 +156,9 @@ async function pollWhatsAppMessages() {
     
     // Avvia il polling dei messaggi WhatsApp dopo l'avvio del server
     startWhatsAppPolling();
+    
+    // Avvia il polling delle email Gmail dopo l'avvio del server
+    startGmailPolling();
     
     // Avvia lo scheduler per i follow-up automatici (verifica ogni ora = 60 minuti)
     startFollowUpScheduler(60);
