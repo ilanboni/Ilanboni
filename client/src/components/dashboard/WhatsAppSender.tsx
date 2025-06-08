@@ -32,7 +32,7 @@ export default function WhatsAppSender() {
               data: { to: phone, message: data.message }
             });
             results.push({ phone, success: true, result });
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
           } catch (error) {
             results.push({ phone, success: false, error: (error as any)?.message || 'Errore sconosciuto' });
           }

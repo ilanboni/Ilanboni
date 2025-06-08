@@ -171,6 +171,11 @@ export default function WhatsAppPage() {
       title: "Auguri festività",
       content: "🎉 AUGURI\n\nI migliori auguri di [festività] a voi e alle vostre famiglie.\n\nGrazie per la fiducia che ci accordate.\n\n[Il vostro nome] - [Agenzia]",
       broadcast: true
+    },
+    {
+      title: "Cancellazione visite per proposta",
+      content: "Gentile cliente, con riferimento all'immobile di Viale Abruzzi per il quale avevamo fissato un appuntamento, la informo che in data odierna è stata presentata una proposta d'acquisto e, d'accordo con la proprietà, abbiamo deciso di congelare le visite. Sarà mia premura aggiornarla sull'evoluzione di questa trattativa. Colgo l'occasione per augurarle una buona domenica, Ilan Boni - Cavour Immobiliare",
+      broadcast: true
     }
   ];
 
