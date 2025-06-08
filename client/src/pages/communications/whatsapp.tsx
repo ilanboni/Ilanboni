@@ -22,7 +22,7 @@ export default function WhatsAppPage() {
     mutationFn: async (data: { phones: string[]; message: string }) => {
       if (data.phones.length === 1) {
         // Invio singolo
-        return apiRequest("/api/whatsapp/send", {
+        return apiRequest("/api/whatsapp/send-direct", {
           method: "POST",
           data: { to: data.phones[0], message: data.message }
         });
@@ -31,13 +31,13 @@ export default function WhatsAppPage() {
         const results = [];
         for (const phone of data.phones) {
           try {
-            const result = await apiRequest("/api/whatsapp/send", {
+            const result = await apiRequest("/api/whatsapp/send-direct", {
               method: "POST",
               data: { to: phone, message: data.message }
             });
             results.push({ phone, success: true, result });
             // Piccola pausa tra gli invii per non sovraccaricare l'API
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
           } catch (error) {
             results.push({ phone, success: false, error: (error as any)?.message || 'Errore sconosciuto' });
           }

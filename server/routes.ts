@@ -1537,7 +1537,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Endpoint per inviare messaggi WhatsApp tramite UltraMsg
+  // Nuovo endpoint per invio diretto a numeri di telefono (per broadcast)
+  app.post("/api/whatsapp/send-direct", async (req: Request, res: Response) => {
+    try {
+      console.log("[ULTRAMSG DIRECT] Ricevuta richiesta di invio diretto:", req.body);
+      const { to, message } = req.body;
+      
+      if (!to || !message) {
+        console.log("[ULTRAMSG DIRECT] Parametri mancanti:", { to, message });
+        return res.status(400).json({ 
+          success: false,
+          error: "Parametri mancanti. Richiesti: to, message" 
+        });
+      }
+      
+      // Verifica credenziali UltraMsg
+      if (!process.env.ULTRAMSG_INSTANCE_ID || !process.env.ULTRAMSG_API_KEY) {
+        console.log("[ULTRAMSG DIRECT] Variabili ambiente mancanti!");
+        return res.status(500).json({ 
+          success: false,
+          error: "Configurazione UltraMsg non trovata" 
+        });
+      }
+      
+      try {
+        // Normalizza il numero di telefono per l'API
+        let normalizedPhone = to.replace(/\s+/g, "").replace(/[^0-9+]/g, "");
+        if (normalizedPhone.startsWith("0")) {
+          normalizedPhone = "39" + normalizedPhone.substring(1);
+        } else if (!normalizedPhone.startsWith("39") && !normalizedPhone.startsWith("+39")) {
+          if (normalizedPhone.startsWith("+")) {
+            normalizedPhone = normalizedPhone.substring(1);
+          } else {
+            normalizedPhone = "39" + normalizedPhone;
+          }
+        }
+        
+        console.log("[ULTRAMSG DIRECT] Invio a numero normalizzato:", normalizedPhone);
+        
+        // Costruisci l'URL dell'API UltraMsg
+        const apiUrl = `https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE_ID}/messages/chat`;
+        
+        const payload = {
+          token: process.env.ULTRAMSG_API_KEY,
+          to: normalizedPhone,
+          body: message,
+          priority: 10
+        };
+        
+        console.log("[ULTRAMSG DIRECT] Payload:", { ...payload, token: "[HIDDEN]" });
+        
+        const response = await axios.post(apiUrl, payload);
+        console.log("[ULTRAMSG DIRECT] Risposta API:", response.data);
+        
+        // Tenta di trovare un cliente esistente con questo numero per salvare la comunicazione
+        let clientId = null;
+        try {
+          const client = await storage.getClientByPhone(normalizedPhone);
+          if (client) {
+            clientId = client.id;
+            console.log("[ULTRAMSG DIRECT] Cliente trovato per salvataggio:", client.id);
+          }
+        } catch (e) {
+          console.log("[ULTRAMSG DIRECT] Nessun cliente trovato per questo numero");
+        }
+        
+        // Se abbiamo un cliente, salva la comunicazione
+        if (clientId) {
+          try {
+            const summary = message.length > 50 ? `${message.substring(0, 47)}...` : message;
+            const communicationData = {
+              clientId,
+              type: 'whatsapp',
+              subject: 'Messaggio WhatsApp (Broadcast)',
+              content: message,
+              summary,
+              direction: 'outbound',
+              needsFollowUp: false,
+              status: 'completed'
+            };
+            
+            await storage.createCommunication(communicationData);
+            console.log("[ULTRAMSG DIRECT] Comunicazione salvata per cliente:", clientId);
+          } catch (dbError) {
+            console.error("[ULTRAMSG DIRECT] Errore salvataggio comunicazione:", dbError);
+            // Non bloccare l'invio se il salvataggio fallisce
+          }
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: "Messaggio WhatsApp inviato con successo",
+          msgId: response.data.id,
+          to: normalizedPhone
+        });
+        
+      } catch (apiError: any) {
+        console.error("[ULTRAMSG DIRECT] Errore API UltraMsg:", apiError);
+        
+        if (axios.isAxiosError(apiError) && apiError.response) {
+          console.error("[ULTRAMSG DIRECT] Dettagli errore API:", apiError.response.data);
+          return res.status(500).json({ 
+            success: false,
+            error: "Errore API UltraMsg: " + (apiError.response.data?.error || apiError.message)
+          });
+        }
+        
+        return res.status(500).json({ 
+          success: false,
+          error: "Errore durante l'invio del messaggio WhatsApp: " + apiError.message
+        });
+      }
+    } catch (error: any) {
+      console.error("[ULTRAMSG DIRECT] Errore generale:", error);
+      return res.status(500).json({ 
+        success: false,
+        error: "Errore durante l'invio del messaggio WhatsApp: " + error.message
+      });
+    }
+  });
+
+  // Endpoint per inviare messaggi WhatsApp tramite UltraMsg (per clienti esistenti)
   app.post("/api/whatsapp/send", async (req: Request, res: Response) => {
     try {
       console.log("[ULTRAMSG] Ricevuta richiesta di invio messaggio:", req.body);

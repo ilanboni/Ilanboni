@@ -19,7 +19,7 @@ export default function WhatsAppSender() {
   const sendWhatsAppMutation = useMutation({
     mutationFn: async (data: { phones: string[]; message: string }) => {
       if (data.phones.length === 1) {
-        return apiRequest("/api/whatsapp/send", {
+        return apiRequest("/api/whatsapp/send-direct", {
           method: "POST",
           data: { to: data.phones[0], message: data.message }
         });
@@ -27,7 +27,7 @@ export default function WhatsAppSender() {
         const results = [];
         for (const phone of data.phones) {
           try {
-            const result = await apiRequest("/api/whatsapp/send", {
+            const result = await apiRequest("/api/whatsapp/send-direct", {
               method: "POST",
               data: { to: phone, message: data.message }
             });
