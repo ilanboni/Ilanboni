@@ -3682,5 +3682,29 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  // Endpoint per monitorare lo stato del servizio Gmail
+  app.get("/api/emails/gmail/status", async (req: Request, res: Response) => {
+    try {
+      const { gmailService } = await import('./services/gmailService');
+      const status = gmailService.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error("Errore nel recupero stato Gmail:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // Endpoint per forzare il controllo delle email Gmail
+  app.post("/api/emails/gmail/check", async (req: Request, res: Response) => {
+    try {
+      const { gmailService } = await import('./services/gmailService');
+      await gmailService.checkNewEmails();
+      res.json({ success: true, message: "Controllo email completato" });
+    } catch (error) {
+      console.error("Errore nel controllo Gmail:", error);
+      res.status(500).json({ error: "Errore nel controllo delle email" });
+    }
+  });
+
   return httpServer;
 }

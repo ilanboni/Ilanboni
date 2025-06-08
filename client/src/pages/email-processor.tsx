@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Mail, User, Home, Calendar, TrendingUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Mail, User, Home, Calendar, TrendingUp, AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
@@ -46,12 +46,18 @@ export default function EmailProcessor() {
     refetchInterval: 30000
   });
 
+  // Query per stato Gmail
+  const { data: gmailStatus, isLoading: gmailStatusLoading } = useQuery({
+    queryKey: ['/api/emails/gmail/status'],
+    refetchInterval: 15000 // Aggiorna ogni 15 secondi
+  });
+
   // Mutation per elaborazione manuale
   const { mutate: processManually, isPending: isProcessing } = useMutation({
     mutationFn: async (data: z.infer<typeof manualProcessSchema>) => {
       return await apiRequest('/api/emails/manual-process', {
         method: 'POST',
-        body: JSON.stringify(data)
+        data: data
       });
     },
     onSuccess: () => {
@@ -67,6 +73,31 @@ export default function EmailProcessor() {
       toast({
         title: 'Errore',
         description: error.details || 'Errore nell\'elaborazione dell\'email',
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Mutation per controllo Gmail manuale
+  const { mutate: checkGmail, isPending: isCheckingGmail } = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/emails/gmail/check', {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Controllo completato',
+        description: 'Controllo email Gmail completato con successo.'
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/emails'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/emails/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/emails/gmail/status'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Errore',
+        description: error.message || 'Errore nel controllo Gmail',
         variant: 'destructive'
       });
     }
@@ -102,6 +133,53 @@ export default function EmailProcessor() {
           </p>
         </div>
       </div>
+
+      {/* Stato Gmail */}
+      <Card className="mb-6">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div>
+            <CardTitle className="text-lg font-medium">Monitoraggio Gmail Automatico</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Sistema di polling automatico per email da immobiliare.it (controllo ogni 5 minuti)
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button 
+              onClick={() => checkGmail()} 
+              disabled={isCheckingGmail}
+              variant="outline"
+              size="sm"
+            >
+              {isCheckingGmail ? (
+                <>
+                  <Clock className="w-4 h-4 mr-2 animate-spin" />
+                  Controllo...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Controlla Ora
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${gmailStatus?.isAuthenticated ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-sm">
+                {gmailStatusLoading ? 'Verifica...' : (gmailStatus?.isAuthenticated ? 'Gmail Connesso' : 'Gmail Non Connesso')}
+              </span>
+            </div>
+            {gmailStatus?.lastCheck && (
+              <div className="text-sm text-muted-foreground">
+                Ultimo controllo: {new Date(gmailStatus.lastCheck).toLocaleString('it-IT')}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Statistiche */}
       <div className="grid gap-4 md:grid-cols-4">
