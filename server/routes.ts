@@ -4364,8 +4364,20 @@ document.getElementById('tokenForm').addEventListener('submit', async function(e
   app.get("/api/emails", async (req: Request, res: Response) => {
     try {
       const { immobiliareEmails } = await import('@shared/schema');
-      const { desc } = await import('drizzle-orm');
+      const { desc, eq } = await import('drizzle-orm');
+      const { emailId } = req.query;
       
+      if (emailId) {
+        // Filtra per emailId specifico
+        console.log(`[EMAIL API] Filtro per emailId: ${emailId}`);
+        const emails = await db.select()
+          .from(immobiliareEmails)
+          .where(eq(immobiliareEmails.emailId, emailId as string));
+        res.json(emails);
+        return;
+      }
+      
+      // Lista normale con limite
       const emails = await db.select()
         .from(immobiliareEmails)
         .orderBy(desc(immobiliareEmails.receivedAt))
