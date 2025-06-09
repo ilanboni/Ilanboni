@@ -3433,9 +3433,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
       const { google } = await import('googleapis');
       const oauth2Client = new google.auth.OAuth2(
-        '876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com',
-        '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',
-        'https://client-management-system-ilanboni.replit.app/oauth/callback'
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        'urn:ietf:wg:oauth:2.0:oob'
       );
 
       const { tokens } = await oauth2Client.getToken(code);
@@ -3871,29 +3871,16 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
             </body>
           </html>
         `);
-      } else {
-        console.log('[OAUTH CALLBACK] ⚠️ Nessun refresh token ricevuto');
-        res.send(`
-          <html>
-            <head><title>OAuth Warning</title></head>
-            <body>
-              <h1>⚠️ Configurazione parziale</h1>
-              <p>Autorizzazione completata ma nessun refresh token ricevuto.</p>
-              <p>Potrebbe essere necessario revocare l'accesso e riprovare.</p>
-              <p><a href="/calendar">Torna al calendario</a></p>
-            </body>
-          </html>
-        `);
       }
     } catch (error) {
-      console.error('[OAUTH CALLBACK] ❌ Errore durante lo scambio del codice:', error);
+      console.error('[OAUTH CALLBACK] Errore:', error);
       res.status(500).send(`
         <html>
           <head><title>OAuth Error</title></head>
           <body>
             <h1>❌ Errore di configurazione</h1>
-            <p>Errore: ${error instanceof Error ? error.message : 'Errore sconosciuto'}</p>
-            <p><a href="/calendar">Torna al calendario</a></p>
+            <p>Si è verificato un errore durante l'autorizzazione: ${error.message}</p>
+            <p><a href="/gmail-oauth-setup">← Torna alla configurazione Gmail</a></p>
           </body>
         </html>
       `);
