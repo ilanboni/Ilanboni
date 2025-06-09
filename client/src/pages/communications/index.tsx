@@ -452,8 +452,7 @@ export default function CommunicationsPage() {
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
       return apiRequest(`/api/communications/${id}/management-status`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
-        headers: { "Content-Type": "application/json" },
+        data: { status },
       });
     },
     onSuccess: () => {
@@ -497,8 +496,8 @@ export default function CommunicationsPage() {
   });
   
   // Function to get client name by id and detect unknown numbers
-  const getClientName = (clientId: number, subject?: string) => {
-    const client = clients?.find(c => c.id === clientId);
+  const getClientName = (clientId: number | null, subject?: string) => {
+    const client = clients?.find((c: any) => c.id === clientId);
     
     // Verifica se è un messaggio da numero non registrato
     if (subject && subject.includes("da numero non registrato")) {
@@ -778,15 +777,15 @@ export default function CommunicationsPage() {
                         <TableCell>{getDirectionIcon(comm.direction)}</TableCell>
                         <TableCell>{getTypeBadge(comm.type)}</TableCell>
                         <TableCell className="text-sm">
-                          {formatDistanceToNow(new Date(comm.createdAt), {
+                          {comm.createdAt ? formatDistanceToNow(new Date(comm.createdAt), {
                             addSuffix: true,
                             locale: it,
-                          })}
+                          }) : 'N/A'}
                         </TableCell>
                         <TableCell>
                           <Link href={`/clients/${comm.clientId}`}>
                             <div className="text-primary-700 hover:underline cursor-pointer">
-                              {getClientName(comm.clientId, comm.subject)}
+                              {getClientName(comm.clientId || null, comm.subject)}
                             </div>
                           </Link>
                         </TableCell>
