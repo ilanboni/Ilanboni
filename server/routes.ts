@@ -252,6 +252,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Estrae informazioni di contatto da una comunicazione per preview
+  app.get("/api/communications/:id/extract-contact", async (req: Request, res: Response) => {
+    try {
+      const communicationId = parseInt(req.params.id);
+      if (isNaN(communicationId)) {
+        return res.status(400).json({ error: "ID comunicazione non valido" });
+      }
+
+      const communication = await storage.getCommunication(communicationId);
+      if (!communication) {
+        return res.status(404).json({ error: "Comunicazione non trovata" });
+      }
+
+      // Estrai informazioni dal contenuto della comunicazione
+      const content = communication.content || "";
+      const subject = communication.subject || "";
+      const fullText = subject + " " + content;
+      
+      // Estrai nome (cerca pattern comuni nelle email di immobiliare.it)
+      let firstName = "";
+      let lastName = "";
+      let phone = "";
+      
+      // Pattern per nomi strutturati (NOME/COGNOME)
+      const structuredNameMatch = fullText.match(/NOME[:\s]*([A-Za-z\s]+)[\s\n]*COGNOME[:\s]*([A-Za-z\s]+)/i);
+      if (structuredNameMatch) {
+        firstName = structuredNameMatch[1].trim();
+        lastName = structuredNameMatch[2].trim();
+      } else {
+        // Pattern per nomi generici
+        const nameMatches = fullText.match(/(?:Nome|Name|Cliente):\s*([A-Za-z\s]+)/i) ||
+                           fullText.match(/([A-Z][a-z]+\s+[A-Z][a-z]+)/) ||
+                           fullText.match(/Messaggio di\s+([A-Za-z\s]+)\s+per/i) ||
+                           fullText.match(/Ilan\s+([A-Z][a-z]+)/); // Pattern per "Ilan Boni"
+        
+        if (nameMatches && nameMatches[1]) {
+          const nameParts = nameMatches[1].trim().split(/\s+/);
+          firstName = nameParts[0] || "";
+          lastName = nameParts.slice(1).join(" ") || "";
+        }
+      }
+      
+      // Estrai telefono (cerca pattern comuni per numeri di telefono)
+      const phonePatterns = [
+        /\+39\s*(\d{9,10})/g,  // +39 followed by 9-10 digits
+        /\+(\d{11,15})/g,      // + followed by 11-15 digits
+        /(\d{10,15})/g         // 10-15 digits
+      ];
+      
+      for (const pattern of phonePatterns) {
+        const match = fullText.match(pattern);
+        if (match) {
+          let foundPhone = match[1] || match[0];
+          // Normalize phone number (remove + and ensure it starts with country code)
+          foundPhone = foundPhone.replace(/\+/g, "").replace(/\s/g, "");
+          if (foundPhone.length >= 10) {
+            phone = foundPhone.startsWith("39") ? foundPhone : "39" + foundPhone;
+            break;
+          }
+        }
+      }
+      
+      // Se non ci sono dati estratti, usa fallback basato sul tipo di comunicazione
+      if (!firstName && !lastName && !phone) {
+        firstName = "Cliente";
+        lastName = "da Comunicazione";
+      }
+
+      res.json({
+        success: true,
+        extractedData: {
+          firstName: firstName || "",
+          lastName: lastName || "",
+          phone: phone || "",
+          type: "buyer", // Default type
+          hasProperty: !!communication.propertyId
+        }
+      });
+    } catch (error) {
+      console.error(`[GET /api/communications/${req.params.id}/extract-contact]`, error);
+      res.status(500).json({ error: "Errore durante l'estrazione delle informazioni di contatto" });
+    }
+  });
+
   // Crea cliente automaticamente da una comunicazione
   app.post("/api/communications/:id/create-client", async (req: Request, res: Response) => {
     try {

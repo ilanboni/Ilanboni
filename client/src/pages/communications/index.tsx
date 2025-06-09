@@ -482,6 +482,10 @@ export default function CommunicationsPage() {
     },
   });
 
+  // State for client creation dialog
+  const [clientDialogOpen, setClientDialogOpen] = useState(false);
+  const [selectedCommunicationForClient, setSelectedCommunicationForClient] = useState<any>(null);
+
   // Mutation for creating client from communication
   const createClientMutation = useMutation({
     mutationFn: async (communicationId: number) => {
@@ -492,6 +496,8 @@ export default function CommunicationsPage() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      setClientDialogOpen(false);
+      setSelectedCommunicationForClient(null);
       toast({
         title: "Cliente creato",
         description: data.message || "Cliente creato con successo dalla comunicazione.",
@@ -835,8 +841,11 @@ export default function CommunicationsPage() {
                                 Gestita
                               </DropdownMenuItem>
                               <DropdownMenuItem 
-                                onClick={() => createClientMutation.mutate(comm.id)}
-                                disabled={createClientMutation.isPending || !comm.propertyId}
+                                onClick={() => {
+                                  setSelectedCommunicationForClient(comm);
+                                  setClientDialogOpen(true);
+                                }}
+                                disabled={!comm.propertyId}
                               >
                                 <i className="fas fa-user-plus mr-2 text-blue-600"></i>
                                 Crea cliente
