@@ -38,10 +38,13 @@ export class GmailService {
         return;
       }
 
+      const clientId = process.env.GMAIL_NATIVE_CLIENT_ID || process.env.GMAIL_CLIENT_ID;
+      const clientSecret = process.env.GMAIL_NATIVE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET;
+      
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GMAIL_CLIENT_ID,
-        process.env.GMAIL_CLIENT_SECRET,
-        'https://client-management-system-ilanboni.replit.app/oauth/gmail/callback'
+        clientId,
+        clientSecret,
+        'urn:ietf:wg:oauth:2.0:oob'
       );
 
       oauth2Client.setCredentials({
