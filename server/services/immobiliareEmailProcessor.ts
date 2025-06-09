@@ -225,6 +225,13 @@ ISTRUZIONI SPECIFICHE:
    * Trova o crea un cliente
    */
   private async findOrCreateClient(clientData: ExtractedClientData): Promise<number> {
+    // Per chiamate telefoniche senza nome, crea un nome basato sul numero
+    if (!clientData.name && clientData.phone) {
+      const phoneNumber = this.normalizePhoneNumber(clientData.phone);
+      clientData.name = `Cliente ${phoneNumber.slice(-4)}`;
+      console.log(`[EMAIL PROCESSOR] Nome mancante per chiamata telefonica, uso: ${clientData.name}`);
+    }
+    
     if (!clientData.name) {
       throw new Error('Nome cliente mancante');
     }
