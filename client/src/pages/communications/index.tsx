@@ -137,21 +137,32 @@ function CreateAppointmentDialog({
         hasName = true;
         lastName = nomeMatch[1].trim();
       } else {
-        // Fallback: Look for any capitalized words that might be names in the content
-        const nameMatches = content.match(/\b[A-Z][a-z]{2,}\b/g);
-        if (nameMatches && nameMatches.length > 0) {
-          // Filter out common words
-          const commonWords = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia"];
-          const filteredNames = nameMatches.filter(word => 
-            !commonWords.includes(word) && 
-            word.length > 2 && 
-            !word.match(/^\d/) &&
-            !word.match(/^(Abruzzi|Viale|Milano)$/)
-          );
-          
-          if (filteredNames.length > 0) {
-            hasName = true;
-            lastName = filteredNames[0]; // Take the first potential name
+        // Enhanced fallback: Look for names in various formats
+        const fullText = subject + " " + content;
+        
+        // Look for "Ilan Boni" pattern in signatures
+        const signatureMatch = fullText.match(/\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\s*-\s*Cavour/i);
+        if (signatureMatch) {
+          hasName = true;
+          name = signatureMatch[1];
+          lastName = signatureMatch[2];
+        } else {
+          // Look for any capitalized words that might be names in the content
+          const nameMatches = content.match(/\b[A-Z][a-z]{2,}\b/g);
+          if (nameMatches && nameMatches.length > 0) {
+            // Filter out common words
+            const commonWords = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia", "Link", "Image", "Dettagli", "Vedi", "Tutti", "Ricordiamo", "Questa"];
+            const filteredNames = nameMatches.filter(word => 
+              !commonWords.includes(word) && 
+              word.length > 2 && 
+              !word.match(/^\d/) &&
+              !word.match(/^(Abruzzi|Viale|Milano|Immobiliare|Facebook|Twitter)$/)
+            );
+            
+            if (filteredNames.length > 0) {
+              hasName = true;
+              lastName = filteredNames[0]; // Take the first potential name
+            }
           }
         }
       }
@@ -832,7 +843,7 @@ export default function CommunicationsPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleCreateAppointment(comm)}
-                                disabled={!comm.propertyId}
+                                disabled={false}
                               >
                                 <i className="fas fa-calendar-plus mr-2 text-purple-600"></i>
                                 Crea appuntamento
