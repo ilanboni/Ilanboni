@@ -810,29 +810,36 @@ export default function PropertyDetailPage() {
                 </div>
               ) : communications && communications.length > 0 ? (
                 <div className="space-y-4">
-                  {communications.map((comm) => (
-                    <div key={comm.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-md">
-                      <div className="flex-shrink-0 mt-0.5">
-                        {getDirectionIcon(comm.direction)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {comm.direction === "inbound" && comm.clientId ? 
-                                clientNamesById[comm.clientId] || `Cliente #${comm.clientId}` : 
-                                "Sistema"}
-                            </span>
-                            {getCommunicationTypeBadge(comm.type)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {formatDate(comm.createdAt?.toString() || "")}
-                          </div>
-                        </div>
-                        <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{comm.content}</p>
-                      </div>
-                    </div>
-                  ))}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Oggetto</TableHead>
+                        <TableHead>Gestione</TableHead>
+                        <TableHead className="text-right">Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TooltipProvider>
+                        {communications.map((comm) => (
+                          <PropertyCommunicationRow 
+                            key={comm.id} 
+                            communication={comm}
+                            clientName={comm.direction === "inbound" && comm.clientId ? 
+                              clientNamesById[comm.clientId] || `Cliente #${comm.clientId}` : 
+                              "Sistema"}
+                            onStatusUpdate={() => {
+                              // Invalidate both communications queries to sync both views
+                              queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+                              queryClient.invalidateQueries({ queryKey: ["/api/properties", id, "communications"] });
+                            }}
+                          />
+                        ))}
+                      </TooltipProvider>
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <div className="py-10 text-center text-gray-500">
@@ -1027,5 +1034,181 @@ export default function PropertyDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// Property Communication Row Component with Management Status
+interface PropertyCommunicationRowProps {
+  communication: any;
+  clientName: string;
+  onStatusUpdate: () => void;
+}
+
+function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }: PropertyCommunicationRowProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Update management status mutation
+  const updateManagementStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      const response = await fetch(`/api/communications/${id}/management-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ managementStatus: status }),
+      });
+      if (!response.ok) throw new Error('Failed to update status');
+      return response.json();
+    },
+    onSuccess: () => {
+      onStatusUpdate();
+      toast({
+        title: "Stato aggiornato",
+        description: "Lo stato di gestione è stato aggiornato con successo.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato di gestione.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create client from communication mutation
+  const createClientMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/communications/${id}/create-client`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new Error('Failed to create client');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      onStatusUpdate();
+      toast({
+        title: "Cliente creato",
+        description: `Cliente ${data.client.firstName} ${data.client.lastName} creato con successo.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Impossibile creare il cliente dalla comunicazione.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleStatusChange = (newStatus: string) => {
+    if (newStatus === "client_created") {
+      createClientMutation.mutate(communication.id);
+    } else {
+      updateManagementStatusMutation.mutate({
+        id: communication.id,
+        status: newStatus,
+      });
+    }
+  };
+
+  // Get management status badge
+  const getManagementStatusBadge = (status: string | null) => {
+    const currentStatus = status || "to_manage";
+    
+    switch (currentStatus) {
+      case "to_manage":
+        return <Badge variant="outline" className="bg-orange-50 text-orange-700 hover:bg-orange-50">Da gestire</Badge>;
+      case "managed":
+        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Gestita</Badge>;
+      case "client_created":
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Cliente creato</Badge>;
+      default:
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">Sconosciuto</Badge>;
+    }
+  };
+
+  // Get communication type badge
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case "email":
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Email</Badge>;
+      case "phone":
+        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Telefono</Badge>;
+      case "whatsapp":
+        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">WhatsApp</Badge>;
+      case "meeting":
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50">Incontro</Badge>;
+      case "sms":
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">SMS</Badge>;
+      default:
+        return <Badge variant="outline">{type}</Badge>;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/D";
+    try {
+      const date = parseISO(dateString);
+      return format(date, "dd/MM/yyyy HH:mm", { locale: it });
+    } catch {
+      return "N/D";
+    }
+  };
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="font-medium">
+          {formatDate(communication.createdAt?.toString() || "")}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="font-medium">
+          {clientName}
+        </div>
+      </TableCell>
+      <TableCell>
+        {getTypeBadge(communication.type)}
+      </TableCell>
+      <TableCell>
+        <div className="max-w-xs truncate">
+          {communication.subject || "Senza oggetto"}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          {getManagementStatusBadge((communication as any).managementStatus)}
+          <Select
+            value={(communication as any).managementStatus || "to_manage"}
+            onValueChange={handleStatusChange}
+            disabled={updateManagementStatusMutation.isPending || createClientMutation.isPending}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="to_manage">Da gestire</SelectItem>
+              <SelectItem value="managed">Gestita</SelectItem>
+              <SelectItem value="client_created">Crea cliente</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <i className="fas fa-eye text-gray-500"></i>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Visualizza dettagli</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
