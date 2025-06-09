@@ -10,6 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -20,23 +27,6 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -145,6 +135,12 @@ export default function PropertyDetailPage() {
   console.log("PropertyDetailPage - ID:", id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Handle appointment creation
+  const handleCreateAppointment = (communication: any) => {
+    setAppointmentCommunication(communication);
+    setShowCreateAppointmentDialog(true);
+  };
   
   // Set up form with zodResolver
   const form = useForm<z.infer<typeof formSchema>>({
@@ -1080,6 +1076,24 @@ export default function PropertyDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create Appointment Dialog */}
+      <CreateAppointmentDialog 
+        isOpen={showCreateAppointmentDialog}
+        onClose={() => {
+          setShowCreateAppointmentDialog(false);
+          setAppointmentCommunication(null);
+        }}
+        communication={appointmentCommunication}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/properties", id, "communications"] });
+          toast({
+            title: "Successo",
+            description: "Appuntamento creato con successo e conferma inviata via WhatsApp",
+          });
+        }}
+      />
     </div>
   );
 }
@@ -1088,7 +1102,7 @@ export default function PropertyDetailPage() {
 interface PropertyCommunicationRowProps {
   communication: any;
   clientName: string;
-  onStatusUpdate: () => void;
+  onStatusUpdate: (communication?: any) => void;
 }
 
 function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }: PropertyCommunicationRowProps) {
@@ -1263,5 +1277,385 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }:
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+// Create Appointment Dialog Component
+function CreateAppointmentDialog({ 
+  isOpen, 
+  onClose, 
+  communication, 
+  onSuccess 
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  communication: any;
+  onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  
+  // Extract contact information from communication
+  const extractContactInfo = (comm: any) => {
+    if (!comm) return { hasName: false, name: "", lastName: "", phone: "" };
+    
+    // Extract phone number and normalize it (remove +)
+    let phone = "";
+    // Look for phone numbers in different formats
+    const phonePatterns = [
+      /\+39\s*(\d{9,10})/g,  // +39 followed by 9-10 digits
+      /\+(\d{11,15})/g,      // + followed by 11-15 digits
+      /(\d{10,15})/g         // 10-15 digits
+    ];
+    
+    const content = comm.content || "";
+    const subject = comm.subject || "";
+    const fullText = subject + " " + content;
+    
+    for (const pattern of phonePatterns) {
+      const match = fullText.match(pattern);
+      if (match) {
+        let foundPhone = match[1] || match[0];
+        // Normalize phone number (remove + and ensure it starts with country code)
+        foundPhone = foundPhone.replace(/\+/g, "").replace(/\s/g, "");
+        if (foundPhone.length >= 10) {
+          phone = foundPhone.startsWith("39") ? foundPhone : "39" + foundPhone;
+          break;
+        }
+      }
+    }
+    
+    // Try to extract name from subject or content
+    let hasName = false;
+    let name = "";
+    let lastName = "";
+    
+    // Enhanced patterns for name extraction
+    const namePatterns = [
+      // For phone call notifications: "Telefonata ricevuta dal numero +39 340 7992 052"
+      /Telefonata ricevuta dal numero\s+\+?[\d\s]+.*?$/i,
+      // General patterns for names after phone numbers
+      /(?:dal numero|da)\s+\+?[\d\s]+\s+([A-Za-z\s]+)$/i,
+      /(?:Cliente|Sig\.?|Dott\.?|Prof\.?)\s+([A-Za-z\s]+)/i,
+      // Look for names in the content
+      /(?:Nome|Cognome):\s*([A-Za-z\s]+)/i,
+      // Extract from email signatures or contact info
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g
+    ];
+    
+    // For phone call notifications, extract any name that might be in the content
+    if (subject.includes("Telefonata ricevuta")) {
+      // First, look for structured NOME/COGNOME format
+      const nomeMatch = content.match(/\n\s*([A-Z][A-Z\s]+)\s*\n\s*NOME/);
+      const cognomeMatch = content.match(/\n\s*([A-Z][A-Z\s]+)\s*\n\s*COGNOME/);
+      
+      if (nomeMatch && cognomeMatch) {
+        hasName = true;
+        name = nomeMatch[1].trim();
+        lastName = cognomeMatch[1].trim();
+      } else if (cognomeMatch) {
+        hasName = true;
+        lastName = cognomeMatch[1].trim();
+      } else if (nomeMatch) {
+        hasName = true;
+        lastName = nomeMatch[1].trim();
+      } else {
+        // Enhanced fallback: Look for names in various formats
+        const fullText = subject + " " + content;
+        
+        // Look for "Ilan Boni" pattern in signatures
+        const signatureMatch = fullText.match(/\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\s*-\s*Cavour/i);
+        if (signatureMatch) {
+          hasName = true;
+          name = signatureMatch[1];
+          lastName = signatureMatch[2];
+        } else {
+          // Look for any capitalized words that might be names in the content
+          const nameMatches = content.match(/\b[A-Z][a-z]{2,}\b/g);
+          if (nameMatches && nameMatches.length > 0) {
+            // Filter out common words
+            const commonWords = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia", "Link", "Image", "Dettagli", "Vedi", "Tutti", "Ricordiamo", "Questa"];
+            const filteredNames = nameMatches.filter((word: any) => 
+              !commonWords.includes(word) && 
+              word.length > 2 && 
+              !word.match(/^\d/) &&
+              !word.match(/^(Abruzzi|Viale|Milano|Immobiliare|Facebook|Twitter)$/)
+            );
+            
+            if (filteredNames.length > 0) {
+              hasName = true;
+              lastName = filteredNames[0]; // Take the first potential name
+            }
+          }
+        }
+      }
+    } else {
+      // Try other patterns for different types of communications
+      for (const pattern of namePatterns) {
+        const nameMatch = fullText.match(pattern);
+        if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 0) {
+          const fullName = nameMatch[1].trim();
+          const nameParts = fullName.split(/\s+/);
+          if (nameParts.length >= 2) {
+            hasName = true;
+            name = nameParts[0];
+            lastName = nameParts.slice(1).join(" ");
+          } else if (nameParts.length === 1 && nameParts[0].length > 2) {
+            hasName = true;
+            lastName = nameParts[0];
+          }
+          break;
+        }
+      }
+    }
+    
+    return { hasName, name, lastName, phone };
+  };
+
+  const contactInfo = extractContactInfo(communication);
+  
+  // Get property address
+  const getPropertyAddress = async (propertyId: number) => {
+    try {
+      const response = await fetch(`/api/properties/${propertyId}`);
+      const property = await response.json();
+      return property.address || "";
+    } catch (error) {
+      return "";
+    }
+  };
+
+  const form = useForm<AppointmentFormData>({
+    resolver: zodResolver(appointmentFormSchema),
+    defaultValues: {
+      salutation: "",
+      lastName: contactInfo.lastName,
+      phone: contactInfo.phone,
+      date: undefined,
+      time: "",
+      address: "",
+    },
+  });
+
+  // Load property address when dialog opens
+  useEffect(() => {
+    if (isOpen && communication?.propertyId) {
+      getPropertyAddress(communication.propertyId).then(address => {
+        form.setValue("address", address);
+      });
+    }
+  }, [isOpen, communication, form]);
+
+  const createAppointmentMutation = useMutation({
+    mutationFn: async (data: AppointmentFormData) => {
+      // Create appointment
+      const appointmentData = {
+        propertyId: communication.propertyId,
+        date: data.date.toISOString(),
+        time: data.time,
+        clientName: `${data.salutation} ${data.lastName}`,
+        clientPhone: data.phone,
+        address: data.address,
+        status: "scheduled",
+        notes: `Appuntamento creato dalla comunicazione ID: ${communication.id}`,
+      };
+
+      const appointment = await apiRequest("/api/calendar/events", {
+        method: "POST",
+        data: appointmentData,
+      });
+
+      // Send WhatsApp confirmation
+      const confirmationMessage = `${data.salutation} ${data.lastName}, le confermo appuntamento di ${format(data.date, "dd/MM/yyyy")} ore ${data.time}, in ${data.address}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
+      
+      await apiRequest("/api/whatsapp/send-direct", {
+        method: "POST",
+        data: {
+          phone: data.phone,
+          message: confirmationMessage,
+        },
+      });
+
+      // Update communication status to appointment_created
+      await apiRequest(`/api/communications/${communication.id}`, {
+        method: "PATCH",
+        data: {
+          managementStatus: "appointment_created",
+        },
+      });
+
+      return appointment;
+    },
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante la creazione dell'appuntamento",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: AppointmentFormData) => {
+    createAppointmentMutation.mutate(data);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Crea Appuntamento</DialogTitle>
+        </DialogHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="salutation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Appellativo</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona appellativo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="egr">Egregio</SelectItem>
+                        <SelectItem value="egr_sig">Egregio Signor</SelectItem>
+                        <SelectItem value="egr_sig_ra">Egregia Signora</SelectItem>
+                        <SelectItem value="egr_dott">Egregio Dott.</SelectItem>
+                        <SelectItem value="egr_dott_ssa">Egregia Dott.ssa</SelectItem>
+                        <SelectItem value="caro">Caro</SelectItem>
+                        <SelectItem value="cara">Cara</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {!contactInfo.hasName && (
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cognome</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Inserisci cognome" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {contactInfo.hasName && (
+              <div className="text-sm text-gray-600">
+                <strong>Cognome:</strong> {contactInfo.lastName}
+              </div>
+            )}
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Numero di telefono</FormLabel>
+                  <FormControl>
+                    <Input {...field} readOnly className="bg-gray-50" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Data</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP", { locale: it })
+                          ) : (
+                            <span>Seleziona data</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date < new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ora</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="time" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Indirizzo</FormLabel>
+                  <FormControl>
+                    <Input {...field} readOnly className="bg-gray-50" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={createAppointmentMutation.isPending}>
+                {createAppointmentMutation.isPending ? "Creazione..." : "Crea Appuntamento"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }
