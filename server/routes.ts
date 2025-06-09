@@ -3465,7 +3465,296 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
   // Pagina di configurazione manuale Gmail OAuth
   app.get("/gmail-oauth-setup", (req: Request, res: Response) => {
-    res.sendFile('gmail-oauth-manual.html', { root: '.' });
+    res.send(`
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurazione Gmail OAuth - Gestionale Immobiliare</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .step {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .step h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .code {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 10px 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .navigation {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .navigation a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🔧 Configurazione Gmail OAuth</h1>
+        <p>Configura l'accesso Gmail per il monitoraggio automatico delle email da immobiliare.it</p>
+    </div>
+
+    <div class="step">
+        <h2>📋 Passo 1: Copia l'URL di Autorizzazione</h2>
+        <p>Apri questo URL nel browser per avviare l'autorizzazione OAuth:</p>
+        <div class="code" id="authUrl">
+            https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=266547561458-hukj58m92o0te74a4ldb4891dtn5lccc.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&prompt=consent
+        </div>
+        <button onclick="copyAuthUrl()" class="button">📋 Copia URL</button>
+        <a href="https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=266547561458-hukj58m92o0te74a4ldb4891dtn5lccc.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&prompt=consent" target="_blank" class="button">🔗 Apri URL</a>
+    </div>
+
+    <div class="step">
+        <h2>🔐 Passo 2: Autorizza l'Applicazione</h2>
+        <p>Nella pagina Google:</p>
+        <ol>
+            <li>Accedi con l'account <strong>info@cavourimmobiliare.it</strong></li>
+            <li>Clicca su "Continua" quando appare l'avviso app non verificata</li>
+            <li>Seleziona i permessi per Gmail</li>
+            <li>Copia il codice di autorizzazione che appare</li>
+        </ol>
+        
+        <div class="warning">
+            ⚠️ <strong>Importante:</strong> L'app potrebbe mostrare un avviso "App non verificata". 
+            Clicca su "Avanzate" e poi "Vai a [nome app] (non sicuro)" per continuare.
+        </div>
+    </div>
+
+    <div class="step">
+        <h2>🎯 Passo 3: Inserisci il Codice di Autorizzazione</h2>
+        <form id="tokenForm">
+            <div class="form-group">
+                <label for="authCode">Codice di Autorizzazione:</label>
+                <textarea id="authCode" rows="3" placeholder="Incolla qui il codice ricevuto da Google..."></textarea>
+            </div>
+            <button type="submit" class="button">🔑 Genera Refresh Token</button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+
+    <div class="info-box">
+        💡 <strong>Nota:</strong> Il refresh token verrà automaticamente salvato nei secrets dell'ambiente 
+        e il servizio Gmail sarà attivato per il monitoraggio delle email.
+    </div>
+
+    <div class="navigation">
+        <a href="/" class="button">🏠 Torna alla Dashboard</a>
+    </div>
+</div>
+
+<script>
+function copyAuthUrl() {
+    const authUrl = document.getElementById('authUrl').textContent.trim();
+    navigator.clipboard.writeText(authUrl).then(function() {
+        alert('URL copiato negli appunti!');
+    });
+}
+
+document.getElementById('tokenForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const authCode = document.getElementById('authCode').value.trim();
+    const resultDiv = document.getElementById('result');
+    
+    if (!authCode) {
+        resultDiv.innerHTML = '<div class="error">❌ Inserisci il codice di autorizzazione</div>';
+        return;
+    }
+    
+    resultDiv.innerHTML = '<div class="info-box">🔄 Elaborazione in corso...</div>';
+    
+    try {
+        const response = await fetch('/api/gmail/exchange-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code: authCode })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.innerHTML = \`
+                <div class="success">
+                    ✅ <strong>Configurazione completata!</strong><br>
+                    Refresh token generato e salvato correttamente.<br>
+                    Il servizio Gmail è ora attivo per il monitoraggio automatico.
+                </div>
+            \`;
+            
+            // Pulisce il form
+            document.getElementById('authCode').value = '';
+            
+        } else {
+            resultDiv.innerHTML = \`
+                <div class="error">
+                    ❌ <strong>Errore:</strong> \${data.error || 'Errore sconosciuto'}
+                </div>
+            \`;
+        }
+        
+    } catch (error) {
+        resultDiv.innerHTML = \`
+            <div class="error">
+                ❌ <strong>Errore di connessione:</strong> \${error.message}
+            </div>
+        \`;
+    }
+});
+</script>
+</body>
+</html>
+    `);
   });
   
   // Avvia autorizzazione Gmail
