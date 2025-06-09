@@ -3433,9 +3433,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
       const { google } = await import('googleapis');
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GMAIL_CLIENT_ID,
-        process.env.GMAIL_CLIENT_SECRET,
-        'urn:ietf:wg:oauth:2.0:oob'
+        '876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com',
+        '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',
+        'https://client-management-system-ilanboni.replit.app/oauth/callback'
       );
 
       const { tokens } = await oauth2Client.getToken(code);
@@ -3778,22 +3778,74 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
 
     try {
-      // Usa l'helper OAuth esistente per processare il callback
-      const baseUrl = process.env.REPLIT_DEPLOYMENT === '1' 
-        ? 'https://client-management-system-ilanboni.replit.app' 
-        : `http://localhost:${process.env.PORT || 5000}`;
-      
+      const { google } = await import('googleapis');
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CALENDAR_CLIENT_ID,
-        process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-        `${baseUrl}/oauth/callback`
+        '876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com',
+        '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',
+        'https://client-management-system-ilanboni.replit.app/oauth/callback'
       );
 
       console.log('[OAUTH CALLBACK] Exchanging code for tokens...');
       const { tokens } = await oauth2Client.getToken(code);
       
-      if (tokens.refresh_token) {
-        // Salva il refresh token come variabile d'ambiente
+      if (!tokens.refresh_token) {
+        return res.send(`
+          <html>
+            <head><title>OAuth Token Missing</title></head>
+            <body>
+              <h1>⚠️ Refresh Token Mancante</h1>
+              <p>L'autorizzazione è stata completata ma il refresh token non è stato generato.</p>
+              <p>Prova a revocare l'accesso dall'account Google e ripeti l'autorizzazione.</p>
+              <p><a href="/gmail-oauth-setup">← Torna alla configurazione Gmail</a></p>
+            </body>
+          </html>
+        `);
+      }
+
+      // Determina il servizio in base agli scope (Gmail o Calendar)
+      const tokenInfo = await oauth2Client.getTokenInfo(tokens.access_token!);
+      const scopes = tokenInfo.scope || '';
+      
+      if (scopes.includes('gmail')) {
+        // Configurazione Gmail
+        console.log('[OAUTH CALLBACK] ✅ Gmail configurato con successo');
+        
+        res.send(`
+          <html>
+            <head>
+              <title>Gmail OAuth Success</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+                .success { background: #d4edda; padding: 20px; border-radius: 5px; border: 1px solid #c3e6cb; }
+                .code { background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; margin: 15px 0; word-break: break-all; }
+                .button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 5px 0 0; }
+              </style>
+            </head>
+            <body>
+              <div class="success">
+                <h1>✅ Autorizzazione Gmail Completata!</h1>
+                <p>Il refresh token è stato generato con successo. Segui questi passi per completare la configurazione:</p>
+                
+                <h3>🔑 Refresh Token:</h3>
+                <div class="code">${tokens.refresh_token}</div>
+
+                <h3>📋 Passi Successivi:</h3>
+                <ol>
+                  <li>Copia il token sopra</li>
+                  <li>Vai sui <strong>Secrets</strong> del progetto Replit</li>
+                  <li>Aggiungi una nuova chiave: <code>GMAIL_REFRESH_TOKEN</code></li>
+                  <li>Incolla il valore del token</li>
+                  <li>Riavvia l'applicazione</li>
+                </ol>
+
+                <a href="/emails" class="button">← Torna al Processore Email</a>
+                <a href="https://replit.com/secrets" target="_blank" class="button">🔧 Apri Secrets</a>
+              </div>
+            </body>
+          </html>
+        `);
+      } else {
+        // Configurazione Calendar (logica esistente)
         process.env.GOOGLE_CALENDAR_REFRESH_TOKEN = tokens.refresh_token;
         console.log('[OAUTH CALLBACK] ✅ Google Calendar configurato con successo');
         
