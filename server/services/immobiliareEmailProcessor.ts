@@ -403,7 +403,7 @@ ISTRUZIONI SPECIFICHE:
   }
 
   /**
-   * Normalizza un numero di telefono
+   * Normalizza un numero di telefono per UltraMsg (formato 393471234567)
    */
   private normalizePhone(phone: string): string {
     // Rimuovi spazi e caratteri speciali
@@ -414,10 +414,27 @@ ISTRUZIONI SPECIFICHE:
       normalized = normalized.substring(1);
     }
     
-    // Se non inizia con 39 e sembra un numero italiano, aggiungi 39
-    if (!normalized.startsWith('39') && normalized.length >= 9) {
+    // Se inizia con 0039, rimuovi 00
+    if (normalized.startsWith('0039')) {
+      normalized = normalized.substring(2);
+    }
+    
+    // Se inizia con 0 (numero nazionale), rimuovilo e aggiungi 39
+    if (normalized.startsWith('0') && normalized.length >= 10) {
+      normalized = '39' + normalized.substring(1);
+    }
+    
+    // Se è un numero cellulare che inizia con 3 (formato nazionale), aggiungi 39
+    if (normalized.startsWith('3') && normalized.length === 10) {
       normalized = '39' + normalized;
     }
+    
+    // Se non inizia con 39 e sembra un numero italiano valido, aggiungi 39
+    if (!normalized.startsWith('39') && normalized.length >= 9 && normalized.length <= 10) {
+      normalized = '39' + normalized;
+    }
+
+    console.log(`[EMAIL PROCESSOR] Numero normalizzato: ${phone} → ${normalized}`);
     
     return normalized;
   }
