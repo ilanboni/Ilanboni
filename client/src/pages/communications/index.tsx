@@ -78,9 +78,28 @@ function CreateAppointmentDialog({
     
     // Extract phone number and normalize it (remove +)
     let phone = "";
-    const phoneMatch = comm.content?.match(/\+?(\d{10,15})/);
-    if (phoneMatch) {
-      phone = phoneMatch[1].startsWith("39") ? phoneMatch[1] : phoneMatch[1];
+    // Look for phone numbers in different formats
+    const phonePatterns = [
+      /\+39\s*(\d{9,10})/g,  // +39 followed by 9-10 digits
+      /\+(\d{11,15})/g,      // + followed by 11-15 digits
+      /(\d{10,15})/g         // 10-15 digits
+    ];
+    
+    const content = comm.content || "";
+    const subject = comm.subject || "";
+    const fullText = subject + " " + content;
+    
+    for (const pattern of phonePatterns) {
+      const match = fullText.match(pattern);
+      if (match) {
+        let foundPhone = match[1] || match[0];
+        // Normalize phone number (remove + and ensure it starts with country code)
+        foundPhone = foundPhone.replace(/\+/g, "").replace(/\s/g, "");
+        if (foundPhone.length >= 10) {
+          phone = foundPhone.startsWith("39") ? foundPhone : "39" + foundPhone;
+          break;
+        }
+      }
     }
     
     // Try to extract name from subject or content
@@ -88,20 +107,71 @@ function CreateAppointmentDialog({
     let name = "";
     let lastName = "";
     
-    // Check for patterns like "Nome Cognome" in subject
-    const namePattern = /(?:dal|ricevuta.*?dal|numero\s+)(?:\+?\d+\s+)?([\w\s]+?)(?:\s|$)/i;
-    const nameMatch = comm.subject?.match(namePattern) || comm.content?.match(namePattern);
+    // Enhanced patterns for name extraction
+    const namePatterns = [
+      // For phone call notifications: "Telefonata ricevuta dal numero +39 340 7992 052"
+      /Telefonata ricevuta dal numero\s+\+?[\d\s]+.*?$/i,
+      // General patterns for names after phone numbers
+      /(?:dal numero|da)\s+\+?[\d\s]+\s+([A-Za-z\s]+)$/i,
+      /(?:Cliente|Sig\.?|Dott\.?|Prof\.?)\s+([A-Za-z\s]+)/i,
+      // Look for names in the content
+      /(?:Nome|Cognome):\s*([A-Za-z\s]+)/i,
+      // Extract from email signatures or contact info
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g
+    ];
     
-    if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 0) {
-      const fullName = nameMatch[1].trim();
-      const nameParts = fullName.split(/\s+/);
-      if (nameParts.length >= 2) {
+    // For phone call notifications, extract any name that might be in the content
+    if (subject.includes("Telefonata ricevuta")) {
+      // First, look for structured NOME/COGNOME format
+      const nomeMatch = content.match(/\n\s*([A-Z][A-Z\s]+)\s*\n\s*NOME/);
+      const cognomeMatch = content.match(/\n\s*([A-Z][A-Z\s]+)\s*\n\s*COGNOME/);
+      
+      if (nomeMatch && cognomeMatch) {
         hasName = true;
-        name = nameParts[0];
-        lastName = nameParts.slice(1).join(" ");
-      } else if (nameParts.length === 1 && nameParts[0].length > 2) {
+        name = nomeMatch[1].trim();
+        lastName = cognomeMatch[1].trim();
+      } else if (cognomeMatch) {
         hasName = true;
-        lastName = nameParts[0];
+        lastName = cognomeMatch[1].trim();
+      } else if (nomeMatch) {
+        hasName = true;
+        lastName = nomeMatch[1].trim();
+      } else {
+        // Fallback: Look for any capitalized words that might be names in the content
+        const nameMatches = content.match(/\b[A-Z][a-z]{2,}\b/g);
+        if (nameMatches && nameMatches.length > 0) {
+          // Filter out common words
+          const commonWords = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia"];
+          const filteredNames = nameMatches.filter(word => 
+            !commonWords.includes(word) && 
+            word.length > 2 && 
+            !word.match(/^\d/) &&
+            !word.match(/^(Abruzzi|Viale|Milano)$/)
+          );
+          
+          if (filteredNames.length > 0) {
+            hasName = true;
+            lastName = filteredNames[0]; // Take the first potential name
+          }
+        }
+      }
+    } else {
+      // Try other patterns for different types of communications
+      for (const pattern of namePatterns) {
+        const nameMatch = fullText.match(pattern);
+        if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 0) {
+          const fullName = nameMatch[1].trim();
+          const nameParts = fullName.split(/\s+/);
+          if (nameParts.length >= 2) {
+            hasName = true;
+            name = nameParts[0];
+            lastName = nameParts.slice(1).join(" ");
+          } else if (nameParts.length === 1 && nameParts[0].length > 2) {
+            hasName = true;
+            lastName = nameParts[0];
+          }
+          break;
+        }
       }
     }
     
