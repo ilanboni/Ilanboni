@@ -24,7 +24,7 @@ import {
   type AppointmentConfirmation
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt } from "drizzle-orm";
+import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like } from "drizzle-orm";
 import { z } from "zod";
 import OpenAI from "openai";
 import { summarizeText } from "./lib/openai";
@@ -3953,13 +3953,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
       // Cerca cliente esistente per telefono
       let clientId = null;
-      const existingClients = await db.select().from(clients).where(
-        or(
-          eq(clients.phone, finalPhone),
-          eq(clients.phone, phone),
-          eq(clients.phone, normalizedPhone)
-        )
-      );
+      const existingClients = await db.select().from(clients).where(eq(clients.phone, finalPhone));
 
       if (existingClients.length > 0) {
         clientId = existingClients[0].id;
@@ -3971,10 +3965,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       if (propertyAddress) {
         const normalizedAddress = propertyAddress.toLowerCase().trim();
         const foundProperties = await db.select().from(properties).where(
-          or(
-            ilike(properties.address, `%${normalizedAddress}%`),
-            ilike(properties.address, `%${propertyAddress}%`)
-          )
+          sql`${properties.address} ILIKE ${`%${normalizedAddress}%`}`
         );
 
         if (foundProperties.length > 0) {
