@@ -9,7 +9,7 @@ import { gmailService } from "./services/gmailService";
 const WHATSAPP_POLLING_INTERVAL = 15000; // 15 secondi (aumentata frequenza per test)
 
 // Intervallo in millisecondi per il polling delle email Gmail
-const GMAIL_POLLING_INTERVAL = 300000; // 5 minuti
+const GMAIL_POLLING_INTERVAL = 60000; // 1 minuto
 
 // Importa lo scheduler per i follow-up automatici
 import { startFollowUpScheduler } from "./services/followUpScheduler";
@@ -84,6 +84,8 @@ function startGmailPolling() {
 // Funzione che esegue il polling delle email Gmail
 async function pollGmailMessages() {
   try {
+    const now = new Date();
+    console.log(`📧 [${now.toLocaleTimeString()}] Controllo automatico email Gmail...`);
     await gmailService.checkNewEmails();
   } catch (error) {
     console.error("❌ Errore durante il polling delle email Gmail:", error);
