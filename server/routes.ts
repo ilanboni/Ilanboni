@@ -3926,29 +3926,29 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       }
 
       // Normalizza il numero di telefono per UltraMsg
-      const normalizedPhone = phone.replace(/[\s\-\(\)\.+]/g, '');
-      let finalPhone = normalizedPhone;
-      
-      // Se inizia con +39, rimuovi il +
-      if (finalPhone.startsWith('+39')) {
-        finalPhone = finalPhone.substring(1);
-      }
-      
-      // Se inizia con 0039, rimuovi 00
-      if (finalPhone.startsWith('0039')) {
-        finalPhone = finalPhone.substring(2);
-      }
-      
-      // Se è un numero cellulare che inizia con 3 (formato nazionale), aggiungi 39
-      if (finalPhone.startsWith('3') && finalPhone.length === 10) {
-        finalPhone = '39' + finalPhone;
-      }
-      
-      // Se non inizia con 39 e sembra un numero italiano valido, aggiungi 39
-      if (!finalPhone.startsWith('39') && finalPhone.length >= 9 && finalPhone.length <= 10) {
-        finalPhone = '39' + finalPhone;
+      function normalizePhoneForUltraMsg(phoneNumber: string): string {
+        let normalized = phoneNumber.replace(/[\s\-\(\)\.+]/g, '');
+        
+        if (normalized.startsWith('+39')) {
+          normalized = normalized.substring(1);
+        }
+        
+        if (normalized.startsWith('0039')) {
+          normalized = normalized.substring(2);
+        }
+        
+        if (normalized.startsWith('3') && normalized.length === 10) {
+          normalized = '39' + normalized;
+        }
+        
+        if (!normalized.startsWith('39') && normalized.length >= 9 && normalized.length <= 10) {
+          normalized = '39' + normalized;
+        }
+        
+        return normalized;
       }
 
+      const finalPhone = normalizePhoneForUltraMsg(phone);
       console.log(`[PHONE CALL] Numero normalizzato: ${phone} → ${finalPhone}`);
 
       // Cerca cliente esistente per telefono
