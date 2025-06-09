@@ -89,6 +89,7 @@ export class GmailService {
       console.log(`[GMAIL] Trovate ${messages.length} email da immobiliare.it`);
 
       for (const message of messages) {
+        console.log(`[GMAIL] Elaborazione messaggio ID: ${message.id}`);
         await this.processMessage(message.id);
       }
 
@@ -115,15 +116,20 @@ export class GmailService {
       
       // Verifica se l'email è già stata elaborata
       const emailId = `gmail-${messageId}`;
+      console.log(`[GMAIL] Controllo duplicato per: ${emailData.subject}`);
       const existingEmail = await this.checkIfEmailExists(emailId, emailData);
       
       if (existingEmail) {
+        console.log(`[GMAIL] Email già elaborata: ${emailData.subject}`);
         return; // Email già elaborata
       }
       
+      console.log(`[GMAIL] Verifica se è email immobiliare.it: ${emailData.fromAddress}`);
       if (this.isImmobiliareNotification(emailData)) {
         console.log(`[GMAIL] 📧 Elaborazione email immobiliare.it: ${emailData.subject}`);
         await emailProcessor.processEmail(emailData);
+      } else {
+        console.log(`[GMAIL] Email non riconosciuta come immobiliare.it: ${emailData.fromAddress}`);
       }
 
     } catch (error) {
