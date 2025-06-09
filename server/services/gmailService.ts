@@ -120,9 +120,11 @@ export class GmailService {
       const existingEmail = await this.checkIfEmailExists(emailId, emailData);
       
       if (existingEmail) {
-        console.log(`[GMAIL] Email già elaborata: ${emailData.subject}`);
+        console.log(`[GMAIL] Email già elaborata: ${emailData.subject} (ID: ${emailId})`);
         return; // Email già elaborata
       }
+      
+      console.log(`[GMAIL] ✅ Email non presente nel database, procedo con elaborazione: ${emailId}`);
       
       console.log(`[GMAIL] Verifica se è email immobiliare.it: ${emailData.fromAddress}`);
       if (this.isImmobiliareNotification(emailData)) {
@@ -257,6 +259,9 @@ export class GmailService {
           
           if (duplicateEmail) {
             console.log(`[GMAIL] Email duplicata immobiliare.it trovata (contenuto identico): ${duplicateEmail.emailId}`);
+            console.log(`[GMAIL] Confronto duplicato - Subject: "${emailData.subject}" vs "${duplicateEmail.subject}"`);
+            console.log(`[GMAIL] Confronto duplicato - Timestamp: ${emailData.receivedAt} vs ${duplicateEmail.receivedAt}`);
+            console.log(`[GMAIL] Confronto duplicato - Differenza timestamp: ${Math.abs(new Date(duplicateEmail.receivedAt).getTime() - emailData.receivedAt.getTime())} ms`);
             return true;
           }
         } else {
