@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { immobiliareEmails, properties, communications } from '@shared/schema';
-import { eq, and, like } from 'drizzle-orm';
+import { eq, and, like, isNull } from 'drizzle-orm';
 
 export class EmailPropertyLinker {
   
@@ -14,7 +14,7 @@ export class EmailPropertyLinker {
       // Ottieni tutte le email non ancora associate a proprietà
       const unlinkedEmails = await db.select()
         .from(immobiliareEmails)
-        .where(eq(immobiliareEmails.propertyId, null));
+        .where(isNull(immobiliareEmails.propertyId));
 
       console.log(`[EMAIL LINKER] Trovate ${unlinkedEmails.length} email non associate`);
 

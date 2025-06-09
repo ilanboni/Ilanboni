@@ -4414,6 +4414,55 @@ document.getElementById('tokenForm').addEventListener('submit', async function(e
     }
   });
 
+  // Endpoint per associare email alle proprietà
+  app.post("/api/emails/link-properties", async (req: Request, res: Response) => {
+    try {
+      const { EmailPropertyLinker } = await import('./services/emailPropertyLinker');
+      const linker = new EmailPropertyLinker();
+      
+      await linker.linkEmailsToProperties();
+      
+      res.json({ 
+        success: true, 
+        message: 'Associazione email-proprietà completata' 
+      });
+    } catch (error) {
+      console.error('[EMAIL LINK] Errore:', error);
+      res.status(500).json({ 
+        error: 'Errore durante associazione email-proprietà',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
+    }
+  });
+
+  // Endpoint per riprocessare email specifiche
+  app.post("/api/emails/reprocess", async (req: Request, res: Response) => {
+    try {
+      const { emailIds } = req.body;
+      
+      if (!Array.isArray(emailIds) || emailIds.length === 0) {
+        return res.status(400).json({ error: 'Array di ID email richiesto' });
+      }
+
+      const { EmailPropertyLinker } = await import('./services/emailPropertyLinker');
+      const linker = new EmailPropertyLinker();
+      
+      await linker.reprocessEmailsWithImprovedAI(emailIds);
+      
+      res.json({ 
+        success: true, 
+        message: `${emailIds.length} email riprocessate`,
+        processed: emailIds
+      });
+    } catch (error) {
+      console.error('[EMAIL REPROCESS] Errore:', error);
+      res.status(500).json({ 
+        error: 'Errore durante riprocessamento email',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
+    }
+  });
+
   // Registrazione chiamate telefoniche ricevute
   app.post("/api/phone-calls", async (req: Request, res: Response) => {
     try {
