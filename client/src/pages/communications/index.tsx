@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Helmet } from "react-helmet";
@@ -33,6 +33,329 @@ import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { Communication } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// Appointment form schema
+const appointmentFormSchema = z.object({
+  salutation: z.string().min(1, "Appellativo richiesto"),
+  lastName: z.string().min(1, "Cognome richiesto"),
+  phone: z.string().min(1, "Numero di telefono richiesto"),
+  date: z.date({
+    required_error: "Data richiesta",
+  }),
+  time: z.string().min(1, "Ora richiesta"),
+  address: z.string().min(1, "Indirizzo richiesto"),
+});
+
+type AppointmentFormData = z.infer<typeof appointmentFormSchema>;
+
+// Create Appointment Dialog Component
+function CreateAppointmentDialog({ 
+  isOpen, 
+  onClose, 
+  communication, 
+  onSuccess 
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  communication: any;
+  onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  
+  // Extract contact information from communication
+  const extractContactInfo = (comm: any) => {
+    if (!comm) return { hasName: false, name: "", lastName: "", phone: "" };
+    
+    // Extract phone number and normalize it (remove +)
+    let phone = "";
+    const phoneMatch = comm.content?.match(/\+?(\d{10,15})/);
+    if (phoneMatch) {
+      phone = phoneMatch[1].startsWith("39") ? phoneMatch[1] : phoneMatch[1];
+    }
+    
+    // Try to extract name from subject or content
+    let hasName = false;
+    let name = "";
+    let lastName = "";
+    
+    // Check for patterns like "Nome Cognome" in subject
+    const namePattern = /(?:dal|ricevuta.*?dal|numero\s+)(?:\+?\d+\s+)?([\w\s]+?)(?:\s|$)/i;
+    const nameMatch = comm.subject?.match(namePattern) || comm.content?.match(namePattern);
+    
+    if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 0) {
+      const fullName = nameMatch[1].trim();
+      const nameParts = fullName.split(/\s+/);
+      if (nameParts.length >= 2) {
+        hasName = true;
+        name = nameParts[0];
+        lastName = nameParts.slice(1).join(" ");
+      } else if (nameParts.length === 1 && nameParts[0].length > 2) {
+        hasName = true;
+        lastName = nameParts[0];
+      }
+    }
+    
+    return { hasName, name, lastName, phone };
+  };
+
+  const contactInfo = extractContactInfo(communication);
+  
+  // Get property address
+  const getPropertyAddress = async (propertyId: number) => {
+    try {
+      const response = await fetch(`/api/properties/${propertyId}`);
+      const property = await response.json();
+      return property.address || "";
+    } catch (error) {
+      return "";
+    }
+  };
+
+  const form = useForm<AppointmentFormData>({
+    resolver: zodResolver(appointmentFormSchema),
+    defaultValues: {
+      salutation: "",
+      lastName: contactInfo.lastName,
+      phone: contactInfo.phone,
+      date: undefined,
+      time: "",
+      address: "",
+    },
+  });
+
+  // Load property address when dialog opens
+  React.useEffect(() => {
+    if (isOpen && communication?.propertyId) {
+      getPropertyAddress(communication.propertyId).then(address => {
+        form.setValue("address", address);
+      });
+    }
+  }, [isOpen, communication, form]);
+
+  const createAppointmentMutation = useMutation({
+    mutationFn: async (data: AppointmentFormData) => {
+      // Create appointment
+      const appointmentData = {
+        propertyId: communication.propertyId,
+        date: data.date.toISOString(),
+        time: data.time,
+        clientName: `${data.salutation} ${data.lastName}`,
+        clientPhone: data.phone,
+        address: data.address,
+        status: "scheduled",
+        notes: `Appuntamento creato dalla comunicazione ID: ${communication.id}`,
+      };
+
+      const appointment = await apiRequest("/api/calendar/events", {
+        method: "POST",
+        data: appointmentData,
+      });
+
+      // Send WhatsApp confirmation
+      const confirmationMessage = `${data.salutation} ${data.lastName}, le confermo appuntamento di ${format(data.date, "dd/MM/yyyy")} ore ${data.time}, in ${data.address}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
+      
+      await apiRequest("/api/whatsapp/send-direct", {
+        method: "POST",
+        data: {
+          phone: data.phone,
+          message: confirmationMessage,
+        },
+      });
+
+      // Update communication status to appointment_created
+      await apiRequest(`/api/communications/${communication.id}`, {
+        method: "PATCH",
+        data: {
+          managementStatus: "appointment_created",
+        },
+      });
+
+      return appointment;
+    },
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante la creazione dell'appuntamento",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: AppointmentFormData) => {
+    createAppointmentMutation.mutate(data);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Crea Appuntamento</DialogTitle>
+        </DialogHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="salutation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Appellativo</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona appellativo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="egr">Egregio</SelectItem>
+                        <SelectItem value="egr_sig">Egregio Signor</SelectItem>
+                        <SelectItem value="egr_sig_ra">Egregia Signora</SelectItem>
+                        <SelectItem value="egr_dott">Egregio Dott.</SelectItem>
+                        <SelectItem value="egr_dott_ssa">Egregia Dott.ssa</SelectItem>
+                        <SelectItem value="caro">Caro</SelectItem>
+                        <SelectItem value="cara">Cara</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {!contactInfo.hasName && (
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cognome</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Inserisci cognome" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {contactInfo.hasName && (
+              <div className="text-sm text-gray-600">
+                <strong>Cognome:</strong> {contactInfo.lastName}
+              </div>
+            )}
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Numero di telefono</FormLabel>
+                  <FormControl>
+                    <Input {...field} readOnly className="bg-gray-50" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Data</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP", { locale: it })
+                          ) : (
+                            <span>Seleziona data</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date < new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ora</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="time" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Indirizzo</FormLabel>
+                  <FormControl>
+                    <Input {...field} readOnly className="bg-gray-50" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={createAppointmentMutation.isPending}>
+                {createAppointmentMutation.isPending ? "Creazione..." : "Crea Appuntamento"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function CommunicationsPage() {
   const [filterType, setFilterType] = useState<string>("");
@@ -193,6 +516,12 @@ export default function CommunicationsPage() {
     return direction === "inbound" 
       ? <span className="text-green-600"><i className="fas fa-arrow-down"></i></span>
       : <span className="text-blue-600"><i className="fas fa-arrow-up"></i></span>;
+  };
+
+  // Handle appointment creation
+  const handleCreateAppointment = (communication: any) => {
+    setAppointmentCommunication(communication);
+    setShowCreateAppointmentDialog(true);
   };
 
   // Get management status badge
@@ -472,6 +801,23 @@ export default function CommunicationsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Appointment Dialog */}
+      <CreateAppointmentDialog 
+        isOpen={showCreateAppointmentDialog}
+        onClose={() => {
+          setShowCreateAppointmentDialog(false);
+          setAppointmentCommunication(null);
+        }}
+        communication={appointmentCommunication}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+          toast({
+            title: "Successo",
+            description: "Appuntamento creato con successo e conferma inviata via WhatsApp",
+          });
+        }}
+      />
     </>
   );
 }
