@@ -128,20 +128,41 @@ export class ImmobiliareEmailProcessor {
 
     } catch (error) {
       console.error(`[EMAIL PROCESSOR] ❌ Errore nell'elaborazione:`, error);
-      // Salva l'errore nel database se possibile
-      try {
-        const [savedEmail] = await db.insert(immobiliareEmails).values({
-          emailId: emailData.emailId,
-          fromAddress: emailData.fromAddress,
-          subject: emailData.subject,
-          body: emailData.body,
-          htmlBody: emailData.htmlBody || null,
-          receivedAt: emailData.receivedAt,
-          processed: false,
-          processingError: error instanceof Error ? error.message : 'Errore sconosciuto'
-        }).returning();
-      } catch (dbError) {
-        console.error(`[EMAIL PROCESSOR] Errore nel salvataggio dell'errore:`, dbError);
+      
+      // Verifica se l'email esiste già nel database
+      const existingEmail = await db.select()
+        .from(immobiliareEmails)
+        .where(eq(immobiliareEmails.emailId, emailData.emailId))
+        .limit(1);
+
+      if (existingEmail.length > 0) {
+        // Aggiorna l'email esistente con l'errore
+        await db.update(immobiliareEmails)
+          .set({
+            processed: false,
+            processingError: error instanceof Error ? error.message : 'Errore sconosciuto'
+          })
+          .where(eq(immobiliareEmails.emailId, emailData.emailId));
+        
+        console.log(`[EMAIL PROCESSOR] Email aggiornata con errore (ID: ${existingEmail[0].id})`);
+      } else {
+        // Salva nuova email con errore
+        try {
+          const [savedEmail] = await db.insert(immobiliareEmails).values({
+            emailId: emailData.emailId,
+            fromAddress: emailData.fromAddress,
+            subject: emailData.subject,
+            body: emailData.body,
+            htmlBody: emailData.htmlBody || null,
+            receivedAt: emailData.receivedAt,
+            processed: false,
+            processingError: error instanceof Error ? error.message : 'Errore sconosciuto'
+          }).returning();
+          
+          console.log(`[EMAIL PROCESSOR] Email salvata con errore (ID: ${savedEmail.id})`);
+        } catch (dbError) {
+          console.error(`[EMAIL PROCESSOR] Errore nel salvataggio dell'errore:`, dbError);
+        }
       }
     }
   }
@@ -227,7 +248,7 @@ ISTRUZIONI SPECIFICHE:
   private async findOrCreateClient(clientData: ExtractedClientData): Promise<number> {
     // Per chiamate telefoniche senza nome, crea un nome basato sul numero
     if (!clientData.name && clientData.phone) {
-      const phoneNumber = this.normalizePhoneNumber(clientData.phone);
+      const phoneNumber = this.normalizePhone(clientData.phone);
       clientData.name = `Cliente ${phoneNumber.slice(-4)}`;
       console.log(`[EMAIL PROCESSOR] Nome mancante per chiamata telefonica, uso: ${clientData.name}`);
     }
