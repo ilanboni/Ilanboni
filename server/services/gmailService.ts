@@ -127,7 +127,12 @@ export class GmailService {
       console.log(`[GMAIL] Verifica se è email immobiliare.it: ${emailData.fromAddress}`);
       if (this.isImmobiliareNotification(emailData)) {
         console.log(`[GMAIL] 📧 Elaborazione email immobiliare.it: ${emailData.subject}`);
-        await emailProcessor.processEmail(emailData);
+        // Aggiungi l'emailId alla struttura dati prima di processare
+        const emailWithId = {
+          ...emailData,
+          emailId: emailId
+        };
+        await emailProcessor.processEmail(emailWithId);
       } else {
         console.log(`[GMAIL] Email non riconosciuta come immobiliare.it: ${emailData.fromAddress}`);
       }
