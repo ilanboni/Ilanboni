@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurazione Gmail OAuth2 - Replit</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a73e8;
+            border-bottom: 3px solid #1a73e8;
+            padding-bottom: 10px;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #1a73e8;
+            border-radius: 5px;
+        }
+        .code {
+            background: #f1f3f4;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Gmail OAuth2 - Configurazione Rapida Replit</h1>
+        
+        <div class="warning">
+            <strong>📍 URI di Reindirizzamento:</strong><br>
+            Usa l'indirizzo della tua app Replit deployata:<br>
+            <code>https://[nome-del-tuo-repl].replit.app/oauth/gmail/callback</code>
+        </div>
+
+        <div class="step">
+            <h3>Passo 1: Google Cloud Console</h3>
+            <ol>
+                <li>Vai su <a href="https://console.cloud.google.com/" target="_blank">console.cloud.google.com</a></li>
+                <li>Accedi con l'account Gmail per le email immobiliare.it</li>
+                <li>Crea un nuovo progetto o seleziona esistente</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Passo 2: Abilita Gmail API</h3>
+            <ol>
+                <li><strong>API e servizi → Libreria</strong></li>
+                <li>Cerca <strong>"Gmail API"</strong></li>
+                <li>Clicca <strong>"Abilita"</strong></li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Passo 3: Schermata di Consenso OAuth</h3>
+            <ol>
+                <li><strong>API e servizi → Schermata di consenso OAuth</strong></li>
+                <li>Tipo utente: <strong>Esterno</strong></li>
+                <li>Nome app: <code>Gestionale Immobiliare</code></li>
+                <li>Email: il tuo indirizzo email</li>
+                <li>Scope: aggiungi questi due
+                    <div class="code">
+https://www.googleapis.com/auth/gmail.readonly<br>
+https://www.googleapis.com/auth/gmail.modify
+                    </div>
+                </li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Passo 4: Crea Credenziali OAuth2</h3>
+            <ol>
+                <li><strong>API e servizi → Credenziali</strong></li>
+                <li><strong>"+ CREA CREDENZIALI" → "ID client OAuth 2.0"</strong></li>
+                <li>Tipo: <strong>Applicazione web</strong></li>
+                <li>Nome: <code>Gmail Integration</code></li>
+                <li>URI di reindirizzamento: <strong>Sostituisci con l'URL della tua app</strong>
+                    <div class="code">
+https://[NOME-TUO-REPL].replit.app/oauth/gmail/callback
+                    </div>
+                </li>
+            </ol>
+        </div>
+
+        <div class="success">
+            <strong>✅ Salva queste credenziali:</strong><br>
+            • <strong>CLIENT_ID</strong><br>
+            • <strong>CLIENT_SECRET</strong>
+        </div>
+
+        <div class="step">
+            <h3>Passo 5: Configura nel Repl</h3>
+            <ol>
+                <li>Nel tuo progetto Replit, vai sui <strong>Secrets</strong></li>
+                <li>Aggiungi le credenziali:
+                    <div class="code">
+GMAIL_CLIENT_ID = il_tuo_client_id<br>
+GMAIL_CLIENT_SECRET = il_tuo_client_secret
+                    </div>
+                </li>
+                <li><strong>Non aggiungere ancora GMAIL_REFRESH_TOKEN</strong> - lo otterrai nel passo successivo</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Passo 6: Autorizzazione Account</h3>
+            <ol>
+                <li>Riavvia l'app Replit</li>
+                <li>Vai alla pagina di configurazione Gmail nell'app</li>
+                <li>Clicca sul link di autorizzazione generato</li>
+                <li>Autorizza l'accesso con l'account Gmail corretto</li>
+                <li>Copia il <strong>REFRESH_TOKEN</strong> generato</li>
+                <li>Aggiungilo ai Secrets:
+                    <div class="code">
+GMAIL_REFRESH_TOKEN = il_refresh_token_generato
+                    </div>
+                </li>
+            </ol>
+        </div>
+
+        <div class="success">
+            <strong>🎉 Fatto!</strong><br>
+            L'app monitorerà automaticamente le email da immobiliare.it ogni 5 minuti.
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Importante:</strong><br>
+            L'URI di reindirizzamento deve corrispondere ESATTAMENTE a quello configurato su Google Cloud Console.
+        </div>
+    </div>
+</body>
+</html>

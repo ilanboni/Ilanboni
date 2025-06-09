@@ -165,16 +165,31 @@ export default function EmailProcessor() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${gmailStatus?.isAuthenticated ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="text-sm">
-                {gmailStatusLoading ? 'Verifica...' : (gmailStatus?.isAuthenticated ? 'Gmail Connesso' : 'Gmail Non Connesso')}
-              </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${gmailStatus?.isAuthenticated ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-sm">
+                  {gmailStatusLoading ? 'Verifica...' : (gmailStatus?.isAuthenticated ? 'Gmail Connesso' : 'Gmail Non Connesso')}
+                </span>
+              </div>
+              {gmailStatus?.lastCheck && (
+                <div className="text-sm text-muted-foreground">
+                  Ultimo controllo: {new Date(gmailStatus.lastCheck).toLocaleString('it-IT')}
+                </div>
+              )}
             </div>
-            {gmailStatus?.lastCheck && (
-              <div className="text-sm text-muted-foreground">
-                Ultimo controllo: {new Date(gmailStatus.lastCheck).toLocaleString('it-IT')}
+            
+            {!gmailStatus?.isAuthenticated && (
+              <div className="flex items-center space-x-2">
+                <Button 
+                  onClick={() => window.open('/oauth/gmail/start', '_blank')}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Configura Gmail
+                </Button>
               </div>
             )}
           </div>

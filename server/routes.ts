@@ -3412,6 +3412,216 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
   
   // Callback OAuth
   app.get("/oauth/callback", handleOAuthCallback);
+
+  // ===== GMAIL OAUTH2 ENDPOINTS =====
+  
+  // Avvia autorizzazione Gmail
+  app.get("/oauth/gmail/start", async (req: Request, res: Response) => {
+    try {
+      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET) {
+        return res.status(400).send(`
+          <html>
+            <head>
+              <title>Gmail OAuth - Configurazione Mancante</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+                .error { background: #f8d7da; padding: 20px; border-radius: 5px; border: 1px solid #f5c6cb; }
+                .button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="error">
+                <h1>❌ Configurazione Gmail Mancante</h1>
+                <p>Aggiungi GMAIL_CLIENT_ID e GMAIL_CLIENT_SECRET ai secrets del progetto.</p>
+                <p>Consulta la documentazione per la configurazione completa.</p>
+                <a href="/emails" class="button">← Torna al Processore Email</a>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+
+      const { google } = require('googleapis');
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        `${req.protocol}://${req.get('host')}/oauth/gmail/callback`
+      );
+
+      const authUrl = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: [
+          'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.modify'
+        ],
+        prompt: 'consent'
+      });
+
+      res.redirect(authUrl);
+    } catch (error) {
+      console.error('[GMAIL OAUTH] Errore generazione URL autorizzazione:', error);
+      res.status(500).send(`
+        <html>
+          <head><title>Errore OAuth Gmail</title></head>
+          <body>
+            <h1>❌ Errore Configurazione OAuth2</h1>
+            <p>Errore durante la generazione dell'URL di autorizzazione.</p>
+            <p><a href="/emails">← Torna al Processore Email</a></p>
+          </body>
+        </html>
+      `);
+    }
+  });
+
+  // Callback Gmail OAuth2
+  app.get("/oauth/gmail/callback", async (req: Request, res: Response) => {
+    try {
+      const { code, error } = req.query;
+      
+      if (error) {
+        return res.status(400).send(`
+          <html>
+            <head>
+              <title>Gmail OAuth - Errore</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+                .error { background: #f8d7da; padding: 20px; border-radius: 5px; border: 1px solid #f5c6cb; }
+                .button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="error">
+                <h1>❌ Errore Autorizzazione Gmail</h1>
+                <p>Errore: ${error}</p>
+                <a href="/emails" class="button">← Torna al Processore Email</a>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+      
+      if (!code || !process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET) {
+        return res.status(400).send(`
+          <html>
+            <head>
+              <title>Gmail OAuth - Errore</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+                .error { background: #f8d7da; padding: 20px; border-radius: 5px; border: 1px solid #f5c6cb; }
+                .button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="error">
+                <h1>❌ Errore Autorizzazione</h1>
+                <p>Codice di autorizzazione mancante o credenziali non configurate.</p>
+                <a href="/emails" class="button">← Torna al Processore Email</a>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+
+      const { google } = require('googleapis');
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        `${req.protocol}://${req.get('host')}/oauth/gmail/callback`
+      );
+
+      const { tokens } = await oauth2Client.getToken(code as string);
+      
+      if (!tokens.refresh_token) {
+        return res.send(`
+          <html>
+            <head>
+              <title>Gmail OAuth - Token Mancante</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+                .warning { background: #fff3cd; padding: 20px; border-radius: 5px; border: 1px solid #ffeaa7; }
+                .button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="warning">
+                <h1>⚠️ Refresh Token Mancante</h1>
+                <p>L'autorizzazione è stata completata ma il refresh token non è stato generato.</p>
+                <p>Prova a revocare l'accesso dall'account Google e ripeti l'autorizzazione.</p>
+                <a href="/oauth/gmail/start" class="button">🔄 Riprova Autorizzazione</a>
+                <a href="/emails" class="button">← Torna al Processore Email</a>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+      
+      console.log('[GMAIL OAUTH] Autorizzazione Gmail completata con successo');
+      
+      res.send(`
+        <html>
+          <head>
+            <title>Gmail OAuth - Configurazione Completata</title>
+            <style>
+              body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+              .success { background: #d4edda; padding: 20px; border-radius: 5px; border: 1px solid #c3e6cb; }
+              .code { background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; margin: 15px 0; word-break: break-all; }
+              .button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 5px 0 0; }
+              .step { margin: 10px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="success">
+              <h1>✅ Autorizzazione Gmail Completata!</h1>
+              <p>Il refresh token è stato generato con successo. Segui questi passi per completare la configurazione:</p>
+              
+              <div class="step">
+                <h3>🔑 Refresh Token:</h3>
+                <div class="code">${tokens.refresh_token}</div>
+              </div>
+
+              <div class="step">
+                <h3>📋 Passi Successivi:</h3>
+                <ol>
+                  <li>Copia il token sopra</li>
+                  <li>Vai sui <strong>Secrets</strong> del progetto Replit</li>
+                  <li>Aggiungi una nuova chiave: <code>GMAIL_REFRESH_TOKEN</code></li>
+                  <li>Incolla il valore del token</li>
+                  <li>Riavvia l'applicazione</li>
+                </ol>
+              </div>
+
+              <div class="step">
+                <a href="/emails" class="button">← Torna al Processore Email</a>
+                <a href="https://replit.com/@${process.env.REPL_OWNER}/${process.env.REPL_SLUG}/secrets" class="button" target="_blank">🔧 Apri Secrets</a>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error('[GMAIL OAUTH] Errore callback:', error);
+      res.status(500).send(`
+        <html>
+          <head>
+            <title>Gmail OAuth - Errore</title>
+            <style>
+              body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+              .error { background: #f8d7da; padding: 20px; border-radius: 5px; border: 1px solid #f5c6cb; }
+              .button { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="error">
+              <h1>❌ Errore Callback OAuth2</h1>
+              <p>Errore durante l'elaborazione dell'autorizzazione: ${error.message}</p>
+              <a href="/oauth/gmail/start" class="button">🔄 Riprova</a>
+              <a href="/emails" class="button">← Torna al Processore Email</a>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+  });
   
   // Endpoint per ottenere l'URL di autorizzazione Google
   app.get("/api/oauth/auth-url", async (req: Request, res: Response) => {
