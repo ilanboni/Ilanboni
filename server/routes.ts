@@ -3916,5 +3916,136 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  // Registrazione chiamate telefoniche ricevute
+  app.post("/api/phone-calls", async (req: Request, res: Response) => {
+    try {
+      const { phone, propertyAddress, callDateTime, notes } = req.body;
+      
+      if (!phone) {
+        return res.status(400).json({ error: 'Numero di telefono richiesto' });
+      }
+
+      // Normalizza il numero di telefono per UltraMsg
+      const normalizedPhone = phone.replace(/[\s\-\(\)\.+]/g, '');
+      let finalPhone = normalizedPhone;
+      
+      // Se inizia con +39, rimuovi il +
+      if (finalPhone.startsWith('+39')) {
+        finalPhone = finalPhone.substring(1);
+      }
+      
+      // Se inizia con 0039, rimuovi 00
+      if (finalPhone.startsWith('0039')) {
+        finalPhone = finalPhone.substring(2);
+      }
+      
+      // Se è un numero cellulare che inizia con 3 (formato nazionale), aggiungi 39
+      if (finalPhone.startsWith('3') && finalPhone.length === 10) {
+        finalPhone = '39' + finalPhone;
+      }
+      
+      // Se non inizia con 39 e sembra un numero italiano valido, aggiungi 39
+      if (!finalPhone.startsWith('39') && finalPhone.length >= 9 && finalPhone.length <= 10) {
+        finalPhone = '39' + finalPhone;
+      }
+
+      console.log(`[PHONE CALL] Numero normalizzato: ${phone} → ${finalPhone}`);
+
+      // Cerca cliente esistente per telefono
+      let clientId = null;
+      const existingClients = await db.select().from(clients).where(
+        or(
+          eq(clients.phone, finalPhone),
+          eq(clients.phone, phone),
+          eq(clients.phone, normalizedPhone)
+        )
+      );
+
+      if (existingClients.length > 0) {
+        clientId = existingClients[0].id;
+        console.log(`[PHONE CALL] Cliente esistente trovato: ${existingClients[0].firstName} ${existingClients[0].lastName} (ID: ${clientId})`);
+      }
+
+      // Cerca immobile per indirizzo se fornito
+      let propertyId = null;
+      if (propertyAddress) {
+        const normalizedAddress = propertyAddress.toLowerCase().trim();
+        const foundProperties = await db.select().from(properties).where(
+          or(
+            ilike(properties.address, `%${normalizedAddress}%`),
+            ilike(properties.address, `%${propertyAddress}%`)
+          )
+        );
+
+        if (foundProperties.length > 0) {
+          propertyId = foundProperties[0].id;
+          console.log(`[PHONE CALL] Immobile trovato: ${foundProperties[0].address} (ID: ${propertyId})`);
+        }
+      }
+
+      // Crea comunicazione per la chiamata ricevuta
+      const [communication] = await db.insert(communications).values({
+        clientId,
+        propertyId,
+        type: 'phone',
+        subject: `Chiamata ricevuta da ${finalPhone}`,
+        content: `Chiamata ricevuta il ${callDateTime || new Date().toISOString()}${propertyAddress ? ` riguardante immobile: ${propertyAddress}` : ''}${notes ? `\nNote: ${notes}` : ''}`,
+        summary: 'Chiamata telefonica ricevuta',
+        direction: 'inbound',
+        needsFollowUp: true,
+        followUpDate: new Date().toISOString().split('T')[0],
+        status: 'pending',
+        externalId: `call-${finalPhone}-${Date.now()}`
+      }).returning();
+
+      // Crea task "Richiamare"
+      const taskTitle = clientId 
+        ? `Richiamare cliente (${finalPhone})`
+        : `Richiamare numero ${finalPhone}`;
+      
+      const taskDescription = `Chiamata ricevuta il ${callDateTime || new Date().toLocaleString('it-IT')}
+${propertyAddress ? `Riguarda immobile: ${propertyAddress}` : ''}
+${notes ? `Note: ${notes}` : ''}
+
+Telefono: ${finalPhone}
+${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema - valutare se aggiungere'}`;
+
+      const [task] = await db.insert(tasks).values({
+        type: 'call',
+        title: taskTitle,
+        description: taskDescription,
+        clientId,
+        propertyId,
+        dueDate: new Date().toISOString().split('T')[0],
+        status: 'pending'
+      }).returning();
+
+      console.log(`[PHONE CALL] ✅ Chiamata registrata:
+        - Comunicazione: ID ${communication.id}
+        - Task: ID ${task.id}
+        - Cliente: ${clientId ? `ID ${clientId}` : 'Non trovato'}
+        - Immobile: ${propertyId ? `ID ${propertyId}` : 'Non specificato'}`);
+
+      res.json({
+        success: true,
+        message: 'Chiamata registrata con successo',
+        data: {
+          communicationId: communication.id,
+          taskId: task.id,
+          clientId,
+          propertyId,
+          normalizedPhone: finalPhone
+        }
+      });
+
+    } catch (error) {
+      console.error('Errore registrazione chiamata:', error);
+      res.status(500).json({ 
+        error: 'Errore nella registrazione della chiamata',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
+    }
+  });
+
   return httpServer;
 }
