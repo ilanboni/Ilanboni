@@ -3415,6 +3415,59 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
   // ===== GMAIL OAUTH2 ENDPOINTS =====
   
+  // Endpoint per scambiare il codice di autorizzazione con refresh token
+  app.post("/api/gmail/exchange-token", async (req: Request, res: Response) => {
+    try {
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ success: false, error: 'Codice di autorizzazione mancante' });
+      }
+      
+      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Credenziali Gmail non configurate. Aggiungi GMAIL_CLIENT_ID e GMAIL_CLIENT_SECRET ai secrets.' 
+        });
+      }
+
+      const { google } = await import('googleapis');
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        'urn:ietf:wg:oauth:2.0:oob'
+      );
+
+      const { tokens } = await oauth2Client.getToken(code);
+      
+      if (!tokens.refresh_token) {
+        return res.json({ 
+          success: false, 
+          error: 'Refresh token non ricevuto. Prova a revocare l\'accesso dall\'account Google e ripeti l\'autorizzazione.' 
+        });
+      }
+
+      console.log('[GMAIL OAUTH] Refresh token generato con successo');
+      
+      res.json({
+        success: true,
+        refreshToken: tokens.refresh_token,
+        message: 'Token generato con successo! Aggiungi GMAIL_REFRESH_TOKEN ai secrets di Replit.'
+      });
+    } catch (error) {
+      console.error('[GMAIL OAUTH] Errore scambio token:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Errore durante la generazione del token' 
+      });
+    }
+  });
+
+  // Pagina di configurazione manuale Gmail OAuth
+  app.get("/gmail-oauth-setup", (req: Request, res: Response) => {
+    res.sendFile('gmail-oauth-manual.html', { root: '.' });
+  });
+  
   // Avvia autorizzazione Gmail
   app.get("/oauth/gmail/start", async (req: Request, res: Response) => {
     try {
