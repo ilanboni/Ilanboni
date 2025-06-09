@@ -110,16 +110,16 @@ export class GmailService {
 
       const messageData: GmailMessage = message.data;
       
+      // Estrai dati dall'email prima della verifica duplicati
+      const emailData = this.extractEmailData(messageData);
+      
       // Verifica se l'email è già stata elaborata
       const emailId = `gmail-${messageId}`;
-      const existingEmail = await this.checkIfEmailExists(emailId);
+      const existingEmail = await this.checkIfEmailExists(emailId, emailData);
       
       if (existingEmail) {
         return; // Email già elaborata
       }
-
-      // Estrai dati dall'email
-      const emailData = this.extractEmailData(messageData);
       
       if (this.isImmobiliareNotification(emailData)) {
         console.log(`[GMAIL] 📧 Elaborazione email immobiliare.it: ${emailData.subject}`);
@@ -214,13 +214,35 @@ export class GmailService {
   }
 
   /**
-   * Verifica se un'email esiste già nel database
+   * Verifica se un'email esiste già nel database usando subject e timestamp
    */
-  private async checkIfEmailExists(emailId: string): Promise<boolean> {
+  private async checkIfEmailExists(emailId: string, emailData?: any): Promise<boolean> {
     try {
+      // Prima verifica per ID esatto
       const response = await fetch(`http://localhost:5000/api/emails?emailId=${emailId}`);
       const emails = await response.json();
-      return emails.length > 0;
+      if (emails.length > 0) {
+        return true;
+      }
+
+      // Se non trovata per ID, verifica per subject e timestamp (per compatibilità con email elaborate manualmente)
+      if (emailData) {
+        const allEmailsResponse = await fetch(`http://localhost:5000/api/emails`);
+        const allEmails = await allEmailsResponse.json();
+        
+        const duplicateEmail = allEmails.find((email: any) => 
+          email.subject === emailData.subject &&
+          email.fromAddress === emailData.fromAddress &&
+          Math.abs(new Date(email.receivedAt).getTime() - emailData.receivedAt.getTime()) < 60000 // 1 minuto di tolleranza
+        );
+        
+        if (duplicateEmail) {
+          console.log(`[GMAIL] Email duplicata trovata con ID diverso: ${duplicateEmail.emailId}`);
+          return true;
+        }
+      }
+      
+      return false;
     } catch (error) {
       console.error('[GMAIL] Errore verifica email esistente:', error);
       return false;
