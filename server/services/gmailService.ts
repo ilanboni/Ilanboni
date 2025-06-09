@@ -236,20 +236,41 @@ export class GmailService {
         return true;
       }
 
-      // Se non trovata per ID, verifica per subject e timestamp (per compatibilità con email elaborate manualmente)
+      // Se non trovata per ID, verifica duplicati con criteri più specifici per immobiliare.it
       if (emailData) {
         const allEmailsResponse = await fetch(`http://localhost:5000/api/emails`);
         const allEmails = await allEmailsResponse.json();
         
-        const duplicateEmail = allEmails.find((email: any) => 
-          email.subject === emailData.subject &&
-          email.fromAddress === emailData.fromAddress &&
-          Math.abs(new Date(email.receivedAt).getTime() - emailData.receivedAt.getTime()) < 60000 // 1 minuto di tolleranza
-        );
-        
-        if (duplicateEmail) {
-          console.log(`[GMAIL] Email duplicata trovata con ID diverso: ${duplicateEmail.emailId}`);
-          return true;
+        // Per email di immobiliare.it, verifica duplicati basandosi su contenuto specifico
+        if (emailData.fromAddress.includes('immobiliare.it')) {
+          // Estrai numero di telefono dal corpo dell'email per identificazione univoca
+          const phoneMatches = emailData.body.match(/(?:Telefono|Tel|Phone):\s*([+]?[\d\s\-\(\)\.]{8,20})/i);
+          const emailPhone = phoneMatches ? phoneMatches[1].replace(/[\s\-\(\)\.]/g, '') : null;
+          
+          if (emailPhone) {
+            const duplicateEmail = allEmails.find((email: any) => 
+              email.clientPhone && 
+              email.clientPhone.replace(/[\s\-\(\)\.+]/g, '') === emailPhone.replace(/[\s\-\(\)\.+]/g, '') &&
+              Math.abs(new Date(email.receivedAt).getTime() - emailData.receivedAt.getTime()) < 300000 // 5 minuti di tolleranza
+            );
+            
+            if (duplicateEmail) {
+              console.log(`[GMAIL] Email duplicata immobiliare.it trovata per numero ${emailPhone}: ${duplicateEmail.emailId}`);
+              return true;
+            }
+          }
+        } else {
+          // Per altre email, usa il controllo tradizionale
+          const duplicateEmail = allEmails.find((email: any) => 
+            email.subject === emailData.subject &&
+            email.fromAddress === emailData.fromAddress &&
+            Math.abs(new Date(email.receivedAt).getTime() - emailData.receivedAt.getTime()) < 60000 // 1 minuto di tolleranza
+          );
+          
+          if (duplicateEmail) {
+            console.log(`[GMAIL] Email duplicata trovata con ID diverso: ${duplicateEmail.emailId}`);
+            return true;
+          }
         }
       }
       
