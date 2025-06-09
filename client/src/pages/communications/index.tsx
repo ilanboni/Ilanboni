@@ -293,13 +293,31 @@ export default function CommunicationsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="w-full md:w-48">
+                <Select
+                  value={filterManagementStatus}
+                  onValueChange={setFilterManagementStatus}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Gestione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutte le gestioni</SelectItem>
+                    <SelectItem value="to_manage">Da gestire</SelectItem>
+                    <SelectItem value="managed">Gestita</SelectItem>
+                    <SelectItem value="client_created">Cliente creato</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               
-              {(filterType || filterStatus || searchQuery) && (
+              {(filterType || filterStatus || filterManagementStatus || searchQuery) && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setFilterType("");
                     setFilterStatus("");
+                    setFilterManagementStatus("");
                     setSearchQuery("");
                   }}
                   className="ml-auto"
