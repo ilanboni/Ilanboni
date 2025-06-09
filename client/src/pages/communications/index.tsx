@@ -39,6 +39,8 @@ export default function CommunicationsPage() {
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterManagementStatus, setFilterManagementStatus] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
+  const [appointmentCommunication, setAppointmentCommunication] = useState<any>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
@@ -204,6 +206,8 @@ export default function CommunicationsPage() {
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Gestita</Badge>;
       case "client_created":
         return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Cliente creato</Badge>;
+      case "appointment_created":
+        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Appuntamento creato</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -307,6 +311,7 @@ export default function CommunicationsPage() {
                     <SelectItem value="to_manage">Da gestire</SelectItem>
                     <SelectItem value="managed">Gestita</SelectItem>
                     <SelectItem value="client_created">Cliente creato</SelectItem>
+                    <SelectItem value="appointment_created">Appuntamento creato</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -426,6 +431,13 @@ export default function CommunicationsPage() {
                               >
                                 <i className="fas fa-user-plus mr-2 text-blue-600"></i>
                                 Crea cliente
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleCreateAppointment(comm)}
+                                disabled={!comm.propertyId}
+                              >
+                                <i className="fas fa-calendar-plus mr-2 text-purple-600"></i>
+                                Crea appuntamento
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
