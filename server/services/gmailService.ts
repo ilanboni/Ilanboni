@@ -30,19 +30,31 @@ export class GmailService {
 
   private async initializeGmail() {
     try {
+      // Verifica presenza credenziali Gmail separate
+      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
+        console.log('[GMAIL] Credenziali Gmail mancanti. Servizio disabilitato.');
+        console.log('[GMAIL] Richieste: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN');
+        this.isAuthenticated = false;
+        return;
+      }
+
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GOOGLE_CALENDAR_CLIENT_ID,
-        process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-        'http://localhost:5000/oauth/callback'
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        'http://localhost:3000/oauth/gmail/callback'
       );
 
       oauth2Client.setCredentials({
-        refresh_token: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN,
+        refresh_token: process.env.GMAIL_REFRESH_TOKEN,
       });
 
       this.gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+      
+      // Test della connessione
+      await this.gmail.users.getProfile({ userId: 'me' });
+      
       this.isAuthenticated = true;
-      console.log('[GMAIL] Servizio Gmail inizializzato correttamente');
+      console.log('[GMAIL] Servizio Gmail inizializzato correttamente con credenziali separate');
     } catch (error) {
       console.error('[GMAIL] Errore inizializzazione Gmail:', error);
       this.isAuthenticated = false;
