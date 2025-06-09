@@ -162,6 +162,7 @@ export const communications = pgTable("communications", {
   sentimentScore: integer("sentiment_score"), // punteggio da 0 a 100
   responseToId: integer("response_to_id").references(() => communications.id), // per tracciare le risposte
   autoFollowUpSent: boolean("auto_follow_up_sent").default(false), // per sapere se è stato inviato un follow-up automatico
+  managementStatus: text("management_status").default("to_manage"), // "to_manage", "managed", "client_created"
   createdAt: timestamp("created_at").defaultNow(),
   externalId: text("external_id") // ID esterno (es. ID messaggio WhatsApp)
 });

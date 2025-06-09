@@ -223,6 +223,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Aggiorna lo stato di gestione di una comunicazione
+  app.patch("/api/communications/:id/management-status", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID comunicazione non valido" });
+      }
+
+      const { status } = req.body;
+      if (!["to_manage", "managed", "client_created"].includes(status)) {
+        return res.status(400).json({ error: "Status non valido. Valori ammessi: to_manage, managed, client_created" });
+      }
+
+      const communication = await storage.getCommunication(id);
+      if (!communication) {
+        return res.status(404).json({ error: "Comunicazione non trovata" });
+      }
+
+      const updatedCommunication = await storage.updateCommunication(id, { 
+        managementStatus: status 
+      });
+
+      res.json(updatedCommunication);
+    } catch (error) {
+      console.error(`[PATCH /api/communications/${req.params.id}/management-status]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento dello stato di gestione" });
+    }
+  });
+
+  // Crea cliente automaticamente da una comunicazione
+  app.post("/api/communications/:id/create-client", async (req: Request, res: Response) => {
+    try {
+      const communicationId = parseInt(req.params.id);
+      if (isNaN(communicationId)) {
+        return res.status(400).json({ error: "ID comunicazione non valido" });
+      }
+
+      const communication = await storage.getCommunication(communicationId);
+      if (!communication) {
+        return res.status(404).json({ error: "Comunicazione non trovata" });
+      }
+
+      // Controlla se la comunicazione è associata a una proprietà
+      if (!communication.propertyId) {
+        return res.status(400).json({ error: "La comunicazione deve essere associata a una proprietà per creare un cliente" });
+      }
+
+      // Recupera i dettagli della proprietà per generare le preferenze
+      const property = await storage.getProperty(communication.propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Proprietà associata non trovata" });
+      }
+
+      // Estrai informazioni dal contenuto della comunicazione per il nome del cliente
+      let clientName = "Cliente da Comunicazione";
+      let clientPhone = "";
+      
+      // Cerca di estrarre nome e telefono dal contenuto
+      const content = communication.content || "";
+      
+      // Estrai nome (cerca pattern comuni nelle email di immobiliare.it)
+      const nameMatches = content.match(/(?:Nome|Name|Cliente):\s*([A-Za-z\s]+)/i) ||
+                         content.match(/([A-Z][a-z]+\s+[A-Z][a-z]+)/) ||
+                         content.match(/Messaggio di\s+([A-Za-z\s]+)\s+per/i);
+      if (nameMatches && nameMatches[1]) {
+        clientName = nameMatches[1].trim();
+      }
+
+      // Estrai telefono
+      const phoneMatches = content.match(/(?:\+39\s?)?(\d{2,3}[\s\-]?\d{3,4}[\s\-]?\d{3,4})/);
+      if (phoneMatches && phoneMatches[0]) {
+        clientPhone = phoneMatches[0].replace(/\s|-/g, '').replace(/^\+/, '');
+      }
+
+      // Genera preferenze di ricerca basate sulla proprietà (+/- 10% prezzo/metratura, 600m raggio)
+      const sizeMin = Math.max(1, Math.floor(property.size * 0.9));
+      const sizeMax = Math.ceil(property.size * 1.1);
+      const priceMin = Math.max(1, Math.floor(property.price * 0.9));
+      const priceMax = Math.ceil(property.price * 1.1);
+
+      // Crea il cliente buyer
+      const newClient = await storage.createClient({
+        type: "buyer",
+        firstName: clientName.split(' ')[0] || "Cliente",
+        lastName: clientName.split(' ').slice(1).join(' ') || "Auto",
+        phone: clientPhone,
+        email: "",
+        notes: `Cliente creato automaticamente dalla comunicazione ID ${communicationId}. Interessato alla proprietà ${property.address}.`
+      });
+
+      // Crea i dati buyer con le preferenze basate sulla proprietà
+      await storage.createBuyer({
+        clientId: newClient.id,
+        propertyType: property.type,
+        minSize: sizeMin,
+        maxSize: sizeMax,
+        minPrice: priceMin,
+        maxPrice: priceMax,
+        preferredAreas: [property.city || "Milano"],
+        searchRadius: 600, // 600 metri come richiesto
+        centerLat: property.location?.lat,
+        centerLng: property.location?.lng
+      });
+
+      // Aggiorna lo stato della comunicazione a "client_created"
+      await storage.updateCommunication(communicationId, { 
+        managementStatus: "client_created",
+        clientId: newClient.id 
+      });
+
+      res.json({ 
+        success: true, 
+        client: newClient,
+        message: `Cliente "${clientName}" creato con successo con preferenze basate su ${property.address}` 
+      });
+    } catch (error) {
+      console.error(`[POST /api/communications/${req.params.id}/create-client]`, error);
+      res.status(500).json({ error: "Errore durante la creazione del cliente" });
+    }
+  });
+
   // Elimina una comunicazione
   app.delete("/api/communications/:id", async (req: Request, res: Response) => {
     try {
