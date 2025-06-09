@@ -3435,7 +3435,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       const oauth2Client = new google.auth.OAuth2(
         process.env.GMAIL_CLIENT_ID,
         process.env.GMAIL_CLIENT_SECRET,
-        'https://client-management-system-ilanboni.replit.app/oauth/gmail/callback'
+        'urn:ietf:wg:oauth:2.0:oob'
       );
 
       const { tokens } = await oauth2Client.getToken(code);
@@ -3466,7 +3466,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
   // Pagina di configurazione manuale Gmail OAuth
   app.get("/gmail-oauth-setup", (req: Request, res: Response) => {
     const clientId = process.env.GMAIL_CLIENT_ID || '';
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=${clientId}&redirect_uri=https%3A%2F%2Fclient-management-system-ilanboni.replit.app%2Foauth%2Fgmail%2Fcallback&prompt=consent`;
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=${clientId}&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&prompt=consent`;
     
     res.send(`
 <!DOCTYPE html>
@@ -3662,18 +3662,26 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
             <li>Accedi con l'account <strong>info@cavourimmobiliare.it</strong></li>
             <li>Clicca su "Continua" quando appare l'avviso app non verificata</li>
             <li>Seleziona i permessi per Gmail</li>
-            <li>Verrai reindirizzato automaticamente per completare la configurazione</li>
+            <li>Copia il codice di autorizzazione che appare nella pagina finale</li>
         </ol>
         
         <div class="warning">
             ⚠️ <strong>Importante:</strong> L'app potrebbe mostrare un avviso "App non verificata". 
             Clicca su "Avanzate" e poi "Vai a [nome app] (non sicuro)" per continuare.
         </div>
+    </div>
+
+    <div class="step">
+        <h2>🎯 Passo 3: Inserisci il Codice di Autorizzazione</h2>
+        <form id="tokenForm">
+            <div class="form-group">
+                <label for="authCode">Codice di Autorizzazione:</label>
+                <textarea id="authCode" rows="3" placeholder="Incolla qui il codice ricevuto da Google..."></textarea>
+            </div>
+            <button type="submit" class="button">🔑 Genera Refresh Token</button>
+        </form>
         
-        <div class="info-box">
-            🔄 <strong>Processo automatico:</strong> Una volta autorizzata l'applicazione, 
-            riceverai automaticamente il refresh token e il servizio Gmail sarà attivato.
-        </div>
+        <div id="result"></div>
     </div>
 
     <div class="info-box">
@@ -3693,6 +3701,59 @@ function copyAuthUrl() {
         alert('URL copiato negli appunti!');
     });
 }
+
+document.getElementById('tokenForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const authCode = document.getElementById('authCode').value.trim();
+    const resultDiv = document.getElementById('result');
+    
+    if (!authCode) {
+        resultDiv.innerHTML = '<div class="error">❌ Inserisci il codice di autorizzazione</div>';
+        return;
+    }
+    
+    resultDiv.innerHTML = '<div class="info-box">🔄 Elaborazione in corso...</div>';
+    
+    try {
+        const response = await fetch('/api/gmail/exchange-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code: authCode })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.innerHTML = \`
+                <div class="success">
+                    ✅ <strong>Configurazione completata!</strong><br>
+                    Refresh token generato e salvato correttamente.<br>
+                    Il servizio Gmail è ora attivo per il monitoraggio automatico.
+                </div>
+            \`;
+            
+            // Pulisce il form
+            document.getElementById('authCode').value = '';
+            
+        } else {
+            resultDiv.innerHTML = \`
+                <div class="error">
+                    ❌ <strong>Errore:</strong> \${data.error || 'Errore sconosciuto'}
+                </div>
+            \`;
+        }
+        
+    } catch (error) {
+        resultDiv.innerHTML = \`
+            <div class="error">
+                ❌ <strong>Errore di connessione:</strong> \${error.message}
+            </div>
+        \`;
+    }
+});
 </script>
 </body>
 </html>
