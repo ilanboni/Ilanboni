@@ -1104,6 +1104,9 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }:
   const handleStatusChange = (newStatus: string) => {
     if (newStatus === "client_created") {
       createClientMutation.mutate(communication.id);
+    } else if (newStatus === "appointment_created") {
+      // Trigger appointment creation dialog
+      onStatusUpdate(); // This will be handled by parent component
     } else {
       updateManagementStatusMutation.mutate({
         id: communication.id,
@@ -1123,6 +1126,8 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }:
         return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Gestita</Badge>;
       case "client_created":
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">Cliente creato</Badge>;
+      case "appointment_created":
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-50">Appuntamento creato</Badge>;
       default:
         return <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">Sconosciuto</Badge>;
     }
@@ -1191,6 +1196,7 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }:
               <SelectItem value="to_manage">Da gestire</SelectItem>
               <SelectItem value="managed">Gestita</SelectItem>
               <SelectItem value="client_created">Crea cliente</SelectItem>
+              <SelectItem value="appointment_created">Crea appuntamento</SelectItem>
             </SelectContent>
           </Select>
         </div>

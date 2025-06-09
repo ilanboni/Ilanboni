@@ -134,7 +134,7 @@ function CreateAppointmentDialog({
   });
 
   // Load property address when dialog opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen && communication?.propertyId) {
       getPropertyAddress(communication.propertyId).then(address => {
         form.setValue("address", address);
