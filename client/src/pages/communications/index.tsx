@@ -33,7 +33,7 @@ import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { Communication } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,7 +41,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Appointment form schema
@@ -907,6 +907,191 @@ export default function CommunicationsPage() {
           });
         }}
       />
+
+      {/* Create Client Dialog */}
+      <CreateClientDialog 
+        isOpen={clientDialogOpen}
+        onClose={() => {
+          setClientDialogOpen(false);
+          setSelectedCommunicationForClient(null);
+        }}
+        communication={selectedCommunicationForClient}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+          setClientDialogOpen(false);
+          setSelectedCommunicationForClient(null);
+          toast({
+            title: "Cliente creato",
+            description: "Cliente creato con successo dalla comunicazione",
+          });
+        }}
+      />
     </>
+  );
+}
+
+// Create Client Dialog Component
+function CreateClientDialog({ 
+  isOpen, 
+  onClose, 
+  communication, 
+  onSuccess 
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  communication: any;
+  onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  const [extractedData, setExtractedData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch extracted contact information when dialog opens
+  useEffect(() => {
+    if (isOpen && communication) {
+      setIsLoading(true);
+      fetch(`/api/communications/${communication.id}/extract-contact`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            setExtractedData(data.extractedData);
+          }
+        })
+        .catch(error => {
+          console.error('Error extracting contact info:', error);
+          toast({
+            title: "Errore",
+            description: "Impossibile estrarre le informazioni di contatto.",
+            variant: "destructive",
+          });
+        })
+        .finally(() => setIsLoading(false));
+    }
+  }, [isOpen, communication, toast]);
+
+  const handleCreateClient = async () => {
+    if (!communication) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/communications/${communication.id}/create-client`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create client');
+      }
+      
+      const result = await response.json();
+      onSuccess();
+      toast({
+        title: "Cliente creato",
+        description: result.message || "Cliente creato con successo dalla comunicazione.",
+      });
+    } catch (error) {
+      console.error('Error creating client:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante la creazione del cliente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Crea Cliente da Comunicazione</DialogTitle>
+          <DialogDescription>
+            Verifica le informazioni estratte prima di creare il cliente.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : extractedData ? (
+          <div className="space-y-6">
+            {/* Extracted Information Preview */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h3 className="font-medium text-sm text-gray-700 mb-3">Informazioni Estratte:</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Nome</label>
+                  <p className="text-sm">{extractedData.firstName || "Non specificato"}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Cognome</label>
+                  <p className="text-sm">{extractedData.lastName || "Non specificato"}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Telefono</label>
+                  <p className="text-sm">{extractedData.phone || "Non specificato"}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Tipo Cliente</label>
+                  <p className="text-sm">Compratore</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Communication Details */}
+            <div className="border rounded-lg p-4">
+              <h3 className="font-medium text-sm text-gray-700 mb-3">Dettagli Comunicazione:</h3>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Oggetto</label>
+                  <p className="text-sm">{communication.subject}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Contenuto (anteprima)</label>
+                  <p className="text-sm text-gray-600 max-h-20 overflow-y-auto">
+                    {communication.content?.substring(0, 200)}
+                    {communication.content?.length > 200 && "..."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Property Connection Status */}
+            {extractedData.hasProperty ? (
+              <div className="flex items-center gap-2 text-green-600 text-sm">
+                <i className="fas fa-check-circle"></i>
+                Cliente verrà collegato all'immobile associato alla comunicazione
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-orange-600 text-sm">
+                <i className="fas fa-exclamation-triangle"></i>
+                Comunicazione non associata a un immobile specifico
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            Nessuna informazione disponibile per l'estrazione
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            Annulla
+          </Button>
+          <Button 
+            onClick={handleCreateClient} 
+            disabled={isLoading || !extractedData?.hasProperty}
+            className="gap-2"
+          >
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Crea Cliente
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
