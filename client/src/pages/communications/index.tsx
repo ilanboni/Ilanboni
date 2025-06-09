@@ -37,7 +37,10 @@ import { apiRequest } from "@/lib/queryClient";
 export default function CommunicationsPage() {
   const [filterType, setFilterType] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterManagementStatus, setFilterManagementStatus] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   // Fetch all communications
   const { data: communications, isLoading } = useQuery<Communication[]>({
@@ -47,6 +50,55 @@ export default function CommunicationsPage() {
   // Fetch all clients for name display
   const { data: clients } = useQuery({
     queryKey: ["/api/clients"],
+  });
+
+  // Mutation for updating management status
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      return apiRequest(`/api/communications/${id}/management-status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+      toast({
+        title: "Stato aggiornato",
+        description: "Lo stato di gestione è stato aggiornato con successo.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Errore durante l'aggiornamento dello stato.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for creating client from communication
+  const createClientMutation = useMutation({
+    mutationFn: async (communicationId: number) => {
+      return apiRequest(`/api/communications/${communicationId}/create-client`, {
+        method: "POST",
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      toast({
+        title: "Cliente creato",
+        description: data.message || "Cliente creato con successo dalla comunicazione.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Errore durante la creazione del cliente.",
+        variant: "destructive",
+      });
+    },
   });
   
   // Function to get client name by id and detect unknown numbers
@@ -79,6 +131,12 @@ export default function CommunicationsPage() {
     
     // Filter by status
     if (filterStatus && filterStatus !== "all" && comm.status !== filterStatus) return false;
+    
+    // Filter by management status
+    if (filterManagementStatus && filterManagementStatus !== "all") {
+      const commStatus = (comm as any).managementStatus || "to_manage";
+      if (commStatus !== filterManagementStatus) return false;
+    }
     
     // Search in subject or content
     if (searchQuery) {
@@ -133,6 +191,22 @@ export default function CommunicationsPage() {
     return direction === "inbound" 
       ? <span className="text-green-600"><i className="fas fa-arrow-down"></i></span>
       : <span className="text-blue-600"><i className="fas fa-arrow-up"></i></span>;
+  };
+
+  // Get management status badge
+  const getManagementStatusBadge = (status: string | null | undefined) => {
+    if (!status) status = "to_manage";
+    
+    switch (status) {
+      case "to_manage":
+        return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Da gestire</Badge>;
+      case "managed":
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Gestita</Badge>;
+      case "client_created":
+        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Cliente creato</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
   
   return (
@@ -271,6 +345,7 @@ export default function CommunicationsPage() {
                       <TableHead className="w-48">Oggetto</TableHead>
                       <TableHead>Contenuto</TableHead>
                       <TableHead className="w-32">Stato</TableHead>
+                      <TableHead className="w-36">Gestione</TableHead>
                       <TableHead className="w-24">Follow-up</TableHead>
                       <TableHead className="w-20 text-right">Azioni</TableHead>
                     </TableRow>
@@ -304,6 +379,39 @@ export default function CommunicationsPage() {
                           {comm.content || ""}
                         </TableCell>
                         <TableCell>{comm.status === "pending" ? <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">In attesa</Badge> : getStatusBadge(comm.status)}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="gap-2">
+                                {getManagementStatusBadge((comm as any).managementStatus)}
+                                <i className="fas fa-chevron-down text-xs"></i>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => updateStatusMutation.mutate({ id: comm.id, status: "to_manage" })}
+                                disabled={updateStatusMutation.isPending}
+                              >
+                                <i className="fas fa-clock mr-2 text-orange-600"></i>
+                                Da gestire
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => updateStatusMutation.mutate({ id: comm.id, status: "managed" })}
+                                disabled={updateStatusMutation.isPending}
+                              >
+                                <i className="fas fa-check mr-2 text-green-600"></i>
+                                Gestita
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => createClientMutation.mutate(comm.id)}
+                                disabled={createClientMutation.isPending || !comm.propertyId}
+                              >
+                                <i className="fas fa-user-plus mr-2 text-blue-600"></i>
+                                Crea cliente
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                         <TableCell>
                           {comm.needsFollowUp === true && (
                             <Badge variant="outline" className="bg-red-50 text-red-700">
