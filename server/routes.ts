@@ -3424,17 +3424,20 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         return res.status(400).json({ success: false, error: 'Codice di autorizzazione mancante' });
       }
       
-      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET) {
+      const clientId = process.env.GMAIL_NATIVE_CLIENT_ID || process.env.GMAIL_CLIENT_ID;
+      const clientSecret = process.env.GMAIL_NATIVE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
         return res.status(400).json({ 
           success: false, 
-          error: 'Credenziali Gmail non configurate. Aggiungi GMAIL_CLIENT_ID e GMAIL_CLIENT_SECRET ai secrets.' 
+          error: 'Credenziali Gmail non configurate. Aggiungi GMAIL_NATIVE_CLIENT_ID e GMAIL_NATIVE_CLIENT_SECRET ai secrets.' 
         });
       }
 
       const { google } = await import('googleapis');
       const oauth2Client = new google.auth.OAuth2(
-        process.env.GMAIL_CLIENT_ID,
-        process.env.GMAIL_CLIENT_SECRET,
+        clientId,
+        clientSecret,
         'urn:ietf:wg:oauth:2.0:oob'
       );
 
@@ -3465,7 +3468,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
   // Pagina di configurazione manuale Gmail OAuth
   app.get("/gmail-oauth-setup", (req: Request, res: Response) => {
-    const clientId = process.env.GMAIL_CLIENT_ID || '';
+    const clientId = process.env.GMAIL_NATIVE_CLIENT_ID || process.env.GMAIL_CLIENT_ID || '';
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=${clientId}&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&prompt=consent`;
     
     res.send(`
