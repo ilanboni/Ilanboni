@@ -162,12 +162,12 @@ Estrai le seguenti informazioni e restituiscile in formato JSON:
 
 {
   "client": {
-    "name": "Nome completo del cliente",
-    "email": "email del cliente se presente",
-    "phone": "telefono del cliente se presente"
+    "name": "Nome completo del cliente (es: Elena Valoti)",
+    "email": "email del cliente se presente nell'email",
+    "phone": "telefono del cliente se presente nell'email"
   },
   "property": {
-    "address": "indirizzo completo dell'immobile se presente",
+    "address": "indirizzo completo dell'immobile (es: Viale Abruzzi 78, Milano)",
     "type": "tipologia (appartamento, villa, etc.) se presente",
     "price": prezzo_numerico_se_presente,
     "size": dimensione_numerica_mq_se_presente
@@ -175,15 +175,21 @@ Estrai le seguenti informazioni e restituiscile in formato JSON:
   "request": {
     "type": "visita | informazioni | contatto",
     "urgency": "alta | media | bassa",
-    "notes": "note aggiuntive dal messaggio"
+    "notes": "note aggiuntive, preferenze orarie, commenti del cliente"
   }
 }
 
-ISTRUZIONI:
-- Se un dato non è presente, usa null
-- Il tipo di richiesta deve essere: "visita" per richieste di visita, "informazioni" per richieste di informazioni, "contatto" per richieste di contatto generico
-- L'urgenza deve essere basata sul tono del messaggio
-- Estrai solo informazioni esplicitamente presenti nell'email
+ESEMPI DI RICONOSCIMENTO:
+- Email con richiesta di visitare un immobile → type: "visita"
+- Email che chiede solo informazioni → type: "informazioni"
+- Email generica di contatto → type: "contatto"
+
+ISTRUZIONI SPECIFICHE:
+- Estrai con precisione nomi italiani completi (Nome e Cognome)
+- Cerca indirizzi italiani completi con via/viale/piazza
+- Se un dato non è presente nell'email, usa null
+- L'urgency deve riflettere il tono: richieste immediate = "alta", normali = "media", generiche = "bassa"
+- Nelle notes includi dettagli utili come orari preferiti o commenti specifici
 `;
 
       const response = await openai.chat.completions.create({
@@ -318,30 +324,43 @@ ISTRUZIONI:
 
     switch (requestData.type) {
       case 'visita':
-        title = `Organizzare visita per ${clientData.name}`;
-        description = `Cliente interessato a visita immobile`;
+        title = `Richiesta visita - ${clientData.name}`;
+        description = `RICHIESTA DI VISITA ricevuta da immobiliare.it\n\nCliente: ${clientData.name}`;
+        if (propertyData.address) {
+          description += `\nImmobile: ${propertyData.address}`;
+        }
+        description += `\n\n🎯 AZIONE RICHIESTA: Organizzare visita immobile`;
+        description += `\n📞 PROSSIMO STEP: Contattare cliente per fissare appuntamento`;
         break;
       case 'informazioni':
-        title = `Fornire informazioni a ${clientData.name}`;
-        description = `Cliente richiede informazioni su immobile`;
+        title = `Richiesta informazioni - ${clientData.name}`;
+        description = `RICHIESTA INFORMAZIONI ricevuta da immobiliare.it\n\nCliente: ${clientData.name}`;
+        if (propertyData.address) {
+          description += `\nImmobile: ${propertyData.address}`;
+        }
+        description += `\n\n🎯 AZIONE RICHIESTA: Fornire informazioni dettagliate`;
+        description += `\n📧 PROSSIMO STEP: Rispondere con brochure e dettagli`;
         break;
       case 'contatto':
-        title = `Contattare ${clientData.name}`;
-        description = `Cliente ha richiesto un contatto`;
+        title = `Richiesta contatto - ${clientData.name}`;
+        description = `RICHIESTA DI CONTATTO ricevuta da immobiliare.it\n\nCliente: ${clientData.name}`;
+        if (propertyData.address) {
+          description += `\nImmobile: ${propertyData.address}`;
+        }
+        description += `\n\n🎯 AZIONE RICHIESTA: Contattare cliente`;
+        description += `\n📞 PROSSIMO STEP: Chiamare per comprendere esigenze`;
         break;
-    }
-
-    if (propertyData.address) {
-      description += ` in ${propertyData.address}`;
     }
 
     if (requestData.notes) {
-      description += `\n\nNote: ${requestData.notes}`;
+      description += `\n\n💬 NOTE DEL CLIENTE:\n${requestData.notes}`;
     }
 
-    description += `\n\nContatti:`;
-    if (clientData.email) description += `\nEmail: ${clientData.email}`;
-    if (clientData.phone) description += `\nTelefono: ${clientData.phone}`;
+    description += `\n\n📋 CONTATTI CLIENTE:`;
+    if (clientData.email) description += `\n✉️ Email: ${clientData.email}`;
+    if (clientData.phone) description += `\n📱 Telefono: ${clientData.phone}`;
+    
+    description += `\n\n⏰ Urgenza: ${requestData.urgency.toUpperCase()}`;
 
     const [task] = await db.insert(tasks).values({
       type: 'call',
