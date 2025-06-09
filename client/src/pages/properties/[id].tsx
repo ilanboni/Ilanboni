@@ -20,6 +20,32 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 import PropertyEditDialog from "@/components/properties/PropertyEditDialog";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
 import MapPreview from "@/components/maps/MapPreview";
@@ -94,12 +120,28 @@ const formSchema = z.object({
   location: z.any().optional().nullable(),
 });
 
+// Appointment form schema
+const appointmentFormSchema = z.object({
+  salutation: z.string().min(1, "Seleziona un appellativo"),
+  lastName: z.string().min(1, "Il cognome è obbligatorio"),
+  phone: z.string().min(1, "Il numero di telefono è obbligatorio"),
+  date: z.date({
+    required_error: "La data è obbligatoria",
+  }),
+  time: z.string().min(1, "L'ora è obbligatoria"),
+  address: z.string().min(1, "L'indirizzo è obbligatorio"),
+});
+
+type AppointmentFormData = z.infer<typeof appointmentFormSchema>;
+
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
+  const [appointmentCommunication, setAppointmentCommunication] = useState<any>(null);
   console.log("PropertyDetailPage - ID:", id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -830,10 +872,15 @@ export default function PropertyDetailPage() {
                             clientName={comm.direction === "inbound" && comm.clientId ? 
                               clientNamesById[comm.clientId] || `Cliente #${comm.clientId}` : 
                               "Sistema"}
-                            onStatusUpdate={() => {
-                              // Invalidate both communications queries to sync both views
-                              queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
-                              queryClient.invalidateQueries({ queryKey: ["/api/properties", id, "communications"] });
+                            onStatusUpdate={(communication?: any) => {
+                              // If communication is passed, handle appointment creation
+                              if (communication) {
+                                handleCreateAppointment(communication);
+                              } else {
+                                // Invalidate both communications queries to sync both views
+                                queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/properties", id, "communications"] });
+                              }
                             }}
                           />
                         ))}
@@ -1106,7 +1153,7 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }:
       createClientMutation.mutate(communication.id);
     } else if (newStatus === "appointment_created") {
       // Trigger appointment creation dialog
-      onStatusUpdate(); // This will be handled by parent component
+      onStatusUpdate(communication); // Pass communication to parent component
     } else {
       updateManagementStatusMutation.mutate({
         id: communication.id,
