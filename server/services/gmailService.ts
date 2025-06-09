@@ -241,23 +241,23 @@ export class GmailService {
         const allEmailsResponse = await fetch(`http://localhost:5000/api/emails`);
         const allEmails = await allEmailsResponse.json();
         
-        // Per email di immobiliare.it, verifica duplicati basandosi su contenuto specifico
+        // Per email di immobiliare.it, verifica duplicati basandosi su contenuto completo e timestamp preciso
         if (emailData.fromAddress.includes('immobiliare.it')) {
-          // Estrai numero di telefono dal corpo dell'email per identificazione univoca
-          const phoneMatches = emailData.body.match(/(?:Telefono|Tel|Phone):\s*([+]?[\d\s\-\(\)\.]{8,20})/i);
-          const emailPhone = phoneMatches ? phoneMatches[1].replace(/[\s\-\(\)\.]/g, '') : null;
+          // Usa una combinazione di fattori per identificare duplicati reali:
+          // 1. Stesso contenuto completo del corpo email
+          // 2. Timestamp molto vicino (entro 2 minuti)
+          // 3. Stesso subject
           
-          if (emailPhone) {
-            const duplicateEmail = allEmails.find((email: any) => 
-              email.clientPhone && 
-              email.clientPhone.replace(/[\s\-\(\)\.+]/g, '') === emailPhone.replace(/[\s\-\(\)\.+]/g, '') &&
-              Math.abs(new Date(email.receivedAt).getTime() - emailData.receivedAt.getTime()) < 300000 // 5 minuti di tolleranza
-            );
-            
-            if (duplicateEmail) {
-              console.log(`[GMAIL] Email duplicata immobiliare.it trovata per numero ${emailPhone}: ${duplicateEmail.emailId}`);
-              return true;
-            }
+          const duplicateEmail = allEmails.find((email: any) => 
+            email.subject === emailData.subject &&
+            email.body === emailData.body &&
+            email.fromAddress === emailData.fromAddress &&
+            Math.abs(new Date(email.receivedAt).getTime() - emailData.receivedAt.getTime()) < 120000 // 2 minuti di tolleranza
+          );
+          
+          if (duplicateEmail) {
+            console.log(`[GMAIL] Email duplicata immobiliare.it trovata (contenuto identico): ${duplicateEmail.emailId}`);
+            return true;
           }
         } else {
           // Per altre email, usa il controllo tradizionale
