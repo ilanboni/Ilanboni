@@ -3445,7 +3445,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       const oauth2Client = new google.auth.OAuth2(
         process.env.GMAIL_CLIENT_ID,
         process.env.GMAIL_CLIENT_SECRET,
-        `${req.protocol}://${req.get('host')}/oauth/gmail/callback`
+        'https://client-management-system-ilanboni.replit.app/oauth/gmail/callback'
       );
 
       const authUrl = oauth2Client.generateAuthUrl({
@@ -3526,7 +3526,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       const oauth2Client = new google.auth.OAuth2(
         process.env.GMAIL_CLIENT_ID,
         process.env.GMAIL_CLIENT_SECRET,
-        `${req.protocol}://${req.get('host')}/oauth/gmail/callback`
+        'https://client-management-system-ilanboni.replit.app/oauth/gmail/callback'
       );
 
       const { tokens } = await oauth2Client.getToken(code as string);

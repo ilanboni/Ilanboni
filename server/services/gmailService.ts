@@ -41,7 +41,7 @@ export class GmailService {
       const oauth2Client = new google.auth.OAuth2(
         process.env.GMAIL_CLIENT_ID,
         process.env.GMAIL_CLIENT_SECRET,
-        'http://localhost:3000/oauth/gmail/callback'
+        'https://client-management-system-ilanboni.replit.app/oauth/gmail/callback'
       );
 
       oauth2Client.setCredentials({
