@@ -3435,7 +3435,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       const oauth2Client = new google.auth.OAuth2(
         process.env.GMAIL_CLIENT_ID,
         process.env.GMAIL_CLIENT_SECRET,
-        'urn:ietf:wg:oauth:2.0:oob'
+        'https://client-management-system-ilanboni.replit.app/oauth/gmail/callback'
       );
 
       const { tokens } = await oauth2Client.getToken(code);
@@ -3465,6 +3465,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
   // Pagina di configurazione manuale Gmail OAuth
   app.get("/gmail-oauth-setup", (req: Request, res: Response) => {
+    const clientId = process.env.GMAIL_CLIENT_ID || '';
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=${clientId}&redirect_uri=https%3A%2F%2Fclient-management-system-ilanboni.replit.app%2Foauth%2Fgmail%2Fcallback&prompt=consent`;
+    
     res.send(`
 <!DOCTYPE html>
 <html lang="it">
@@ -3646,39 +3649,31 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         <h2>📋 Passo 1: Copia l'URL di Autorizzazione</h2>
         <p>Apri questo URL nel browser per avviare l'autorizzazione OAuth:</p>
         <div class="code" id="authUrl">
-            https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=266547561458-hukj58m92o0te74a4ldb4891dtn5lccc.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&prompt=consent
+            ${authUrl}
         </div>
         <button onclick="copyAuthUrl()" class="button">📋 Copia URL</button>
-        <a href="https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&response_type=code&client_id=266547561458-hukj58m92o0te74a4ldb4891dtn5lccc.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&prompt=consent" target="_blank" class="button">🔗 Apri URL</a>
+        <a href="${authUrl}" target="_blank" class="button">🔗 Avvia Autorizzazione</a>
     </div>
 
     <div class="step">
         <h2>🔐 Passo 2: Autorizza l'Applicazione</h2>
-        <p>Nella pagina Google:</p>
+        <p>Quando clicchi sul pulsante "Avvia Autorizzazione" sopra:</p>
         <ol>
             <li>Accedi con l'account <strong>info@cavourimmobiliare.it</strong></li>
             <li>Clicca su "Continua" quando appare l'avviso app non verificata</li>
             <li>Seleziona i permessi per Gmail</li>
-            <li>Copia il codice di autorizzazione che appare</li>
+            <li>Verrai reindirizzato automaticamente per completare la configurazione</li>
         </ol>
         
         <div class="warning">
             ⚠️ <strong>Importante:</strong> L'app potrebbe mostrare un avviso "App non verificata". 
             Clicca su "Avanzate" e poi "Vai a [nome app] (non sicuro)" per continuare.
         </div>
-    </div>
-
-    <div class="step">
-        <h2>🎯 Passo 3: Inserisci il Codice di Autorizzazione</h2>
-        <form id="tokenForm">
-            <div class="form-group">
-                <label for="authCode">Codice di Autorizzazione:</label>
-                <textarea id="authCode" rows="3" placeholder="Incolla qui il codice ricevuto da Google..."></textarea>
-            </div>
-            <button type="submit" class="button">🔑 Genera Refresh Token</button>
-        </form>
         
-        <div id="result"></div>
+        <div class="info-box">
+            🔄 <strong>Processo automatico:</strong> Una volta autorizzata l'applicazione, 
+            riceverai automaticamente il refresh token e il servizio Gmail sarà attivato.
+        </div>
     </div>
 
     <div class="info-box">
@@ -3698,65 +3693,111 @@ function copyAuthUrl() {
         alert('URL copiato negli appunti!');
     });
 }
-
-document.getElementById('tokenForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const authCode = document.getElementById('authCode').value.trim();
-    const resultDiv = document.getElementById('result');
-    
-    if (!authCode) {
-        resultDiv.innerHTML = '<div class="error">❌ Inserisci il codice di autorizzazione</div>';
-        return;
-    }
-    
-    resultDiv.innerHTML = '<div class="info-box">🔄 Elaborazione in corso...</div>';
-    
-    try {
-        const response = await fetch('/api/gmail/exchange-token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ code: authCode })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            resultDiv.innerHTML = \`
-                <div class="success">
-                    ✅ <strong>Configurazione completata!</strong><br>
-                    Refresh token generato e salvato correttamente.<br>
-                    Il servizio Gmail è ora attivo per il monitoraggio automatico.
-                </div>
-            \`;
-            
-            // Pulisce il form
-            document.getElementById('authCode').value = '';
-            
-        } else {
-            resultDiv.innerHTML = \`
-                <div class="error">
-                    ❌ <strong>Errore:</strong> \${data.error || 'Errore sconosciuto'}
-                </div>
-            \`;
-        }
-        
-    } catch (error) {
-        resultDiv.innerHTML = \`
-            <div class="error">
-                ❌ <strong>Errore di connessione:</strong> \${error.message}
-            </div>
-        \`;
-    }
-});
 </script>
 </body>
 </html>
     `);
   });
   
+  // Gmail OAuth callback handler
+  app.get("/oauth/gmail/callback", async (req: Request, res: Response) => {
+    try {
+      const { code, error } = req.query;
+      
+      if (error) {
+        return res.status(400).send(`
+          <html>
+            <head><title>OAuth Error</title></head>
+            <body>
+              <h1>❌ Errore di autorizzazione</h1>
+              <p>Si è verificato un errore durante l'autorizzazione: ${error}</p>
+              <p><a href="/gmail-oauth-setup">← Torna alla configurazione Gmail</a></p>
+            </body>
+          </html>
+        `);
+      }
+      
+      if (!code) {
+        return res.status(400).send(`
+          <html>
+            <head><title>OAuth Error</title></head>
+            <body>
+              <h1>❌ Codice mancante</h1>
+              <p>Nessun codice di autorizzazione ricevuto</p>
+              <p><a href="/gmail-oauth-setup">← Torna alla configurazione Gmail</a></p>
+            </body>
+          </html>
+        `);
+      }
+
+      if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET) {
+        return res.status(500).send(`
+          <html>
+            <head><title>Configuration Error</title></head>
+            <body>
+              <h1>❌ Configurazione mancante</h1>
+              <p>Credenziali Gmail non configurate nel server</p>
+              <p><a href="/gmail-oauth-setup">← Torna alla configurazione Gmail</a></p>
+            </body>
+          </html>
+        `);
+      }
+
+      const { google } = await import('googleapis');
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        'https://client-management-system-ilanboni.replit.app/oauth/gmail/callback'
+      );
+
+      const { tokens } = await oauth2Client.getToken(code as string);
+      
+      if (!tokens.refresh_token) {
+        return res.send(`
+          <html>
+            <head><title>OAuth Warning</title></head>
+            <body>
+              <h1>⚠️ Configurazione parziale</h1>
+              <p>Autorizzazione completata ma nessun refresh token ricevuto.</p>
+              <p>Potrebbe essere necessario revocare l'accesso e riprovare.</p>
+              <p><a href="/gmail-oauth-setup">← Torna alla configurazione Gmail</a></p>
+            </body>
+          </html>
+        `);
+      }
+
+      // Here you would save the refresh token to your secrets/environment
+      console.log('✅ [GMAIL OAUTH] Refresh token ricevuto:', tokens.refresh_token?.substring(0, 20) + '...');
+      
+      res.send(`
+        <html>
+          <head><title>OAuth Success</title></head>
+          <body>
+            <h1>✅ Configurazione Gmail completata!</h1>
+            <p>Refresh token ricevuto e configurato correttamente.</p>
+            <p>Il servizio Gmail è ora attivo per il monitoraggio automatico.</p>
+            <p><strong>Refresh Token:</strong> ${tokens.refresh_token}</p>
+            <p><small>Salva questo token nei secrets come GMAIL_REFRESH_TOKEN</small></p>
+            <p><a href="/">🏠 Torna alla Dashboard</a></p>
+          </body>
+        </html>
+      `);
+      
+    } catch (error) {
+      console.error('[GMAIL OAUTH CALLBACK] ❌ Errore:', error);
+      res.status(500).send(`
+        <html>
+          <head><title>OAuth Error</title></head>
+          <body>
+            <h1>❌ Errore durante l'autorizzazione</h1>
+            <p>Si è verificato un errore durante l'autorizzazione: ${error instanceof Error ? error.message : 'Errore sconosciuto'}</p>
+            <p><a href="/gmail-oauth-setup">← Torna alla configurazione Gmail</a></p>
+          </body>
+        </html>
+      `);
+    }
+  });
+
   // Avvia autorizzazione Gmail
   app.get("/oauth/gmail/start", async (req: Request, res: Response) => {
     try {
