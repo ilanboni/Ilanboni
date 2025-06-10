@@ -168,8 +168,16 @@ function CreateAppointmentDialog({
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
       // Get property data to use its address as location
-      const propertyResponse = await apiRequest(`/api/properties/${communication.propertyId}`);
-      const propertyAddress = propertyResponse.property?.address || data.address;
+      let propertyAddress = data.address;
+      try {
+        const propertyResponse = await fetch(`/api/properties/${communication.propertyId}`);
+        if (propertyResponse.ok) {
+          const propertyData: any = await propertyResponse.json();
+          propertyAddress = propertyData?.property?.address || data.address;
+        }
+      } catch (error) {
+        console.log("Failed to fetch property address, using fallback");
+      }
 
       // Create appointment with proper date/time handling
       const [hours, minutes] = data.time.split(':');
@@ -197,7 +205,8 @@ function CreateAppointmentDialog({
       });
 
       // Send WhatsApp confirmation with proper salutation formatting
-      const confirmationMessage = `${formattedSalutation} ${data.lastName}, le confermo appuntamento di ${format(data.date, "dd/MM/yyyy")} ore ${data.time}, in ${data.address}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
+      const dayOfWeek = format(data.date, "EEEE", { locale: it });
+      const confirmationMessage = `${formattedSalutation} ${data.lastName}, le confermo appuntamento di ${dayOfWeek} ${format(data.date, "dd/MM")} alle ore ${data.time}, in ${propertyAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
       
       await apiRequest("/api/whatsapp/send-direct", {
         method: "POST",
