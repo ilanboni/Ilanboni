@@ -450,13 +450,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Crea il cliente buyer
       const newClient = await storage.createClient({
-        type: "buyer",
+        type: type || "buyer",
         salutation: "Sig./Sig.ra",
-        firstName: clientName.split(' ')[0] || "Cliente",
-        lastName: clientName.split(' ').slice(1).join(' ') || "Auto",
+        firstName: firstName,
+        lastName: lastName,
         isFriend: false,
         phone: clientPhone,
-        email: "",
+        email: email || "",
         notes: `Cliente creato automaticamente dalla comunicazione ID ${communicationId}. Interessato alla proprietà ${property.address}.`
       });
 
