@@ -3452,28 +3452,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         return res.status(404).json({ error: "Immobile non trovato" });
       }
       
-      // Create the appointment first
-      const appointmentDateTime = new Date(`${date}T${time}`);
-      const appointmentData = {
-        title: `${lastName} - ${normalizedPhone}`,
-        description: `Appuntamento con ${salutation} ${firstName} ${lastName}\nTelefono: ${normalizedPhone}\nCreato dalla comunicazione ID: ${communicationId}`,
-        startDate: appointmentDateTime.toISOString(),
-        endDate: new Date(appointmentDateTime.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour duration
-        location: property.address,
-        propertyId: propertyId,
-        clientId: null // Will be updated after client creation
-      };
-      
-      // Create the appointment directly in the database
-      const appointment = await storage.createAppointment({
-        title: appointmentData.title,
-        description: appointmentData.description,
-        startDate: new Date(appointmentData.startDate),
-        endDate: new Date(appointmentData.endDate),
-        location: appointmentData.location,
-        propertyId: propertyId,
-        clientId: null // Will be updated after client creation
-      });
+      // First check if client exists by phone
+      let existingClient = await storage.getClientByPhone(normalizedPhone);
+      let client = existingClient;
       
       // Calculate search parameters based on property (±10% price, ±10% size, 600m radius)
       const minPrice = Math.round(property.price * 0.9);
@@ -3506,42 +3487,55 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         }
       };
       
-      // Create the client with Catholic religion as default
-      const clientData = {
-        type: "buyer",
-        salutation: salutation,
-        firstName: firstName,
-        lastName: lastName,
-        phone: normalizedPhone,
-        religion: "catholic", // Default Catholic religion
-        notes: `Cliente creato automaticamente dalla conferma appuntamento. Interessato all'immobile in ${property.address}`,
-        buyer: {
-          searchArea: searchArea,
-          minSize: minSize,
-          maxPrice: maxPrice,
-          urgency: 3,
-          rating: 3,
-          searchNotes: `Parametri di ricerca automatici: Prezzo €${minPrice.toLocaleString()}-€${maxPrice.toLocaleString()}, Dimensione ${minSize}-${maxSize} mq, Raggio 600m da ${property.address}`
-        }
-      };
-      
-      // Create the client directly
-      const validatedClientData = insertClientSchema.parse(clientData);
-      const newClient = await storage.createClient(validatedClientData);
-      
-      // If it's a buyer, create the buyer record with search parameters
-      if (newClient.type === "buyer" && clientData.buyer) {
-        const buyerData = {
-          clientId: newClient.id,
-          searchArea: clientData.buyer.searchArea,
-          minSize: clientData.buyer.minSize,
-          maxPrice: clientData.buyer.maxPrice,
-          urgency: clientData.buyer.urgency,
-          rating: clientData.buyer.rating,
-          searchNotes: clientData.buyer.searchNotes
+      // Create client if it doesn't exist
+      if (!client) {
+        const clientData = {
+          type: "buyer",
+          salutation: salutation,
+          firstName: firstName,
+          lastName: lastName,
+          phone: normalizedPhone,
+          religion: "catholic", // Default Catholic religion
+          notes: `Cliente creato automaticamente dalla conferma appuntamento. Interessato all'immobile in ${property.address}`,
+          buyer: {
+            searchArea: searchArea,
+            minSize: minSize,
+            maxPrice: maxPrice,
+            urgency: 3,
+            rating: 3,
+            searchNotes: `Parametri di ricerca automatici: Prezzo €${minPrice.toLocaleString()}-€${maxPrice.toLocaleString()}, Dimensione ${minSize}-${maxSize} mq, Raggio 600m da ${property.address}`
+          }
         };
-        await storage.createBuyer(buyerData);
+        
+        // Create the client directly
+        const validatedClientData = insertClientSchema.parse(clientData);
+        client = await storage.createClient(validatedClientData);
+        
+        // If it's a buyer, create the buyer record with search parameters
+        if (client.type === "buyer" && clientData.buyer) {
+          const buyerData = {
+            clientId: client.id,
+            searchArea: clientData.buyer.searchArea,
+            minSize: clientData.buyer.minSize,
+            maxPrice: clientData.buyer.maxPrice,
+            urgency: clientData.buyer.urgency,
+            rating: clientData.buyer.rating,
+            searchNotes: clientData.buyer.searchNotes
+          };
+          await storage.createBuyer(buyerData);
+        }
       }
+      
+      // Now create the appointment with the correct client_id
+      const appointment = await storage.createAppointment({
+        clientId: client.id,
+        propertyId: propertyId,
+        date: date,
+        time: time,
+        type: "visit",
+        status: "scheduled",
+        notes: `Appuntamento con ${salutation} ${firstName} ${lastName}\nTelefono: ${normalizedPhone}\nCreato dalla comunicazione ID: ${communicationId}`
+      });
       
       // Mark communication as managed
       if (communicationId) {
@@ -3569,7 +3563,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       res.json({
         success: true,
         appointment: appointment,
-        client: newClient,
+        client: client,
         message: "Appuntamento creato, cliente creato automaticamente con parametri di ricerca e conferma WhatsApp inviata"
       });
       
