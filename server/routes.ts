@@ -281,42 +281,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName = structuredNameMatch[1].trim();
         lastName = structuredNameMatch[2].trim();
       } else {
-        // Per email immobiliare.it, evita l'estrazione di nomi dalla subject line
-        if (communication.subject?.includes("Telefonata ricevuta dal numero")) {
-          // Skip name extraction for immobiliare.it missed call notifications
-          // Il nome verrà gestito nel fallback più avanti
-        } else {
-          // Pattern per nomi specifici per altri tipi di comunicazioni
-          const namePatterns = [
-            /(?:Nome|Name|Cliente):\s*([A-Za-z\s]+?)(?=\s*(?:Email|Telefono|TELEFONO|\n|$))/i,
-            /Messaggio di\s+([A-Za-z\s]+)\s+per/i,
-            // Pattern per immobiliare.it solo nel content, non subject - stoppa prima di Email/Telefono
-            /(?:Contatto|TELEFONO)[\s\n\r]+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})+?)(?=\s*(?:Email|Telefono|TELEFONO|\n|$))/i,
-            // Pattern per "Ilan Boni" specifico
-            /Ilan\s+([A-Z][a-z]+)/
-          ];
-          
-          for (const pattern of namePatterns) {
-            const nameMatches = content.match(pattern); // Usa solo content, non fullText
-            if (nameMatches && nameMatches[1]) {
-              const cleanName = nameMatches[1].trim();
+        // Improved name extraction patterns for immobiliare.it emails
+        const namePatterns = [
+          // Pattern for structured name/surname in content (more specific)
+          /\n\s*([A-Z][A-Z\s]{2,})\s*\n\s*NOME/i,
+          /\n\s*([A-Z][A-Z\s]{2,})\s*\n\s*COGNOME/i,
+          // Pattern for names before "TELEFONO" section
+          /([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)\s*\n\s*TELEFONO/i,
+          // Pattern for contact section names
+          /Contatto[\s\n\r]+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*?)(?=\s*(?:\+39|Email|Telefono|TELEFONO|\n|$))/i,
+          // Pattern for message signatures
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s*-\s*Cavour/i,
+          // Pattern for names after phone numbers in content
+          /\+39\s+\d+[\s\d]+\s*\n\s*([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)/i,
+          // General capitalized names in content (avoiding common words)
+          /\n\s*([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\s*\n/i
+        ];
+        
+        for (const pattern of namePatterns) {
+          const nameMatches = content.match(pattern);
+          if (nameMatches) {
+            let cleanName = "";
+            
+            // For patterns that capture full name in one group
+            if (nameMatches[1] && !nameMatches[2]) {
+              cleanName = nameMatches[1].trim();
+            }
+            // For patterns that capture first and last name separately
+            else if (nameMatches[1] && nameMatches[2]) {
+              firstName = nameMatches[1].trim();
+              lastName = nameMatches[2].trim();
+              break;
+            }
+            
+            if (cleanName) {
+              // Filter out common non-name words
+              const invalidWords = /^(Gentile|Cliente|Messaggio|Telefono|Email|TELEFONO|Contatto|Image|Link|Icona|dal|numero|ricevuta|telefonata|Immobiliare|Milano|Roma|Torino|Napoli|Appartamento|Casa|Viale|Via|Piazza|Cavour|NOME|COGNOME|Note|Data|Ora|Tipo|Giorno)$/i;
               
-              // Escludi frasi comuni
-              const isValidName = !cleanName.match(/^(Gentile|Cliente|Messaggio|Telefono|Email|TELEFONO|Contatto|Image|Link|Icona|dal|numero|ricevuta|telefonata|Immobiliare|Milano|Roma|Torino|Napoli|Appartamento|Casa|Viale|Via|Piazza|Cavour)$/i);
-              
-              if (isValidName) {
-                const nameParts = cleanName.split(/\s+/);
-                const validParts = nameParts.filter(part => 
+              if (!cleanName.match(invalidWords)) {
+                const nameParts = cleanName.split(/\s+/).filter(part => 
                   part.length >= 2 && 
-                  !part.match(/^(dal|numero|ricevuta|telefonata|Immobiliare|Cavour|Email|Nome|Telefono|Contatti)$/i) &&
+                  !part.match(invalidWords) &&
                   !part.match(/^\d+$/) &&
                   !part.includes('@') &&
-                  !part.includes(':')
+                  !part.includes(':') &&
+                  !part.includes('.')
                 );
                 
-                if (validParts.length >= 2) {
-                  firstName = validParts[0] || "";
-                  lastName = validParts.slice(1).join(" ") || "";
+                if (nameParts.length >= 1) {
+                  // If we have multiple parts, use first as firstName and rest as lastName
+                  if (nameParts.length >= 2) {
+                    firstName = nameParts[0];
+                    lastName = nameParts.slice(1).join(" ");
+                  } else {
+                    // Single name goes to lastName for surname priority
+                    lastName = nameParts[0];
+                  }
                   break;
                 }
               }
@@ -406,6 +426,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName = "Cliente";
           lastName = "da Comunicazione";
         }
+      }
+      
+      // Se abbiamo solo il telefono ma nessun nome, lascia vuoto per permettere inserimento manuale
+      if (!firstName && !lastName && phone) {
+        // Non forzare nomi generici, lascia vuoti per inserimento manuale
+        firstName = "";
+        lastName = "";
       }
 
       res.json({
