@@ -22,6 +22,9 @@ import { Helmet } from "react-helmet";
 import { CITY_AREAS, PRICE_RANGES, SIZE_RANGES } from "@/lib/constants";
 import { MarketAnalytics } from "@/types";
 import HeatMap from "@/components/maps/HeatMap";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
+import { Target } from "lucide-react";
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState("month");
@@ -105,6 +108,12 @@ export default function AnalyticsPage() {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
+          <Link href="/analytics/search-heatmap">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Mappa Ricerche
+            </Button>
+          </Link>
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Periodo" />
