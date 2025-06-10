@@ -275,8 +275,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let lastName = "";
       let phone = "";
       
-      // Pattern per nomi strutturati (NOME/COGNOME)
-      const structuredNameMatch = fullText.match(/NOME[:\s]*([A-Za-z\s]+)[\s\n]*COGNOME[:\s]*([A-Za-z\s]+)/i);
+      // Pattern per nomi strutturati (NOME/COGNOME) - usa solo content, non subject
+      const structuredNameMatch = content.match(/NOME[:\s]*([A-Za-z\s]+)[\s\n]*COGNOME[:\s]*([A-Za-z\s]+)/i);
       if (structuredNameMatch) {
         firstName = structuredNameMatch[1].trim();
         lastName = structuredNameMatch[2].trim();
@@ -432,26 +432,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Proprietà associata non trovata" });
       }
 
-      // Estrai informazioni dal contenuto della comunicazione per il nome del cliente
-      let clientName = "Cliente da Comunicazione";
-      let clientPhone = "";
+      // Usa i dati forniti nella richiesta invece di estrarre dal contenuto
+      const { firstName, lastName, phone, email, type } = req.body;
       
-      // Cerca di estrarre nome e telefono dal contenuto
-      const content = communication.content || "";
-      
-      // Estrai nome (cerca pattern comuni nelle email di immobiliare.it)
-      const nameMatches = content.match(/(?:Nome|Name|Cliente):\s*([A-Za-z\s]+)/i) ||
-                         content.match(/([A-Z][a-z]+\s+[A-Z][a-z]+)/) ||
-                         content.match(/Messaggio di\s+([A-Za-z\s]+)\s+per/i);
-      if (nameMatches && nameMatches[1]) {
-        clientName = nameMatches[1].trim();
+      if (!firstName || !lastName || !phone) {
+        return res.status(400).json({ error: "Nome, cognome e telefono sono obbligatori" });
       }
 
-      // Estrai telefono
-      const phoneMatches = content.match(/(?:\+39\s?)?(\d{2,3}[\s\-]?\d{3,4}[\s\-]?\d{3,4})/);
-      if (phoneMatches && phoneMatches[0]) {
-        clientPhone = phoneMatches[0].replace(/\s|-/g, '').replace(/^\+/, '');
-      }
+      const clientName = `${firstName} ${lastName}`;
+      const clientPhone = phone;
 
       // Genera preferenze di ricerca basate sulla proprietà (+/- 10% prezzo/metratura, 600m raggio)
       const sizeMin = Math.max(1, Math.floor(property.size * 0.9));
@@ -462,8 +451,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Crea il cliente buyer
       const newClient = await storage.createClient({
         type: "buyer",
+        salutation: "Sig./Sig.ra",
         firstName: clientName.split(' ')[0] || "Cliente",
         lastName: clientName.split(' ').slice(1).join(' ') || "Auto",
+        isFriend: false,
         phone: clientPhone,
         email: "",
         notes: `Cliente creato automaticamente dalla comunicazione ID ${communicationId}. Interessato alla proprietà ${property.address}.`
