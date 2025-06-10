@@ -3549,7 +3549,21 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       const addressParts = property.address.split(',');
       const cleanAddress = addressParts[0].trim(); // Only street and number, no city
       
-      const confirmationMessage = `${salutation} ${lastName}, le confermo appuntamento di ${date} alle ore ${time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
+      // Format salutation properly for WhatsApp message
+      const formatSalutation = (sal: string): string => {
+        switch (sal) {
+          case 'egr_dott': return 'Egr. Dott.';
+          case 'egr_sig': return 'Egr. Sig.';
+          case 'gentma_sigra': return 'Gent.ma Sig.ra';
+          case 'caro': return 'Caro';
+          case 'cara': return 'Cara';
+          default: return sal;
+        }
+      };
+      
+      const formattedSalutation = formatSalutation(salutation);
+      console.log(`[SALUTATION] Original: ${salutation}, Formatted: ${formattedSalutation}`);
+      const confirmationMessage = `${formattedSalutation} ${lastName}, le confermo appuntamento di ${date} alle ore ${time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
       
       // Send WhatsApp message directly
       try {
