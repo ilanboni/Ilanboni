@@ -76,6 +76,7 @@ function CreateAppointmentDialog({
   
   // Extract contact information from communication using backend API
   useEffect(() => {
+    console.log('Dialog useEffect triggered:', { communication: communication?.id, isOpen, isExtracting });
     if (communication && isOpen) {
       console.log('Starting contact extraction for communication:', communication.id);
       setIsExtracting(true);
@@ -541,8 +542,10 @@ export default function CommunicationsPage() {
 
   // Handle appointment creation
   const handleCreateAppointment = (communication: any) => {
+    console.log('handleCreateAppointment called with communication:', communication.id);
     setAppointmentCommunication(communication);
     setShowCreateAppointmentDialog(true);
+    console.log('Dialog state set to open');
   };
 
   // Get management status badge
