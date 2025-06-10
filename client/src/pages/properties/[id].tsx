@@ -1392,6 +1392,14 @@ function CreateAppointmentDialog({
     }
   }, [isOpen, communication, form]);
 
+  // Update form values when extracted data changes
+  useEffect(() => {
+    if (extractedData) {
+      form.setValue("lastName", extractedData.lastName || "");
+      form.setValue("phone", extractedData.phone || "");
+    }
+  }, [extractedData, form]);
+
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
       // Use the enhanced appointment creation endpoint that automatically creates client with search parameters
