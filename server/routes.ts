@@ -308,8 +308,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const nameParts = cleanName.split(/\s+/);
                 const validParts = nameParts.filter(part => 
                   part.length >= 2 && 
-                  !part.match(/^(dal|numero|ricevuta|telefonata|Immobiliare|Cavour)$/i) &&
-                  !part.match(/^\d+$/)
+                  !part.match(/^(dal|numero|ricevuta|telefonata|Immobiliare|Cavour|Email|Nome|Telefono|Contatti)$/i) &&
+                  !part.match(/^\d+$/) &&
+                  !part.includes('@') &&
+                  !part.includes(':')
                 );
                 
                 if (validParts.length >= 2) {
