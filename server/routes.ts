@@ -2648,6 +2648,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Error calculating search analytics" });
     }
   });
+
+  // API per heatmap delle ricerche dei clienti
+  app.get("/api/analytics/search-heatmap", async (req: Request, res: Response) => {
+    try {
+      const { minBudget = '0', maxBudget = '2000000', minSize = '20', maxSize = '300', minSearches = '1' } = req.query;
+      
+      console.log(`[HEATMAP] Filtri ricevuti: budget ${minBudget}-${maxBudget}, size ${minSize}-${maxSize}, min searches ${minSearches}`);
+      
+      // Ottieni tutti i buyer con le loro preferenze di ricerca e search area
+      const buyersData = await db
+        .select({
+          clientId: buyers.clientId,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          phone: clients.phone,
+          minSize: buyers.minSize,
+          maxPrice: buyers.maxPrice,
+          searchArea: buyers.searchArea
+        })
+        .from(buyers)
+        .innerJoin(clients, eq(buyers.clientId, clients.id))
+        .where(
+          and(
+            gte(buyers.maxPrice || 0, parseInt(minBudget as string)),
+            lte(buyers.maxPrice || 2000000, parseInt(maxBudget as string)),
+            gte(buyers.minSize || 0, parseInt(minSize as string)),
+            lte(buyers.minSize || 300, parseInt(maxSize as string))
+          )
+        );
+      
+      console.log(`[HEATMAP] Trovati ${buyersData.length} buyer con criteri`);
+      
+      // Processa i dati ed estrai coordinate dal searchArea
+      const coordinateGroups = new Map<string, {
+        lat: number;
+        lng: number;
+        clients: Array<{
+          id: number;
+          name: string;
+          phone: string;
+          budget: number;
+          size: number;
+        }>;
+        searchCount: number;
+        totalBudget: number;
+        totalSize: number;
+      }>();
+      
+      buyersData.forEach(buyer => {
+        let lat: number | null = null;
+        let lng: number | null = null;
+        
+        // Estrai coordinate dal searchArea se disponibile
+        if (buyer.searchArea && typeof buyer.searchArea === 'object') {
+          const searchArea = buyer.searchArea as any;
+          
+          // Se è un GeoJSON Polygon, prendi il centro
+          if (searchArea.type === 'Polygon' && searchArea.coordinates && searchArea.coordinates[0]) {
+            const coords = searchArea.coordinates[0];
+            if (coords.length > 0) {
+              // Calcola il centro del poligono
+              let sumLat = 0, sumLng = 0;
+              coords.forEach((coord: number[]) => {
+                sumLng += coord[0];
+                sumLat += coord[1];
+              });
+              lng = sumLng / coords.length;
+              lat = sumLat / coords.length;
+            }
+          }
+          // Se è un centro con raggio
+          else if (searchArea.center && searchArea.center.lat && searchArea.center.lng) {
+            lat = searchArea.center.lat;
+            lng = searchArea.center.lng;
+          }
+        }
+        
+        if (!lat || !lng) return;
+        
+        // Raggruppa coordinate entro 500m (circa 0.005 gradi)
+        const roundedLat = Math.round(lat * 200) / 200;
+        const roundedLng = Math.round(lng * 200) / 200;
+        const key = `${roundedLat},${roundedLng}`;
+        
+        const clientName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || `Cliente ${buyer.clientId}`;
+        const avgBudget = buyer.maxPrice || 0;
+        const avgSize = buyer.minSize || 0;
+        
+        if (coordinateGroups.has(key)) {
+          const group = coordinateGroups.get(key)!;
+          group.searchCount++;
+          group.totalBudget += avgBudget;
+          group.totalSize += avgSize;
+          group.clients.push({
+            id: buyer.clientId,
+            name: clientName,
+            phone: buyer.phone || '',
+            budget: avgBudget,
+            size: avgSize
+          });
+        } else {
+          coordinateGroups.set(key, {
+            lat: lat,
+            lng: lng,
+            searchCount: 1,
+            totalBudget: avgBudget,
+            totalSize: avgSize,
+            clients: [{
+              id: buyer.clientId,
+              name: clientName,
+              phone: buyer.phone || '',
+              budget: avgBudget,
+              size: avgSize
+            }]
+          });
+        }
+      });
+      
+      // Converti in array e filtra per numero minimo di ricerche
+      const heatmapData = Array.from(coordinateGroups.values())
+        .filter(group => group.searchCount >= parseInt(minSearches as string))
+        .map(group => ({
+          lat: group.lat,
+          lng: group.lng,
+          searchCount: group.searchCount,
+          avgBudget: Math.round(group.totalBudget / group.searchCount),
+          avgSize: Math.round(group.totalSize / group.searchCount),
+          clients: group.clients
+        }))
+        .sort((a, b) => b.searchCount - a.searchCount); // Ordina per numero di ricerche
+      
+      console.log(`[HEATMAP] Restituiti ${heatmapData.length} punti dopo filtraggio`);
+      
+      res.json(heatmapData);
+    } catch (error) {
+      console.error("[HEATMAP] Errore:", error);
+      res.status(500).json({ error: "Errore durante il recupero dei dati heatmap" });
+    }
+  });
   
   // API per la classifica delle proprietà condivise
   app.get("/api/analytics/shared-properties-ranking", async (req: Request, res: Response) => {

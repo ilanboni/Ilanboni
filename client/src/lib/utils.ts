@@ -18,6 +18,11 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+// Format price (alias for formatCurrency)
+export function formatPrice(amount: number): string {
+  return formatCurrency(amount);
+}
+
 // Format date
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
