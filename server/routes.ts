@@ -2787,6 +2787,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Errore durante il recupero dei dati heatmap" });
     }
   });
+
+  // API per analisi intelligente delle richieste più frequenti
+  app.get("/api/analytics/demand-analysis", async (req: Request, res: Response) => {
+    try {
+      console.log("[DEMAND-ANALYSIS] Avvio analisi richieste più frequenti");
+      
+      // Ottieni tutti i buyer con le loro preferenze
+      const buyersData = await db
+        .select({
+          clientId: buyers.clientId,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          phone: clients.phone,
+          minSize: buyers.minSize,
+          maxPrice: buyers.maxPrice,
+          searchArea: buyers.searchArea
+        })
+        .from(buyers)
+        .innerJoin(clients, eq(buyers.clientId, clients.id));
+
+      console.log(`[DEMAND-ANALYSIS] Trovati ${buyersData.length} buyer`);
+
+      // Funzione per determinare la zona dalle coordinate
+      const getZoneFromCoords = (lat: number, lng: number) => {
+        if (Math.abs(lat - 45.4642) < 0.008 && Math.abs(lng - 9.1900) < 0.008) return "Duomo";
+        if (Math.abs(lat - 45.4773) < 0.008 && Math.abs(lng - 9.1815) < 0.008) return "Brera";
+        if (Math.abs(lat - 45.4825) < 0.008 && Math.abs(lng - 9.2078) < 0.008) return "Porta Garibaldi";
+        if (Math.abs(lat - 45.4868) < 0.008 && Math.abs(lng - 9.1918) < 0.008) return "Porta Nuova";
+        if (Math.abs(lat - 45.4541) < 0.008 && Math.abs(lng - 9.1853) < 0.008) return "Navigli";
+        if (Math.abs(lat - 45.4969) < 0.008 && Math.abs(lng - 9.2071) < 0.008) return "Isola";
+        if (Math.abs(lat - 45.4388) < 0.008 && Math.abs(lng - 9.1946) < 0.008) return "Porta Romana";
+        if (Math.abs(lat - 45.4520) < 0.008 && Math.abs(lng - 9.1525) < 0.008) return "Porta Ticinese";
+        if (Math.abs(lat - 45.4906) < 0.008 && Math.abs(lng - 9.1665) < 0.008) return "Sempione";
+        if (Math.abs(lat - 45.4681) < 0.008 && Math.abs(lng - 9.1781) < 0.008) return "Castello";
+        if (Math.abs(lat - 45.4832) < 0.008 && Math.abs(lng - 9.2173) < 0.008) return "Viale Abruzzi";
+        if (Math.abs(lat - 45.4620) < 0.008 && Math.abs(lng - 9.2267) < 0.008) return "Lambrate";
+        if (Math.abs(lat - 45.4457) < 0.008 && Math.abs(lng - 9.2040) < 0.008) return "Porta Vittoria";
+        if (Math.abs(lat - 45.4751) < 0.008 && Math.abs(lng - 9.2158) < 0.008) return "Buenos Aires";
+        if (Math.abs(lat - 45.4892) < 0.008 && Math.abs(lng - 9.1813) < 0.008) return "Moscova";
+        return "Centro Milano";
+      };
+
+      // Categorizza le fasce di prezzo e metratura
+      const getPriceRange = (price: number) => {
+        if (price <= 400000) return "Fino a 400k";
+        if (price <= 600000) return "400k-600k";
+        if (price <= 800000) return "600k-800k";
+        return "Oltre 800k";
+      };
+
+      const getSizeRange = (size: number) => {
+        if (size <= 70) return "Fino a 70mq";
+        if (size <= 90) return "70-90mq";
+        if (size <= 110) return "90-110mq";
+        return "Oltre 110mq";
+      };
+
+      // Analizza ogni buyer e categorizza le richieste
+      const demandPatterns = new Map<string, {
+        zone: string;
+        priceRange: string;
+        sizeRange: string;
+        avgPrice: number;
+        avgSize: number;
+        count: number;
+        clients: Array<{
+          id: number;
+          name: string;
+          phone: string;
+          exactPrice: number;
+          exactSize: number;
+        }>;
+      }>();
+
+      buyersData.forEach(buyer => {
+        if (!buyer.maxPrice || !buyer.minSize || !buyer.searchArea) return;
+
+        // Estrai coordinate dalla searchArea
+        let lat: number | null = null;
+        let lng: number | null = null;
+        
+        if (buyer.searchArea && typeof buyer.searchArea === 'object') {
+          const searchArea = buyer.searchArea as any;
+          
+          if (searchArea.type === 'Polygon' && searchArea.coordinates && searchArea.coordinates[0]) {
+            const coords = searchArea.coordinates[0];
+            if (coords.length > 0) {
+              let sumLat = 0, sumLng = 0;
+              coords.forEach((coord: number[]) => {
+                sumLng += coord[0];
+                sumLat += coord[1];
+              });
+              lng = sumLng / coords.length;
+              lat = sumLat / coords.length;
+            }
+          } else if (searchArea.center && searchArea.center.lat && searchArea.center.lng) {
+            lat = searchArea.center.lat;
+            lng = searchArea.center.lng;
+          }
+        }
+
+        if (!lat || !lng) return;
+
+        const zone = getZoneFromCoords(lat, lng);
+        const priceRange = getPriceRange(buyer.maxPrice);
+        const sizeRange = getSizeRange(buyer.minSize);
+        const key = `${zone}|${priceRange}|${sizeRange}`;
+        
+        const clientName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || `Cliente ${buyer.clientId}`;
+        
+        if (demandPatterns.has(key)) {
+          const pattern = demandPatterns.get(key)!;
+          pattern.count++;
+          pattern.avgPrice = (pattern.avgPrice * (pattern.count - 1) + buyer.maxPrice) / pattern.count;
+          pattern.avgSize = (pattern.avgSize * (pattern.count - 1) + buyer.minSize) / pattern.count;
+          pattern.clients.push({
+            id: buyer.clientId,
+            name: clientName,
+            phone: buyer.phone || '',
+            exactPrice: buyer.maxPrice,
+            exactSize: buyer.minSize
+          });
+        } else {
+          demandPatterns.set(key, {
+            zone,
+            priceRange,
+            sizeRange,
+            avgPrice: buyer.maxPrice,
+            avgSize: buyer.minSize,
+            count: 1,
+            clients: [{
+              id: buyer.clientId,
+              name: clientName,
+              phone: buyer.phone || '',
+              exactPrice: buyer.maxPrice,
+              exactSize: buyer.minSize
+            }]
+          });
+        }
+      });
+
+      // Converti in array e ordina per frequenza
+      const sortedPatterns = Array.from(demandPatterns.values())
+        .filter(pattern => pattern.count >= 1)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20);
+
+      // Genera raccomandazioni intelligenti
+      const recommendations = sortedPatterns.map((pattern, index) => {
+        const priority = pattern.count >= 3 ? "Alta" : pattern.count >= 2 ? "Media" : "Bassa";
+        const searchStrategy = generateSearchStrategy(pattern);
+        
+        return {
+          rank: index + 1,
+          zone: pattern.zone,
+          priceRange: pattern.priceRange,
+          sizeRange: pattern.sizeRange,
+          demandCount: pattern.count,
+          priority,
+          avgPrice: Math.round(pattern.avgPrice),
+          avgSize: Math.round(pattern.avgSize),
+          searchStrategy,
+          potentialClients: pattern.clients,
+          marketInsight: generateMarketInsight(pattern)
+        };
+      });
+
+      console.log(`[DEMAND-ANALYSIS] Generati ${recommendations.length} pattern di domanda`);
+
+      res.json({
+        totalPatterns: sortedPatterns.length,
+        highPriorityCount: recommendations.filter(r => r.priority === "Alta").length,
+        mediumPriorityCount: recommendations.filter(r => r.priority === "Media").length,
+        recommendations
+      });
+
+    } catch (error) {
+      console.error("[DEMAND-ANALYSIS] Errore:", error);
+      res.status(500).json({ error: "Errore durante l'analisi della domanda" });
+    }
+  });
+
+  // Funzioni helper per le raccomandazioni
+  function generateSearchStrategy(pattern: any): string {
+    const strategies = [];
+    
+    if (pattern.count >= 3) {
+      strategies.push("Priorità massima - cerca immediatamente");
+    }
+    
+    if (pattern.zone === "Porta Garibaldi" || pattern.zone === "Porta Nuova") {
+      strategies.push("Zona ad alta richiesta business");
+    }
+    
+    if (pattern.priceRange === "400k-600k") {
+      strategies.push("Fascia di prezzo più richiesta");
+    }
+    
+    if (pattern.sizeRange === "70-90mq") {
+      strategies.push("Metratura ideale per coppie");
+    }
+    
+    return strategies.length > 0 ? strategies.join(" • ") : "Monitorare andamento mercato";
+  }
+
+  function generateMarketInsight(pattern: any): string {
+    const insights = [];
+    
+    if (pattern.count >= 3) {
+      insights.push("Domanda molto elevata");
+    } else if (pattern.count >= 2) {
+      insights.push("Domanda sostenuta");
+    }
+    
+    if (pattern.avgPrice > 700000) {
+      insights.push("Clientela alto standing");
+    } else if (pattern.avgPrice < 500000) {
+      insights.push("Segmento accessibile");
+    }
+    
+    if (pattern.avgSize > 100) {
+      insights.push("Richiesta spazi ampi");
+    } else if (pattern.avgSize < 80) {
+      insights.push("Preferenza per bilocali/trilocali");
+    }
+    
+    return insights.length > 0 ? insights.join(" • ") : "Segmento di nicchia";
+  }
   
   // API per la classifica delle proprietà condivise
   app.get("/api/analytics/shared-properties-ranking", async (req: Request, res: Response) => {

@@ -30,6 +30,7 @@ import WhatsAppSenderPage from "@/pages/communications/whatsapp";
 import TasksPage from "@/pages/tasks/index";
 import AnalyticsPage from "@/pages/analytics/index";
 import SearchHeatmapPage from "@/pages/analytics/search-heatmap";
+import DemandAnalysisPage from "@/pages/analytics/demand-analysis";
 import WhatsAppTestPage from "@/pages/testing/whatsapp";
 import AssistentePage from "@/pages/assistente/index";
 import AppointmentConfirmationsPage from "@/pages/appointment-confirmations";
@@ -66,6 +67,7 @@ function Router() {
       <Route path="/tasks" component={TasksPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route path="/analytics/search-heatmap" component={SearchHeatmapPage} />
+      <Route path="/analytics/demand-analysis" component={DemandAnalysisPage} />
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/google-oauth" component={GoogleOAuthPage} />
       <Route path="/assistente" component={AssistentePage} />
