@@ -78,7 +78,7 @@ export class ImmobiliareEmailProcessor {
       }
 
       // Trova o crea il cliente
-      const clientId = await this.findOrCreateClient(extractedData.client);
+      const clientId = await this.findOrCreateClient(extractedData.client, extractedData.property);
       
       // Trova l'immobile se presente
       const propertyId = extractedData.property.address 

@@ -27,8 +27,26 @@ const PreferenceDetails: React.FC<PreferenceDetailsProps> = ({ preferences }) =>
       }
     }
     
+    if (typeof searchArea === 'object' && searchArea.type === 'circle') {
+      // Formato area circolare con centro lat/lng o indirizzo
+      if (searchArea.center && typeof searchArea.center === 'object' && searchArea.center.lat && searchArea.center.lng) {
+        return {
+          type: 'Area circolare',
+          center: `${searchArea.center.lat.toFixed(4)}, ${searchArea.center.lng.toFixed(4)}`,
+          radius: searchArea.radius || 600,
+          address: searchArea.address || 'Posizione geografica'
+        };
+      } else if (searchArea.center && typeof searchArea.center === 'string') {
+        return {
+          type: 'Area circolare',
+          center: searchArea.center,
+          radius: searchArea.radius || 600
+        };
+      }
+    }
+    
     if (typeof searchArea === 'object' && (searchArea.lat || searchArea.lng)) {
-      // Formato punto con raggio
+      // Formato punto con raggio (legacy)
       return {
         type: 'Area circolare',
         center: `${searchArea.lat?.toFixed(4)}, ${searchArea.lng?.toFixed(4)}`,
