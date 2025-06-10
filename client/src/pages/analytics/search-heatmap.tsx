@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,7 +64,7 @@ export default function SearchHeatmapPage() {
   });
 
   // Statistiche aggregate
-  const stats = React.useMemo(() => {
+  const stats = useMemo(() => {
     if (!heatmapData) return null;
     
     const totalSearches = heatmapData.reduce((sum, point) => sum + point.searchCount, 0);
@@ -82,7 +82,7 @@ export default function SearchHeatmapPage() {
   }, [heatmapData]);
 
   // Trova le zone più richieste
-  const topZones = React.useMemo(() => {
+  const topZones = useMemo(() => {
     if (!heatmapData) return [];
     return heatmapData
       .sort((a, b) => b.searchCount - a.searchCount)
