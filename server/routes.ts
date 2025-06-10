@@ -479,12 +479,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Proprietà associata non trovata" });
       }
 
-      // Usa i dati forniti nella richiesta invece di estrarre dal contenuto
-      const { firstName, lastName, phone, email, type } = req.body;
-      
-      if (!firstName || !lastName || !phone) {
-        return res.status(400).json({ error: "Nome, cognome e telefono sono obbligatori" });
+      // Estrae le informazioni di contatto dalla comunicazione usando l'API esistente
+      const extractResponse = await fetch(`http://localhost:5000/api/communications/${communicationId}/extract-contact`);
+      if (!extractResponse.ok) {
+        return res.status(500).json({ error: "Impossibile estrarre informazioni di contatto dalla comunicazione" });
       }
+      
+      const extractedData = await extractResponse.json();
+      
+      // Usa il telefono estratto come campo obbligatorio
+      if (!extractedData.phone) {
+        return res.status(400).json({ error: "Impossibile estrarre il numero di telefono dalla comunicazione" });
+      }
+      
+      // I nomi possono essere vuoti se non estratti correttamente
+      const firstName = extractedData.firstName || "";
+      const lastName = extractedData.lastName || "";
+      const phone = extractedData.phone;
+      const email = extractedData.email || "";
+      const type = "buyer"; // Default type
 
       const clientName = `${firstName} ${lastName}`;
       const clientPhone = phone;
@@ -510,15 +523,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Crea i dati buyer con le preferenze basate sulla proprietà
       await storage.createBuyer({
         clientId: newClient.id,
-        propertyType: property.type,
+        rating: 3,
+        urgency: 3,
+        searchArea: property.location ? {
+          lat: property.location.lat,
+          lng: property.location.lng,
+          radius: 600
+        } : null,
         minSize: sizeMin,
-        maxSize: sizeMax,
-        minPrice: priceMin,
         maxPrice: priceMax,
-        preferredAreas: [property.city || "Milano"],
-        searchRadius: 600, // 600 metri come richiesto
-        centerLat: property.location?.lat,
-        centerLng: property.location?.lng
+        searchNotes: `Ricerca basata sulla proprietà ${property.address}. Range: ${sizeMin}-${property.size * 1.1}mq, €${priceMin}-${priceMax}`
       });
 
       // Aggiorna lo stato della comunicazione a "client_created"
@@ -3562,7 +3576,6 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       };
       
       const formattedSalutation = formatSalutation(salutation);
-      console.log(`[SALUTATION] Original: ${salutation}, Formatted: ${formattedSalutation}`);
       const confirmationMessage = `${formattedSalutation} ${lastName}, le confermo appuntamento di ${date} alle ore ${time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
       
       // Send WhatsApp message directly
