@@ -151,6 +151,20 @@ function CreateAppointmentDialog({
     }
   }, [isOpen, communication, form]);
 
+  // Function to format salutation for display
+  const formatSalutation = (salutation: string): string => {
+    const salutationMap: { [key: string]: string } = {
+      'egr': 'Egregio',
+      'egr_sig': 'Egr. Sig.',
+      'egr_sig_ra': 'Egr. Sig.ra',
+      'egr_dott': 'Egr. Dott.',
+      'egr_dott_ssa': 'Egr. Dott.ssa',
+      'caro': 'Caro',
+      'cara': 'Cara'
+    };
+    return salutationMap[salutation] || salutation;
+  };
+
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
       // Create appointment with proper date/time handling
@@ -161,9 +175,11 @@ function CreateAppointmentDialog({
       const endDate = new Date(startDate);
       endDate.setHours(startDate.getHours() + 1); // Default 1 hour duration
 
+      const formattedSalutation = formatSalutation(data.salutation);
+
       const appointmentData = {
-        title: `Appuntamento - ${data.salutation} ${data.lastName}`,
-        description: `Appuntamento con ${data.salutation} ${data.lastName}\nTelefono: ${data.phone}\nCreato dalla comunicazione ID: ${communication.id}`,
+        title: `Appuntamento - ${formattedSalutation} ${data.lastName}`,
+        description: `Appuntamento con ${formattedSalutation} ${data.lastName}\nTelefono: ${data.phone}\nCreato dalla comunicazione ID: ${communication.id}`,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         location: data.address,
@@ -176,8 +192,8 @@ function CreateAppointmentDialog({
         data: appointmentData,
       });
 
-      // Send WhatsApp confirmation
-      const confirmationMessage = `${data.salutation} ${data.lastName}, le confermo appuntamento di ${format(data.date, "dd/MM/yyyy")} ore ${data.time}, in ${data.address}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
+      // Send WhatsApp confirmation with proper salutation formatting
+      const confirmationMessage = `${formattedSalutation} ${data.lastName}, le confermo appuntamento di ${format(data.date, "dd/MM/yyyy")} ore ${data.time}, in ${data.address}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
       
       await apiRequest("/api/whatsapp/send-direct", {
         method: "POST",
