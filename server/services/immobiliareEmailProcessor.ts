@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { immobiliareEmails, clients, properties, tasks, communications } from '@shared/schema';
+import { immobiliareEmails, clients, properties, tasks, communications, buyers } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 
@@ -249,9 +249,9 @@ ESEMPI NOME CORRETTO:
   }
 
   /**
-   * Trova o crea un cliente
+   * Trova o crea un cliente con le preferenze di ricerca
    */
-  private async findOrCreateClient(clientData: ExtractedClientData): Promise<number> {
+  private async findOrCreateClient(clientData: ExtractedClientData, propertyData?: ExtractedPropertyData): Promise<number> {
     // Per chiamate telefoniche senza nome, crea un nome basato sul numero
     if (!clientData.name && clientData.phone) {
       const phoneNumber = this.normalizePhone(clientData.phone);
@@ -310,6 +310,32 @@ ESEMPI NOME CORRETTO:
     }).returning();
 
     console.log(`[EMAIL PROCESSOR] Nuovo cliente creato: ${newClient.firstName} ${newClient.lastName} (ID: ${newClient.id})`);
+
+    // Crea il record buyer con area di ricerca se abbiamo dati dell'immobile
+    if (propertyData && propertyData.address) {
+      try {
+        // Crea un'area di ricerca circolare centrata sull'immobile di interesse
+        const searchArea = {
+          type: 'circle',
+          center: propertyData.address,
+          radius: 600, // 600 metri come standard
+          createdFrom: 'email_property_interest'
+        };
+
+        await db.insert(buyers).values({
+          clientId: newClient.id,
+          searchArea: JSON.stringify(searchArea),
+          maxPrice: propertyData.price ? Math.round(propertyData.price * 1.1) : null, // +10% dal prezzo di interesse
+          minSize: propertyData.size ? Math.round(propertyData.size * 0.9) : null, // -10% dalla superficie di interesse
+          searchNotes: `Area di ricerca basata sull'interesse per: ${propertyData.address}`
+        });
+
+        console.log(`[EMAIL PROCESSOR] Area di ricerca creata per cliente ${newClient.id} basata su ${propertyData.address}`);
+      } catch (error) {
+        console.error(`[EMAIL PROCESSOR] Errore nella creazione dell'area di ricerca:`, error);
+      }
+    }
+
     return newClient.id;
   }
 
