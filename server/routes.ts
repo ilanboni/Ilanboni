@@ -286,16 +286,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Pattern for structured name/surname in content (more specific)
           /\n\s*([A-Z][A-Z\s]{2,})\s*\n\s*NOME/i,
           /\n\s*([A-Z][A-Z\s]{2,})\s*\n\s*COGNOME/i,
-          // Pattern for names before "TELEFONO" section
+          // Pattern for names in contact section after phone number
+          /\+39\s+[\d\s]+\s*\n\s*([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)/i,
+          // Pattern for names before TELEFONO section
           /([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)\s*\n\s*TELEFONO/i,
-          // Pattern for contact section names
+          // Pattern after "Contatto" keyword
+          /Contatto\s*\n\s*\+39[\s\d]+\s*\n\s*([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)/i,
+          // Pattern for contact section names (more specific)
           /Contatto[\s\n\r]+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*?)(?=\s*(?:\+39|Email|Telefono|TELEFONO|\n|$))/i,
           // Pattern for message signatures
           /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s*-\s*Cavour/i,
-          // Pattern for names after phone numbers in content
-          /\+39\s+\d+[\s\d]+\s*\n\s*([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)/i,
           // General capitalized names in content (avoiding common words)
-          /\n\s*([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\s*\n/i
+          /\n\s*([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\s*\n/i,
+          // Pattern for names around phone context
+          /(?:ricevuto|numero)\s+\+39[\s\d]+\s*\n\s*([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)/i
         ];
         
         for (const pattern of namePatterns) {

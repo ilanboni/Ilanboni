@@ -858,9 +858,51 @@ export default function PropertyDetailPage() {
                           <PropertyCommunicationRow 
                             key={comm.id} 
                             communication={comm}
-                            clientName={comm.direction === "inbound" && comm.clientId ? 
-                              clientNamesById[comm.clientId] || `Cliente #${comm.clientId}` : 
-                              "Sistema"}
+                            clientName={(() => {
+                              if (comm.direction === "inbound" && comm.clientId) {
+                                return clientNamesById[comm.clientId] || `Cliente #${comm.clientId}`;
+                              }
+                              if (comm.direction === "inbound" && !comm.clientId) {
+                                // Extract contact info from communication content for unregistered contacts
+                                const extractContactFromContent = (content: string, subject: string) => {
+                                  const fullText = subject + " " + content;
+                                  
+                                  // Try to extract phone number
+                                  const phoneMatch = fullText.match(/\+39\s*[\d\s]{9,}/);
+                                  let phoneDisplay = "";
+                                  if (phoneMatch) {
+                                    phoneDisplay = phoneMatch[0].replace(/\s/g, "");
+                                  }
+                                  
+                                  // Enhanced patterns to avoid "Locali"
+                                  const namePatterns = [
+                                    // Look for structured NOME/COGNOME
+                                    /\n\s*([A-Z][A-Z\s]{2,})\s*\n\s*(?:NOME|COGNOME)/i,
+                                    // Look for names after signatures
+                                    /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s*-\s*Cavour/i,
+                                    // Look for proper names in content
+                                    /(?:Sig\.?|Dott\.?|Prof\.?)\s+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)/i
+                                  ];
+                                  
+                                  for (const pattern of namePatterns) {
+                                    const nameMatch = fullText.match(pattern);
+                                    if (nameMatch && nameMatch[1] && !["Locali", "Bagni", "Milano", "Cavour"].includes(nameMatch[1])) {
+                                      return nameMatch[1].trim();
+                                    }
+                                  }
+                                  
+                                  // If phone found but no name, show phone number
+                                  if (phoneDisplay) {
+                                    return `Numero: ${phoneDisplay}`;
+                                  }
+                                  
+                                  return "Contatto non registrato";
+                                };
+                                
+                                return extractContactFromContent(comm.content || "", comm.subject || "");
+                              }
+                              return "Sistema";
+                            })()}
                             onStatusUpdate={(communication?: any) => {
                               // If communication is passed, handle appointment creation
                               if (communication) {
@@ -1365,13 +1407,13 @@ function CreateAppointmentDialog({
           // Look for any capitalized words that might be names in the content
           const nameMatches = content.match(/\b[A-Z][a-z]{2,}\b/g);
           if (nameMatches && nameMatches.length > 0) {
-            // Filter out common words
-            const commonWords = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia", "Link", "Image", "Dettagli", "Vedi", "Tutti", "Ricordiamo", "Questa"];
+            // Filter out common words and property-related terms
+            const commonWords = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia", "Link", "Image", "Dettagli", "Vedi", "Tutti", "Ricordiamo", "Questa", "Locali", "Bagni", "Mq", "Euro", "Prezzo", "Superficie", "Piano", "Ascensore", "Terrazzo", "Balcone", "Giardino", "Box", "Posto", "Auto", "Riscaldamento", "Climatizzazione", "Classe", "Energetica"];
             const filteredNames = nameMatches.filter((word: any) => 
               !commonWords.includes(word) && 
               word.length > 2 && 
               !word.match(/^\d/) &&
-              !word.match(/^(Abruzzi|Viale|Milano|Immobiliare|Facebook|Twitter)$/)
+              !word.match(/^(Abruzzi|Viale|Milano|Immobiliare|Facebook|Twitter|Locali|Bagni)$/)
             );
             
             if (filteredNames.length > 0) {
