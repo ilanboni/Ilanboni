@@ -153,16 +153,22 @@ function CreateAppointmentDialog({
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
-      // Create appointment
+      // Create appointment with proper date/time handling
+      const [hours, minutes] = data.time.split(':');
+      const startDate = new Date(data.date);
+      startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const endDate = new Date(startDate);
+      endDate.setHours(startDate.getHours() + 1); // Default 1 hour duration
+
       const appointmentData = {
+        title: `Appuntamento - ${data.salutation} ${data.lastName}`,
+        description: `Appuntamento con ${data.salutation} ${data.lastName}\nTelefono: ${data.phone}\nCreato dalla comunicazione ID: ${communication.id}`,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        location: data.address,
         propertyId: communication.propertyId,
-        date: data.date.toISOString(),
-        time: data.time,
-        clientName: `${data.salutation} ${data.lastName}`,
-        clientPhone: data.phone,
-        address: data.address,
-        status: "scheduled",
-        notes: `Appuntamento creato dalla comunicazione ID: ${communication.id}`,
+        clientId: null // Will be populated if client exists
       };
 
       const appointment = await apiRequest("/api/calendar/events", {
