@@ -874,7 +874,7 @@ export default function PropertyDetailPage() {
                                     phoneDisplay = phoneMatch[0].replace(/\s/g, "");
                                   }
                                   
-                                  // Enhanced patterns to avoid "Locali"
+                                  // Enhanced patterns to avoid property terms
                                   const namePatterns = [
                                     // Look for structured NOME/COGNOME
                                     /\n\s*([A-Z][A-Z\s]{2,})\s*\n\s*(?:NOME|COGNOME)/i,
@@ -884,9 +884,12 @@ export default function PropertyDetailPage() {
                                     /(?:Sig\.?|Dott\.?|Prof\.?)\s+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})*)/i
                                   ];
                                   
+                                  // Property-related terms to exclude
+                                  const propertyTerms = ["Locali", "Bagni", "Bagno", "Milano", "Cavour", "Immobiliare", "Appartamento", "Villa", "Attico", "Monolocale", "Bilocale", "Trilocale", "Quadrilocale", "Cucina", "Salotto", "Camera", "Terrazzo", "Balcone", "Giardino", "Garage", "Cantina", "Soffitta", "Piano", "Ascensore", "Riscaldamento", "Climatizzazione", "Parquet", "Piastrelle", "Marmo"];
+                                  
                                   for (const pattern of namePatterns) {
                                     const nameMatch = fullText.match(pattern);
-                                    if (nameMatch && nameMatch[1] && !["Locali", "Bagni", "Milano", "Cavour"].includes(nameMatch[1])) {
+                                    if (nameMatch && nameMatch[1] && !propertyTerms.includes(nameMatch[1].trim())) {
                                       return nameMatch[1].trim();
                                     }
                                   }
@@ -1408,12 +1411,11 @@ function CreateAppointmentDialog({
           const nameMatches = content.match(/\b[A-Z][a-z]{2,}\b/g);
           if (nameMatches && nameMatches.length > 0) {
             // Filter out common words and property-related terms
-            const commonWords = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia", "Link", "Image", "Dettagli", "Vedi", "Tutti", "Ricordiamo", "Questa", "Locali", "Bagni", "Mq", "Euro", "Prezzo", "Superficie", "Piano", "Ascensore", "Terrazzo", "Balcone", "Giardino", "Box", "Posto", "Auto", "Riscaldamento", "Climatizzazione", "Classe", "Energetica"];
+            const propertyTermsExtended = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia", "Link", "Image", "Dettagli", "Vedi", "Tutti", "Ricordiamo", "Questa", "Locali", "Bagni", "Bagno", "Mq", "Euro", "Prezzo", "Superficie", "Piano", "Ascensore", "Terrazzo", "Balcone", "Giardino", "Box", "Posto", "Auto", "Riscaldamento", "Climatizzazione", "Classe", "Energetica", "Villa", "Attico", "Monolocale", "Bilocale", "Trilocale", "Quadrilocale", "Cucina", "Salotto", "Camera", "Garage", "Cantina", "Soffitta", "Parquet", "Piastrelle", "Marmo", "Abruzzi", "Viale", "Facebook", "Twitter"];
             const filteredNames = nameMatches.filter((word: any) => 
-              !commonWords.includes(word) && 
+              !propertyTermsExtended.includes(word) && 
               word.length > 2 && 
-              !word.match(/^\d/) &&
-              !word.match(/^(Abruzzi|Viale|Milano|Immobiliare|Facebook|Twitter|Locali|Bagni)$/)
+              !word.match(/^\d/)
             );
             
             if (filteredNames.length > 0) {
