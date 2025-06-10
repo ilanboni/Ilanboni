@@ -76,19 +76,14 @@ function CreateAppointmentDialog({
   
   // Extract contact information from communication using backend API
   useEffect(() => {
-    console.log('Dialog useEffect triggered:', { communication: communication?.id, isOpen, isExtracting });
     if (communication && isOpen) {
-      console.log('Starting contact extraction for communication:', communication.id);
       setIsExtracting(true);
       fetch(`/api/communications/${communication.id}/extract-contact`)
         .then(response => response.json())
         .then(data => {
-          console.log('Contact extraction response:', data);
           if (data.success) {
-            console.log('Setting extracted data:', data.extractedData);
             setExtractedData(data.extractedData);
           } else {
-            console.log('Extraction failed, using empty data');
             setExtractedData({ firstName: "", lastName: "", phone: "", type: "buyer", hasProperty: false });
           }
         })
@@ -108,17 +103,6 @@ function CreateAppointmentDialog({
     lastName: extractedData.lastName || "",
     phone: extractedData.phone || ""
   } : { hasName: false, name: "", lastName: "", phone: "" };
-  
-  // Get property address
-  const getPropertyAddress = async (propertyId: number) => {
-    try {
-      const response = await fetch(`/api/properties/${propertyId}`);
-      const property = await response.json();
-      return property.address || "";
-    } catch (error) {
-      return "";
-    }
-  };
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentFormSchema),
@@ -135,35 +119,10 @@ function CreateAppointmentDialog({
   // Update form values when extracted data is available
   useEffect(() => {
     if (extractedData) {
-      console.log('Updating form with extracted data:', extractedData);
       form.setValue("lastName", extractedData.lastName || "");
       form.setValue("phone", extractedData.phone || "");
-      console.log('Form values after update:', form.getValues());
     }
   }, [extractedData, form]);
-
-  // Load property address when dialog opens
-  useEffect(() => {
-    if (isOpen && communication?.propertyId) {
-      getPropertyAddress(communication.propertyId).then(address => {
-        form.setValue("address", address);
-      });
-    }
-  }, [isOpen, communication, form]);
-
-  // Function to format salutation for display
-  const formatSalutation = (salutation: string): string => {
-    const salutationMap: { [key: string]: string } = {
-      'egr': 'Egregio',
-      'egr_sig': 'Egr. Sig.',
-      'egr_sig_ra': 'Egr. Sig.ra',
-      'egr_dott': 'Egr. Dott.',
-      'egr_dott_ssa': 'Egr. Dott.ssa',
-      'caro': 'Caro',
-      'cara': 'Cara'
-    };
-    return salutationMap[salutation] || salutation;
-  };
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
@@ -185,42 +144,20 @@ function CreateAppointmentDialog({
       });
 
       return result;
-      });
-
-      // Send WhatsApp confirmation with proper salutation formatting
-      const dayOfWeek = format(data.date, "EEEE", { locale: it });
-      // Remove city name from address (keep only street and number)
-      const addressParts = propertyAddress.split(',');
-      const cleanAddress = addressParts[0].trim(); // Take only the first part (street + number)
-      const confirmationMessage = `${formattedSalutation} ${data.lastName}, le confermo appuntamento di ${dayOfWeek} ${format(data.date, "dd/MM")} alle ore ${data.time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
-      
-      await apiRequest("/api/whatsapp/send-direct", {
-        method: "POST",
-        data: {
-          to: data.phone,
-          message: confirmationMessage,
-        },
-      });
-
-      // Update communication status to appointment_created
-      await apiRequest(`/api/communications/${communication.id}`, {
-        method: "PATCH",
-        data: {
-          managementStatus: "appointment_created",
-        },
-      });
-
-      return appointment;
     },
     onSuccess: () => {
+      toast({
+        title: "Appuntamento creato",
+        description: "L'appuntamento è stato creato con successo e il cliente è stato aggiunto automaticamente.",
+      });
       onSuccess();
       onClose();
-      form.reset();
     },
     onError: (error: any) => {
+      console.error("Errore creazione appuntamento:", error);
       toast({
         title: "Errore",
-        description: error.message || "Errore durante la creazione dell'appuntamento",
+        description: "Si è verificato un errore durante la creazione dell'appuntamento.",
         variant: "destructive",
       });
     },
