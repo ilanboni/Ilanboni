@@ -167,22 +167,26 @@ function CreateAppointmentDialog({
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
+      // Get property data to use its address as location
+      const propertyResponse = await apiRequest(`/api/properties/${communication.propertyId}`);
+      const propertyAddress = propertyResponse.property?.address || data.address;
+
       // Create appointment with proper date/time handling
       const [hours, minutes] = data.time.split(':');
       const startDate = new Date(data.date);
       startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
       const endDate = new Date(startDate);
-      endDate.setHours(startDate.getHours() + 1); // Default 1 hour duration
+      endDate.setMinutes(startDate.getMinutes() + 30); // 30 minutes duration
 
       const formattedSalutation = formatSalutation(data.salutation);
 
       const appointmentData = {
-        title: `Appuntamento - ${formattedSalutation} ${data.lastName}`,
+        title: `${data.lastName} - ${data.phone}`,
         description: `Appuntamento con ${formattedSalutation} ${data.lastName}\nTelefono: ${data.phone}\nCreato dalla comunicazione ID: ${communication.id}`,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
-        location: data.address,
+        location: propertyAddress,
         propertyId: communication.propertyId,
         clientId: null // Will be populated if client exists
       };
