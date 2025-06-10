@@ -288,10 +288,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           // Pattern per nomi specifici per altri tipi di comunicazioni
           const namePatterns = [
-            /(?:Nome|Name|Cliente):\s*([A-Za-z\s]+)/i,
+            /(?:Nome|Name|Cliente):\s*([A-Za-z\s]+?)(?=\s*(?:Email|Telefono|TELEFONO|\n|$))/i,
             /Messaggio di\s+([A-Za-z\s]+)\s+per/i,
-            // Pattern per immobiliare.it solo nel content, non subject
-            /(?:Contatto|TELEFONO)[\s\n\r]+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})+)(?=\s|$)/i,
+            // Pattern per immobiliare.it solo nel content, non subject - stoppa prima di Email/Telefono
+            /(?:Contatto|TELEFONO)[\s\n\r]+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})+?)(?=\s*(?:Email|Telefono|TELEFONO|\n|$))/i,
             // Pattern per "Ilan Boni" specifico
             /Ilan\s+([A-Z][a-z]+)/
           ];
