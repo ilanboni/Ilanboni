@@ -1327,121 +1327,38 @@ function CreateAppointmentDialog({
   onSuccess: () => void;
 }) {
   const { toast } = useToast();
+  const [extractedData, setExtractedData] = useState<any>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
   
-  // Extract contact information from communication
-  const extractContactInfo = (comm: any) => {
-    if (!comm) return { hasName: false, name: "", lastName: "", phone: "" };
-    
-    // Extract phone number and normalize it (remove +)
-    let phone = "";
-    // Look for phone numbers in different formats
-    const phonePatterns = [
-      /\+39\s*(\d{9,10})/g,  // +39 followed by 9-10 digits
-      /\+(\d{11,15})/g,      // + followed by 11-15 digits
-      /(\d{10,15})/g         // 10-15 digits
-    ];
-    
-    const content = comm.content || "";
-    const subject = comm.subject || "";
-    const fullText = subject + " " + content;
-    
-    for (const pattern of phonePatterns) {
-      const match = fullText.match(pattern);
-      if (match) {
-        let foundPhone = match[1] || match[0];
-        // Normalize phone number (remove + and ensure it starts with country code)
-        foundPhone = foundPhone.replace(/\+/g, "").replace(/\s/g, "");
-        if (foundPhone.length >= 10) {
-          phone = foundPhone.startsWith("39") ? foundPhone : "39" + foundPhone;
-          break;
-        }
-      }
-    }
-    
-    // Try to extract name from subject or content
-    let hasName = false;
-    let name = "";
-    let lastName = "";
-    
-    // Enhanced patterns for name extraction
-    const namePatterns = [
-      // For phone call notifications: "Telefonata ricevuta dal numero +39 340 7992 052"
-      /Telefonata ricevuta dal numero\s+\+?[\d\s]+.*?$/i,
-      // General patterns for names after phone numbers
-      /(?:dal numero|da)\s+\+?[\d\s]+\s+([A-Za-z\s]+)$/i,
-      /(?:Cliente|Sig\.?|Dott\.?|Prof\.?)\s+([A-Za-z\s]+)/i,
-      // Look for names in the content
-      /(?:Nome|Cognome):\s*([A-Za-z\s]+)/i,
-      // Extract from email signatures or contact info
-      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g
-    ];
-    
-    // For phone call notifications, extract any name that might be in the content
-    if (subject.includes("Telefonata ricevuta")) {
-      // First, look for structured NOME/COGNOME format
-      const nomeMatch = content.match(/\n\s*([A-Z][A-Z\s]+)\s*\n\s*NOME/);
-      const cognomeMatch = content.match(/\n\s*([A-Z][A-Z\s]+)\s*\n\s*COGNOME/);
-      
-      if (nomeMatch && cognomeMatch) {
-        hasName = true;
-        name = nomeMatch[1].trim();
-        lastName = cognomeMatch[1].trim();
-      } else if (cognomeMatch) {
-        hasName = true;
-        lastName = cognomeMatch[1].trim();
-      } else if (nomeMatch) {
-        hasName = true;
-        lastName = nomeMatch[1].trim();
-      } else {
-        // Enhanced fallback: Look for names in various formats
-        const fullText = subject + " " + content;
-        
-        // Look for "Ilan Boni" pattern in signatures
-        const signatureMatch = fullText.match(/\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\s*-\s*Cavour/i);
-        if (signatureMatch) {
-          hasName = true;
-          name = signatureMatch[1];
-          lastName = signatureMatch[2];
-        } else {
-          // Look for any capitalized words that might be names in the content
-          const nameMatches = content.match(/\b[A-Z][a-z]{2,}\b/g);
-          if (nameMatches && nameMatches.length > 0) {
-            // Filter out common words and property-related terms
-            const propertyTermsExtended = ["Gentile", "Cavour", "Immobiliare", "Milano", "Telefono", "Giorno", "Ora", "Non", "Contatto", "Cliente", "Nome", "Cognome", "Email", "Data", "Note", "Appartamento", "Vendita", "Tipologia", "Link", "Image", "Dettagli", "Vedi", "Tutti", "Ricordiamo", "Questa", "Locali", "Bagni", "Bagno", "Mq", "Euro", "Prezzo", "Superficie", "Piano", "Ascensore", "Terrazzo", "Balcone", "Giardino", "Box", "Posto", "Auto", "Riscaldamento", "Climatizzazione", "Classe", "Energetica", "Villa", "Attico", "Monolocale", "Bilocale", "Trilocale", "Quadrilocale", "Cucina", "Salotto", "Camera", "Garage", "Cantina", "Soffitta", "Parquet", "Piastrelle", "Marmo", "Abruzzi", "Viale", "Facebook", "Twitter"];
-            const filteredNames = nameMatches.filter((word: any) => 
-              !propertyTermsExtended.includes(word) && 
-              word.length > 2 && 
-              !word.match(/^\d/)
-            );
-            
-            // Leave names empty for manual entry
+  // Extract contact information from communication using backend API
+  useEffect(() => {
+    if (communication && isOpen) {
+      setIsExtracting(true);
+      fetch(`/api/communications/${communication.id}/extract-contact`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            setExtractedData(data.extractedData);
+          } else {
+            setExtractedData({ firstName: "", lastName: "", phone: "", type: "buyer", hasProperty: false });
           }
-        }
-      }
-    } else {
-      // Try other patterns for different types of communications
-      for (const pattern of namePatterns) {
-        const nameMatch = fullText.match(pattern);
-        if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 0) {
-          const fullName = nameMatch[1].trim();
-          const nameParts = fullName.split(/\s+/);
-          if (nameParts.length >= 2) {
-            hasName = true;
-            name = nameParts[0];
-            lastName = nameParts.slice(1).join(" ");
-          } else if (nameParts.length === 1 && nameParts[0].length > 2) {
-            hasName = true;
-            lastName = nameParts[0];
-          }
-          break;
-        }
-      }
+        })
+        .catch(error => {
+          console.error('Error extracting contact data:', error);
+          setExtractedData({ firstName: "", lastName: "", phone: "", type: "buyer", hasProperty: false });
+        })
+        .finally(() => {
+          setIsExtracting(false);
+        });
     }
-    
-    return { hasName, name, lastName, phone };
-  };
+  }, [communication, isOpen]);
 
-  const contactInfo = extractContactInfo(communication);
+  const contactInfo = extractedData ? {
+    hasName: !!(extractedData.firstName || extractedData.lastName),
+    name: extractedData.firstName || "",
+    lastName: extractedData.lastName || "",
+    phone: extractedData.phone || ""
+  } : { hasName: false, name: "", lastName: "", phone: "" };
   
   // Get property address
   const getPropertyAddress = async (propertyId: number) => {
