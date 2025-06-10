@@ -485,10 +485,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Impossibile estrarre informazioni di contatto dalla comunicazione" });
       }
       
-      const extractedData = await extractResponse.json();
+      const extractResult = await extractResponse.json();
+      console.log('[CREATE CLIENT] Extract result:', extractResult);
+      
+      // La risposta contiene success e extractedData
+      if (!extractResult.success || !extractResult.extractedData) {
+        return res.status(400).json({ error: "Impossibile estrarre informazioni dalla comunicazione" });
+      }
+      
+      const extractedData = extractResult.extractedData;
+      console.log('[CREATE CLIENT] Extracted data:', extractedData);
       
       // Usa il telefono estratto come campo obbligatorio
       if (!extractedData.phone) {
+        console.log('[CREATE CLIENT] No phone found in extracted data');
         return res.status(400).json({ error: "Impossibile estrarre il numero di telefono dalla comunicazione" });
       }
       
@@ -497,7 +507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lastName = extractedData.lastName || "";
       const phone = extractedData.phone;
       const email = extractedData.email || "";
-      const type = "buyer"; // Default type
+      const type = extractedData.type || "buyer"; // Use extracted type or default
 
       const clientName = `${firstName} ${lastName}`;
       const clientPhone = phone;
