@@ -3438,6 +3438,133 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  // Enhanced appointment creation with automatic client creation and search parameters
+  app.post("/api/appointments/create-with-client", async (req: Request, res: Response) => {
+    try {
+      const { firstName, lastName, phone, salutation, date, time, propertyId, communicationId } = req.body;
+      
+      // Normalize phone number (remove + prefix for UltraMsg format)
+      const normalizedPhone = phone.startsWith('+') ? phone.substring(1) : phone;
+      
+      // Get property information for search parameters
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      // Create the appointment first
+      const appointmentDateTime = new Date(`${date}T${time}`);
+      const appointmentData = {
+        title: `${lastName} - ${normalizedPhone}`,
+        description: `Appuntamento con ${salutation} ${firstName} ${lastName}\nTelefono: ${normalizedPhone}\nCreato dalla comunicazione ID: ${communicationId}`,
+        startDate: appointmentDateTime.toISOString(),
+        endDate: new Date(appointmentDateTime.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour duration
+        location: property.address,
+        propertyId: propertyId,
+        clientId: null // Will be updated after client creation
+      };
+      
+      // Create the appointment directly in the database
+      const appointment = await storage.createAppointment({
+        title: appointmentData.title,
+        description: appointmentData.description,
+        startDate: new Date(appointmentData.startDate),
+        endDate: new Date(appointmentData.endDate),
+        location: appointmentData.location,
+        propertyId: propertyId,
+        clientId: null // Will be updated after client creation
+      });
+      
+      // Calculate search parameters based on property (±10% price, ±10% size, 600m radius)
+      const minPrice = Math.round(property.price * 0.9);
+      const maxPrice = Math.round(property.price * 1.1);
+      const minSize = Math.round(property.size * 0.9);
+      const maxSize = Math.round(property.size * 1.1);
+      
+      // Create search area (600m radius around property)
+      const searchRadius = 600; // meters
+      const lat = property.location.lat;
+      const lng = property.location.lng;
+      
+      // Create circular search area
+      const earthRadius = 6371000; // Earth's radius in meters
+      const latOffset = searchRadius / earthRadius * (180 / Math.PI);
+      const lngOffset = searchRadius / earthRadius * (180 / Math.PI) / Math.cos(lat * Math.PI / 180);
+      
+      const searchArea = {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [lng - lngOffset, lat - latOffset],
+            [lng + lngOffset, lat - latOffset], 
+            [lng + lngOffset, lat + latOffset],
+            [lng - lngOffset, lat + latOffset],
+            [lng - lngOffset, lat - latOffset]
+          ]]
+        }
+      };
+      
+      // Create the client with Catholic religion as default
+      const clientData = {
+        type: "buyer",
+        salutation: salutation,
+        firstName: firstName,
+        lastName: lastName,
+        phone: normalizedPhone,
+        religion: "catholic", // Default Catholic religion
+        notes: `Cliente creato automaticamente dalla conferma appuntamento. Interessato all'immobile in ${property.address}`,
+        buyer: {
+          searchArea: searchArea,
+          minSize: minSize,
+          maxPrice: maxPrice,
+          urgency: 3,
+          rating: 3,
+          searchNotes: `Parametri di ricerca automatici: Prezzo €${minPrice.toLocaleString()}-€${maxPrice.toLocaleString()}, Dimensione ${minSize}-${maxSize} mq, Raggio 600m da ${property.address}`
+        }
+      };
+      
+      // Create the client
+      const newClient = await apiRequest("/api/clients", {
+        method: "POST",
+        data: clientData,
+      });
+      
+      // Mark communication as managed
+      if (communicationId) {
+        await apiRequest(`/api/communications/${communicationId}/management-status`, {
+          method: "PATCH",
+          data: { managementStatus: "managed" }
+        });
+      }
+      
+      // Send WhatsApp confirmation using only surname
+      const addressParts = property.address.split(',');
+      const cleanAddress = addressParts[0].trim(); // Only street and number, no city
+      
+      const confirmationMessage = `${salutation} ${lastName}, le confermo appuntamento di ${date} alle ore ${time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
+      
+      await apiRequest("/api/whatsapp/send-direct", {
+        method: "POST",
+        data: {
+          to: normalizedPhone,
+          message: confirmationMessage,
+        },
+      });
+      
+      res.json({
+        success: true,
+        appointment: appointment,
+        client: newClient,
+        message: "Appuntamento creato, cliente creato automaticamente con parametri di ricerca e conferma WhatsApp inviata"
+      });
+      
+    } catch (error) {
+      console.error("Errore nella creazione appuntamento con cliente:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
   app.post("/api/appointment-confirmations/:id/create-client", async (req: Request, res: Response) => {
     try {
       const confirmationId = parseInt(req.params.id);

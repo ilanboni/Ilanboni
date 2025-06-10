@@ -894,12 +894,8 @@ export default function PropertyDetailPage() {
                                     }
                                   }
                                   
-                                  // If phone found but no name, show phone number
-                                  if (phoneDisplay) {
-                                    return `Numero: ${phoneDisplay}`;
-                                  }
-                                  
-                                  return "Contatto non registrato";
+                                  // Return null to leave field empty for manual entry
+                                  return null;
                                 };
                                 
                                 return extractContactFromContent(comm.content || "", comm.subject || "");
@@ -1418,10 +1414,7 @@ function CreateAppointmentDialog({
               !word.match(/^\d/)
             );
             
-            if (filteredNames.length > 0) {
-              hasName = true;
-              lastName = filteredNames[0]; // Take the first potential name
-            }
+            // Leave names empty for manual entry
           }
         }
       }
