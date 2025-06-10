@@ -206,7 +206,10 @@ function CreateAppointmentDialog({
 
       // Send WhatsApp confirmation with proper salutation formatting
       const dayOfWeek = format(data.date, "EEEE", { locale: it });
-      const confirmationMessage = `${formattedSalutation} ${data.lastName}, le confermo appuntamento di ${dayOfWeek} ${format(data.date, "dd/MM")} alle ore ${data.time}, in ${propertyAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
+      // Remove city name from address (keep only street and number)
+      const addressParts = propertyAddress.split(',');
+      const cleanAddress = addressParts[0].trim(); // Take only the first part (street + number)
+      const confirmationMessage = `${formattedSalutation} ${data.lastName}, le confermo appuntamento di ${dayOfWeek} ${format(data.date, "dd/MM")} alle ore ${data.time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
       
       await apiRequest("/api/whatsapp/send-direct", {
         method: "POST",
