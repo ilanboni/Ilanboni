@@ -182,7 +182,7 @@ function CreateAppointmentDialog({
       await apiRequest("/api/whatsapp/send-direct", {
         method: "POST",
         data: {
-          phone: data.phone,
+          to: data.phone,
           message: confirmationMessage,
         },
       });
