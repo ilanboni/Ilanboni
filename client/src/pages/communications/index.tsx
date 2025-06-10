@@ -167,41 +167,24 @@ function CreateAppointmentDialog({
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
-      // Get property data to use its address as location
-      let propertyAddress = data.address;
-      try {
-        const propertyResponse = await fetch(`/api/properties/${communication.propertyId}`);
-        if (propertyResponse.ok) {
-          const propertyData: any = await propertyResponse.json();
-          propertyAddress = propertyData?.property?.address || data.address;
-        }
-      } catch (error) {
-        console.log("Failed to fetch property address, using fallback");
-      }
-
-      // Create appointment with proper date/time handling
-      const [hours, minutes] = data.time.split(':');
-      const startDate = new Date(data.date);
-      startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-      
-      const endDate = new Date(startDate);
-      endDate.setMinutes(startDate.getMinutes() + 30); // 30 minutes duration
-
-      const formattedSalutation = formatSalutation(data.salutation);
-
+      // Use the enhanced appointment creation endpoint that automatically creates client with search parameters
       const appointmentData = {
-        title: `${data.lastName} - ${data.phone}`,
-        description: `Appuntamento con ${formattedSalutation} ${data.lastName}\nTelefono: ${data.phone}\nCreato dalla comunicazione ID: ${communication.id}`,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        location: propertyAddress,
+        firstName: "", // Leave empty for manual entry workflow
+        lastName: data.lastName,
+        phone: data.phone,
+        salutation: data.salutation,
+        date: format(data.date, "yyyy-MM-dd"),
+        time: data.time,
         propertyId: communication.propertyId,
-        clientId: null // Will be populated if client exists
+        communicationId: communication.id
       };
 
-      const appointment = await apiRequest("/api/calendar/events", {
+      const result = await apiRequest("/api/appointments/create-with-client", {
         method: "POST",
         data: appointmentData,
+      });
+
+      return result;
       });
 
       // Send WhatsApp confirmation with proper salutation formatting

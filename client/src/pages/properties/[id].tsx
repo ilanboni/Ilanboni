@@ -1477,43 +1477,24 @@ function CreateAppointmentDialog({
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: AppointmentFormData) => {
-      // Create appointment
+      // Use the enhanced appointment creation endpoint that automatically creates client with search parameters
       const appointmentData = {
-        propertyId: communication.propertyId,
-        date: data.date.toISOString(),
+        firstName: "", // Leave empty for manual entry workflow
+        lastName: data.lastName,
+        phone: data.phone,
+        salutation: data.salutation,
+        date: format(data.date, "yyyy-MM-dd"),
         time: data.time,
-        clientName: `${data.salutation} ${data.lastName}`,
-        clientPhone: data.phone,
-        address: data.address,
-        status: "scheduled",
-        notes: `Appuntamento creato dalla comunicazione ID: ${communication.id}`,
+        propertyId: communication.propertyId,
+        communicationId: communication.id
       };
 
-      const appointment = await apiRequest("/api/calendar/events", {
+      const result = await apiRequest("/api/appointments/create-with-client", {
         method: "POST",
         data: appointmentData,
       });
 
-      // Send WhatsApp confirmation
-      const confirmationMessage = `${data.salutation} ${data.lastName}, le confermo appuntamento di ${format(data.date, "dd/MM/yyyy")} ore ${data.time}, in ${data.address}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
-      
-      await apiRequest("/api/whatsapp/send-direct", {
-        method: "POST",
-        data: {
-          phone: data.phone,
-          message: confirmationMessage,
-        },
-      });
-
-      // Update communication status to appointment_created
-      await apiRequest(`/api/communications/${communication.id}`, {
-        method: "PATCH",
-        data: {
-          managementStatus: "appointment_created",
-        },
-      });
-
-      return appointment;
+      return result;
     },
     onSuccess: () => {
       onSuccess();

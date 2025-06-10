@@ -3483,8 +3483,9 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       
       // Create search area (600m radius around property)
       const searchRadius = 600; // meters
-      const lat = property.location.lat;
-      const lng = property.location.lng;
+      const location = property.location as { lat: number; lng: number };
+      const lat = location.lat;
+      const lng = location.lng;
       
       // Create circular search area
       const earthRadius = 6371000; // Earth's radius in meters
@@ -3524,18 +3525,30 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         }
       };
       
-      // Create the client
-      const newClient = await apiRequest("/api/clients", {
-        method: "POST",
-        data: clientData,
-      });
+      // Create the client directly
+      const validatedClientData = insertClientSchema.parse(clientData);
+      const newClient = await storage.createClient(validatedClientData);
+      
+      // If it's a buyer, create the buyer record with search parameters
+      if (newClient.type === "buyer" && clientData.buyer) {
+        const buyerData = {
+          clientId: newClient.id,
+          searchArea: clientData.buyer.searchArea,
+          minSize: clientData.buyer.minSize,
+          maxPrice: clientData.buyer.maxPrice,
+          urgency: clientData.buyer.urgency,
+          rating: clientData.buyer.rating,
+          searchNotes: clientData.buyer.searchNotes
+        };
+        await storage.createBuyer(buyerData);
+      }
       
       // Mark communication as managed
       if (communicationId) {
-        await apiRequest(`/api/communications/${communicationId}/management-status`, {
-          method: "PATCH",
-          data: { managementStatus: "managed" }
-        });
+        await db
+          .update(communications)
+          .set({ managementStatus: "managed" })
+          .where(eq(communications.id, communicationId));
       }
       
       // Send WhatsApp confirmation using only surname
@@ -3544,13 +3557,14 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       
       const confirmationMessage = `${salutation} ${lastName}, le confermo appuntamento di ${date} alle ore ${time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
       
-      await apiRequest("/api/whatsapp/send-direct", {
-        method: "POST",
-        data: {
-          to: normalizedPhone,
-          message: confirmationMessage,
-        },
-      });
+      // Send WhatsApp message directly
+      try {
+        const { sendWhatsAppMessage } = await import('./lib/ultramsgApi');
+        await sendWhatsAppMessage(normalizedPhone, confirmationMessage);
+      } catch (whatsappError) {
+        console.error("Errore invio WhatsApp:", whatsappError);
+        // Continue even if WhatsApp fails
+      }
       
       res.json({
         success: true,
