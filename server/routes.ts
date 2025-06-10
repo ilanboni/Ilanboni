@@ -281,37 +281,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName = structuredNameMatch[1].trim();
         lastName = structuredNameMatch[2].trim();
       } else {
-        // Pattern per nomi generici
-        const nameMatches = fullText.match(/(?:Nome|Name|Cliente):\s*([A-Za-z\s]+)/i) ||
-                           fullText.match(/([A-Z][a-z]+\s+[A-Z][a-z]+)/) ||
-                           fullText.match(/Messaggio di\s+([A-Za-z\s]+)\s+per/i) ||
-                           fullText.match(/Ilan\s+([A-Z][a-z]+)/); // Pattern per "Ilan Boni"
+        // Pattern per nomi generici e email immobiliare.it
+        const namePatterns = [
+          /(?:Nome|Name|Cliente):\s*([A-Za-z\s]+)/i,
+          /Messaggio di\s+([A-Za-z\s]+)\s+per/i,
+          /Contatto[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+          /TELEFONO[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+          /([A-Z][a-z]{2,}\s+[A-Z][a-z]{2,})(?=\s*\+?39|\s*TELEFONO)/i, // Nome prima del telefono
+          /([A-Z][a-z]+\s+[A-Z][a-z]+)/, // Due parole con maiuscole
+          /Ilan\s+([A-Z][a-z]+)/ // Pattern per "Ilan Boni"
+        ];
         
-        if (nameMatches && nameMatches[1]) {
-          const nameParts = nameMatches[1].trim().split(/\s+/);
-          firstName = nameParts[0] || "";
-          lastName = nameParts.slice(1).join(" ") || "";
+        for (const pattern of namePatterns) {
+          const nameMatches = fullText.match(pattern);
+          if (nameMatches && nameMatches[1]) {
+            const cleanName = nameMatches[1].trim();
+            // Filtra falsi positivi comuni
+            if (!cleanName.match(/^(Gentile|Cliente|Messaggio|Telefono|Email|TELEFONO|Contatto|Image|Link|Icona)$/i)) {
+              const nameParts = cleanName.split(/\s+/);
+              firstName = nameParts[0] || "";
+              lastName = nameParts.slice(1).join(" ") || "";
+              break;
+            }
+          }
         }
       }
       
-      // Estrai telefono (cerca pattern comuni per numeri di telefono)
+      // Estrai telefono (pattern specifici per email immobiliare.it e comunicazioni)
       const phonePatterns = [
-        /\+39\s*(\d{9,10})/g,  // +39 followed by 9-10 digits
-        /\+(\d{11,15})/g,      // + followed by 11-15 digits
-        /(\d{10,15})/g         // 10-15 digits
+        // Pattern per numero nell'oggetto email: "+39 340 7992 052"
+        /\+39\s+(\d{3})\s+(\d{3,4})\s+(\d{3,4})/g,  
+        // Pattern per numero in "Contatto" section: "+39 340 7992 052"  
+        /Contatto[\s\n\r]*\+39\s+(\d{3})\s+(\d{3,4})\s+(\d{3,4})/gi,
+        // Pattern generale con spazi
+        /\+39\s*(\d{3})\s*(\d{3,4})\s*(\d{3,4})/g,
+        // Pattern senza spazi  
+        /\+39\s*(\d{9,10})/g,
+        // Pattern con label
+        /(?:Tel|Telefono|Phone)[\s:]*\+?39\s*(\d{3})\s*(\d{3,4})\s*(\d{3,4})/gi,
+        // Solo numeri con spazi
+        /(\d{3})\s+(\d{3,4})\s+(\d{3,4})/g,
+        // Fallback patterns
+        /\+(\d{11,15})/g,
+        /(\d{10,15})/g
       ];
       
       for (const pattern of phonePatterns) {
-        const match = fullText.match(pattern);
-        if (match) {
-          let foundPhone = match[1] || match[0];
-          // Normalize phone number (remove + and ensure it starts with country code)
-          foundPhone = foundPhone.replace(/\+/g, "").replace(/\s/g, "");
-          if (foundPhone.length >= 10) {
-            phone = foundPhone.startsWith("39") ? foundPhone : "39" + foundPhone;
-            break;
+        const matches = Array.from(fullText.matchAll(pattern));
+        for (const match of matches) {
+          let foundPhone = "";
+          
+          if (match.length > 3 && match[1] && match[2] && match[3]) {
+            // Multi-group match (e.g., 340 799 2052)
+            foundPhone = match[1] + match[2] + match[3];
+          } else {
+            // Single group match
+            foundPhone = match[1] || match[0];
+          }
+          
+          // Normalize phone number (remove spaces, + and ensure it starts with country code)
+          foundPhone = foundPhone.replace(/[\+\s\-]/g, "");
+          
+          // Validate phone number length and format
+          if (foundPhone.length >= 9 && foundPhone.length <= 15) {
+            // Ensure Italian format
+            if (!foundPhone.startsWith("39") && foundPhone.length === 10) {
+              foundPhone = "39" + foundPhone;
+            } else if (foundPhone.startsWith("39")) {
+              // Already has country code
+            } else if (foundPhone.length >= 11 && foundPhone.startsWith("3")) {
+              // Likely Italian mobile without country code
+              foundPhone = "39" + foundPhone;
+            }
+            
+            // Final validation: Italian mobile numbers should be 12 digits (39 + 10)
+            if (foundPhone.length === 12 && foundPhone.startsWith("39")) {
+              phone = foundPhone;
+              break;
+            }
           }
         }
+        if (phone) break;
       }
       
       // Se non ci sono dati estratti, usa fallback basato sul tipo di comunicazione
