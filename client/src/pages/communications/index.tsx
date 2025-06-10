@@ -77,13 +77,17 @@ function CreateAppointmentDialog({
   // Extract contact information from communication using backend API
   useEffect(() => {
     if (communication && isOpen) {
+      console.log('Starting contact extraction for communication:', communication.id);
       setIsExtracting(true);
       fetch(`/api/communications/${communication.id}/extract-contact`)
         .then(response => response.json())
         .then(data => {
+          console.log('Contact extraction response:', data);
           if (data.success) {
+            console.log('Setting extracted data:', data.extractedData);
             setExtractedData(data.extractedData);
           } else {
+            console.log('Extraction failed, using empty data');
             setExtractedData({ firstName: "", lastName: "", phone: "", type: "buyer", hasProperty: false });
           }
         })
@@ -130,8 +134,10 @@ function CreateAppointmentDialog({
   // Update form values when extracted data is available
   useEffect(() => {
     if (extractedData) {
+      console.log('Updating form with extracted data:', extractedData);
       form.setValue("lastName", extractedData.lastName || "");
       form.setValue("phone", extractedData.phone || "");
+      console.log('Form values after update:', form.getValues());
     }
   }, [extractedData, form]);
 

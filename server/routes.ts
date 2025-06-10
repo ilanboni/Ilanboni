@@ -382,6 +382,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (phone) break;
       }
       
+      // Se abbiamo trovato un numero di telefono, cerca un cliente esistente con quel numero
+      if (phone && (!firstName || !lastName)) {
+        try {
+          const existingClient = await storage.getClientByPhone(phone);
+          if (existingClient) {
+            // Usa i dati del cliente esistente se non abbiamo estratto nome/cognome
+            if (!firstName) firstName = existingClient.firstName || "";
+            if (!lastName) lastName = existingClient.lastName || "";
+          }
+        } catch (error) {
+          console.log('Errore durante la ricerca cliente per telefono:', error);
+        }
+      }
+
       // Se non ci sono dati estratti, usa fallback basato sul tipo di comunicazione
       if (!firstName && !lastName && !phone) {
         // Per email immobiliare.it senza nome, usa il numero di telefono come identificativo
