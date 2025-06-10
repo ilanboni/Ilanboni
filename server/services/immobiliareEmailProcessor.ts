@@ -206,11 +206,17 @@ ESEMPI DI RICONOSCIMENTO:
 - Email generica di contatto → type: "contatto"
 
 ISTRUZIONI SPECIFICHE:
-- Estrai con precisione nomi italiani completi (Nome e Cognome)
+- Estrai con precisione SOLO nomi italiani completi (Nome e Cognome), escludendo parole come "Email", "Telefono", "Cliente", "Sig", "Dott"
+- NON includere mai termini tecnici o parole non-nome nel campo name
 - Cerca indirizzi italiani completi con via/viale/piazza
 - Se un dato non è presente nell'email, usa null
 - L'urgency deve riflettere il tono: richieste immediate = "alta", normali = "media", generiche = "bassa"
 - Nelle notes includi dettagli utili come orari preferiti o commenti specifici
+
+ESEMPI NOME CORRETTO:
+- "Marco Prestini" → name: "Marco Prestini"
+- "PRESTINI Email" → name: "Prestini" (rimuovi "Email")
+- "Cliente Email" → name: null (nessun nome reale trovato)
 `;
 
       const response = await openai.chat.completions.create({
