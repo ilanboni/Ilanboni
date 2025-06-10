@@ -281,27 +281,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName = structuredNameMatch[1].trim();
         lastName = structuredNameMatch[2].trim();
       } else {
-        // Pattern per nomi generici e email immobiliare.it
-        const namePatterns = [
-          /(?:Nome|Name|Cliente):\s*([A-Za-z\s]+)/i,
-          /Messaggio di\s+([A-Za-z\s]+)\s+per/i,
-          /Contatto[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
-          /TELEFONO[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
-          /([A-Z][a-z]{2,}\s+[A-Z][a-z]{2,})(?=\s*\+?39|\s*TELEFONO)/i, // Nome prima del telefono
-          /([A-Z][a-z]+\s+[A-Z][a-z]+)/, // Due parole con maiuscole
-          /Ilan\s+([A-Z][a-z]+)/ // Pattern per "Ilan Boni"
-        ];
-        
-        for (const pattern of namePatterns) {
-          const nameMatches = fullText.match(pattern);
-          if (nameMatches && nameMatches[1]) {
-            const cleanName = nameMatches[1].trim();
-            // Filtra falsi positivi comuni
-            if (!cleanName.match(/^(Gentile|Cliente|Messaggio|Telefono|Email|TELEFONO|Contatto|Image|Link|Icona)$/i)) {
-              const nameParts = cleanName.split(/\s+/);
-              firstName = nameParts[0] || "";
-              lastName = nameParts.slice(1).join(" ") || "";
-              break;
+        // Per email immobiliare.it, evita l'estrazione di nomi dalla subject line
+        if (communication.subject?.includes("Telefonata ricevuta dal numero")) {
+          // Skip name extraction for immobiliare.it missed call notifications
+          // Il nome verrà gestito nel fallback più avanti
+        } else {
+          // Pattern per nomi specifici per altri tipi di comunicazioni
+          const namePatterns = [
+            /(?:Nome|Name|Cliente):\s*([A-Za-z\s]+)/i,
+            /Messaggio di\s+([A-Za-z\s]+)\s+per/i,
+            // Pattern per immobiliare.it solo nel content, non subject
+            /(?:Contatto|TELEFONO)[\s\n\r]+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})+)(?=\s|$)/i,
+            // Pattern per "Ilan Boni" specifico
+            /Ilan\s+([A-Z][a-z]+)/
+          ];
+          
+          for (const pattern of namePatterns) {
+            const nameMatches = content.match(pattern); // Usa solo content, non fullText
+            if (nameMatches && nameMatches[1]) {
+              const cleanName = nameMatches[1].trim();
+              
+              // Escludi frasi comuni
+              const isValidName = !cleanName.match(/^(Gentile|Cliente|Messaggio|Telefono|Email|TELEFONO|Contatto|Image|Link|Icona|dal|numero|ricevuta|telefonata|Immobiliare|Milano|Roma|Torino|Napoli|Appartamento|Casa|Viale|Via|Piazza|Cavour)$/i);
+              
+              if (isValidName) {
+                const nameParts = cleanName.split(/\s+/);
+                const validParts = nameParts.filter(part => 
+                  part.length >= 2 && 
+                  !part.match(/^(dal|numero|ricevuta|telefonata|Immobiliare|Cavour)$/i) &&
+                  !part.match(/^\d+$/)
+                );
+                
+                if (validParts.length >= 2) {
+                  firstName = validParts[0] || "";
+                  lastName = validParts.slice(1).join(" ") || "";
+                  break;
+                }
+              }
             }
           }
         }
@@ -366,8 +382,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Se non ci sono dati estratti, usa fallback basato sul tipo di comunicazione
       if (!firstName && !lastName && !phone) {
-        firstName = "Cliente";
-        lastName = "da Comunicazione";
+        // Per email immobiliare.it senza nome, usa il numero di telefono come identificativo
+        if (communication.type === "email" && communication.subject?.includes("Telefonata ricevuta dal numero")) {
+          firstName = "Cliente";
+          lastName = "Immobiliare.it";
+        } else {
+          firstName = "Cliente";
+          lastName = "da Comunicazione";
+        }
       }
 
       res.json({
