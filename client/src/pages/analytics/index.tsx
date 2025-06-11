@@ -114,6 +114,12 @@ export default function AnalyticsPage() {
               Mappa Ricerche
             </Button>
           </Link>
+          <Link href="/analytics/demand-analysis">
+            <Button variant="outline" className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 hover:from-purple-600 hover:to-blue-600">
+              <Target className="h-4 w-4" />
+              Analisi AI
+            </Button>
+          </Link>
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Periodo" />
