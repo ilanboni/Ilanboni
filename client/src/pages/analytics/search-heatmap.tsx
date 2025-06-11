@@ -513,7 +513,252 @@ export default function SearchHeatmapPage() {
             </CardContent>
           </Card>
         )}
+        
+        {/* Sezione Suggerimenti AI sotto la mappa */}
+        <SearchRecommendationsSection heatmapData={heatmapData} isLoading={isLoading} />
       </div>
     </>
+  );
+}
+
+// Componente per i suggerimenti AI
+interface SearchRecommendation {
+  zone: string;
+  priority: number;
+  suggestion: string;
+  totalSearches: number;
+  avgBudget: number;
+  avgSize: number;
+  clients: Array<{
+    id: number;
+    name: string;
+    phone: string;
+    budget: number;
+    size: number;
+  }>;
+}
+
+function SearchRecommendationsSection({ heatmapData, isLoading }: { 
+  heatmapData: SearchHeatmapData[] | undefined, 
+  isLoading: boolean 
+}) {
+  // Funzione locale per determinare la zona (usa le stesse coordinate del componente principale)
+  const getZoneName = (lat: number, lng: number): string => {
+    if (Math.abs(lat - 45.4642) < 0.008 && Math.abs(lng - 9.1900) < 0.008) return "Duomo";
+    if (Math.abs(lat - 45.4773) < 0.008 && Math.abs(lng - 9.1815) < 0.008) return "Brera";
+    if (Math.abs(lat - 45.4825) < 0.008 && Math.abs(lng - 9.2078) < 0.008) return "Porta Garibaldi";
+    if (Math.abs(lat - 45.4868) < 0.008 && Math.abs(lng - 9.1918) < 0.008) return "Porta Nuova";
+    if (Math.abs(lat - 45.4541) < 0.008 && Math.abs(lng - 9.1853) < 0.008) return "Navigli";
+    if (Math.abs(lat - 45.4969) < 0.008 && Math.abs(lng - 9.2071) < 0.008) return "Isola";
+    if (Math.abs(lat - 45.4388) < 0.008 && Math.abs(lng - 9.1946) < 0.008) return "Porta Romana";
+    if (Math.abs(lat - 45.4520) < 0.008 && Math.abs(lng - 9.1525) < 0.008) return "Porta Ticinese";
+    if (Math.abs(lat - 45.4906) < 0.008 && Math.abs(lng - 9.1665) < 0.008) return "Sempione";
+    if (Math.abs(lat - 45.4681) < 0.008 && Math.abs(lng - 9.1781) < 0.008) return "Castello";
+    if (Math.abs(lat - 45.4832) < 0.008 && Math.abs(lng - 9.2173) < 0.008) return "Viale Abruzzi";
+    if (Math.abs(lat - 45.4620) < 0.008 && Math.abs(lng - 9.2267) < 0.008) return "Lambrate";
+    if (Math.abs(lat - 45.4457) < 0.008 && Math.abs(lng - 9.2040) < 0.008) return "Porta Vittoria";
+    if (Math.abs(lat - 45.4751) < 0.008 && Math.abs(lng - 9.2158) < 0.008) return "Buenos Aires";
+    if (Math.abs(lat - 45.4892) < 0.008 && Math.abs(lng - 9.1813) < 0.008) return "Moscova";
+    return `Zona ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+  };
+
+  // Analizza i dati localmente per generare suggerimenti intelligenti
+  const recommendations = useMemo(() => {
+    if (!heatmapData || heatmapData.length === 0) return [];
+
+    // Raggruppa per zone geografiche simili
+    const zoneGroups = new Map<string, SearchHeatmapData[]>();
+    
+    heatmapData.forEach(point => {
+      // Determina la zona basata su coordinate
+      const zoneName = getZoneName(point.lat, point.lng);
+      if (!zoneGroups.has(zoneName)) {
+        zoneGroups.set(zoneName, []);
+      }
+      zoneGroups.get(zoneName)!.push(point);
+    });
+
+    // Crea suggerimenti per ogni zona
+    const suggestions = Array.from(zoneGroups.entries()).map(([zoneName, points]) => {
+      const totalSearches = points.reduce((sum, p) => sum + p.searchCount, 0);
+      const avgBudget = points.reduce((sum, p) => sum + p.avgBudget, 0) / points.length;
+      const avgSize = points.reduce((sum, p) => sum + p.avgSize, 0) / points.length;
+      
+      // Calcola priorità basata su numero ricerche e budget
+      const priority = totalSearches * (avgBudget / 500000);
+      
+      // Genera suggerimento basato sui dati
+      let suggestion = "";
+      let priorityIcon = "";
+      
+      if (totalSearches >= 8) {
+        priorityIcon = "🎯";
+        suggestion = `**ZONA PRIORITARIA**: ${zoneName} - ${totalSearches} ricerche attive con budget medio €${Math.round(avgBudget).toLocaleString()} per ${Math.round(avgSize)}mq. Concentrati qui per massimizzare le opportunità!`;
+      } else if (totalSearches >= 5) {
+        priorityIcon = "🔥";
+        suggestion = `**ZONA CALDA**: ${zoneName} - ${totalSearches} clienti interessati, budget medio €${Math.round(avgBudget).toLocaleString()}. Ottimo potenziale per investire tempo e risorse!`;
+      } else if (totalSearches >= 3) {
+        priorityIcon = "📈";
+        suggestion = `**ZONA EMERGENTE**: ${zoneName} - ${totalSearches} ricerche per €${Math.round(avgBudget).toLocaleString()}, ${Math.round(avgSize)}mq. Zona da monitorare attentamente!`;
+      } else {
+        priorityIcon = "📍";
+        suggestion = `**OPPORTUNITÀ**: ${zoneName} - ${totalSearches} ricerche per €${Math.round(avgBudget).toLocaleString()}, ${Math.round(avgSize)}mq. Zona da considerare per espansione.`;
+      }
+
+      return {
+        zone: zoneName,
+        priority,
+        suggestion: `${priorityIcon} ${suggestion}`,
+        totalSearches,
+        avgBudget: Math.round(avgBudget),
+        avgSize: Math.round(avgSize),
+        clients: points.flatMap(p => p.clients).slice(0, 5) // Primi 5 clienti
+      };
+    });
+
+    // Ordina per priorità
+    return suggestions.sort((a, b) => b.priority - a.priority).slice(0, 5);
+  }, [heatmapData, getZoneName]);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-600">Analizzando zone di ricerca...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!recommendations || recommendations.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-blue-600" />
+            Suggerimenti Intelligenti
+          </CardTitle>
+          <CardDescription>
+            Consigli personalizzati per ottimizzare la ricerca immobiliare
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-gray-500">
+            Nessuna zona di ricerca attiva trovata.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Target className="h-5 w-5 text-blue-600" />
+          🤖 Suggerimenti Intelligenti
+        </CardTitle>
+        <CardDescription>
+          Analisi AI delle zone più promettenti per la ricerca immobiliare
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {recommendations.map((rec, index) => (
+            <div 
+              key={rec.zone} 
+              className={cn(
+                "p-4 rounded-lg border-l-4 bg-gradient-to-r",
+                index === 0 ? "border-l-green-500 from-green-50 to-green-100" :
+                index === 1 ? "border-l-blue-500 from-blue-50 to-blue-100" :
+                index === 2 ? "border-l-yellow-500 from-yellow-50 to-yellow-100" :
+                "border-l-gray-400 from-gray-50 to-gray-100"
+              )}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant={index === 0 ? "default" : index === 1 ? "secondary" : "outline"}>
+                      #{index + 1}
+                    </Badge>
+                    <span className="font-semibold text-gray-900">{rec.zone}</span>
+                  </div>
+                  
+                  <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                    {rec.suggestion}
+                  </p>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3 text-blue-600" />
+                      <span className="font-medium">{rec.totalSearches}</span>
+                      <span className="text-gray-600">ricerche</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="h-3 w-3 text-green-600" />
+                      <span className="font-medium">€{rec.avgBudget.toLocaleString()}</span>
+                      <span className="text-gray-600">medio</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Home className="h-3 w-3 text-purple-600" />
+                      <span className="font-medium">{rec.avgSize}mq</span>
+                      <span className="text-gray-600">medio</span>
+                    </div>
+                  </div>
+                  
+                  {rec.clients && rec.clients.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="text-xs text-gray-600 mb-1">Clienti interessati:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {rec.clients.slice(0, 3).map((client, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {client.name}
+                          </Badge>
+                        ))}
+                        {rec.clients.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{rec.clients.length - 3} altri
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="text-right">
+                  <div className="text-lg font-bold text-gray-900">
+                    {Math.round(rec.priority)}
+                  </div>
+                  <div className="text-xs text-gray-500">priorità</div>
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <Eye className="h-4 w-4 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-blue-900 mb-1">
+                  💡 Consiglio dell'Agente AI
+                </h4>
+                <p className="text-sm text-blue-800 leading-relaxed">
+                  Concentra la ricerca immobiliare nelle prime 2-3 zone per massimizzare l'efficienza. 
+                  Le zone "prioritarie" e "calde" hanno il maggior potenziale di conversione. 
+                  Monitora le zone "emergenti" per opportunità future.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
