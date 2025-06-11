@@ -195,7 +195,11 @@ export default function ClientsPage() {
             Gestisci i tuoi clienti compratori e venditori
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/clients/duplicates")}>
+            <Filter className="mr-2 h-4 w-4" />
+            Gestisci Duplicati
+          </Button>
           <Button onClick={() => navigate("/clients/new")}>
             <Plus className="mr-2 h-4 w-4" />
             Nuovo Cliente
