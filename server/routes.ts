@@ -580,6 +580,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API per trovare e gestire clienti duplicati
+  app.get("/api/clients/duplicates", async (req: Request, res: Response) => {
+    try {
+      console.log("[DUPLICATES] Ricerca clienti duplicati basata sui numeri di telefono");
+      
+      // Ottieni tutti i clienti con i loro numeri di telefono
+      const allClients = await db.select().from(clients);
+      
+      // Raggruppa per numero di telefono normalizzato
+      const phoneGroups = new Map<string, any[]>();
+      
+      allClients.forEach(client => {
+        if (!client.phone) return;
+        
+        // Normalizza il numero di telefono (rimuovi spazi, + e altri caratteri)
+        const normalizedPhone = client.phone.replace(/[\s\+\-\(\)]/g, '');
+        
+        if (!phoneGroups.has(normalizedPhone)) {
+          phoneGroups.set(normalizedPhone, []);
+        }
+        phoneGroups.get(normalizedPhone)!.push(client);
+      });
+      
+      // Trova solo i gruppi con più di un cliente (duplicati)
+      const duplicateGroups = Array.from(phoneGroups.entries())
+        .filter(([phone, clients]) => clients.length > 1)
+        .map(([phone, clients]) => ({ phone, clients }));
+      
+      // Per ogni gruppo di duplicati, conta le comunicazioni
+      const duplicatesWithStats = await Promise.all(
+        duplicateGroups.map(async (group) => {
+          const clientIds = group.clients.map(c => c.id);
+          
+          // Conta comunicazioni per ogni cliente nel gruppo
+          const communicationsStats = await Promise.all(
+            clientIds.map(async (clientId) => {
+              const comms = await db
+                .select()
+                .from(communications)
+                .where(eq(communications.clientId, clientId));
+              
+              return {
+                clientId,
+                communicationsCount: comms.length,
+                lastCommunication: comms.length > 0 
+                  ? new Date(Math.max(...comms.map(c => new Date(c.createdAt || 0).getTime())))
+                  : null
+              };
+            })
+          );
+          
+          const totalCommunications = communicationsStats.reduce((sum, stat) => sum + stat.communicationsCount, 0);
+          
+          return {
+            phone: group.phone,
+            clients: group.clients.map(client => {
+              const stats = communicationsStats.find(s => s.clientId === client.id);
+              return {
+                ...client,
+                communicationsCount: stats?.communicationsCount || 0,
+                lastCommunication: stats?.lastCommunication
+              };
+            }),
+            totalCommunications,
+            duplicateCount: group.clients.length
+          };
+        })
+      );
+      
+      // Ordina per numero totale di comunicazioni (interesse più alto primo)
+      duplicatesWithStats.sort((a, b) => b.totalCommunications - a.totalCommunications);
+      
+      console.log(`[DUPLICATES] Trovati ${duplicatesWithStats.length} gruppi di duplicati`);
+      
+      res.json({
+        duplicateGroupsCount: duplicatesWithStats.length,
+        totalDuplicateClients: duplicatesWithStats.reduce((sum, group) => sum + group.duplicateCount, 0),
+        duplicateGroups: duplicatesWithStats
+      });
+      
+    } catch (error) {
+      console.error("[DUPLICATES] Errore:", error);
+      res.status(500).json({ error: "Errore durante la ricerca dei duplicati" });
+    }
+  });
+
+  // API per unificare clienti duplicati
+  app.post("/api/clients/merge-duplicates", async (req: Request, res: Response) => {
+    try {
+      const { primaryClientId, duplicateClientIds } = req.body;
+      
+      if (!primaryClientId || !Array.isArray(duplicateClientIds) || duplicateClientIds.length === 0) {
+        return res.status(400).json({ error: "primaryClientId e duplicateClientIds sono richiesti" });
+      }
+      
+      console.log(`[MERGE] Unificazione cliente primario ${primaryClientId} con duplicati ${duplicateClientIds.join(', ')}`);
+      
+      // Sposta tutte le comunicazioni dai duplicati al cliente primario
+      for (const duplicateId of duplicateClientIds) {
+        await db
+          .update(communications)
+          .set({ clientId: primaryClientId })
+          .where(eq(communications.clientId, duplicateId));
+      }
+      
+      // Sposta i buyers/sellers se esistono
+      for (const duplicateId of duplicateClientIds) {
+        await db
+          .update(buyers)
+          .set({ clientId: primaryClientId })
+          .where(eq(buyers.clientId, duplicateId));
+          
+        await db
+          .update(sellers)
+          .set({ clientId: primaryClientId })
+          .where(eq(sellers.clientId, duplicateId));
+      }
+      
+      // Elimina i clienti duplicati
+      for (const duplicateId of duplicateClientIds) {
+        await db
+          .delete(clients)
+          .where(eq(clients.id, duplicateId));
+      }
+      
+      console.log(`[MERGE] Unificazione completata: ${duplicateClientIds.length} clienti duplicati eliminati`);
+      
+      res.json({ 
+        success: true, 
+        mergedClientsCount: duplicateClientIds.length,
+        primaryClientId 
+      });
+      
+    } catch (error) {
+      console.error("[MERGE] Errore:", error);
+      res.status(500).json({ error: "Errore durante l'unificazione dei clienti" });
+    }
+  });
+
   // Ottieni clienti ad alta priorità senza comunicazioni recenti
   app.get("/api/clients/without-recent-communication", async (req: Request, res: Response) => {
     try {
