@@ -345,6 +345,13 @@ export default function CommunicationsPage() {
   // Fetch all communications
   const { data: communications, isLoading } = useQuery<Communication[]>({
     queryKey: ["/api/communications"],
+    queryFn: async () => {
+      const response = await fetch('/api/communications');
+      if (!response.ok) {
+        throw new Error('Failed to fetch communications');
+      }
+      return await response.json();
+    },
   });
   
   // Fetch all clients for name display
