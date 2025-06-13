@@ -182,7 +182,7 @@ export async function processIdealistaEmail(emailData: IdealistaEmailData): Prom
       propertyId: propertyId || null,
       type: 'phone_call',
       subject: `Telefonata ricevuta da Idealista - ${emailData.propertyRef}`,
-      content: `Chiamata ricevuta tramite Idealista per l'annuncio ${emailData.propertyCode} - Rif. ${emailData.propertyRef}.\n\nDettagli chiamata:\n- Numero: ${emailData.phoneNumber}\n- Data e ora: ${emailData.dateTime}\n- Stato: ${emailData.status}\n- Durata: ${emailData.duration} secondi\n\nParametri di ricerca automatici:\n- Budget: €${searchParams.minPrice.toLocaleString()} - €${searchParams.maxPrice.toLocaleString()}\n- Metratura: ${searchParams.minSize} - ${searchParams.maxSize} mq\n- Area: ${emailData.propertyRef} (raggio ${searchParams.searchArea.radius}m)`,
+      content: `Chiamata ricevuta tramite Idealista per l'annuncio ${emailData.propertyCode} - Rif. ${emailData.propertyRef}.\n\nDettagli chiamata:\n- Numero: ${emailData.phoneNumber}\n- Data e ora: ${emailData.dateTime}\n- Stato: ${emailData.status}\n- Durata: ${emailData.duration} secondi\n\nParametri di ricerca automatici:\n- Budget massimo: €${searchParams.maxPrice.toLocaleString()}\n- Metratura minima: ${searchParams.minSize} mq\n- Area: ${emailData.propertyRef} (raggio ${searchParams.searchArea.radius}m)`,
       direction: 'inbound',
       status: emailData.status === 'senza risposta' ? 'pending' : 'completed',
       needsFollowUp: emailData.status === 'senza risposta'

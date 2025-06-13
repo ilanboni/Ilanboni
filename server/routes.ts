@@ -5533,15 +5533,39 @@ document.getElementById('tokenForm').addEventListener('submit', async function(e
         return res.status(400).json({ error: 'Subject e body sono obbligatori' });
       }
 
-      const { emailProcessor } = await import('./services/immobiliareEmailProcessor');
-      
-      await emailProcessor.processEmail({
+      const emailData = {
         emailId: `manual-${Date.now()}`,
         fromAddress: fromAddress || 'noreply@immobiliare.it',
         subject,
         body,
         receivedAt: new Date()
-      });
+      };
+
+      // Determina se è un'email di Idealista o immobiliare.it
+      const isIdealistaEmail = (
+        fromAddress?.includes('idealista.com') || 
+        subject?.toLowerCase().includes('idealista') ||
+        body?.toLowerCase().includes('il team di idealista')
+      );
+
+      if (isIdealistaEmail) {
+        console.log('[EMAIL MANUAL] Elaborazione email Idealista...');
+        const { parseIdealistaEmail, processIdealistaEmail } = await import('./services/idealistaEmailProcessor');
+        
+        const idealistaData = parseIdealistaEmail(subject, body);
+        
+        if (idealistaData) {
+          console.log('[IDEALISTA MANUAL] Dati estratti:', idealistaData);
+          const result = await processIdealistaEmail(idealistaData);
+          console.log('[IDEALISTA MANUAL] Cliente creato/aggiornato:', result);
+        } else {
+          console.log('[IDEALISTA MANUAL] Impossibile estrarre dati dall\'email');
+        }
+      } else {
+        console.log('[EMAIL MANUAL] Elaborazione email immobiliare.it...');
+        const { emailProcessor } = await import('./services/immobiliareEmailProcessor');
+        await emailProcessor.processEmail(emailData);
+      }
 
       res.status(200).json({ message: 'Email elaborata manualmente con successo' });
     } catch (error) {
