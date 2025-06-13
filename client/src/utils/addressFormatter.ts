@@ -8,22 +8,40 @@ export function standardizeAddress(address: string): string {
     return address;
   }
 
-  const cleanAddress = address.trim();
+  let cleanAddress = address.trim();
   
-  // Se l'indirizzo già termina con ", Milano", non modificarlo
-  if (cleanAddress.toLowerCase().endsWith(', milano')) {
-    return cleanAddress;
+  // Rimuovi Milano e tutto quello che segue (incluse info aggiuntive geografiche)
+  cleanAddress = cleanAddress.replace(/,?\s*Milano.*$/i, '');
+  
+  // Pattern per riconoscere diversi formati di indirizzo
+  const patterns = [
+    // "Via Nome 123" -> "Via Nome, 123, Milano"
+    /^(Via|Viale|Piazza|Corso)\s+([^,0-9]+)\s+(\d+[A-Za-z]*)$/i,
+    // "Via Nome, 123" -> "Via Nome, 123, Milano"  
+    /^(Via|Viale|Piazza|Corso)\s+([^,]+),\s*(\d+[A-Za-z]*)$/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = cleanAddress.match(pattern);
+    if (match) {
+      const tipo = match[1];
+      const nome = match[2].trim().replace(/,$/, '');
+      const civico = match[3];
+      return `${tipo} ${nome}, ${civico}, Milano`;
+    }
   }
   
-  // Rimuovi "Milano" finale se presente (senza virgola)
-  let standardizedAddress = cleanAddress.replace(/,?\s*Milano\s*$/i, '');
-  
-  // Aggiungi ", Milano" alla fine se non c'è già
-  if (!standardizedAddress.toLowerCase().includes('milano')) {
-    standardizedAddress = `${standardizedAddress}, Milano`;
+  // Pattern per "Via Nome" senza civico -> "Via Nome, Milano"
+  const simplePattern = /^(Via|Viale|Piazza|Corso)\s+([^,]+)$/i;
+  const simpleMatch = cleanAddress.match(simplePattern);
+  if (simpleMatch) {
+    const tipo = simpleMatch[1];
+    const nome = simpleMatch[2].trim().replace(/,$/, '');
+    return `${tipo} ${nome}, Milano`;
   }
   
-  return standardizedAddress;
+  // Se non corrisponde a nessun pattern, aggiungi semplicemente Milano
+  return `${cleanAddress}, Milano`;
 }
 
 /**

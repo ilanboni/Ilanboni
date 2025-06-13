@@ -269,10 +269,21 @@ export default function NewPropertyPage() {
                             <FormControl>
                               <AddressSelectorPlaceholder
                                 value={field.value}
-                                onChange={field.onChange}
+                                onChange={(address) => {
+                                  field.onChange(address);
+                                  // Applica la standardizzazione quando l'utente smette di digitare
+                                  setTimeout(() => {
+                                    const formatted = standardizeAddress(address);
+                                    if (formatted !== address) {
+                                      field.onChange(formatted);
+                                    }
+                                  }, 1000);
+                                }}
                                 placeholder="Inserisci l'indirizzo dell'immobile..."
-                                onBlur={() => formatOnBlur(field.value, field.onChange)}
                                 onSelect={(data) => {
+                                  // Standardizza l'indirizzo selezionato
+                                  const formatted = standardizeAddress(data.address);
+                                  field.onChange(formatted);
                                   // Aggiorna anche la posizione se disponibile
                                   if (data.location) {
                                     form.setValue("location", data.location);
