@@ -153,7 +153,7 @@ export async function processIdealistaEmail(emailData: IdealistaEmailData): Prom
         clientId: client.id,
         maxPrice: searchParams.maxPrice,
         minSize: searchParams.minSize,
-        searchArea: searchParams.searchArea,
+        searchArea: JSON.stringify([searchParams.searchArea]),
         searchNotes: `Ricerca creata da chiamata Idealista per ${emailData.propertyRef}. Prima chiamata: ${emailData.dateTime}`
       }).returning();
       

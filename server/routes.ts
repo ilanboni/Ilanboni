@@ -24,7 +24,7 @@ import {
   type AppointmentConfirmation
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like } from "drizzle-orm";
+import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like, isNotNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import OpenAI from "openai";
 import { summarizeText } from "./lib/openai";
@@ -2803,11 +2803,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: clients.firstName,
           lastName: clients.lastName,
           phone: clients.phone,
-          minPrice: buyers.minPrice,
           maxPrice: buyers.maxPrice,
           minSize: buyers.minSize,
-          maxSize: buyers.maxSize,
-          searchAreas: buyers.searchAreas,
+          searchArea: buyers.searchArea,
           rating: buyers.rating,
           contractType: clients.contractType,
           lastCommunication: sql<Date>`(
@@ -2819,8 +2817,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(buyers)
         .innerJoin(clients, eq(buyers.clientId, clients.id))
         .where(and(
-          isNotNull(buyers.searchAreas),
-          ne(buyers.searchAreas, sql`'[]'::jsonb`)
+          isNotNull(buyers.searchArea),
+          sql`${buyers.searchArea} != 'null'::jsonb`,
+          sql`${buyers.searchArea} != '[]'::jsonb`
         ));
 
       console.log(`[SEARCH-AI] Trovati ${buyersWithSearchAreas.length} buyer con aree di ricerca`);
@@ -2829,9 +2828,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const zoneGroups = new Map<string, any[]>();
       
       buyersWithSearchAreas.forEach(buyer => {
-        if (!buyer.searchAreas || !Array.isArray(buyer.searchAreas)) return;
+        let searchAreas = [];
+        try {
+          searchAreas = typeof buyer.searchArea === 'string' ? JSON.parse(buyer.searchArea) : buyer.searchArea;
+        } catch (e) {
+          console.log('[SEARCH-AI] Errore parsing searchArea per buyer:', buyer.id);
+          return;
+        }
         
-        buyer.searchAreas.forEach((area: any) => {
+        if (!Array.isArray(searchAreas)) return;
+        
+        searchAreas.forEach((area: any) => {
           if (area && area.lat && area.lng) {
             // Crea una chiave per raggruppare aree vicine (arrotondata a 0.01 gradi ~ 1km)
             const lat = Math.round(area.lat * 100) / 100;
