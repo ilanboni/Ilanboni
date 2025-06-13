@@ -1984,32 +1984,47 @@ export class DatabaseStorage implements IStorage {
     console.log(`[DELETE PROPERTY] Inizio eliminazione immobile ${id}`);
     
     try {
-      // Importa immobiliareEmails se disponibile
-      let immobiliareEmails;
-      try {
-        const schema = await import('@shared/schema');
-        immobiliareEmails = schema.immobiliareEmails;
-      } catch (error) {
-        console.log(`[DELETE PROPERTY] Tabella immobiliare_emails non trovata, continuo senza`);
-      }
+      // Importa immobiliareEmails direttamente dalla schema - usando l'import statico già definito in cima al file
+      const { immobiliareEmails } = require('@shared/schema');
 
-      // 1. Prima elimina i record di immobiliareEmails che riferiscono ai task di questo immobile
-      if (immobiliareEmails) {
-        // Trova tutti i task collegati a questo immobile
-        const relatedTasks = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.propertyId, id));
+      // 1. Prima elimina tutti i riferimenti da immobiliareEmails
+      console.log(`[DELETE PROPERTY] Gestione riferimenti immobiliare_emails per immobile ${id}`);
+      
+      // Trova tutti i task collegati a questo immobile
+      const relatedTasks = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.propertyId, id));
+      
+      if (relatedTasks.length > 0) {
+        const taskIds = relatedTasks.map(t => t.id);
+        console.log(`[DELETE PROPERTY] Rimozione ${relatedTasks.length} riferimenti task da immobiliare_emails: ${taskIds.join(', ')}`);
         
-        if (relatedTasks.length > 0) {
-          const taskIds = relatedTasks.map(t => t.id);
-          console.log(`[DELETE PROPERTY] Eliminazione ${relatedTasks.length} riferimenti immobiliare_emails per i task: ${taskIds.join(', ')}`);
-          
-          // Rimuovi i riferimenti ai task da immobiliareEmails
-          for (const taskId of taskIds) {
-            await db.update(immobiliareEmails)
-              .set({ taskId: null })
-              .where(eq(immobiliareEmails.taskId, taskId));
-          }
+        // Rimuovi i riferimenti ai task da immobiliareEmails
+        for (const taskId of taskIds) {
+          await db.update(immobiliareEmails)
+            .set({ taskId: null })
+            .where(eq(immobiliareEmails.taskId, taskId));
         }
       }
+
+      // Trova tutte le comunicazioni collegate a questo immobile
+      const relatedCommunications = await db.select({ id: communications.id }).from(communications).where(eq(communications.propertyId, id));
+      
+      if (relatedCommunications.length > 0) {
+        const communicationIds = relatedCommunications.map(c => c.id);
+        console.log(`[DELETE PROPERTY] Rimozione ${relatedCommunications.length} riferimenti comunicazioni da immobiliare_emails: ${communicationIds.join(', ')}`);
+        
+        // Rimuovi i riferimenti alle comunicazioni da immobiliareEmails
+        for (const communicationId of communicationIds) {
+          await db.update(immobiliareEmails)
+            .set({ communicationId: null })
+            .where(eq(immobiliareEmails.communicationId, communicationId));
+        }
+      }
+
+      // Rimuovi anche i riferimenti diretti all'immobile da immobiliareEmails
+      console.log(`[DELETE PROPERTY] Rimozione riferimenti diretti all'immobile ${id} da immobiliare_emails`);
+      await db.update(immobiliareEmails)
+        .set({ propertyId: null })
+        .where(eq(immobiliareEmails.propertyId, id));
 
       // 2. Elimina gli shared properties collegati
       console.log(`[DELETE PROPERTY] Eliminazione shared properties per immobile ${id}`);
