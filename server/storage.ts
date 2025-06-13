@@ -10,6 +10,7 @@ import {
   communications, type Communication, type InsertCommunication,
   marketInsights, type MarketInsight, type InsertMarketInsight,
   immobiliareEmails, type ImmobiliareEmail, type InsertImmobiliareEmail,
+  propertySent, type PropertySent, type InsertPropertySent,
   type ClientWithDetails, type PropertyWithDetails, 
   type SharedPropertyWithDetails
 } from "@shared/schema";
@@ -2024,29 +2025,33 @@ export class DatabaseStorage implements IStorage {
         .set({ propertyId: null })
         .where(eq(immobiliareEmails.propertyId, id));
 
-      // 2. Elimina gli shared properties collegati
+      // 2. Elimina i record property_sent collegati
+      console.log(`[DELETE PROPERTY] Eliminazione property_sent per immobile ${id}`);
+      await db.delete(propertySent).where(eq(propertySent.propertyId, id));
+
+      // 3. Elimina gli shared properties collegati
       console.log(`[DELETE PROPERTY] Eliminazione shared properties per immobile ${id}`);
       await db.delete(sharedProperties).where(eq(sharedProperties.propertyId, id));
       
-      // 3. Elimina gli appuntamenti collegati
+      // 4. Elimina gli appuntamenti collegati
       console.log(`[DELETE PROPERTY] Eliminazione appuntamenti per immobile ${id}`);
       await db.delete(appointments).where(eq(appointments.propertyId, id));
       
-      // 4. Elimina i task collegati (ora sicuro dopo aver rimosso i riferimenti)
+      // 5. Elimina i task collegati (ora sicuro dopo aver rimosso i riferimenti)
       console.log(`[DELETE PROPERTY] Eliminazione task per immobile ${id}`);
       await db.delete(tasks).where(eq(tasks.propertyId, id));
       
-      // 5. Elimina le comunicazioni collegate
+      // 6. Elimina le comunicazioni collegate
       console.log(`[DELETE PROPERTY] Eliminazione comunicazioni per immobile ${id}`);
       await db.delete(communications).where(eq(communications.propertyId, id));
       
-      // 6. Aggiorna i venditori per rimuovere il riferimento all'immobile
+      // 7. Aggiorna i venditori per rimuovere il riferimento all'immobile
       console.log(`[DELETE PROPERTY] Aggiornamento venditori per immobile ${id}`);
       await db.update(sellers)
         .set({ propertyId: null })
         .where(eq(sellers.propertyId, id));
       
-      // 7. Infine elimina l'immobile stesso
+      // 8. Infine elimina l'immobile stesso
       console.log(`[DELETE PROPERTY] Eliminazione immobile ${id}`);
       const result = await db.delete(properties).where(eq(properties.id, id)).returning();
       
