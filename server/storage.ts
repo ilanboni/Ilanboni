@@ -9,6 +9,7 @@ import {
   tasks, type Task, type InsertTask,
   communications, type Communication, type InsertCommunication,
   marketInsights, type MarketInsight, type InsertMarketInsight,
+  immobiliareEmails, type ImmobiliareEmail, type InsertImmobiliareEmail,
   type ClientWithDetails, type PropertyWithDetails, 
   type SharedPropertyWithDetails
 } from "@shared/schema";
@@ -1984,9 +1985,6 @@ export class DatabaseStorage implements IStorage {
     console.log(`[DELETE PROPERTY] Inizio eliminazione immobile ${id}`);
     
     try {
-      // Importa immobiliareEmails direttamente dalla schema - usando l'import statico già definito in cima al file
-      const { immobiliareEmails } = require('@shared/schema');
-
       // 1. Prima elimina tutti i riferimenti da immobiliareEmails
       console.log(`[DELETE PROPERTY] Gestione riferimenti immobiliare_emails per immobile ${id}`);
       
