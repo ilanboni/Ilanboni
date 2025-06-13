@@ -3072,11 +3072,29 @@ Genera un suggerimento professionale in italiano per un agente immobiliare su do
         let lng: number | null = null;
         
         // Estrai coordinate dal searchArea se disponibile
-        if (buyer.searchArea && typeof buyer.searchArea === 'object') {
-          const searchArea = buyer.searchArea as any;
+        if (buyer.searchArea) {
+          let searchArea = buyer.searchArea;
           
+          // Se è una stringa JSON, parsala
+          if (typeof searchArea === 'string') {
+            try {
+              searchArea = JSON.parse(searchArea);
+            } catch (e) {
+              console.error('Errore parsing searchArea:', e);
+              return;
+            }
+          }
+          
+          // Se è un array di cerchi (formato Idealista: [{lat, lng, radius}])
+          if (Array.isArray(searchArea) && searchArea.length > 0) {
+            const firstArea = searchArea[0];
+            if (firstArea.lat && firstArea.lng) {
+              lat = firstArea.lat;
+              lng = firstArea.lng;
+            }
+          }
           // Se è un GeoJSON Polygon, prendi il centro
-          if (searchArea.type === 'Polygon' && searchArea.coordinates && searchArea.coordinates[0]) {
+          else if (searchArea.type === 'Polygon' && searchArea.coordinates && searchArea.coordinates[0]) {
             const coords = searchArea.coordinates[0];
             if (coords.length > 0) {
               // Calcola il centro del poligono
