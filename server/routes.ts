@@ -5868,5 +5868,20 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  // API per la ricerca storica delle comunicazioni di Viale Belisario
+  app.post("/api/emails/search-belisario-historical", async (req: Request, res: Response) => {
+    try {
+      const { searchBelisarioHistoricalEmails } = await import('./services/belisarioHistoricalSearch');
+      const result = await searchBelisarioHistoricalEmails();
+      res.json(result);
+    } catch (error) {
+      console.error("Errore nella ricerca storica Belisario:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Errore nella ricerca storica Belisario" 
+      });
+    }
+  });
+
   return httpServer;
 }
