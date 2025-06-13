@@ -1981,19 +1981,69 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProperty(id: number): Promise<boolean> {
-    // First delete related records
-    await db.delete(sharedProperties).where(eq(sharedProperties.propertyId, id));
-    await db.delete(appointments).where(eq(appointments.propertyId, id));
-    await db.delete(tasks).where(eq(tasks.propertyId, id));
-    await db.delete(communications).where(eq(communications.propertyId, id));
+    console.log(`[DELETE PROPERTY] Inizio eliminazione immobile ${id}`);
     
-    // Update related sellers to remove property reference
-    await db.update(sellers)
-      .set({ propertyId: null })
-      .where(eq(sellers.propertyId, id));
-    
-    const result = await db.delete(properties).where(eq(properties.id, id)).returning();
-    return result.length > 0;
+    try {
+      // Importa immobiliareEmails se disponibile
+      let immobiliareEmails;
+      try {
+        const schema = await import('@shared/schema');
+        immobiliareEmails = schema.immobiliareEmails;
+      } catch (error) {
+        console.log(`[DELETE PROPERTY] Tabella immobiliare_emails non trovata, continuo senza`);
+      }
+
+      // 1. Prima elimina i record di immobiliareEmails che riferiscono ai task di questo immobile
+      if (immobiliareEmails) {
+        // Trova tutti i task collegati a questo immobile
+        const relatedTasks = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.propertyId, id));
+        
+        if (relatedTasks.length > 0) {
+          const taskIds = relatedTasks.map(t => t.id);
+          console.log(`[DELETE PROPERTY] Eliminazione ${relatedTasks.length} riferimenti immobiliare_emails per i task: ${taskIds.join(', ')}`);
+          
+          // Rimuovi i riferimenti ai task da immobiliareEmails
+          for (const taskId of taskIds) {
+            await db.update(immobiliareEmails)
+              .set({ taskId: null })
+              .where(eq(immobiliareEmails.taskId, taskId));
+          }
+        }
+      }
+
+      // 2. Elimina gli shared properties collegati
+      console.log(`[DELETE PROPERTY] Eliminazione shared properties per immobile ${id}`);
+      await db.delete(sharedProperties).where(eq(sharedProperties.propertyId, id));
+      
+      // 3. Elimina gli appuntamenti collegati
+      console.log(`[DELETE PROPERTY] Eliminazione appuntamenti per immobile ${id}`);
+      await db.delete(appointments).where(eq(appointments.propertyId, id));
+      
+      // 4. Elimina i task collegati (ora sicuro dopo aver rimosso i riferimenti)
+      console.log(`[DELETE PROPERTY] Eliminazione task per immobile ${id}`);
+      await db.delete(tasks).where(eq(tasks.propertyId, id));
+      
+      // 5. Elimina le comunicazioni collegate
+      console.log(`[DELETE PROPERTY] Eliminazione comunicazioni per immobile ${id}`);
+      await db.delete(communications).where(eq(communications.propertyId, id));
+      
+      // 6. Aggiorna i venditori per rimuovere il riferimento all'immobile
+      console.log(`[DELETE PROPERTY] Aggiornamento venditori per immobile ${id}`);
+      await db.update(sellers)
+        .set({ propertyId: null })
+        .where(eq(sellers.propertyId, id));
+      
+      // 7. Infine elimina l'immobile stesso
+      console.log(`[DELETE PROPERTY] Eliminazione immobile ${id}`);
+      const result = await db.delete(properties).where(eq(properties.id, id)).returning();
+      
+      const success = result.length > 0;
+      console.log(`[DELETE PROPERTY] Immobile ${id} eliminato: ${success}`);
+      return success;
+    } catch (error) {
+      console.error(`[DELETE PROPERTY] Errore durante l'eliminazione dell'immobile ${id}:`, error);
+      throw error;
+    }
   }
 
   // Implementazione restante dei metodi richiesti...
