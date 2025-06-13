@@ -139,7 +139,7 @@ export async function processIdealistaEmail(emailData: IdealistaEmailData): Prom
         .set({
           maxPrice: searchParams.maxPrice,
           minSize: searchParams.minSize,
-          searchArea: searchParams.searchArea,
+          searchArea: JSON.stringify([searchParams.searchArea]),
           searchNotes: `Ricerca aggiornata da chiamata Idealista per ${emailData.propertyRef}. Ultima chiamata: ${emailData.dateTime}`
         })
         .where(eq(buyers.clientId, client.id))
@@ -177,7 +177,7 @@ export async function processIdealistaEmail(emailData: IdealistaEmailData): Prom
     }
     
     // Crea comunicazione
-    const [communication] = await db.insert(communications).values({
+    const communicationResults = await db.insert(communications).values({
       clientId: client.id,
       propertyId: propertyId || null,
       type: 'phone_call',
@@ -187,6 +187,8 @@ export async function processIdealistaEmail(emailData: IdealistaEmailData): Prom
       status: emailData.status === 'senza risposta' ? 'pending' : 'completed',
       needsFollowUp: emailData.status === 'senza risposta'
     }).returning();
+    
+    const communication = Array.isArray(communicationResults) ? communicationResults[0] : communicationResults;
     
     console.log('[IDEALISTA] Comunicazione creata:', communication.id);
     
