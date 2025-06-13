@@ -39,6 +39,7 @@ export default function NewPropertyPage() {
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   const [isShared, setIsShared] = useState(false);
+  const { formatOnBlur } = useAddressFormatter();
   
   // Extended schema for form validation
   const formSchema = insertPropertySchema.extend({
@@ -270,6 +271,7 @@ export default function NewPropertyPage() {
                                 value={field.value}
                                 onChange={field.onChange}
                                 placeholder="Inserisci l'indirizzo dell'immobile..."
+                                onBlur={() => formatOnBlur(field.value, field.onChange)}
                                 onSelect={(data) => {
                                   // Aggiorna anche la posizione se disponibile
                                   if (data.location) {
