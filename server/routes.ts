@@ -1013,7 +1013,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const newProperty = await storage.createProperty(result.data);
+      // Standardizza il formato dell'indirizzo
+      const { standardizeAddress } = await import('./utils/addressFormatter');
+      const standardizedData = {
+        ...result.data,
+        address: standardizeAddress(result.data.address)
+      };
+      
+      const newProperty = await storage.createProperty(standardizedData);
       
       // Cerca acquirenti compatibili con questo immobile
       try {
@@ -1072,7 +1079,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (req.body.bedrooms !== undefined && req.body.bedrooms !== property.bedrooms) ||
         (req.body.location !== undefined);
       
-      const updatedProperty = await storage.updateProperty(propertyId, req.body);
+      // Standardizza il formato dell'indirizzo se presente nell'aggiornamento
+      let updateData = req.body;
+      if (req.body.address) {
+        const { standardizeAddress } = await import('./utils/addressFormatter');
+        updateData = {
+          ...req.body,
+          address: standardizeAddress(req.body.address)
+        };
+      }
+      
+      const updatedProperty = await storage.updateProperty(propertyId, updateData);
       
       // Se ci sono cambiamenti significativi o l'immobile è stato reso disponibile, verifica i match
       if (hasSignificantChanges || req.body.status === 'available') {
