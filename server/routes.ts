@@ -24,7 +24,7 @@ import {
   type AppointmentConfirmation
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like, isNotNull, ne } from "drizzle-orm";
+import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like, isNotNull, ne, isNull } from "drizzle-orm";
 import { z } from "zod";
 import OpenAI from "openai";
 import { summarizeText } from "./lib/openai";
@@ -3030,10 +3030,22 @@ Genera un suggerimento professionale in italiano per un agente immobiliare su do
         .innerJoin(clients, eq(buyers.clientId, clients.id))
         .where(
           and(
-            gte(buyers.maxPrice || 0, parseInt(minBudget as string)),
-            lte(buyers.maxPrice || 2000000, parseInt(maxBudget as string)),
-            gte(buyers.minSize || 0, parseInt(minSize as string)),
-            lte(buyers.minSize || 300, parseInt(maxSize as string))
+            or(
+              gte(buyers.maxPrice, parseInt(minBudget as string)),
+              isNull(buyers.maxPrice)
+            ),
+            or(
+              lte(buyers.maxPrice, parseInt(maxBudget as string)),
+              isNull(buyers.maxPrice)
+            ),
+            or(
+              gte(buyers.minSize, parseInt(minSize as string)),
+              isNull(buyers.minSize)
+            ),
+            or(
+              lte(buyers.minSize, parseInt(maxSize as string)),
+              isNull(buyers.minSize)
+            )
           )
         );
       
