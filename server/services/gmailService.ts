@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { emailProcessor } from './immobiliareEmailProcessor';
+import { parseIdealistaEmail, processIdealistaEmail } from './idealistaEmailProcessor';
 
 interface GmailMessage {
   id: string;
@@ -135,8 +136,32 @@ export class GmailService {
           emailId: emailId
         };
         await emailProcessor.processEmail(emailWithId);
+      } else if (this.isIdealistaNotification(emailData)) {
+        console.log(`[GMAIL] 📧 Elaborazione email Idealista: ${emailData.subject}`);
+        
+        // Parsa l'email di Idealista
+        const idealistaData = parseIdealistaEmail(emailData.subject, emailData.body);
+        
+        if (idealistaData) {
+          console.log(`[IDEALISTA] Dati estratti:`, idealistaData);
+          
+          // Processa l'email e crea cliente/buyer
+          const result = await processIdealistaEmail(idealistaData);
+          
+          console.log(`[IDEALISTA] Cliente creato/aggiornato: ${result.clientId}, Buyer: ${result.buyerId}, Comunicazione: ${result.communicationId}`);
+          
+          // Salva l'email nel database per tracking
+          await this.saveEmailToDatabase({
+            ...emailData,
+            emailId: emailId,
+            source: 'idealista',
+            processed: true
+          });
+        } else {
+          console.log(`[IDEALISTA] Impossibile estrarre dati dall'email`);
+        }
       } else {
-        console.log(`[GMAIL] Email non riconosciuta come immobiliare.it: ${emailData.fromAddress}`);
+        console.log(`[GMAIL] Email non riconosciuta: ${emailData.fromAddress}`);
       }
 
     } catch (error) {
@@ -210,6 +235,53 @@ export class GmailService {
       subject.includes('interesse') ||
       subject.includes('contatto')
     );
+  }
+
+  /**
+   * Verifica se è una notifica da Idealista
+   */
+  private isIdealistaNotification(emailData: any): boolean {
+    const fromDomain = emailData.fromAddress.toLowerCase();
+    const subject = emailData.subject.toLowerCase();
+    const body = emailData.body.toLowerCase();
+    
+    return (
+      fromDomain.includes('idealista') ||
+      body.includes('il team di idealista') ||
+      body.includes('una persona interessata ai tuoi annunci ti ha chiamato') ||
+      subject.includes('idealista')
+    );
+  }
+
+  /**
+   * Salva email nel database per tracking
+   */
+  private async saveEmailToDatabase(emailData: any): Promise<void> {
+    try {
+      const response = await fetch('http://localhost:5000/api/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          emailId: emailData.emailId,
+          fromAddress: emailData.fromAddress,
+          subject: emailData.subject,
+          body: emailData.body,
+          receivedAt: emailData.receivedAt,
+          source: emailData.source || 'gmail',
+          processed: emailData.processed || false
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      console.log(`[GMAIL] Email salvata nel database: ${emailData.emailId}`);
+    } catch (error) {
+      console.error('[GMAIL] Errore salvataggio email:', error);
+    }
   }
 
   /**
