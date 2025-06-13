@@ -33,7 +33,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertPropertySchema, insertSharedPropertySchema } from "@shared/schema";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
 import AddressSelectorPlaceholder from "@/components/address/AddressSelectorPlaceholder";
-import { useAddressFormatter } from "@/utils/addressFormatter";
+import { useAddressFormatter, standardizeAddress } from "@/utils/addressFormatter";
 
 export default function NewPropertyPage() {
   const [_, setLocation] = useLocation();

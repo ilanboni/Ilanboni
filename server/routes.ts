@@ -1030,19 +1030,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (matchingClients && matchingClients.length > 0) {
           console.log(`[POST /api/properties] Trovati ${matchingClients.length} clienti corrispondenti per l'immobile ${newProperty.id}`);
           
-          // Per ogni cliente corrispondente, invia una notifica WhatsApp
-          for (const client of matchingClients) {
-            try {
-              const clientDetails = await storage.getClientWithDetails(client.id);
-              if (clientDetails) {
-                await sendPropertyMatchNotification(clientDetails, newProperty);
-                console.log(`[POST /api/properties] Notifica WhatsApp inviata al cliente ${client.id} per l'immobile ${newProperty.id}`);
-              }
-            } catch (notifyError) {
-              console.error(`[POST /api/properties] Errore nell'invio della notifica al cliente ${client.id}:`, notifyError);
-              // Non blocchiamo il flusso principale se fallisce una notifica
-            }
-          }
+          // DISABILITATO: Per ogni cliente corrispondente, invia una notifica WhatsApp
+          console.log(`[POST /api/properties] Notifiche WhatsApp disabilitate - ${matchingClients.length} clienti corrispondenti non notificati per l'immobile ${newProperty.id}`);
+          // for (const client of matchingClients) {
+          //   try {
+          //     const clientDetails = await storage.getClientWithDetails(client.id);
+          //     if (clientDetails) {
+          //       await sendPropertyMatchNotification(clientDetails, newProperty);
+          //       console.log(`[POST /api/properties] Notifica WhatsApp inviata al cliente ${client.id} per l'immobile ${newProperty.id}`);
+          //     }
+          //   } catch (notifyError) {
+          //     console.error(`[POST /api/properties] Errore nell'invio della notifica al cliente ${client.id}:`, notifyError);
+          //     // Non blocchiamo il flusso principale se fallisce una notifica
+          //   }
+          // }
         } else {
           console.log(`[POST /api/properties] Nessun cliente corrispondente trovato per l'immobile ${newProperty.id}`);
         }
@@ -1102,29 +1103,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (matchingClients && matchingClients.length > 0) {
             console.log(`[PATCH /api/properties/${propertyId}] Trovati ${matchingClients.length} clienti corrispondenti`);
             
-            // Per ogni cliente corrispondente, invia una notifica WhatsApp
-            for (const client of matchingClients) {
-              try {
-                const clientDetails = await storage.getClientWithDetails(client.id);
-                if (clientDetails) {
-                  // Verifica se il cliente ha già ricevuto una notifica per questo immobile
-                  const existingCommunications = await storage.getCommunicationsByClientId(client.id);
-                  const alreadyNotified = existingCommunications.some(
-                    comm => comm.propertyId === propertyId && comm.type === 'property_match'
-                  );
-                  
-                  if (!alreadyNotified) {
-                    await sendPropertyMatchNotification(clientDetails, updatedProperty);
-                    console.log(`[PATCH /api/properties/${propertyId}] Notifica WhatsApp inviata al cliente ${client.id}`);
-                  } else {
-                    console.log(`[PATCH /api/properties/${propertyId}] Cliente ${client.id} già notificato in precedenza`);
-                  }
-                }
-              } catch (notifyError) {
-                console.error(`[PATCH /api/properties/${propertyId}] Errore nell'invio della notifica al cliente ${client.id}:`, notifyError);
-                // Non blocchiamo il flusso principale se fallisce una notifica
-              }
-            }
+            // DISABILITATO: Per ogni cliente corrispondente, invia una notifica WhatsApp
+            console.log(`[PATCH /api/properties/${propertyId}] Notifiche WhatsApp disabilitate - ${matchingClients.length} clienti corrispondenti non notificati`);
+            // for (const client of matchingClients) {
+            //   try {
+            //     const clientDetails = await storage.getClientWithDetails(client.id);
+            //     if (clientDetails) {
+            //       // Verifica se il cliente ha già ricevuto una notifica per questo immobile
+            //       const existingCommunications = await storage.getCommunicationsByClientId(client.id);
+            //       const alreadyNotified = existingCommunications.some(
+            //         comm => comm.propertyId === propertyId && comm.type === 'property_match'
+            //       );
+            //       
+            //       if (!alreadyNotified) {
+            //         await sendPropertyMatchNotification(clientDetails, updatedProperty);
+            //         console.log(`[PATCH /api/properties/${propertyId}] Notifica WhatsApp inviata al cliente ${client.id}`);
+            //       } else {
+            //         console.log(`[PATCH /api/properties/${propertyId}] Cliente ${client.id} già notificato in precedenza`);
+            //       }
+            //     }
+            //   } catch (notifyError) {
+            //     console.error(`[PATCH /api/properties/${propertyId}] Errore nell'invio della notifica al cliente ${client.id}:`, notifyError);
+            //     // Non blocchiamo il flusso principale se fallisce una notifica
+            //   }
+            // }
           } else {
             console.log(`[PATCH /api/properties/${propertyId}] Nessun cliente corrispondente trovato`);
           }
