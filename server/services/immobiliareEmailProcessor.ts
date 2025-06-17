@@ -80,10 +80,8 @@ export class ImmobiliareEmailProcessor {
       // Trova o crea il cliente
       const clientId = await this.findOrCreateClient(extractedData.client, extractedData.property);
       
-      // Trova l'immobile se presente
-      const propertyId = extractedData.property.address 
-        ? await this.findProperty(extractedData.property)
-        : null;
+      // Trova l'immobile tramite riconoscimento automatico o dati estratti
+      const propertyId = await this.findProperty(extractedData.property, emailData.subject);
 
       // Crea il task
       const taskId = await this.createTask(
@@ -121,10 +119,13 @@ export class ImmobiliareEmailProcessor {
         })
         .where(eq(immobiliareEmails.id, savedEmail.id));
 
-      console.log(`[EMAIL PROCESSOR] ✅ Email elaborata con successo:
+      console.log(`[EMAIL PROCESSOR] ✅ EMAIL PROCESSATA AUTOMATICAMENTE:
+        - Oggetto: ${emailData.subject}
         - Cliente: ${extractedData.client.name} (ID: ${clientId})
+        - Immobile: ${propertyId ? `ID ${propertyId}` : 'Non identificato'}
         - Task creato: ID ${taskId}
-        - Comunicazione: ID ${communicationId}`);
+        - Comunicazione: ID ${communicationId}
+        - Processamento: AUTOMATICO - Nessun intervento manuale richiesto`);
 
     } catch (error) {
       console.error(`[EMAIL PROCESSOR] ❌ Errore nell'elaborazione:`, error);
@@ -342,15 +343,48 @@ ESEMPI NOME CORRETTO:
   /**
    * Trova un immobile esistente
    */
-  private async findProperty(propertyData: ExtractedPropertyData): Promise<number | null> {
-    if (!propertyData.address) return null;
+  private async findProperty(propertyData: ExtractedPropertyData, emailSubject?: string): Promise<number | null> {
+    // Mapping automatico dei riferimenti agli immobili per riconoscimento immediato
+    const propertyReferenceMappings: Record<string, number> = {
+      'Bel': 14,           // Viale Belisario
+      'Belisario': 14,     // Viale Belisario (nome completo)
+      'Abruzzi': 18,       // Viale Abruzzi  
+      '32962055': 18,      // Viale Abruzzi (codice annuncio)
+      'Belfiore': 17,      // Via Belfiore
+      'Via Belfiore': 17   // Via Belfiore (completo)
+    };
 
+    // Prima prova il riconoscimento automatico dall'oggetto email
+    if (emailSubject) {
+      console.log(`[EMAIL PROCESSOR] Analisi oggetto email per riconoscimento: "${emailSubject}"`);
+      
+      for (const [reference, propertyId] of Object.entries(propertyReferenceMappings)) {
+        if (emailSubject.includes(reference)) {
+          console.log(`[EMAIL PROCESSOR] ✅ Riconoscimento automatico: riferimento "${reference}" → immobile ID ${propertyId}`);
+          return propertyId;
+        }
+      }
+    }
+
+    // Se non trova riferimenti nell'oggetto, prova con l'indirizzo estratto dai dati
+    if (!propertyData.address) {
+      console.log(`[EMAIL PROCESSOR] Nessun riferimento trovato nell'oggetto e nessun indirizzo estratto`);
+      return null;
+    }
+
+    // Cerca per indirizzo esatto
     const existingProperties = await db.select()
       .from(properties)
       .where(eq(properties.address, propertyData.address))
       .limit(1);
 
-    return existingProperties.length > 0 ? existingProperties[0].id : null;
+    if (existingProperties.length > 0) {
+      console.log(`[EMAIL PROCESSOR] Immobile trovato per indirizzo: ${propertyData.address} → ID ${existingProperties[0].id}`);
+      return existingProperties[0].id;
+    }
+
+    console.log(`[EMAIL PROCESSOR] Nessun immobile trovato per indirizzo: ${propertyData.address}`);
+    return null;
   }
 
   /**
