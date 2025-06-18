@@ -58,6 +58,7 @@ export default function PropertiesPage() {
   };
   
   const handleViewProperty = (property: PropertyWithDetails) => {
+    console.log('Navigating to property detail:', property.id);
     // Naviga alla pagina di dettaglio dell'immobile
     navigate(`/properties/${property.id}`);
   };
