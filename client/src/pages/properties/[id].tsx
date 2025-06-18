@@ -920,6 +920,7 @@ export default function PropertyDetailPage() {
                                 queryClient.invalidateQueries({ queryKey: ["/api/properties", id, "communications"] });
                               }
                             }}
+                            onViewCommunication={handleViewCommunication}
                           />
                         ))}
                       </TooltipProvider>
@@ -1136,6 +1137,27 @@ export default function PropertyDetailPage() {
           });
         }}
       />
+
+      {/* Communication Details Dialog */}
+      {selectedCommunication && (
+        <CommunicationDetailsDialog 
+          isOpen={isCommDetailsDialogOpen}
+          onClose={() => {
+            setIsCommDetailsDialogOpen(false);
+            setSelectedCommunication(null);
+          }}
+          communication={selectedCommunication}
+          clientName={(() => {
+            if (selectedCommunication.direction === "inbound" && selectedCommunication.clientId) {
+              return clientNamesById[selectedCommunication.clientId] || `Cliente #${selectedCommunication.clientId}`;
+            }
+            if (selectedCommunication.direction === "inbound" && !selectedCommunication.clientId) {
+              return "Contatto non registrato";
+            }
+            return "Sistema";
+          })()}
+        />
+      )}
     </div>
   );
 }
@@ -1145,12 +1167,12 @@ interface PropertyCommunicationRowProps {
   communication: any;
   clientName: string;
   onStatusUpdate: (communication?: any) => void;
+  onViewCommunication: (communication: any) => void;
 }
 
-function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }: PropertyCommunicationRowProps) {
+function PropertyCommunicationRow({ communication, clientName, onStatusUpdate, onViewCommunication }: PropertyCommunicationRowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   // Update management status mutation
   const updateManagementStatusMutation = useMutation({
@@ -1309,7 +1331,7 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }:
         <div className="flex justify-end gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => setIsViewDialogOpen(true)}>
+              <Button variant="ghost" size="sm" onClick={() => onViewCommunication(communication)}>
                 <i className="fas fa-eye text-gray-500"></i>
               </Button>
             </TooltipTrigger>
