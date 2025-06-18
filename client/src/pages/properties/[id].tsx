@@ -125,6 +125,8 @@ export default function PropertyDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
   const [appointmentCommunication, setAppointmentCommunication] = useState<any>(null);
+  const [selectedCommunication, setSelectedCommunication] = useState<any>(null);
+  const [isCommDetailsDialogOpen, setIsCommDetailsDialogOpen] = useState(false);
   console.log("PropertyDetailPage - ID:", id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -133,6 +135,12 @@ export default function PropertyDetailPage() {
   const handleCreateAppointment = (communication: any) => {
     setAppointmentCommunication(communication);
     setShowCreateAppointmentDialog(true);
+  };
+
+  // Handle communication details view
+  const handleViewCommunication = (communication: any) => {
+    setSelectedCommunication(communication);
+    setIsCommDetailsDialogOpen(true);
   };
   
   // Set up form with zodResolver
@@ -1142,6 +1150,7 @@ interface PropertyCommunicationRowProps {
 function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }: PropertyCommunicationRowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   // Update management status mutation
   const updateManagementStatusMutation = useMutation({
@@ -1300,7 +1309,7 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }:
         <div className="flex justify-end gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={() => setIsViewDialogOpen(true)}>
                 <i className="fas fa-eye text-gray-500"></i>
               </Button>
             </TooltipTrigger>
@@ -1311,6 +1320,152 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate }:
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+// Communication Details Dialog Component
+function CommunicationDetailsDialog({ 
+  isOpen, 
+  onClose, 
+  communication, 
+  clientName 
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  communication: any;
+  clientName: string;
+}) {
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/D";
+    try {
+      const date = parseISO(dateString);
+      return format(date, "dd/MM/yyyy HH:mm", { locale: it });
+    } catch {
+      return "N/D";
+    }
+  };
+
+  const getTypeBadge = (type: string) => {
+    const typeConfig = {
+      email: { label: "Email", color: "bg-blue-100 text-blue-800" },
+      whatsapp: { label: "WhatsApp", color: "bg-green-100 text-green-800" },
+      phone: { label: "Telefono", color: "bg-purple-100 text-purple-800" },
+      sms: { label: "SMS", color: "bg-yellow-100 text-yellow-800" },
+      visit: { label: "Visita", color: "bg-orange-100 text-orange-800" }
+    };
+    
+    const config = typeConfig[type as keyof typeof typeConfig] || { 
+      label: type?.charAt(0).toUpperCase() + type?.slice(1) || "Altro", 
+      color: "bg-gray-100 text-gray-800" 
+    };
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+        {config.label}
+      </span>
+    );
+  };
+
+  const getDirectionBadge = (direction: string) => {
+    return direction === "inbound" ? (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <i className="fas fa-arrow-down mr-1"></i>
+        In entrata
+      </span>
+    ) : (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <i className="fas fa-arrow-up mr-1"></i>
+        In uscita
+      </span>
+    );
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Dettagli Comunicazione</DialogTitle>
+          <DialogDescription>
+            Visualizza tutti i dettagli della comunicazione selezionata
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Header Info */}
+          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div>
+              <div className="text-sm text-gray-500 mb-1">Data e ora</div>
+              <div className="font-medium">
+                {formatDate(communication.createdAt?.toString() || "")}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-500 mb-1">Cliente</div>
+              <div className="font-medium">{clientName}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-500 mb-1">Tipo</div>
+              <div>{getTypeBadge(communication.type)}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-500 mb-1">Direzione</div>
+              <div>{getDirectionBadge(communication.direction)}</div>
+            </div>
+          </div>
+
+          {/* Subject */}
+          {communication.subject && (
+            <div>
+              <div className="text-sm text-gray-500 mb-2">Oggetto</div>
+              <div className="font-medium text-lg">
+                {communication.subject}
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          <div>
+            <div className="text-sm text-gray-500 mb-2">Contenuto</div>
+            <div className="p-4 bg-white border rounded-lg">
+              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                {communication.content || "Nessun contenuto disponibile"}
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Info */}
+          {(communication.threadId || communication.propertyId || communication.sharedPropertyId) && (
+            <div className="grid grid-cols-1 gap-4 p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm font-medium text-gray-700 mb-2">Informazioni aggiuntive</div>
+              {communication.threadId && (
+                <div>
+                  <span className="text-sm text-gray-500">ID Thread: </span>
+                  <span className="text-sm font-mono">{communication.threadId}</span>
+                </div>
+              )}
+              {communication.propertyId && (
+                <div>
+                  <span className="text-sm text-gray-500">ID Immobile: </span>
+                  <span className="text-sm font-mono">{communication.propertyId}</span>
+                </div>
+              )}
+              {communication.sharedPropertyId && (
+                <div>
+                  <span className="text-sm text-gray-500">ID Immobile Condiviso: </span>
+                  <span className="text-sm font-mono">{communication.sharedPropertyId}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Chiudi
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
