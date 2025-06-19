@@ -10,16 +10,16 @@ export function standardizeAddress(address: string): string {
 
   let cleanAddress = address.trim();
   
-  // Primo: rimuovi informazioni geografiche dettagliate (municipio, regione, codice postale, etc)
-  cleanAddress = cleanAddress.replace(/,?\s*(Municipio\s+\d+|Lombardia|Italia|\d{5}).*$/gi, '');
-  cleanAddress = cleanAddress.replace(/,?\s*(Bande\s+\w+).*$/gi, '');
-  cleanAddress = cleanAddress.replace(/,?\s*Milano.*$/i, '');
+  // Rimuovi tutto dopo Milano (incluse le info aggiuntive)
+  cleanAddress = cleanAddress.replace(/,\s*Milano.*$/i, '');
   
-  // Secondo: estrai e semplifica il nome della strada
-  // Per "Via Francesco Primaticcio" -> "Via Primaticcio"
+  // Rimuovi informazioni geografiche dettagliate specifiche
+  cleanAddress = cleanAddress.replace(/,\s*(Bande\s+\w+|Municipio\s+\d+|Lombardia|Italia|\d{5}).*$/gi, '');
+  
+  // Semplifica il nome della strada rimuovendo nomi propri comuni
   cleanAddress = cleanAddress.replace(/\b(Francesco|Giuseppe|Antonio|Giovanni|Luigi|Carlo|Roberto|Marco|Paolo|Andrea)\s+/gi, '');
   
-  // Terzo: pattern per riconoscere diversi formati di indirizzo
+  // Pattern matching per diversi formati
   const patterns = [
     // "Via Nome 123" -> "Via Nome, 123, Milano"
     /^(Via|Viale|Piazza|Corso)\s+([^,0-9]+)\s+(\d+[A-Za-z]*)$/i,
@@ -46,7 +46,7 @@ export function standardizeAddress(address: string): string {
     return `${tipo} ${nome}, Milano`;
   }
   
-  // Se non corrisponde a nessun pattern, aggiungi semplicemente Milano
+  // Fallback: aggiungi semplicemente Milano
   return `${cleanAddress}, Milano`;
 }
 
