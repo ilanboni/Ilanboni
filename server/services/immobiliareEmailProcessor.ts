@@ -351,7 +351,9 @@ ESEMPI NOME CORRETTO:
       'Abruzzi': 18,       // Viale Abruzzi  
       '32962055': 18,      // Viale Abruzzi (codice annuncio)
       'Belfiore': 17,      // Via Belfiore
-      'Via Belfiore': 17   // Via Belfiore (completo)
+      'Via Belfiore': 17,  // Via Belfiore (completo)
+      'Prim': 19,          // Via Primaticcio
+      'Primaticcio': 19    // Via Primaticcio (nome completo)
     };
 
     // Prima prova il riconoscimento automatico dall'oggetto email
