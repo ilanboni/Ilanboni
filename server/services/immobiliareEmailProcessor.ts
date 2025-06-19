@@ -352,8 +352,9 @@ ESEMPI NOME CORRETTO:
       '32962055': 18,      // Viale Abruzzi (codice annuncio)
       'Belfiore': 17,      // Via Belfiore
       'Via Belfiore': 17,  // Via Belfiore (completo)
-      'Prim': 19,          // Via Primaticcio
-      'Primaticcio': 19    // Via Primaticcio (nome completo)
+      'Prim': 19,                    // Via Primaticcio
+      'Primaticcio': 19,             // Via Primaticcio (nome completo)
+      'Francesco Primaticcio': 19    // Via Francesco Primaticcio (nome completo)
     };
 
     // Prima prova il riconoscimento automatico dall'oggetto email
@@ -363,6 +364,18 @@ ESEMPI NOME CORRETTO:
       for (const [reference, propertyId] of Object.entries(propertyReferenceMappings)) {
         if (emailSubject.includes(reference)) {
           console.log(`[EMAIL PROCESSOR] ✅ Riconoscimento automatico: riferimento "${reference}" → immobile ID ${propertyId}`);
+          return propertyId;
+        }
+      }
+    }
+
+    // Se non trova nell'oggetto, cerca anche nel contenuto dell'email
+    if (propertyData.address) {
+      console.log(`[EMAIL PROCESSOR] Analisi contenuto email per riconoscimento: "${propertyData.address}"`);
+      
+      for (const [reference, propertyId] of Object.entries(propertyReferenceMappings)) {
+        if (propertyData.address.includes(reference)) {
+          console.log(`[EMAIL PROCESSOR] ✅ Riconoscimento automatico nel contenuto: riferimento "${reference}" → immobile ID ${propertyId}`);
           return propertyId;
         }
       }
