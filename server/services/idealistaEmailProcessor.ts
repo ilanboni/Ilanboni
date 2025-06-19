@@ -78,6 +78,19 @@ function getSearchParametersFromRef(propertyRef: string): {
     };
   }
   
+  // Default per Via Primaticcio
+  if (refLower.includes('prim') || refLower.includes('primaticcio')) {
+    return {
+      maxPrice: 660000, // +10% di 600k
+      minSize: 90,      // -10% di 100mq
+      searchArea: {
+        lat: 45.4723,   // Coordinate Via Primaticcio
+        lng: 9.1378,
+        radius: 600     // 600m di raggio
+      }
+    };
+  }
+  
   // Default generico per Milano
   return {
     maxPrice: 550000,
