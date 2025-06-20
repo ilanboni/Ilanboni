@@ -765,21 +765,45 @@ export default function ClientDetailPage() {
                                   // Check for circular search area format (center + radius)
                                   if (searchAreaData?.center && searchAreaData?.radius) {
                                     console.log("Rendering circular search area:", searchAreaData);
-                                    return (
-                                      <>
-                                        <Circle
-                                          center={[searchAreaData.center.lat, searchAreaData.center.lng]}
-                                          radius={searchAreaData.radius}
-                                          pathOptions={{
-                                            color: "#3b82f6",
-                                            fillColor: "#3b82f6",
-                                            fillOpacity: 0.2,
-                                            weight: 2
-                                          }}
-                                        />
-                                        <Marker position={[searchAreaData.center.lat, searchAreaData.center.lng]} />
-                                      </>
-                                    );
+                                    
+                                    // Validate that center has lat/lng coordinates
+                                    if (typeof searchAreaData.center === 'object' && 
+                                        searchAreaData.center.lat && 
+                                        searchAreaData.center.lng &&
+                                        typeof searchAreaData.center.lat === 'number' &&
+                                        typeof searchAreaData.center.lng === 'number') {
+                                      return (
+                                        <>
+                                          <Circle
+                                            center={[searchAreaData.center.lat, searchAreaData.center.lng]}
+                                            radius={searchAreaData.radius}
+                                            pathOptions={{
+                                              color: "#3b82f6",
+                                              fillColor: "#3b82f6",
+                                              fillOpacity: 0.2,
+                                              weight: 2
+                                            }}
+                                          />
+                                          <Marker position={[searchAreaData.center.lat, searchAreaData.center.lng]} />
+                                        </>
+                                      );
+                                    } else {
+                                      // Center is invalid (string address instead of coordinates)
+                                      console.warn("Invalid center data - expected lat/lng coordinates but got:", searchAreaData.center);
+                                      return (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 bg-opacity-90 z-[1000]">
+                                          <div className="text-center p-4">
+                                            <p className="text-sm text-gray-600 mb-2">Area di ricerca non visualizzabile</p>
+                                            <p className="text-xs text-gray-500">
+                                              {typeof searchAreaData.center === 'string' ? 
+                                                `Zona: ${searchAreaData.center}` : 
+                                                'Dati di posizione non validi'
+                                              }
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
                                   }
                                   
                                   // Check for polygon GeoJSON format
