@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import { db } from '../db';
-import { calendarEvents } from '@shared/schema';
+import { calendarEvents, oauthTokens } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 interface CalendarEventData {
@@ -19,21 +19,41 @@ class GoogleCalendarService {
   private isConfigured = false;
 
   constructor() {
-    this.initializeCalendar();
+    // Initialize calendar asynchronously
+    this.initializeCalendar().catch(error => {
+      console.error('[CALENDAR] Failed to initialize:', error);
+      this.isConfigured = false;
+    });
   }
 
-  private initializeCalendar() {
+  // Method to reinitialize after OAuth token update
+  async reinitialize() {
+    await this.initializeCalendar();
+  }
+
+  private async initializeCalendar() {
     const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-    const refreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN;
 
-    if (!clientId || !clientSecret || !refreshToken) {
-      console.log('[CALENDAR] Google Calendar credentials not configured');
+    if (!clientId || !clientSecret) {
+      console.log('[CALENDAR] Google Calendar client credentials not configured');
       this.isConfigured = false;
       return;
     }
 
     try {
+      // Get refresh token from database instead of environment variable
+      const [tokenRecord] = await db.select()
+        .from(oauthTokens)
+        .where(eq(oauthTokens.service, 'google_calendar'))
+        .limit(1);
+
+      if (!tokenRecord?.refreshToken) {
+        console.log('[CALENDAR] Google Calendar refresh token not found in database');
+        this.isConfigured = false;
+        return;
+      }
+
       // Use the current development URL for redirect URI
       const redirectUri = process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}/oauth/callback`
@@ -44,7 +64,7 @@ class GoogleCalendarService {
         clientSecret,
         redirectUri
       );
-      auth.setCredentials({ refresh_token: refreshToken });
+      auth.setCredentials({ refresh_token: tokenRecord.refreshToken });
       
       this.calendar = google.calendar({ version: 'v3', auth });
       this.isConfigured = true;

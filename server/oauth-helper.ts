@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { google } from 'googleapis';
+import { db } from './db';
+import { oauthTokens } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
 // Determina l'URL base dell'applicazione
 const getBaseUrl = () => {
@@ -77,16 +80,36 @@ export async function handleOAuthCallback(req: Request, res: Response) {
     const { tokens } = await oauth2Client.getToken(code);
     
     if (tokens.refresh_token) {
-      // Configurazione automatica del refresh token
-      process.env.GOOGLE_CALENDAR_REFRESH_TOKEN = tokens.refresh_token;
-      console.log('[OAUTH] Google Calendar configured successfully');
+      // Salva il refresh token nel database in modo permanente
+      await db.insert(oauthTokens).values({
+        service: 'google_calendar',
+        accessToken: tokens.access_token || null,
+        refreshToken: tokens.refresh_token,
+        expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        scopes: SCOPES.join(',')
+      }).onConflictDoUpdate({
+        target: oauthTokens.service,
+        set: {
+          accessToken: tokens.access_token || null,
+          refreshToken: tokens.refresh_token,
+          expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+          scopes: SCOPES.join(','),
+          updatedAt: new Date()
+        }
+      });
+      
+      console.log('[OAUTH] Google Calendar configured successfully and saved to database');
+      
+      // Reinitialize Google Calendar service with new tokens
+      const { googleCalendarService } = await import('./routes');
+      await googleCalendarService.reinitialize();
       
       res.send(`
         <html>
           <head><title>OAuth Success</title></head>
           <body>
             <h1>✅ Google Calendar configurato con successo!</h1>
-            <p>Il calendario è ora sincronizzato. Gli appuntamenti creati nell'app appariranno automaticamente nel tuo Google Calendar.</p>
+            <p>Il calendario è ora sincronizzato permanentemente. Gli appuntamenti creati nell'app appariranno automaticamente nel tuo Google Calendar.</p>
             <p><a href="/calendar">Vai al calendario</a></p>
             <script>
               setTimeout(() => {

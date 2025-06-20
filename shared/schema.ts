@@ -2,6 +2,18 @@ import { pgTable, text, serial, integer, boolean, date, time, jsonb, timestamp }
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// OAuth tokens storage
+export const oauthTokens = pgTable("oauth_tokens", {
+  id: serial("id").primaryKey(),
+  service: text("service").notNull().unique(), // "google_calendar", "gmail", etc.
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token").notNull(),
+  expiresAt: timestamp("expires_at"),
+  scopes: text("scopes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // Users (agents)
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
