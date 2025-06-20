@@ -735,7 +735,10 @@ export default function ClientDetailPage() {
                                     searchAreaData = client.buyer.searchArea;
                                   }
                                   
-                                  if (searchAreaData?.center) {
+                                  if (searchAreaData?.center && 
+                                      typeof searchAreaData.center === 'object' && 
+                                      searchAreaData.center.lat && 
+                                      searchAreaData.center.lng) {
                                     return [searchAreaData.center.lat, searchAreaData.center.lng];
                                   }
                                 } catch (error) {
@@ -790,19 +793,7 @@ export default function ClientDetailPage() {
                                     } else {
                                       // Center is invalid (string address instead of coordinates)
                                       console.warn("Invalid center data - expected lat/lng coordinates but got:", searchAreaData.center);
-                                      return (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 bg-opacity-90 z-[1000]">
-                                          <div className="text-center p-4">
-                                            <p className="text-sm text-gray-600 mb-2">Area di ricerca non visualizzabile</p>
-                                            <p className="text-xs text-gray-500">
-                                              {typeof searchAreaData.center === 'string' ? 
-                                                `Zona: ${searchAreaData.center}` : 
-                                                'Dati di posizione non validi'
-                                              }
-                                            </p>
-                                          </div>
-                                        </div>
-                                      );
+                                      return null; // Don't render anything to avoid map errors
                                     }
                                   }
                                   

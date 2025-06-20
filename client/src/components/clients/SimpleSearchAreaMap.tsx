@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Polygon, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, Circle, Marker, Popup } from "react-leaflet";
 import { useEffect, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -16,73 +16,70 @@ interface SimpleSearchAreaMapProps {
 }
 
 export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapProps) {
-  const [polygonCoords, setPolygonCoords] = useState<Array<[number, number]>>([]);
   const [mapCenter, setMapCenter] = useState<[number, number]>([45.4640, 9.1896]);
-  const [hasValidData, setHasValidData] = useState(false);
+  const [areaType, setAreaType] = useState<'none' | 'polygon' | 'circle' | 'address'>('none');
+  const [polygonCoords, setPolygonCoords] = useState<Array<[number, number]>>([]);
+  const [circleData, setCircleData] = useState<{center: [number, number], radius: number} | null>(null);
+  const [addressInfo, setAddressInfo] = useState<string>("");
 
   useEffect(() => {
-    console.log("🔍 [SimpleSearchAreaMap] Inizializzazione con searchArea:", searchArea);
-    
     if (!searchArea) {
-      console.log("❌ [SimpleSearchAreaMap] Nessun searchArea fornito");
-      setHasValidData(false);
+      setAreaType('none');
       return;
     }
 
     try {
       let areaData = searchArea;
       if (typeof searchArea === 'string') {
-        console.log("📝 [SimpleSearchAreaMap] Parsing JSON string");
         areaData = JSON.parse(searchArea);
       }
 
-      console.log("📊 [SimpleSearchAreaMap] Dati area processati:", areaData);
+      // Handle circular search areas
+      if (areaData?.type === 'circle') {
+        if (typeof areaData.center === 'string') {
+          // Center is an address string, show as text overlay
+          setAreaType('address');
+          setAddressInfo(areaData.center);
+          setMapCenter([45.4640, 9.1896]); // Default Milano
+        } else if (areaData.center?.lat && areaData.center?.lng) {
+          // Center has valid coordinates
+          setAreaType('circle');
+          setCircleData({
+            center: [areaData.center.lat, areaData.center.lng],
+            radius: areaData.radius || 500
+          });
+          setMapCenter([areaData.center.lat, areaData.center.lng]);
+        } else {
+          setAreaType('none');
+        }
+        return;
+      }
 
+      // Handle polygon search areas
       if (areaData?.geometry?.coordinates?.[0]) {
-        console.log("✅ [SimpleSearchAreaMap] Coordinate trovate:", areaData.geometry.coordinates[0]);
-        
-        // Converti da GeoJSON [lng, lat] a Leaflet [lat, lng]
         const leafletCoords: Array<[number, number]> = areaData.geometry.coordinates[0].map(
           (coord: number[]) => [coord[1], coord[0]]
         );
         
-        console.log("🗺️ [SimpleSearchAreaMap] Coordinate Leaflet:", leafletCoords);
-        
-        // Calcola centro per centrare la mappa
+        // Calculate center
         const avgLat = leafletCoords.reduce((sum, coord) => sum + coord[0], 0) / leafletCoords.length;
         const avgLng = leafletCoords.reduce((sum, coord) => sum + coord[1], 0) / leafletCoords.length;
         
-        console.log("📍 [SimpleSearchAreaMap] Centro mappa calcolato:", [avgLat, avgLng]);
-        
+        setAreaType('polygon');
         setPolygonCoords(leafletCoords);
         setMapCenter([avgLat, avgLng]);
-        setHasValidData(true);
-        console.log("✅ [SimpleSearchAreaMap] Setup completato con successo");
-      } else {
-        console.log("❌ [SimpleSearchAreaMap] Coordinate non valide o mancanti");
-        setHasValidData(false);
+        return;
       }
+
+      setAreaType('none');
     } catch (error) {
-      console.error("❌ [SimpleSearchAreaMap] Errore nel parsing dell'area di ricerca:", error);
-      setHasValidData(false);
+      console.error("Errore nel parsing dell'area di ricerca:", error);
+      setAreaType('none');
     }
   }, [searchArea]);
 
-  // Poligono di test per Milano - hardcoded per debug
-  const testPolygon: Array<[number, number]> = [
-    [45.4640, 9.1896],  // Centro Milano
-    [45.4740, 9.1996],  // Nord-Est
-    [45.4540, 9.1996],  // Sud-Est  
-    [45.4540, 9.1796],  // Sud-Ovest
-    [45.4640, 9.1796]   // Nord-Ovest
-  ];
-
-  console.log("🗺️ Test polygon:", testPolygon);
-  console.log("🗺️ Real polygon coords:", polygonCoords);
-  console.log("🗺️ Has valid data:", hasValidData);
-
   return (
-    <div className="h-64 w-full rounded-lg overflow-hidden border">
+    <div className="h-64 w-full rounded-lg overflow-hidden border relative">
       <MapContainer
         center={mapCenter}
         zoom={13}
@@ -94,46 +91,48 @@ export default function SimpleSearchAreaMap({ searchArea }: SimpleSearchAreaMapP
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         
-        {/* Poligono reale dell'area di ricerca del cliente */}
-        {hasValidData && polygonCoords.length > 0 && (
+        {/* Render polygon area */}
+        {areaType === 'polygon' && polygonCoords.length > 0 && (
           <Polygon
             positions={polygonCoords}
             pathOptions={{
-              color: "#22c55e",
-              fillColor: "#22c55e", 
-              fillOpacity: 0.3,
-              weight: 3,
+              color: "#3b82f6",
+              fillColor: "#3b82f6", 
+              fillOpacity: 0.2,
+              weight: 2,
               opacity: 0.8
             }}
           />
         )}
         
-        {/* TEST POLYGON - per debug */}
-        <Polygon 
-          positions={[[[45.4640, 9.1896], [45.4740, 9.1996], [45.4540, 9.1996], [45.4640, 9.1896]]]}
-          pathOptions={{ 
-            color: '#ff0000',
-            fillColor: '#ff0000', 
-            fillOpacity: 0.8,
-            weight: 10,
-            opacity: 1 
-          }} 
-        />
-        <Polygon
-          positions={[testPolygon]}
-          pathOptions={{
-            color: "#0000ff",
-            fillColor: "#0000ff", 
-            fillOpacity: 0.5,
-            weight: 5,
-            opacity: 1
-          }}
-        />
+        {/* Render circle area */}
+        {areaType === 'circle' && circleData && (
+          <Circle
+            center={circleData.center}
+            radius={circleData.radius}
+            pathOptions={{
+              color: "#3b82f6",
+              fillColor: "#3b82f6",
+              fillOpacity: 0.2,
+              weight: 2
+            }}
+          />
+        )}
         
         <Marker position={mapCenter}>
-          <Popup>Centro area di ricerca</Popup>
+          <Popup>
+            {areaType === 'address' ? `Zona: ${addressInfo}` : 'Centro area di ricerca'}
+          </Popup>
         </Marker>
       </MapContainer>
+      
+      {/* Show address info overlay when we have an address string */}
+      {areaType === 'address' && (
+        <div className="absolute bottom-2 left-2 right-2 bg-white bg-opacity-90 p-2 rounded text-sm z-[1000]">
+          <div className="text-gray-600 font-medium">Area di ricerca:</div>
+          <div className="text-gray-800">{addressInfo}</div>
+        </div>
+      )}
     </div>
   );
 }
