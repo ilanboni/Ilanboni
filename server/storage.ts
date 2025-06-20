@@ -872,57 +872,7 @@ export class MemStorage implements IStorage {
     );
   }
   
-  async getAppointmentsByPropertyId(propertyId: number): Promise<Appointment[]> {
-    // Use database query with JOIN to include client details
-    const appointmentsWithClients = await db
-      .select({
-        // Appointment fields
-        id: appointments.id,
-        clientId: appointments.clientId,
-        propertyId: appointments.propertyId,
-        date: appointments.date,
-        time: appointments.time,
-        type: appointments.type,
-        status: appointments.status,
-        feedback: appointments.feedback,
-        notes: appointments.notes,
-        createdAt: appointments.createdAt,
-        // Client fields mapped to camelCase
-        clientFirstName: clients.first_name,
-        clientLastName: clients.last_name,
-        clientPhone: clients.phone,
-        clientEmail: clients.email,
-        clientType: clients.type,
-        clientSalutation: clients.salutation
-      })
-      .from(appointments)
-      .leftJoin(clients, eq(appointments.clientId, clients.id))
-      .where(eq(appointments.propertyId, propertyId))
-      .orderBy(desc(appointments.date));
-    
-    // Transform results to include client data in the expected format
-    return appointmentsWithClients.map(row => ({
-      id: row.id,
-      clientId: row.clientId,
-      propertyId: row.propertyId,
-      date: row.date,
-      time: row.time,
-      type: row.type,
-      status: row.status,
-      feedback: row.feedback,
-      notes: row.notes,
-      createdAt: row.createdAt,
-      client: row.clientFirstName ? {
-        id: row.clientId,
-        firstName: row.clientFirstName,
-        lastName: row.clientLastName,
-        phone: row.clientPhone,
-        email: row.clientEmail,
-        type: row.clientType,
-        salutation: row.clientSalutation
-      } : null
-    }));
-  }
+
   
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
     const id = this.appointmentIdCounter++;
