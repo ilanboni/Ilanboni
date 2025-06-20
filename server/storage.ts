@@ -708,58 +708,7 @@ export class MemStorage implements IStorage {
     return properties;
   }
   
-  async getPropertyWithDetails(id: number): Promise<PropertyWithDetails | undefined> {
-    const property = this.propertyStore.get(id);
-    if (!property) return undefined;
-    
-    let propertyWithDetails: PropertyWithDetails = { ...property };
-    
-    // Add shared property details if property is shared
-    if (property.isShared) {
-      const sharedProperty = Array.from(this.sharedPropertyStore.values()).find(
-        (shared) => shared.propertyId === property.id
-      );
-      if (sharedProperty) {
-        propertyWithDetails.sharedDetails = sharedProperty;
-      }
-    }
-    
-    // Add appointments
-    const appointments = Array.from(this.appointmentStore.values()).filter(
-      (appointment) => appointment.propertyId === property.id
-    );
-    if (appointments.length > 0) {
-      propertyWithDetails.appointments = appointments;
-    }
-    
-    // Add communications related to this property
-    const communications = Array.from(this.communicationStore.values()).filter(
-      (communication) => communication.propertyId === property.id
-    );
-    if (communications.length > 0) {
-      propertyWithDetails.communications = communications;
-      
-      // Add last communication
-      const sortedComms = [...communications].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      if (sortedComms.length > 0) {
-        propertyWithDetails.lastCommunication = sortedComms[0];
-      }
-    }
-    
-    // Find interested clients
-    const interestedClients: ClientWithDetails[] = [];
-    
-    // Buyers matched to this property
-    const matchedBuyers = await this.matchBuyersForProperty(property.id);
-    if (matchedBuyers.length > 0) {
-      propertyWithDetails.interestedClients = matchedBuyers;
-    }
-    
-    return propertyWithDetails;
-  }
+
   
   async createProperty(property: InsertProperty): Promise<Property> {
     const id = this.propertyIdCounter++;
@@ -924,9 +873,21 @@ export class MemStorage implements IStorage {
   }
   
   async getAppointmentsByPropertyId(propertyId: number): Promise<Appointment[]> {
-    return Array.from(this.appointmentStore.values()).filter(
+    const appointments = Array.from(this.appointmentStore.values()).filter(
       (appointment) => appointment.propertyId === propertyId
     );
+    
+    // Add client details to each appointment
+    return appointments.map(appointment => {
+      const extendedAppointment: any = { ...appointment };
+      
+      const client = this.clientStore.get(appointment.clientId);
+      if (client) {
+        extendedAppointment.client = client;
+      }
+      
+      return extendedAppointment;
+    });
   }
   
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
