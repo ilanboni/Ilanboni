@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Google Calendar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        .auth-link {
+            display: inline-block;
+            background: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .auth-link:hover {
+            background: #3367d6;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Configurazione Google Calendar</h1>
+        
+        <div class="step">
+            <h3>Passo 1: Autorizza l'accesso</h3>
+            <p>Clicca sul link qui sotto per autorizzare l'accesso al tuo Google Calendar:</p>
+            <a href="https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar&prompt=consent&response_type=code&client_id=876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fclient-management-system-ilanboni.replit.app%2Foauth%2Fcallback" 
+               class="auth-link" target="_blank">
+                📅 Autorizza Google Calendar
+            </a>
+        </div>
+
+        <div class="step">
+            <h3>Passo 2: Verifica stato</h3>
+            <p>Dopo l'autorizzazione, verifica che tutto funzioni:</p>
+            <button onclick="checkStatus()" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                Verifica Status
+            </button>
+            <div id="status-result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Cosa succede ora</h3>
+            <p>Una volta completata l'autorizzazione:</p>
+            <ul>
+                <li>I messaggi WhatsApp di conferma appuntamento useranno il formato italiano (es. "Lunedì 24/6")</li>
+                <li>Gli eventi verranno creati automaticamente nel tuo Google Calendar</li>
+                <li>Ogni appuntamento includerà nome cliente, telefono e indirizzo</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function checkStatus() {
+            const statusDiv = document.getElementById('status-result');
+            statusDiv.innerHTML = '<p>Verifica in corso...</p>';
+            
+            try {
+                const response = await fetch('/api/calendar/status');
+                const data = await response.json();
+                
+                if (data.googleCalendarConfigured) {
+                    statusDiv.innerHTML = '<div class="status success">✅ Google Calendar configurato correttamente!</div>';
+                    
+                    // Test creazione evento
+                    const testResponse = await fetch('/api/calendar/events', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            title: 'Test Configurazione',
+                            description: 'Test automatico configurazione Google Calendar',
+                            startDate: new Date(Date.now() + 3600000).toISOString(),
+                            endDate: new Date(Date.now() + 7200000).toISOString(),
+                            location: 'Test Location'
+                        })
+                    });
+                    
+                    if (testResponse.ok) {
+                        statusDiv.innerHTML += '<div class="status success">✅ Test evento creato con successo!</div>';
+                    }
+                } else {
+                    statusDiv.innerHTML = '<div class="status error">❌ Configurazione non completa</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status error">❌ Errore durante la verifica</div>';
+            }
+        }
+    </script>
+</body>
+</html>
