@@ -101,7 +101,7 @@ export async function handleOAuthCallback(req: Request, res: Response) {
       console.log('[OAUTH] Google Calendar configured successfully and saved to database');
       
       // Reinitialize Google Calendar service with new tokens
-      const { googleCalendarService } = await import('./routes');
+      const { googleCalendarService } = await import('./services/googleCalendar');
       await googleCalendarService.reinitialize();
       
       res.send(`

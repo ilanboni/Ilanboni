@@ -42,6 +42,9 @@ import geocodeRouter from "./routes/geocode";
 import { registerAIAssistantRoutes } from "./routes/aiAssistant";
 import virtualAssistantRouter from "./routes/virtualAssistant";
 
+// Export Google Calendar service for external access
+export { googleCalendarService } from "./services/googleCalendar";
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Registra le route per il webhook forwarder
   const webhookForwarder = getWebhookForwarder();
