@@ -283,6 +283,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Improved name extraction patterns for immobiliare.it emails
         const namePatterns = [
+          // Pattern for immobiliare.it message content - most specific first
+          /Hai un nuovo messaggio:\s*\n\s*([a-z]+)\s+([a-z]+)/i,
           // Pattern for structured name/surname in content (more specific)
           /\n\s*([A-Z][A-Z\s]{2,})\s*\n\s*NOME/i,
           /\n\s*([A-Z][A-Z\s]{2,})\s*\n\s*COGNOME/i,
@@ -320,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (cleanName) {
               // Filter out common non-name words
-              const invalidWords = /^(Gentile|Cliente|Messaggio|Telefono|Email|TELEFONO|Contatto|Image|Link|Icona|dal|numero|ricevuta|telefonata|Immobiliare|Milano|Roma|Torino|Napoli|Appartamento|Casa|Viale|Via|Piazza|Cavour|NOME|COGNOME|Note|Data|Ora|Tipo|Giorno)$/i;
+              const invalidWords = /^(Gentile|Cliente|Messaggio|Telefono|Email|TELEFONO|Contatto|Contatti|Image|Link|Icona|dal|numero|ricevuta|telefonata|Immobiliare|Milano|Roma|Torino|Napoli|Appartamento|Casa|Viale|Via|Piazza|Cavour|NOME|COGNOME|Note|Data|Ora|Tipo|Giorno)$/i;
               
               if (!cleanName.match(invalidWords)) {
                 const nameParts = cleanName.split(/\s+/).filter(part => 
