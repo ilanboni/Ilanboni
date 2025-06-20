@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurazione OAuth Google - Istruzioni</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        .code-block {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .highlight {
+            background: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .current-url {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Configurazione Google OAuth - Fix 404</h1>
+        
+        <div class="current-url">
+            <h3>URL attuale di sviluppo:</h3>
+            <strong>https://3f0d593a-88b2-4cea-ad03-76eee0e3b2f0-00-v4134pmpwrv3.janeway.replit.dev</strong>
+        </div>
+
+        <div class="step">
+            <h3>Problema</h3>
+            <p>Il callback OAuth restituisce 404 perché l'URL di redirect non è autorizzato in Google Cloud Console.</p>
+        </div>
+
+        <div class="step">
+            <h3>Soluzione: Aggiorna Redirect URI</h3>
+            <p>1. Vai su <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></p>
+            <p>2. Seleziona il progetto con Client ID: <code>876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com</code></p>
+            <p>3. Vai su <strong>APIs & Services > Credentials</strong></p>
+            <p>4. Clicca sull'OAuth 2.0 Client ID esistente</p>
+            <p>5. Nella sezione "Authorized redirect URIs", aggiungi:</p>
+            
+            <div class="code-block">
+https://3f0d593a-88b2-4cea-ad03-76eee0e3b2f0-00-v4134pmpwrv3.janeway.replit.dev/oauth/callback
+            </div>
+
+            <p>6. Clicca <strong>Save</strong></p>
+        </div>
+
+        <div class="step">
+            <h3>URI di Redirect Attuali (da mantenere)</h3>
+            <div class="code-block">
+https://client-management-system-ilanboni.replit.app/oauth/callback
+http://localhost:5000/oauth/callback
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>Dopo la configurazione</h3>
+            <p>Usa questo nuovo link di autorizzazione:</p>
+            <div class="code-block" id="auth-link">
+Caricamento...
+            </div>
+            <button onclick="generateAuthLink()" style="background: #4285f4; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 0;">
+                Genera Link Autorizzazione
+            </button>
+        </div>
+
+        <div class="step">
+            <h3>Test Callback</h3>
+            <p>Per testare se il callback funziona:</p>
+            <div class="code-block">
+curl https://3f0d593a-88b2-4cea-ad03-76eee0e3b2f0-00-v4134pmpwrv3.janeway.replit.dev/oauth/callback
+            </div>
+            <p>Dovrebbe restituire una pagina HTML, non 404.</p>
+        </div>
+    </div>
+
+    <script>
+        async function generateAuthLink() {
+            try {
+                const response = await fetch('/api/oauth/auth-url');
+                const data = await response.json();
+                
+                const authLinkElement = document.getElementById('auth-link');
+                authLinkElement.innerHTML = `<a href="${data.authUrl}" target="_blank">${data.authUrl}</a>`;
+            } catch (error) {
+                document.getElementById('auth-link').innerHTML = 'Errore nel generare il link';
+            }
+        }
+
+        // Genera automaticamente il link al caricamento
+        window.onload = function() {
+            generateAuthLink();
+        };
+    </script>
+</body>
+</html>

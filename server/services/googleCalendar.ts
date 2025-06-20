@@ -34,11 +34,15 @@ class GoogleCalendarService {
     }
 
     try {
-      // Use the correct redirect URI that matches Google Cloud Console configuration
+      // Use the current development URL for redirect URI
+      const redirectUri = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}/oauth/callback`
+        : 'http://localhost:5000/oauth/callback';
+      
       const auth = new google.auth.OAuth2(
         clientId, 
         clientSecret,
-        'https://client-management-system-ilanboni.replit.app/oauth/callback'
+        redirectUri
       );
       auth.setCredentials({ refresh_token: refreshToken });
       
