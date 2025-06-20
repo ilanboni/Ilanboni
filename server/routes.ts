@@ -4125,8 +4125,24 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         return salutations[salutation] || salutation;
       };
 
-      // Crea il messaggio di conferma
-      const message = `${getSalutationText(confirmation.salutation)} ${confirmation.lastName}, le confermo appuntamento di ${confirmation.appointmentDate}, in ${confirmation.address || "viale Abruzzi 78"}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
+      // Format date to Italian format
+      const formatDateToItalian = (dateStr: string): string => {
+        try {
+          const dateObj = new Date(dateStr);
+          const days = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+          const dayName = days[dateObj.getDay()];
+          const day = dateObj.getDate();
+          const month = dateObj.getMonth() + 1;
+          return `${dayName} ${day}/${month}`;
+        } catch (error) {
+          console.error('Error formatting date:', error);
+          return dateStr; // Fallback to original string
+        }
+      };
+
+      // Crea il messaggio di conferma con data formattata
+      const formattedDate = formatDateToItalian(confirmation.appointmentDate);
+      const message = `${getSalutationText(confirmation.salutation)} ${confirmation.lastName}, le confermo appuntamento di ${formattedDate}, in ${confirmation.address || "viale Abruzzi 78"}. La ringrazio. Ilan Boni - Cavour Immobiliare`;
       
       // Invia il messaggio WhatsApp
       const ultraMsgClient = getUltraMsgClient();
@@ -4359,8 +4375,24 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         }
       };
       
+      // Format date to Italian format
+      const formatDateToItalian = (dateStr: string): string => {
+        try {
+          const dateObj = new Date(dateStr);
+          const days = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+          const dayName = days[dateObj.getDay()];
+          const day = dateObj.getDate();
+          const month = dateObj.getMonth() + 1;
+          return `${dayName} ${day}/${month}`;
+        } catch (error) {
+          console.error('Error formatting date:', error);
+          return dateStr; // Fallback to original string
+        }
+      };
+
       const formattedSalutation = formatSalutation(salutation);
-      const confirmationMessage = `${formattedSalutation} ${lastName}, le confermo appuntamento di ${date} alle ore ${time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
+      const formattedDate = formatDateToItalian(date);
+      const confirmationMessage = `${formattedSalutation} ${lastName}, le confermo appuntamento di ${formattedDate} alle ore ${time}, in ${cleanAddress}. Per qualsiasi esigenza o modifica mi può scrivere su questo numero. La ringrazio, Ilan Boni - Cavour Immobiliare`;
       
       // Send WhatsApp message directly
       try {
