@@ -150,6 +150,13 @@ class GoogleCalendarService {
           dateTime: event.endDate.toISOString(),
           timeZone: 'Europe/Rome',
         },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'popup', minutes: 1440 }, // 1 giorno prima (24 ore * 60 minuti)
+            { method: 'popup', minutes: 120 }   // 2 ore prima
+          ]
+        }
       };
 
       const response = await this.calendar.events.insert({
