@@ -19,6 +19,7 @@ class GoogleCalendarService {
   private isConfigured = false;
 
   constructor() {
+    console.log('[CALENDAR] GoogleCalendarService constructor called');
     // Initialize calendar asynchronously
     this.initializeCalendar().catch(error => {
       console.error('[CALENDAR] Failed to initialize:', error);
@@ -43,16 +44,20 @@ class GoogleCalendarService {
 
     try {
       // Get refresh token from database instead of environment variable
+      console.log('[CALENDAR] Checking database for Google Calendar tokens...');
       const [tokenRecord] = await db.select()
         .from(oauthTokens)
         .where(eq(oauthTokens.service, 'google_calendar'))
         .limit(1);
 
+      console.log('[CALENDAR] Token record found:', tokenRecord ? 'Yes' : 'No');
       if (!tokenRecord?.refreshToken) {
         console.log('[CALENDAR] Google Calendar refresh token not found in database');
         this.isConfigured = false;
         return;
       }
+
+      console.log('[CALENDAR] Found valid refresh token, initializing Google Calendar API...');
 
       // Use the current development URL for redirect URI
       const redirectUri = process.env.REPLIT_DEV_DOMAIN 
