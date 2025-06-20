@@ -11,19 +11,25 @@ const getBaseUrl = () => {
   return 'http://localhost:5000';
 };
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CALENDAR_CLIENT_ID,
-  process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-  `${getBaseUrl()}/oauth/callback`
-);
-
 // Scopes necessari per Google Calendar
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
+
+/**
+ * Crea un nuovo client OAuth con l'URL corretto
+ */
+function createOAuth2Client() {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CALENDAR_CLIENT_ID,
+    process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    `${getBaseUrl()}/oauth/callback`
+  );
+}
 
 /**
  * Genera l'URL per l'autorizzazione OAuth
  */
 export function getAuthUrl(): string {
+  const oauth2Client = createOAuth2Client();
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
@@ -64,6 +70,7 @@ export async function handleOAuthCallback(req: Request, res: Response) {
 
   try {
     console.log('[OAUTH] Processing authorization code:', code.substring(0, 20) + '...');
+    const oauth2Client = createOAuth2Client();
     const { tokens } = await oauth2Client.getToken(code);
     
     if (tokens.refresh_token) {
