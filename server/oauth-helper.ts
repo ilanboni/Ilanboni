@@ -3,11 +3,14 @@ import { google } from 'googleapis';
 
 // Determina l'URL base dell'applicazione
 const getBaseUrl = () => {
-  // Usa l'URL di sviluppo attuale di Replit
+  // Priorità all'URL di sviluppo attuale di Replit
   if (process.env.REPLIT_DEV_DOMAIN) {
-    return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    const url = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    console.log('[OAUTH] Using Replit dev URL:', url);
+    return url;
   }
   // Fallback per sviluppo locale
+  console.log('[OAUTH] Using localhost fallback');
   return 'http://localhost:5000';
 };
 
