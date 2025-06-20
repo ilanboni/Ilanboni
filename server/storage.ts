@@ -2364,11 +2364,72 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAppointmentsByPropertyId(propertyId: number): Promise<Appointment[]> {
-    return await db
-      .select()
+    console.log(`[DB STORAGE] Getting appointments for property ${propertyId}`);
+    
+    // Use database query with JOIN to include client details
+    const appointmentsWithClients = await db
+      .select({
+        // Appointment fields
+        id: appointments.id,
+        clientId: appointments.clientId,
+        propertyId: appointments.propertyId,
+        date: appointments.date,
+        time: appointments.time,
+        type: appointments.type,
+        status: appointments.status,
+        feedback: appointments.feedback,
+        notes: appointments.notes,
+        createdAt: appointments.createdAt,
+        // Client fields mapped correctly
+        clientFirstName: clients.firstName,
+        clientLastName: clients.lastName,
+        clientPhone: clients.phone,
+        clientEmail: clients.email,
+        clientType: clients.type,
+        clientSalutation: clients.salutation
+      })
       .from(appointments)
+      .leftJoin(clients, eq(appointments.clientId, clients.id))
       .where(eq(appointments.propertyId, propertyId))
       .orderBy(desc(appointments.date));
+    
+    console.log(`[DB STORAGE] Raw query result:`, appointmentsWithClients.map(row => ({
+      id: row.id,
+      clientId: row.clientId,
+      clientFirstName: row.clientFirstName,
+      clientLastName: row.clientLastName
+    })));
+    
+    // Transform results to include client data in the expected format
+    const result = appointmentsWithClients.map(row => ({
+      id: row.id,
+      clientId: row.clientId,
+      propertyId: row.propertyId,
+      date: row.date,
+      time: row.time,
+      type: row.type,
+      status: row.status,
+      feedback: row.feedback,
+      notes: row.notes,
+      createdAt: row.createdAt,
+      client: row.clientFirstName ? {
+        id: row.clientId,
+        firstName: row.clientFirstName,
+        lastName: row.clientLastName,
+        phone: row.clientPhone,
+        email: row.clientEmail,
+        type: row.clientType,
+        salutation: row.clientSalutation
+      } : null
+    }));
+    
+    console.log(`[DB STORAGE] Transformed result:`, result.map(r => ({
+      id: r.id,
+      clientId: r.clientId,
+      client: r.client ? { firstName: r.client.firstName, lastName: r.client.lastName } : null
+    })));
+    
+    return result;
   }
 
   async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
