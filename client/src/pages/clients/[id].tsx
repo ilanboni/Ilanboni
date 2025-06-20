@@ -70,17 +70,20 @@ export default function ClientDetailPage() {
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
     queryKey: [`/api/clients/${id}`],
     enabled: !isNaN(id),
-    onSuccess: (data) => {
-      // Aggiunge informazioni di debug
+  });
+
+  // Debug logging when client data changes
+  useEffect(() => {
+    if (client) {
       setDebugLogs(logs => [
         ...logs,
-        `Cliente caricato: ${data?.firstName} ${data?.lastName}`,
-        `Tipo cliente: ${data?.type}`,
-        `È acquirente: ${data?.type === 'buyer'}`,
-        `Dettagli buyer: ${data?.buyer ? 'presenti' : 'assenti'}`,
+        `Cliente caricato: ${client?.firstName} ${client?.lastName}`,
+        `Tipo cliente: ${client?.type}`,
+        `È acquirente: ${client?.type === 'buyer'}`,
+        `Dettagli buyer: ${client?.buyer ? 'presenti' : 'assenti'}`,
       ]);
     }
-  });
+  }, [client]);
   
   // Fetch client communications
   const { data: communications, isLoading: isCommunicationsLoading } = useQuery<Communication[]>({

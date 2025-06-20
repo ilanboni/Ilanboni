@@ -415,7 +415,7 @@ export default function CommunicationsPage() {
   
   // Function to get client name by id and detect unknown numbers
   const getClientName = (clientId: number | null, subject?: string) => {
-    const client = clients?.find((c: any) => c.id === clientId);
+    const client = Array.isArray(clients) ? clients.find((c: any) => c.id === clientId) : null;
     
     // Verifica se è un messaggio da numero non registrato
     if (subject && subject.includes("da numero non registrato")) {
@@ -511,6 +511,101 @@ export default function CommunicationsPage() {
     setAppointmentCommunication(communication);
     setShowCreateAppointmentDialog(true);
     console.log('Dialog state set to open');
+  };
+
+  // Handle task creation
+  const handleCreateTask = async (communication: any) => {
+    if (!communication.clientId) {
+      toast({
+        title: "Errore",
+        description: "La comunicazione deve essere associata a un cliente per creare un task.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Suggerisci task basati sulla comunicazione
+      const response = await fetch(`/api/virtual-assistant/suggest-tasks/${communication.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Errore nella generazione dei suggerimenti');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.suggestedTasks && data.suggestedTasks.length > 0) {
+        // Crea il primo task suggerito
+        const suggestedTask = data.suggestedTasks[0];
+        
+        const createResponse = await fetch('/api/virtual-assistant/create-task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: suggestedTask.title,
+            description: suggestedTask.description,
+            clientId: communication.clientId,
+            propertyId: communication.propertyId,
+            dueDate: new Date(Date.now() + suggestedTask.dueDate * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            priority: suggestedTask.priority || 5,
+            type: 'call',
+            status: 'pending'
+          }),
+        });
+
+        if (!createResponse.ok) {
+          throw new Error('Errore nella creazione del task');
+        }
+
+        toast({
+          title: "Task creato",
+          description: `Task "${suggestedTask.title}" creato con successo.`,
+        });
+
+        // Aggiorna lo stato di gestione della comunicazione
+        updateStatusMutation.mutate({ id: communication.id, status: "managed" });
+        
+      } else {
+        // Crea un task generico se non ci sono suggerimenti
+        const createResponse = await fetch('/api/virtual-assistant/create-task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `Seguito comunicazione - ${communication.subject}`,
+            description: `Task di follow-up per la comunicazione:\n\n${communication.content?.substring(0, 200)}...`,
+            clientId: communication.clientId,
+            propertyId: communication.propertyId,
+            dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Domani
+            priority: 5,
+            type: 'call',
+            status: 'pending'
+          }),
+        });
+
+        if (!createResponse.ok) {
+          throw new Error('Errore nella creazione del task');
+        }
+
+        toast({
+          title: "Task creato",
+          description: "Task di follow-up creato con successo.",
+        });
+
+        // Aggiorna lo stato di gestione della comunicazione
+        updateStatusMutation.mutate({ id: communication.id, status: "managed" });
+      }
+
+    } catch (error) {
+      console.error('Errore nella creazione del task:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile creare il task. Riprova più tardi.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Get management status badge
@@ -759,6 +854,13 @@ export default function CommunicationsPage() {
                               >
                                 <i className="fas fa-calendar-plus mr-2 text-purple-600"></i>
                                 Crea appuntamento
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleCreateTask(comm)}
+                                disabled={!comm.clientId}
+                              >
+                                <i className="fas fa-tasks mr-2 text-indigo-600"></i>
+                                Crea task
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
