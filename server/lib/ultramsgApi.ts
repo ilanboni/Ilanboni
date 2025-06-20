@@ -204,6 +204,43 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
           });
           processedCount++;
           console.log(`✅ Elaborato nuovo messaggio da ${message.from}: ${message.body.substring(0, 30)}...`);
+          
+          // Se è un messaggio in uscita, verifica se è una conferma appuntamento
+          if (isFromMe) {
+            console.log(`[APPOINTMENT-AUTO] Analizzando messaggio in uscita per conferma appuntamento...`);
+            
+            try {
+              const { extractAppointmentData, createCalendarEventFromAppointment, isAppointmentConfirmation } = await import('../services/appointmentExtractor');
+              
+              if (isAppointmentConfirmation(message.body)) {
+                console.log(`[APPOINTMENT-AUTO] ✅ Rilevata conferma appuntamento nel messaggio`);
+                
+                // Estrai il numero del destinatario per l'appuntamento
+                const recipientPhone = normalizedTo.replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+                
+                const appointmentData = extractAppointmentData(message.body, recipientPhone);
+                
+                if (appointmentData) {
+                  console.log(`[APPOINTMENT-AUTO] ✅ Dati appuntamento estratti:`, appointmentData);
+                  
+                  // Crea automaticamente l'evento in Google Calendar
+                  const calendarSuccess = await createCalendarEventFromAppointment(appointmentData);
+                  
+                  if (calendarSuccess) {
+                    console.log(`[APPOINTMENT-AUTO] ✅ Evento creato automaticamente in Google Calendar`);
+                  } else {
+                    console.log(`[APPOINTMENT-AUTO] ❌ Errore nella creazione automatica dell'evento in Calendar`);
+                  }
+                } else {
+                  console.log(`[APPOINTMENT-AUTO] ❌ Impossibile estrarre i dati dell'appuntamento dal messaggio`);
+                }
+              } else {
+                console.log(`[APPOINTMENT-AUTO] Messaggio non è una conferma appuntamento`);
+              }
+            } catch (appointmentError) {
+              console.error(`[APPOINTMENT-AUTO] Errore nell'elaborazione automatica dell'appuntamento:`, appointmentError);
+            }
+          }
         } else {
           errorCount++;
           console.error(`❌ Errore nell'elaborazione del messaggio da ${message.from}`);
@@ -276,6 +313,43 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
               created_at: communication.createdAt
             });
             processedCount++;
+            
+            // Se è un messaggio in uscita, verifica se è una conferma appuntamento
+            if (message.fromMe === true) {
+              console.log(`[APPOINTMENT-AUTO] Analizzando messaggio in uscita per conferma appuntamento...`);
+              
+              try {
+                const { extractAppointmentData, createCalendarEventFromAppointment, isAppointmentConfirmation } = await import('../services/appointmentExtractor');
+                
+                if (isAppointmentConfirmation(message.body)) {
+                  console.log(`[APPOINTMENT-AUTO] ✅ Rilevata conferma appuntamento nel messaggio`);
+                  
+                  // Estrai il numero del destinatario per l'appuntamento
+                  const recipientPhone = message.to.replace(/@c\.us$/, '').replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+                  
+                  const appointmentData = extractAppointmentData(message.body, recipientPhone);
+                  
+                  if (appointmentData) {
+                    console.log(`[APPOINTMENT-AUTO] ✅ Dati appuntamento estratti:`, appointmentData);
+                    
+                    // Crea automaticamente l'evento in Google Calendar
+                    const calendarSuccess = await createCalendarEventFromAppointment(appointmentData);
+                    
+                    if (calendarSuccess) {
+                      console.log(`[APPOINTMENT-AUTO] ✅ Evento creato automaticamente in Google Calendar`);
+                    } else {
+                      console.log(`[APPOINTMENT-AUTO] ❌ Errore nella creazione automatica dell'evento in Calendar`);
+                    }
+                  } else {
+                    console.log(`[APPOINTMENT-AUTO] ❌ Impossibile estrarre i dati dell'appuntamento dal messaggio`);
+                  }
+                } else {
+                  console.log(`[APPOINTMENT-AUTO] Messaggio non è una conferma appuntamento`);
+                }
+              } catch (appointmentError) {
+                console.error(`[APPOINTMENT-AUTO] Errore nell'elaborazione automatica dell'appuntamento:`, appointmentError);
+              }
+            }
           } else {
             errorCount++;
           }
