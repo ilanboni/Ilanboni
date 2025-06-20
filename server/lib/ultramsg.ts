@@ -187,6 +187,47 @@ export class UltraMsgClient {
         return null;
       }
       
+      // Se è un messaggio in uscita, verifica se è una conferma appuntamento
+      if (isFromMe) {
+        console.log("[ULTRAMSG-APPOINTMENT] Verifica messaggio in uscita per conferma appuntamento");
+        
+        try {
+          const { isAppointmentConfirmation, extractAppointmentData, createCalendarEventFromAppointment } = await import('../services/appointmentExtractor');
+          
+          if (isAppointmentConfirmation(webhookData.body || '')) {
+            console.log("[ULTRAMSG-APPOINTMENT] ✅ Rilevata conferma appuntamento nel messaggio in uscita");
+            
+            // Estrai il numero del destinatario per l'appuntamento
+            const recipientPhone = (webhookData.to || '').replace(/@c\.us$/, '').replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+            
+            const appointmentData = extractAppointmentData(webhookData.body || '', recipientPhone);
+            
+            if (appointmentData) {
+              console.log("[ULTRAMSG-APPOINTMENT] ✅ Dati appuntamento estratti:", appointmentData);
+              
+              // Crea automaticamente l'evento in Google Calendar
+              const calendarSuccess = await createCalendarEventFromAppointment(appointmentData);
+              
+              if (calendarSuccess) {
+                console.log("[ULTRAMSG-APPOINTMENT] ✅ Evento creato automaticamente in Google Calendar per", appointmentData.clientName);
+              } else {
+                console.log("[ULTRAMSG-APPOINTMENT] ❌ Errore nella creazione automatica dell'evento in Calendar");
+              }
+            } else {
+              console.log("[ULTRAMSG-APPOINTMENT] ❌ Impossibile estrarre i dati dell'appuntamento dal messaggio");
+            }
+          } else {
+            console.log("[ULTRAMSG-APPOINTMENT] Messaggio in uscita non è una conferma appuntamento");
+          }
+        } catch (appointmentError) {
+          console.error("[ULTRAMSG-APPOINTMENT] Errore nell'elaborazione automatica dell'appuntamento:", appointmentError);
+        }
+        
+        // Dopo aver verificato l'appuntamento, ignora il messaggio in uscita per il normale processing
+        console.log("[ULTRAMSG] Messaggio in uscita ignorato dopo verifica appuntamento");
+        return null;
+      }
+      
       console.log("[ULTRAMSG] Messaggio in arrivo valido rilevato:", {
         event_type: eventType,
         from_me: isFromMe,

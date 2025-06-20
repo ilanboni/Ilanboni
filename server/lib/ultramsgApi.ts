@@ -120,10 +120,50 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
       console.log(`Verifica ${allMessages.length} messaggi recenti (approccio globale)...`);
       
       for (const message of allMessages) {
-        // Ignora solo i messaggi che abbiamo effettivamente inviato noi
-        // fromMe è il vero indicatore se un messaggio è stato inviato dal nostro numero
+        // Per i messaggi in uscita, verifica se sono conferme appuntamento prima di ignorarli
         if (message.fromMe === true) {
-          console.log(`Ignora messaggio in uscita: ${message.body.substring(0, 20)}...`);
+          console.log(`[APPOINTMENT-CHECK] Verifica messaggio in uscita per conferma appuntamento: ${message.body.substring(0, 30)}...`);
+          
+          try {
+            const { isAppointmentConfirmation, extractAppointmentData, createCalendarEventFromAppointment } = await import('../services/appointmentExtractor');
+            
+            if (isAppointmentConfirmation(message.body)) {
+              console.log(`[APPOINTMENT-AUTO] ✅ Rilevata conferma appuntamento nel messaggio in uscita`);
+              
+              // Controlla se abbiamo già processato questo messaggio per evitare duplicati
+              const messageId = message.id || `${message.from}:${message.time}`;
+              const existingMessage = await storage.getCommunicationByExternalId(messageId);
+              
+              if (!existingMessage) {
+                // Estrai il numero del destinatario per l'appuntamento
+                const recipientPhone = message.to.replace(/@c\.us$/, '').replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+                
+                const appointmentData = extractAppointmentData(message.body, recipientPhone);
+                
+                if (appointmentData) {
+                  console.log(`[APPOINTMENT-AUTO] ✅ Dati appuntamento estratti:`, appointmentData);
+                  
+                  // Crea automaticamente l'evento in Google Calendar
+                  const calendarSuccess = await createCalendarEventFromAppointment(appointmentData);
+                  
+                  if (calendarSuccess) {
+                    console.log(`[APPOINTMENT-AUTO] ✅ Evento creato automaticamente in Google Calendar per ${appointmentData.clientName}`);
+                  } else {
+                    console.log(`[APPOINTMENT-AUTO] ❌ Errore nella creazione automatica dell'evento in Calendar`);
+                  }
+                } else {
+                  console.log(`[APPOINTMENT-AUTO] ❌ Impossibile estrarre i dati dell'appuntamento dal messaggio`);
+                }
+              } else {
+                console.log(`[APPOINTMENT-AUTO] Messaggio già processato, salto estrazione appuntamento`);
+              }
+            }
+          } catch (appointmentError) {
+            console.error(`[APPOINTMENT-AUTO] Errore nell'elaborazione automatica dell'appuntamento:`, appointmentError);
+          }
+          
+          // Dopo aver verificato l'appuntamento, ignora il messaggio in uscita per il normale processing
+          console.log(`Ignora messaggio in uscita dopo verifica appuntamento: ${message.body.substring(0, 20)}...`);
           ignoredCount++;
           continue;
         }

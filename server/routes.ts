@@ -2447,6 +2447,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } catch (err) {
               console.error("[SENTIMENT] Errore durante l'analisi del sentimento:", err);
             }
+          } else if (normalizedWebhook.from_me) {
+            // Se è un messaggio in uscita, verifica se è una conferma appuntamento
+            try {
+              const { extractAppointmentData, createCalendarEventFromAppointment, isAppointmentConfirmation } = await import('./services/appointmentExtractor');
+              
+              if (isAppointmentConfirmation(normalizedWebhook.body)) {
+                console.log(`[APPOINTMENT-AUTO-WEBHOOK] ✅ Rilevata conferma appuntamento nel messaggio in uscita webhook`);
+                
+                // Estrai il numero del destinatario per l'appuntamento
+                const recipientPhone = normalizedWebhook.to.replace(/^\+/, '').replace(/\s+/g, '').replace(/[-()]/g, '');
+                
+                const appointmentData = extractAppointmentData(normalizedWebhook.body, recipientPhone);
+                
+                if (appointmentData) {
+                  console.log(`[APPOINTMENT-AUTO-WEBHOOK] ✅ Dati appuntamento estratti:`, appointmentData);
+                  
+                  // Crea automaticamente l'evento in Google Calendar
+                  const calendarSuccess = await createCalendarEventFromAppointment(appointmentData);
+                  
+                  if (calendarSuccess) {
+                    console.log(`[APPOINTMENT-AUTO-WEBHOOK] ✅ Evento creato automaticamente in Google Calendar per ${appointmentData.clientName}`);
+                  } else {
+                    console.log(`[APPOINTMENT-AUTO-WEBHOOK] ❌ Errore nella creazione automatica dell'evento in Calendar`);
+                  }
+                } else {
+                  console.log(`[APPOINTMENT-AUTO-WEBHOOK] ❌ Impossibile estrarre i dati dell'appuntamento dal messaggio`);
+                }
+              }
+            } catch (appointmentError) {
+              console.error(`[APPOINTMENT-AUTO-WEBHOOK] Errore nell'elaborazione automatica dell'appuntamento:`, appointmentError);
+            }
           }
           
           // Crea un task per il follow-up se necessario
