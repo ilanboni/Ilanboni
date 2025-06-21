@@ -50,14 +50,14 @@ export default function AppointmentConfirmationsPage() {
   });
 
   // Fetch clients for the dropdown
-  const { data: clients = [] } = useQuery({
+  const { data: clients = [] } = useQuery<any[]>({
     queryKey: ["/api/clients"],
   });
 
   // Handle client selection
   const handleClientSelect = (clientId: string) => {
     setSelectedClientId(clientId);
-    if (clientId) {
+    if (clientId && Array.isArray(clients)) {
       const selectedClient = clients.find((client: any) => client.id.toString() === clientId);
       if (selectedClient) {
         setFormData(prev => ({
@@ -86,6 +86,7 @@ export default function AppointmentConfirmationsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointment-confirmations"] });
       setIsDialogOpen(false);
+      setSelectedClientId("");
       setFormData({ salutation: "", lastName: "", phone: "", appointmentDate: "", address: "viale Abruzzi 78" });
       toast({
         title: "Conferma aggiunta",
@@ -256,6 +257,23 @@ export default function AppointmentConfirmationsPage() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="client">Cliente</Label>
+                  <Select value={selectedClientId} onValueChange={handleClientSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona cliente (opzionale)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Inserimento manuale</SelectItem>
+                      {Array.isArray(clients) && clients.map((client: any) => (
+                        <SelectItem key={client.id} value={client.id.toString()}>
+                          {client.salutation ? getSalutationLabel(client.salutation) : ''} {client.firstName} {client.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="salutation">Intestazione</Label>
                   <Select value={formData.salutation} onValueChange={(value) => handleInputChange("salutation", value)}>
