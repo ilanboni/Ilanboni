@@ -41,17 +41,15 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
     
     // Pattern per estrarre la data e l'ora dell'appuntamento
     const dateTimePatterns = [
-      // "Lunedì 10/6, ore 14:00"
-      /appuntamento di\s+(\w+\s+\d{1,2}\/\d{1,2}),?\s+(?:alle\s+)?ore\s+(\d{1,2}:\d{2})/i,
-      // "Domenica 8/6, ore 9:30"
-      /appuntamento di\s+(\w+\s+\d{1,2}\/\d{1,2}),?\s+ore\s+(\d{1,2}:\d{2})/i,
+      // "Martedì 10/6, alle ore 16:00" - handles accented characters
+      /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
+      // "Lunedì 10/6, ore 14:00" - handles accented characters  
+      /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+ore\s+(\d{1,2}:\d{2})/i,
+      // "mercoledì 11/06 alle ore 09:00" (senza virgola) - handles accented characters
+      /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
       // "17/06/2025 ore 10:00"
       /appuntamento di\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+ore\s+(\d{1,2}:\d{2})/i,
-      // "mercoledì 11/06 alle ore 09:00"
-      /appuntamento di\s+(\w+\s+\d{1,2}\/\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
       // "2025-06-18 alle ore 13:12"
-      /appuntamento di\s+(\d{4}-\d{1,2}-\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
-      // "2025-06-25 alle ore 15:00"
       /appuntamento di\s+(\d{4}-\d{1,2}-\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i
     ];
     
