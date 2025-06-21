@@ -33,6 +33,7 @@ import { apiRequest } from "@/lib/queryClient";
 
 export default function AppointmentConfirmationsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [formData, setFormData] = useState({
     salutation: "",
     lastName: "",
@@ -47,6 +48,34 @@ export default function AppointmentConfirmationsPage() {
   const { data: confirmations, isLoading } = useQuery<AppointmentConfirmation[]>({
     queryKey: ["/api/appointment-confirmations"],
   });
+
+  // Fetch clients for the dropdown
+  const { data: clients = [] } = useQuery({
+    queryKey: ["/api/clients"],
+  });
+
+  // Handle client selection
+  const handleClientSelect = (clientId: string) => {
+    setSelectedClientId(clientId);
+    if (clientId) {
+      const selectedClient = clients.find((client: any) => client.id.toString() === clientId);
+      if (selectedClient) {
+        setFormData(prev => ({
+          ...prev,
+          lastName: selectedClient.lastName,
+          phone: selectedClient.phone,
+          salutation: selectedClient.salutation || ""
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        lastName: "",
+        phone: "",
+        salutation: ""
+      }));
+    }
+  };
 
   // Create new confirmation mutation
   const createConfirmationMutation = useMutation({
