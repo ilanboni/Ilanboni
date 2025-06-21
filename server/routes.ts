@@ -4303,23 +4303,12 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
   app.get("/api/appointments", async (req: Request, res: Response) => {
     try {
       const events = await db
-        .select({
-          id: calendarEvents.id,
-          title: calendarEvents.title,
-          date: sql<string>`date(${calendarEvents.startDate})`,
-          time: sql<string>`time(${calendarEvents.startDate})`,
-          location: calendarEvents.location,
-          clientId: calendarEvents.clientId,
-          propertyId: calendarEvents.propertyId,
-          status: sql<string>`'scheduled'`,
-          type: sql<string>`'visit'`,
-          createdAt: calendarEvents.createdAt
-        })
+        .select()
         .from(calendarEvents)
         .orderBy(desc(calendarEvents.startDate));
       
-      // Aggiungi informazioni client e property
-      const eventsWithDetails = await Promise.all(
+      // Trasforma i dati per il frontend
+      const appointmentsData = await Promise.all(
         events.map(async (event) => {
           let client = null;
           let property = null;
@@ -4340,15 +4329,29 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
             property = propertyData;
           }
           
+          // Estrai data e ora da startDate
+          const startDate = new Date(event.startDate);
+          const date = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
+          const time = startDate.toTimeString().slice(0, 5); // HH:MM
+          
           return {
-            ...event,
+            id: event.id,
+            title: event.title,
+            date,
+            time,
+            location: event.location,
+            clientId: event.clientId,
+            propertyId: event.propertyId,
+            status: 'scheduled',
+            type: 'visit',
+            createdAt: event.createdAt,
             client,
             property
           };
         })
       );
       
-      res.json(eventsWithDetails);
+      res.json(appointmentsData);
     } catch (error) {
       console.error("Errore nel caricamento degli appuntamenti:", error);
       res.status(500).json({ error: "Errore interno del server" });
