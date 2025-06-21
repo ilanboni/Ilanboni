@@ -4302,10 +4302,13 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
   // API per gli appuntamenti (calendario eventi)
   app.get("/api/appointments", async (req: Request, res: Response) => {
     try {
+      console.log('[APPOINTMENTS API] Starting to fetch calendar events...');
       const events = await db
         .select()
         .from(calendarEvents)
         .orderBy(desc(calendarEvents.startDate));
+      
+      console.log(`[APPOINTMENTS API] Found ${events.length} events`);
       
       // Trasforma i dati per il frontend
       const appointmentsData = await Promise.all(
