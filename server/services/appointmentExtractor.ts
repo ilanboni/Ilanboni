@@ -149,8 +149,10 @@ function parseAppointmentDateTime(dateStr: string, timeStr: string): Date | null
         const month = parseInt(dayMonthMatch[2]);
         parsedDate = new Date(currentYear, month - 1, day);
         
-        // Se la data è nel passato, assumiamo l'anno prossimo
-        if (parsedDate < new Date()) {
+        // Se la data è più di 30 giorni nel passato, assumiamo l'anno prossimo
+        // Altrimenti potrebbe essere un appuntamento per il mese corrente
+        const daysDiff = (new Date().getTime() - parsedDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysDiff > 30) {
           parsedDate.setFullYear(currentYear + 1);
         }
       } else {
