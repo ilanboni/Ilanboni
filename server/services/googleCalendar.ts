@@ -287,6 +287,26 @@ class GoogleCalendarService {
         return today;
       }
 
+      // Pattern per giorni della settimana con "ore": "Lunedì 23/6, ore 18:00"
+      const weekdayDateOreRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})\/(\d{1,2}),?\s*ore\s+(\d{1,2}):?(\d{2})?/i;
+      const weekdayOreMatch = dateString.match(weekdayDateOreRegex);
+      
+      if (weekdayOreMatch) {
+        const day = parseInt(weekdayOreMatch[2]);
+        const month = parseInt(weekdayOreMatch[3]) - 1; // JavaScript months are 0-based
+        const hour = parseInt(weekdayOreMatch[4]);
+        const minute = parseInt(weekdayOreMatch[5] || '0');
+        
+        // Assume current year if not specified
+        const currentYear = new Date().getFullYear();
+        
+        // Mantieni l'orario locale - Google Calendar gestirà il fuso orario
+        const localDate = new Date(currentYear, month, day, hour, minute);
+        
+        console.log(`[CALENDAR] Parsed weekday date (ore format) - Local: ${localDate}`);
+        return localDate;
+      }
+
       // Pattern per giorni della settimana con "alle": "Domenica 8/6, alle 9:30"
       const weekdayDateAlleRegex = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})\/(\d{1,2}),?\s*alle\s+(\d{1,2}):?(\d{2})?/i;
       const weekdayAlleMatch = dateString.match(weekdayDateAlleRegex);
