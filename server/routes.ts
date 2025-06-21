@@ -4251,8 +4251,19 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
           try {
             const { googleCalendarService } = await import('./services/googleCalendar');
             console.log(`[CALENDAR] Google Calendar service imported successfully`);
-            await googleCalendarService.createEventFromAppointmentConfirmation(confirmation);
-            console.log(`[CALENDAR] Created calendar event for appointment with ${confirmation.lastName}`);
+            const calendarEvent = await googleCalendarService.createEventFromAppointmentConfirmation(confirmation);
+            console.log(`[CALENDAR] Created calendar event for appointment with ${confirmation.lastName}`, calendarEvent?.id ? `- ID: ${calendarEvent.id}` : '');
+            
+            // Se la creazione dell'evento locale è riuscita ma la sync Google è fallita, tenta un retry
+            if (calendarEvent?.id && !calendarEvent.googleCalendarId) {
+              console.log(`[CALENDAR] Attempting Google Calendar sync retry for event ${calendarEvent.id}`);
+              try {
+                await googleCalendarService.syncEventToGoogle(calendarEvent.id);
+                console.log(`[CALENDAR] Successfully synced event ${calendarEvent.id} to Google Calendar on retry`);
+              } catch (retryError) {
+                console.error(`[CALENDAR] Retry sync failed for event ${calendarEvent.id}:`, retryError);
+              }
+            }
           } catch (calendarError) {
             console.error('[CALENDAR] Error creating calendar event:', calendarError);
             console.error('[CALENDAR] Error details:', JSON.stringify(calendarError, null, 2));
