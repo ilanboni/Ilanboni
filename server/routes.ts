@@ -4162,7 +4162,20 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       // Format date to Italian format
       const formatDateToItalian = (dateStr: string): string => {
         try {
+          // If the string is already in Italian format, return it as is
+          if (dateStr.match(/^(Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}/i)) {
+            return dateStr;
+          }
+          
+          // Try to parse as a date
           const dateObj = new Date(dateStr);
+          
+          // Check if the date is valid
+          if (isNaN(dateObj.getTime())) {
+            console.error('Invalid date:', dateStr);
+            return dateStr; // Return original string if invalid
+          }
+          
           const days = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
           const dayName = days[dateObj.getDay()];
           const day = dateObj.getDate();
@@ -4412,7 +4425,20 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       // Format date to Italian format
       const formatDateToItalian = (dateStr: string): string => {
         try {
+          // If the string is already in Italian format, return it as is
+          if (dateStr.match(/^(Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}/i)) {
+            return dateStr;
+          }
+          
+          // Try to parse as a date
           const dateObj = new Date(dateStr);
+          
+          // Check if the date is valid
+          if (isNaN(dateObj.getTime())) {
+            console.error('Invalid date:', dateStr);
+            return dateStr; // Return original string if invalid
+          }
+          
           const days = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
           const dayName = days[dateObj.getDay()];
           const day = dateObj.getDate();
