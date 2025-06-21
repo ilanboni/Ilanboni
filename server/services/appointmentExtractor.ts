@@ -45,6 +45,8 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
       /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
       // "Lunedì 10/6, ore 14:00" - handles accented characters  
       /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+ore\s+(\d{1,2}:\d{2})/i,
+      // "Lunedì 23/6, ore 18" - handles single-digit hours without minutes
+      /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+ore\s+(\d{1,2})(?![:\d])/i,
       // "mercoledì 11/06 alle ore 09:00" (senza virgola) - handles accented characters
       /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
       // "17/06/2025 ore 10:00"
@@ -160,8 +162,15 @@ function parseAppointmentDateTime(dateStr: string, timeStr: string): Date | null
       }
     }
     
-    // Aggiungi l'ora
-    const [hours, minutes] = timeStr.split(':').map(Number);
+    // Aggiungi l'ora - gestisce sia "18:00" che "18"
+    let hours: number, minutes: number;
+    if (timeStr.includes(':')) {
+      [hours, minutes] = timeStr.split(':').map(Number);
+    } else {
+      // Solo ore, senza minuti
+      hours = parseInt(timeStr);
+      minutes = 0;
+    }
     parsedDate.setHours(hours, minutes, 0, 0);
     
     return parsedDate;
