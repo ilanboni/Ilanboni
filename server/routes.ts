@@ -4299,6 +4299,174 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  // API per gli appuntamenti (calendario eventi)
+  app.get("/api/appointments", async (req: Request, res: Response) => {
+    try {
+      const events = await db
+        .select({
+          id: calendarEvents.id,
+          title: calendarEvents.title,
+          date: sql<string>`date(${calendarEvents.startDate})`,
+          time: sql<string>`time(${calendarEvents.startDate})`,
+          location: calendarEvents.location,
+          clientId: calendarEvents.clientId,
+          propertyId: calendarEvents.propertyId,
+          status: sql<string>`'scheduled'`,
+          type: sql<string>`'visit'`,
+          createdAt: calendarEvents.createdAt
+        })
+        .from(calendarEvents)
+        .orderBy(desc(calendarEvents.startDate));
+      
+      // Aggiungi informazioni client e property
+      const eventsWithDetails = await Promise.all(
+        events.map(async (event) => {
+          let client = null;
+          let property = null;
+          
+          if (event.clientId) {
+            const [clientData] = await db
+              .select()
+              .from(clients)
+              .where(eq(clients.id, event.clientId));
+            client = clientData;
+          }
+          
+          if (event.propertyId) {
+            const [propertyData] = await db
+              .select()
+              .from(properties)
+              .where(eq(properties.id, event.propertyId));
+            property = propertyData;
+          }
+          
+          return {
+            ...event,
+            client,
+            property
+          };
+        })
+      );
+      
+      res.json(eventsWithDetails);
+    } catch (error) {
+      console.error("Errore nel caricamento degli appuntamenti:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.get("/api/appointments/:id", async (req: Request, res: Response) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ error: "ID appuntamento non valido" });
+      }
+      
+      const [event] = await db
+        .select()
+        .from(calendarEvents)
+        .where(eq(calendarEvents.id, eventId));
+      
+      if (!event) {
+        return res.status(404).json({ error: "Appuntamento non trovato" });
+      }
+      
+      res.json(event);
+    } catch (error) {
+      console.error("Errore nel caricamento dell'appuntamento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.post("/api/appointments", async (req: Request, res: Response) => {
+    try {
+      const { title, date, time, location, clientId, propertyId } = req.body;
+      
+      // Combina data e ora per creare startDate
+      const startDate = new Date(`${date}T${time}`);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 ora
+      
+      const eventData = {
+        title,
+        startDate,
+        endDate,
+        location,
+        clientId: clientId || null,
+        propertyId: propertyId || null
+      };
+      
+      const [newEvent] = await db
+        .insert(calendarEvents)
+        .values(eventData)
+        .returning();
+      
+      res.json(newEvent);
+    } catch (error) {
+      console.error("Errore nella creazione dell'appuntamento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.put("/api/appointments/:id", async (req: Request, res: Response) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      const { title, date, time, location, clientId, propertyId } = req.body;
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ error: "ID appuntamento non valido" });
+      }
+      
+      // Combina data e ora per creare startDate
+      const startDate = new Date(`${date}T${time}`);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 ora
+      
+      const updateData = {
+        title,
+        startDate,
+        endDate,
+        location,
+        clientId: clientId || null,
+        propertyId: propertyId || null,
+        updatedAt: new Date()
+      };
+      
+      const [updatedEvent] = await db
+        .update(calendarEvents)
+        .set(updateData)
+        .where(eq(calendarEvents.id, eventId))
+        .returning();
+      
+      if (!updatedEvent) {
+        return res.status(404).json({ error: "Appuntamento non trovato" });
+      }
+      
+      res.json(updatedEvent);
+    } catch (error) {
+      console.error("Errore nell'aggiornamento dell'appuntamento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  app.delete("/api/appointments/:id", async (req: Request, res: Response) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ error: "ID appuntamento non valido" });
+      }
+      
+      await db
+        .delete(calendarEvents)
+        .where(eq(calendarEvents.id, eventId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Errore nell'eliminazione dell'appuntamento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
   // Enhanced appointment creation with automatic client creation and search parameters
   app.post("/api/appointments/create-with-client", async (req: Request, res: Response) => {
     try {
