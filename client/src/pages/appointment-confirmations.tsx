@@ -33,7 +33,7 @@ import { apiRequest } from "@/lib/queryClient";
 
 export default function AppointmentConfirmationsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [selectedClientId, setSelectedClientId] = useState<string>("manual");
   const [formData, setFormData] = useState({
     salutation: "",
     lastName: "",
@@ -57,7 +57,7 @@ export default function AppointmentConfirmationsPage() {
   // Handle client selection
   const handleClientSelect = (clientId: string) => {
     setSelectedClientId(clientId);
-    if (clientId && Array.isArray(clients)) {
+    if (clientId && clientId !== "manual" && Array.isArray(clients)) {
       const selectedClient = clients.find((client: any) => client.id.toString() === clientId);
       if (selectedClient) {
         setFormData(prev => ({
@@ -86,7 +86,7 @@ export default function AppointmentConfirmationsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointment-confirmations"] });
       setIsDialogOpen(false);
-      setSelectedClientId("");
+      setSelectedClientId("manual");
       setFormData({ salutation: "", lastName: "", phone: "", appointmentDate: "", address: "viale Abruzzi 78" });
       toast({
         title: "Conferma aggiunta",
@@ -264,7 +264,7 @@ export default function AppointmentConfirmationsPage() {
                       <SelectValue placeholder="Seleziona cliente (opzionale)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Inserimento manuale</SelectItem>
+                      <SelectItem value="manual">Inserimento manuale</SelectItem>
                       {Array.isArray(clients) && clients.map((client: any) => (
                         <SelectItem key={client.id} value={client.id.toString()}>
                           {client.salutation ? getSalutationLabel(client.salutation) : ''} {client.firstName} {client.lastName}
