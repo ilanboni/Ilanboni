@@ -267,7 +267,7 @@ export default function AppointmentConfirmationsPage() {
                       <SelectItem value="manual">Inserimento manuale</SelectItem>
                       {Array.isArray(clients) && clients.map((client: any) => (
                         <SelectItem key={client.id} value={client.id.toString()}>
-                          {client.salutation ? getSalutationLabel(client.salutation) : ''} {client.firstName} {client.lastName}
+                          {client.lastName}
                         </SelectItem>
                       ))}
                     </SelectContent>
