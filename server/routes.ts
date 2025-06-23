@@ -6162,7 +6162,81 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
-  // Endpoint per eliminare eventi di test da Google Calendar
+  // Endpoint per eliminare TUTTI i dati di test dal database locale
+  app.post("/api/cleanup-all-test-data", async (req: Request, res: Response) => {
+    try {
+      console.log('🧹 Avvio pulizia completa database locale...');
+      
+      const { appointments, appointmentConfirmations, communications } = await import('@shared/schema');
+      const { and, or, like, sql } = await import('drizzle-orm');
+
+      // 1. Elimina appuntamenti di test
+      const deletedAppointments = await db.delete(appointments)
+        .where(
+          or(
+            like(appointments.clientName, '%Test%'),
+            like(appointments.clientName, '%Paganelli%'),
+            like(appointments.clientName, '%Erba%'),
+            like(appointments.clientName, '%ceruti%'),
+            like(appointments.clientName, '%Boni - 393407992052%'),
+            like(appointments.location, '%Via Test%'),
+            like(appointments.location, '%Test 123%')
+          )
+        );
+
+      // 2. Elimina conferme di appuntamento di test
+      const deletedConfirmations = await db.delete(appointmentConfirmations)
+        .where(
+          or(
+            like(appointmentConfirmations.clientName, '%Test%'),
+            like(appointmentConfirmations.clientName, '%Paganelli%'),
+            like(appointmentConfirmations.clientName, '%Erba%'),
+            like(appointmentConfirmations.clientName, '%ceruti%'),
+            like(appointmentConfirmations.location, '%Via Test%'),
+            like(appointmentConfirmations.location, '%Test 123%')
+          )
+        );
+
+      // 3. Elimina comunicazioni di test
+      const deletedCommunications = await db.delete(communications)
+        .where(
+          or(
+            like(communications.content, '%TestOrario%'),
+            like(communications.content, '%TestCalendar%'),
+            like(communications.content, '%TestSalutation%'),
+            like(communications.content, '%Paganelli%'),
+            like(communications.content, '%Erba%'),
+            like(communications.content, '%ceruti%'),
+            like(communications.content, '%Via Test 123%')
+          )
+        );
+
+      console.log(`✅ Pulizia database completata:`);
+      console.log(`- Appuntamenti eliminati: ${deletedAppointments.rowCount || 0}`);
+      console.log(`- Conferme eliminate: ${deletedConfirmations.rowCount || 0}`);
+      console.log(`- Comunicazioni eliminate: ${deletedCommunications.rowCount || 0}`);
+
+      res.json({
+        success: true,
+        message: 'Pulizia completa database completata',
+        deleted: {
+          appointments: deletedAppointments.rowCount || 0,
+          confirmations: deletedConfirmations.rowCount || 0,
+          communications: deletedCommunications.rowCount || 0
+        }
+      });
+
+    } catch (error) {
+      console.error('💥 Errore durante la pulizia database:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        message: 'Errore durante la pulizia del database'
+      });
+    }
+  });
+
+  // Endpoint per eliminare eventi di test da Google Calendar (NOTA: richiede token validi)
   app.post("/api/calendar/cleanup-test-events", async (req: Request, res: Response) => {
     try {
       const { google } = await import('googleapis');
