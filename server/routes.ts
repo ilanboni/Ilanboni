@@ -6236,19 +6236,41 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
-  // Endpoint per eliminare eventi di test da Google Calendar (NOTA: richiede token validi)
+  // Endpoint per eliminare eventi di test da Google Calendar usando token dal database
   app.post("/api/calendar/cleanup-test-events", async (req: Request, res: Response) => {
     try {
+      console.log('🔍 Recupero token dal database per pulizia Google Calendar...');
+      
+      const { oauthTokens } = await import('@shared/schema');
+      const { eq, desc } = await import('drizzle-orm');
+      
+      // Recupera il token più recente dal database
+      const [tokenRecord] = await db.select()
+        .from(oauthTokens)
+        .where(eq(oauthTokens.service, 'google_calendar'))
+        .orderBy(desc(oauthTokens.createdAt))
+        .limit(1);
+      
+      if (!tokenRecord) {
+        return res.status(400).json({
+          success: false,
+          error: 'Nessun token Google Calendar trovato nel database'
+        });
+      }
+      
+      console.log(`📅 Token trovato, scade: ${tokenRecord.expiresAt}`);
+      
       const { google } = await import('googleapis');
       
       const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CALENDAR_CLIENT_ID,
         process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-        'http://localhost:5000/oauth/callback'
+        'https://client-management-system-ilanboni.replit.app/oauth/callback'
       );
 
       oauth2Client.setCredentials({
-        refresh_token: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN
+        access_token: tokenRecord.accessToken,
+        refresh_token: tokenRecord.refreshToken
       });
 
       const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
