@@ -6236,15 +6236,14 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
-  // Endpoint per eliminare eventi di test da Google Calendar usando token dal database
-  app.post("/api/calendar/cleanup-test-events", async (req: Request, res: Response) => {
+  // Endpoint per eliminare piccoli batch di eventi di test
+  app.post("/api/calendar/cleanup-batch", async (req: Request, res: Response) => {
     try {
-      console.log('🔍 Recupero token dal database per pulizia Google Calendar...');
+      console.log('Avvio pulizia batch limitato...');
       
       const { oauthTokens } = await import('@shared/schema');
       const { eq, desc } = await import('drizzle-orm');
       
-      // Recupera il token più recente dal database
       const [tokenRecord] = await db.select()
         .from(oauthTokens)
         .where(eq(oauthTokens.service, 'google_calendar'))
@@ -6254,11 +6253,9 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
       if (!tokenRecord) {
         return res.status(400).json({
           success: false,
-          error: 'Nessun token Google Calendar trovato nel database'
+          error: 'Token non trovato'
         });
       }
-      
-      console.log(`📅 Token trovato, scade: ${tokenRecord.expiresAt}`);
       
       const { google } = await import('googleapis');
       
@@ -6275,85 +6272,85 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
 
       const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-      console.log('🔍 Recupero eventi di test dal Google Calendar...');
-      
-      // Ottieni eventi dal 1 giugno al 31 luglio 2025
+      // Recupera solo 30 eventi per volta
       const response = await calendar.events.list({
         calendarId: 'primary',
         timeMin: '2025-06-01T00:00:00.000Z',
         timeMax: '2025-07-31T23:59:59.000Z',
-        maxResults: 2500,
+        maxResults: 30,
         singleEvents: true,
         orderBy: 'startTime'
       });
 
       const events = response.data.items || [];
-      console.log(`📅 Trovati ${events.length} eventi totali`);
+      console.log(`Trovati ${events.length} eventi`);
 
-      // Identifica eventi di test da eliminare
+      // Filtra eventi di test
       const testEvents = events.filter(event => {
         const summary = event.summary || '';
-        return summary.includes('TestSalutation') ||
-               summary.includes('TestCalendar') ||
-               summary.includes('TestOrario') ||
-               summary.includes('Paganelli') ||
-               summary.includes('Erba') ||
-               summary.includes('ceruti') ||
-               summary.includes('Boni - 393407992052') ||
-               (summary.includes('Test') && summary.includes('Dott.'));
+        return (
+          summary.includes('Test') ||
+          summary.includes('Paganelli') ||
+          summary.includes('Erba') ||
+          summary.includes('ceruti') ||
+          summary.includes('TestOrario') ||
+          summary.includes('TestCalendar') ||
+          (summary.includes('Appuntamento') && 
+           !summary.includes('Benarroch') && 
+           !summary.includes('Troina'))
+        );
       });
-
-      console.log(`🗑️ Trovati ${testEvents.length} eventi di test da eliminare`);
 
       if (testEvents.length === 0) {
         return res.json({ 
           success: true, 
-          message: 'Nessun evento di test trovato',
-          deletedCount: 0 
+          deletedCount: 0, 
+          message: 'Nessun evento di test in questo batch' 
         });
       }
 
+      console.log(`Eventi di test da eliminare: ${testEvents.length}`);
+
       let deletedCount = 0;
-      let errorCount = 0;
+      const maxToDelete = Math.min(testEvents.length, 3); // Solo 3 per volta
 
-      // Elimina gli eventi in batch di 50
-      for (let i = 0; i < testEvents.length; i += 50) {
-        const batch = testEvents.slice(i, i + 50);
+      for (let i = 0; i < maxToDelete; i++) {
+        const event = testEvents[i];
         
-        console.log(`📦 Elaborazione batch ${Math.floor(i/50) + 1}/${Math.ceil(testEvents.length/50)} (${batch.length} eventi)`);
-
-        const deletePromises = batch.map(async (event) => {
-          try {
-            await calendar.events.delete({
-              calendarId: 'primary',
-              eventId: event.id
-            });
-            deletedCount++;
-            return { success: true, eventId: event.id };
-          } catch (error) {
-            errorCount++;
-            console.error(`❌ Errore eliminando evento ${event.id}:`, error.message);
-            return { success: false, eventId: event.id, error: error.message };
+        try {
+          console.log(`Eliminando ${i + 1}/${maxToDelete}: "${event.summary}"`);
+          
+          await calendar.events.delete({
+            calendarId: 'primary',
+            eventId: event.id
+          });
+          
+          deletedCount++;
+          console.log(`Eliminato con successo`);
+          
+          // Pausa 10 secondi tra eliminazioni
+          if (i < maxToDelete - 1) {
+            await new Promise(resolve => setTimeout(resolve, 10000));
           }
-        });
-
-        await Promise.all(deletePromises);
-        
-        // Pausa tra i batch per non superare i rate limits
-        if (i + 50 < testEvents.length) {
-          console.log('⏳ Pausa per rate limiting...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error) {
+          console.error(`Errore eliminando "${event.summary}": ${error.message}`);
+          
+          if (error.message.includes('Quota exceeded')) {
+            console.log('Quota raggiunta');
+            break;
+          }
         }
       }
 
-      console.log(`✅ Pulizia completata: ${deletedCount} eventi eliminati, ${errorCount} errori`);
-
+      const remaining = testEvents.length - deletedCount;
+      
       res.json({
         success: true,
-        message: `Pulizia completata: ${deletedCount} eventi eliminati`,
         deletedCount,
-        errorCount,
-        totalFound: testEvents.length
+        remainingInBatch: remaining,
+        totalEventsChecked: events.length,
+        message: remaining > 0 ? `Eliminati ${deletedCount}, rimangono ${remaining} in questo batch` : `Batch completato: ${deletedCount} eliminati`
       });
 
     } catch (error) {
