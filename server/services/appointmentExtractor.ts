@@ -15,6 +15,18 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
   try {
     console.log('[APPOINTMENT-EXTRACTOR] Analizzando messaggio:', messageContent);
     
+    // Ignora messaggi di test per evitare duplicati
+    if (messageContent.includes('TestSalutation') || 
+        messageContent.includes('TestCalendar') || 
+        messageContent.includes('TestOrario') ||
+        messageContent.includes('Paganelli') ||
+        messageContent.includes('Erba') ||
+        messageContent.includes('ceruti') ||
+        (messageContent.includes('Boni') && clientPhone === '393407992052')) {
+      console.log('[APPOINTMENT-EXTRACTOR] Messaggio di test ignorato');
+      return null;
+    }
+    
     // Pattern per estrarre il nome del cliente
     const namePatterns = [
       /(?:Egr\.|Egregio|Gentile|Dott\.|Sig\.|Dott\.ssa|Sig\.ra)\s+([^,]+)/i,
