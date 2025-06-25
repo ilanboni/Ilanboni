@@ -1450,10 +1450,6 @@ export class MemStorage implements IStorage {
     return true;
   }
   
-  async deleteSharedProperty(id: number): Promise<boolean> {
-    return this.sharedPropertyStore.delete(id);
-  }
-  
   async getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]> {
     const sharedProperty = await this.getSharedProperty(sharedPropertyId);
     if (!sharedProperty || !sharedProperty.size || !sharedProperty.price) {
