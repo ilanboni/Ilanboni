@@ -581,3 +581,21 @@ ESEMPI NOME CORRETTO:
 }
 
 export const emailProcessor = new ImmobiliareEmailProcessor();
+
+// Export function for backward compatibility
+export async function processImmobiliareEmail(emailData: {
+  emailId: string;
+  from: string;
+  subject: string;
+  content: string;
+  receivedAt: Date;
+}): Promise<void> {
+  const processor = new ImmobiliareEmailProcessor();
+  await processor.processEmail({
+    emailId: emailData.emailId,
+    fromAddress: emailData.from,
+    subject: emailData.subject,
+    body: emailData.content,
+    receivedAt: emailData.receivedAt
+  });
+}

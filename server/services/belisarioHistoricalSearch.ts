@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import { db } from '../db';
-import { communications, clients } from '../../shared/schema';
+import { communications, clients } from '@shared/schema';
 import { processImmobiliareEmail } from './immobiliareEmailProcessor';
 
 /**

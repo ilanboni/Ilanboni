@@ -1331,31 +1331,7 @@ export class MemStorage implements IStorage {
     };
   }
   
-  async createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty> {
-    const id = this.sharedPropertyIdCounter++;
-    const newSharedProperty: SharedProperty = { 
-      id, 
-      ...sharedProperty,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.sharedPropertyStore.set(id, newSharedProperty);
-    return newSharedProperty;
-  }
-  
-  async updateSharedProperty(id: number, data: Partial<InsertSharedProperty>): Promise<SharedProperty | undefined> {
-    const existingSharedProperty = await this.getSharedProperty(id);
-    if (!existingSharedProperty) return undefined;
-    
-    const updatedSharedProperty: SharedProperty = {
-      ...existingSharedProperty,
-      ...data,
-      updatedAt: new Date()
-    };
-    
-    this.sharedPropertyStore.set(id, updatedSharedProperty);
-    return updatedSharedProperty;
-  }
+
   
   async acquireSharedProperty(id: number): Promise<boolean> {
     const sharedProperty = await this.getSharedProperty(id);
@@ -2083,18 +2059,7 @@ export class DatabaseStorage implements IStorage {
     return sharedPropertyWithDetails;
   }
 
-  async createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty> {
-    const result = await db.insert(sharedProperties).values(sharedProperty).returning();
-    return result[0];
-  }
 
-  async updateSharedProperty(id: number, data: Partial<InsertSharedProperty>): Promise<SharedProperty | undefined> {
-    const result = await db.update(sharedProperties)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(sharedProperties.id, id))
-      .returning();
-    return result.length > 0 ? result[0] : undefined;
-  }
 
   async acquireSharedProperty(id: number): Promise<boolean> {
     const sharedProperty = await this.getSharedProperty(id);
@@ -2127,14 +2092,7 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
-  async deleteSharedProperty(id: number): Promise<boolean> {
-    // First delete related records
-    await db.delete(tasks).where(eq(tasks.sharedPropertyId, id));
-    await db.delete(communications).where(eq(communications.sharedPropertyId, id));
-    
-    const result = await db.delete(sharedProperties).where(eq(sharedProperties.id, id)).returning();
-    return result.length > 0;
-  }
+
 
   async getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]> {
     const sharedProperty = await this.getSharedProperty(sharedPropertyId);
