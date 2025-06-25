@@ -74,6 +74,7 @@ The application includes comprehensive environment variable configuration for al
 
 ## Changelog
 - June 25, 2025. Initial setup
+- December 31, 2024. Fixed deployment issues after app rename - cleaned build cache and updated package name
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
