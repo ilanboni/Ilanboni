@@ -4,7 +4,7 @@ import readline from 'readline';
 // Usa le tue credenziali Gmail esistenti
 const CLIENT_ID = process.env.GMAIL_CLIENT_ID;
 const CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
-const REDIRECT_URI = 'https://client-management-system-ilanboni.replit.app/oauth/gmail/callback';
+const REDIRECT_URI = 'https://cavourimmobiliare-ilanboni.replit.app/oauth/gmail/callback';
 
 const oauth2Client = new google.auth.OAuth2(
   CLIENT_ID,

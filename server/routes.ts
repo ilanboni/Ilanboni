@@ -5645,7 +5645,7 @@ document.getElementById('tokenForm').addEventListener('submit', async function(e
         'https://client-management-system-ilanboni.replit.app/oauth/callback'
       );
       
-      console.log('[CALENDAR] Using redirect URI:', 'https://client-management-system-ilanboni.replit.app/oauth/callback');
+      console.log('[CALENDAR] Using redirect URI:', 'https://cavourimmobiliare-ilanboni.replit.app/oauth/callback');
       console.log('[CALENDAR] Client ID:', process.env.GOOGLE_CALENDAR_CLIENT_ID);
 
       console.log('[CALENDAR] Exchanging authorization code for tokens...');
