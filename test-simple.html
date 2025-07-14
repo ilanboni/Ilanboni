@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Semplice</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .status {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        .btn {
+            background: white;
+            color: #333;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            margin: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            background: #f0f0f0;
+        }
+        #result {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Diretto App React</h1>
+        
+        <div class="status">
+            <h3>Stato Server:</h3>
+            <p id="serverStatus">Verificando...</p>
+        </div>
+        
+        <div>
+            <a href="/debug" class="btn">📊 Debug Info</a>
+            <a href="/app" class="btn">🚀 App React</a>
+            <button onclick="testApi()" class="btn">🔧 Test API</button>
+            <button onclick="checkVite()" class="btn">⚡ Test Vite</button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        console.log('🧪 Test page caricata');
+        
+        function log(message) {
+            const result = document.getElementById('result');
+            result.innerHTML += message + '<br>';
+            console.log(message);
+        }
+        
+        async function testApi() {
+            log('🔍 Testing API...');
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.text();
+                log('✅ API Response: ' + response.status + ' - ' + data);
+            } catch (error) {
+                log('❌ API Error: ' + error.message);
+            }
+        }
+        
+        async function checkVite() {
+            log('⚡ Testing Vite...');
+            try {
+                const response = await fetch('/src/main.tsx');
+                log('✅ Vite Response: ' + response.status);
+                if (response.ok) {
+                    log('✅ Vite sta servendo i file correttamente');
+                }
+            } catch (error) {
+                log('❌ Vite Error: ' + error.message);
+            }
+        }
+        
+        async function checkServer() {
+            try {
+                const response = await fetch('/api/health');
+                if (response.ok) {
+                    document.getElementById('serverStatus').textContent = '✅ Server attivo e funzionante';
+                } else {
+                    document.getElementById('serverStatus').textContent = '⚠️ Server risponde ma con errori';
+                }
+            } catch (error) {
+                document.getElementById('serverStatus').textContent = '❌ Server non raggiungibile';
+            }
+        }
+        
+        // Check automatico all'avvio
+        checkServer();
+        
+        // Auto-refresh della pagina ogni 10 secondi per test
+        setTimeout(() => {
+            log('🔄 Auto-refresh in 5 secondi...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 5000);
+        }, 10000);
+    </script>
+</body>
+</html>

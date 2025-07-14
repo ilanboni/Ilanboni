@@ -115,19 +115,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Route principale per webview - serve l'app con loader
-  app.get("/", async (req: Request, res: Response) => {
+  // Route di test semplice
+  app.get("/test-simple", async (req: Request, res: Response) => {
     try {
       const fs = await import('fs');
       const path = await import('path');
-      const webviewHtmlPath = path.resolve(import.meta.dirname, '..', 'webview-app.html');
-      const webviewHtml = await fs.promises.readFile(webviewHtmlPath, 'utf-8');
+      const testHtmlPath = path.resolve(import.meta.dirname, '..', 'test-simple.html');
+      const testHtml = await fs.promises.readFile(testHtmlPath, 'utf-8');
       res.setHeader('Content-Type', 'text/html');
-      res.send(webviewHtml);
+      res.send(testHtml);
     } catch (error) {
-      // Fallback alla route normale se il file non esiste
-      next();
+      res.status(500).send(`<h1>Test Error</h1><p>${error}</p>`);
     }
+  });
+
+  // Route di debug per verificare che React si carichi
+  app.get("/debug", async (req: Request, res: Response) => {
+    res.send(`
+      <h1>🔍 Debug App React</h1>
+      <p><strong>Server Status:</strong> ✅ Attivo</p>
+      <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+      <p><strong>Vite HMR:</strong> Dovrebbe essere connesso</p>
+      <hr>
+      <p><a href="/app">🔗 Carica App React (/app)</a></p>
+      <p><a href="/test-simple">🧪 Test Semplice</a></p>
+      <p><a href="/">🏠 Torna alla home</a></p>
+      <script>
+        console.log('✅ Debug page caricata');
+        setTimeout(() => {
+          console.log('🔄 Verifico connessione Vite...');
+        }, 1000);
+      </script>
+    `);
   });
 
   // Health check endpoint
