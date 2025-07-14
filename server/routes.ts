@@ -76,6 +76,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Route preview per sviluppo
+  app.get("/preview", async (req: Request, res: Response) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const previewHtmlPath = path.resolve(import.meta.dirname, '..', 'preview.html');
+      const previewHtml = await fs.promises.readFile(previewHtmlPath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html');
+      res.send(previewHtml);
+    } catch (error) {
+      res.status(500).send(`<h1>Preview Error</h1><p>${error}</p>`);
+    }
+  });
+
   // Health check endpoint
   app.get("/api/health", (req: Request, res: Response) => {
     res.json({ 

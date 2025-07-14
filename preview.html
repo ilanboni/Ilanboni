@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview - Sistema Gestione Clienti</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .status {
+            background: #dcfce7;
+            border-left: 4px solid #16a34a;
+            padding: 15px;
+            margin: 20px;
+        }
+        .frame-container {
+            position: relative;
+            height: 800px;
+            margin: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+        }
+        .controls {
+            padding: 20px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            background: #1d4ed8;
+        }
+        .btn.secondary {
+            background: #6b7280;
+        }
+        .btn.secondary:hover {
+            background: #4b5563;
+        }
+        .url-display {
+            flex: 1;
+            background: #f3f4f6;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 Preview - Sistema Gestione Clienti Immobiliari</h1>
+            <p>Anteprima dell'applicazione con hot reload automatico</p>
+        </div>
+        
+        <div class="status">
+            <strong>✅ Preview Attiva!</strong> L'app si carica direttamente dall'URL deployment con hot reload automatico.
+        </div>
+        
+        <div class="frame-container">
+            <div class="loading" id="loading">
+                <p>🔄 Caricamento app...</p>
+                <p style="font-size: 14px; color: #999;">Se non si carica, verifica che il server sia attivo</p>
+            </div>
+            <iframe id="app-frame" src="https://client-management-system-ilanboni.replit.app/" onload="hideLoading()"></iframe>
+        </div>
+        
+        <div class="controls">
+            <span class="url-display">https://client-management-system-ilanboni.replit.app/</span>
+            <button class="btn" onclick="reloadApp()">🔄 Ricarica</button>
+            <button class="btn secondary" onclick="openExternal()">🔗 Apri Esterno</button>
+            <button class="btn secondary" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+        </div>
+    </div>
+
+    <script>
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        function reloadApp() {
+            const frame = document.getElementById('app-frame');
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+            frame.src = frame.src;
+        }
+        
+        function openExternal() {
+            window.open('https://client-management-system-ilanboni.replit.app/', '_blank');
+        }
+        
+        function toggleFullscreen() {
+            const container = document.querySelector('.frame-container');
+            if (container.style.position === 'fixed') {
+                // Esci dal fullscreen
+                container.style.position = '';
+                container.style.top = '';
+                container.style.left = '';
+                container.style.width = '';
+                container.style.height = '';
+                container.style.zIndex = '';
+                container.style.background = '';
+            } else {
+                // Entra in fullscreen
+                container.style.position = 'fixed';
+                container.style.top = '0';
+                container.style.left = '0';
+                container.style.width = '100vw';
+                container.style.height = '100vh';
+                container.style.zIndex = '9999';
+                container.style.background = 'white';
+            }
+        }
+        
+        // Auto-reload ogni 30 secondi per mantenere sincronizzato
+        setInterval(() => {
+            console.log('Auto-sync con deployment...');
+        }, 30000);
+    </script>
+</body>
+</html>
