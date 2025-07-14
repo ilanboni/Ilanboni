@@ -90,29 +90,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Route per forzare il caricamento dell'app React
-  app.get("/app", async (req: Request, res: Response) => {
-    try {
-      const fs = await import('fs');
-      const path = await import('path');
-      const clientHtmlPath = path.resolve(import.meta.dirname, '..', 'client', 'index.html');
-      let clientHtml = await fs.promises.readFile(clientHtmlPath, 'utf-8');
-      
-      // Aggiungi script di debug per verificare che si carichi
-      const debugScript = `
-      <script>
-        console.log('✅ App React caricata correttamente!');
-        window.addEventListener('load', () => {
-          console.log('✅ Finestra caricata, React dovrebbe essere attivo');
-        });
-      </script>`;
-      
-      clientHtml = clientHtml.replace('</head>', debugScript + '</head>');
-      res.setHeader('Content-Type', 'text/html');
-      res.send(clientHtml);
-    } catch (error) {
-      res.status(500).send(`<h1>App Error</h1><p>${error}</p>`);
-    }
+  // Route per forzare il caricamento dell'app React tramite Vite
+  app.get("/app", async (req: Request, res: Response, next: NextFunction) => {
+    // Questa route deve essere gestita da Vite per il corretto rendering di React
+    // Reimpostiamo l'URL per far passare la richiesta attraverso Vite
+    req.url = '/';
+    req.originalUrl = '/';
+    next();
   });
 
   // Route di test semplice
@@ -126,6 +110,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(testHtml);
     } catch (error) {
       res.status(500).send(`<h1>Test Error</h1><p>${error}</p>`);
+    }
+  });
+
+  // Route app diretta con iframe
+  app.get("/direct-app", async (req: Request, res: Response) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const directAppPath = path.resolve(import.meta.dirname, '..', 'direct-app.html');
+      const directAppHtml = await fs.promises.readFile(directAppPath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html');
+      res.send(directAppHtml);
+    } catch (error) {
+      res.status(500).send(`<h1>Direct App Error</h1><p>${error}</p>`);
     }
   });
 
