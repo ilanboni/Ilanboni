@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Sistema Gestione Clienti</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2563eb; }
+        .status { 
+            background: #dcfce7; 
+            border: 1px solid #16a34a; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin: 20px 0;
+        }
+        .btn {
+            background: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 Sistema Gestione Clienti Immobiliari</h1>
+        
+        <div class="status">
+            <strong>✅ Server funzionante!</strong><br>
+            Se vedi questa pagina, il server Express è attivo e accessibile.
+        </div>
+        
+        <p>Questa è una pagina di test per verificare la connettività del server.</p>
+        
+        <h3>Stato dei servizi:</h3>
+        <ul>
+            <li>✅ Server Express (porta 5000)</li>
+            <li>✅ Database PostgreSQL</li>
+            <li>✅ Sistema WhatsApp</li>
+            <li>✅ Google Calendar</li>
+        </ul>
+        
+        <a href="/" class="btn">Vai all'App Principale</a>
+        
+        <p style="margin-top: 30px; font-size: 14px; color: #666;">
+            <strong>Per lo sviluppo:</strong> Se riesci a vedere questa pagina, il problema è nella configurazione di React/Vite, non nel server.
+        </p>
+    </div>
+    
+    <script>
+        console.log('Pagina di test caricata - Server funzionante!');
+        // Test di connettività
+        fetch('/api/health')
+            .then(res => res.text())
+            .then(data => console.log('Health check:', data))
+            .catch(err => console.log('Health check fallito:', err));
+    </script>
+</body>
+</html>

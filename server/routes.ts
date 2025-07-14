@@ -62,6 +62,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("WEBHOOK FORWARDER KEY:", forwardKey);
   console.log("Usa questa chiave quando configuri webhook.site per inoltrare i messaggi all'app");
   console.log("===============================================\n");
+  // Route di test per debug webview
+  app.get("/test", async (req: Request, res: Response) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const testHtmlPath = path.resolve(import.meta.dirname, 'test.html');
+      const testHtml = await fs.promises.readFile(testHtmlPath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html');
+      res.send(testHtml);
+    } catch (error) {
+      res.status(500).send(`<h1>Test Route Error</h1><p>${error}</p>`);
+    }
+  });
+
+  // Health check endpoint
+  app.get("/api/health", (req: Request, res: Response) => {
+    res.json({ 
+      status: "OK", 
+      timestamp: new Date().toISOString(),
+      message: "Server Express funzionante correttamente" 
+    });
+  });
+
   // API per la gestione delle comunicazioni
 
   // Ottieni tutte le comunicazioni (con filtri opzionali)
