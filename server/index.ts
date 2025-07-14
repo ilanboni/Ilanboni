@@ -149,11 +149,7 @@ async function pollWhatsAppMessages() {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
     
     // Avvia il polling dei messaggi WhatsApp dopo l'avvio del server
