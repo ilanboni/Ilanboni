@@ -90,6 +90,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Route per forzare il caricamento dell'app React
+  app.get("/app", async (req: Request, res: Response) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const clientHtmlPath = path.resolve(import.meta.dirname, '..', 'client', 'index.html');
+      let clientHtml = await fs.promises.readFile(clientHtmlPath, 'utf-8');
+      
+      // Aggiungi script di debug per verificare che si carichi
+      const debugScript = `
+      <script>
+        console.log('✅ App React caricata correttamente!');
+        window.addEventListener('load', () => {
+          console.log('✅ Finestra caricata, React dovrebbe essere attivo');
+        });
+      </script>`;
+      
+      clientHtml = clientHtml.replace('</head>', debugScript + '</head>');
+      res.setHeader('Content-Type', 'text/html');
+      res.send(clientHtml);
+    } catch (error) {
+      res.status(500).send(`<h1>App Error</h1><p>${error}</p>`);
+    }
+  });
+
+  // Route principale per webview - serve l'app con loader
+  app.get("/", async (req: Request, res: Response) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const webviewHtmlPath = path.resolve(import.meta.dirname, '..', 'webview-app.html');
+      const webviewHtml = await fs.promises.readFile(webviewHtmlPath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html');
+      res.send(webviewHtml);
+    } catch (error) {
+      // Fallback alla route normale se il file non esiste
+      next();
+    }
+  });
+
   // Health check endpoint
   app.get("/api/health", (req: Request, res: Response) => {
     res.json({ 

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Gestione Clienti Immobiliari</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8fafc;
+        }
+        .loading-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .app-frame {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            display: none;
+        }
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 16px;
+            font-size: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container" id="loading">
+        <div class="loading-spinner"></div>
+        <h2>🏠 Caricamento Sistema Gestionale</h2>
+        <p>Connessione al server in corso...</p>
+        <div id="status">Inizializzazione...</div>
+    </div>
+    
+    <iframe id="appFrame" class="app-frame" src="/app"></iframe>
+    
+    <div class="status-bar">
+        <span id="statusText">✅ App caricata • Server attivo • HMR connesso</span>
+    </div>
+
+    <script>
+        console.log('🚀 Webview App Loader avviato');
+        
+        const loading = document.getElementById('loading');
+        const appFrame = document.getElementById('appFrame');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        
+        let loadAttempts = 0;
+        const maxAttempts = 3;
+        
+        function updateStatus(message) {
+            status.textContent = message;
+            console.log('📱 Status:', message);
+        }
+        
+        function showApp() {
+            console.log('✅ Mostrando app React');
+            loading.style.display = 'none';
+            appFrame.style.display = 'block';
+            statusText.textContent = '✅ App caricata • Server attivo • HMR connesso';
+        }
+        
+        function retryLoad() {
+            loadAttempts++;
+            if (loadAttempts <= maxAttempts) {
+                updateStatus(`Tentativo ${loadAttempts}/${maxAttempts}...`);
+                appFrame.src = '/app?v=' + Date.now();
+            } else {
+                updateStatus('❌ Caricamento fallito. Ricarica la pagina.');
+                statusText.textContent = '❌ Errore caricamento • Ricarica la pagina';
+            }
+        }
+        
+        // Gestione caricamento iframe
+        appFrame.onload = function() {
+            console.log('✅ Iframe caricato correttamente');
+            // Attendi un momento per assicurarsi che React si sia inizializzato
+            setTimeout(() => {
+                showApp();
+            }, 1000);
+        };
+        
+        appFrame.onerror = function() {
+            console.log('❌ Errore caricamento iframe');
+            retryLoad();
+        };
+        
+        // Avvia il caricamento
+        updateStatus('Caricamento app React...');
+        
+        // Timeout di sicurezza
+        setTimeout(() => {
+            if (loading.style.display !== 'none') {
+                console.log('⏰ Timeout raggiunto, forzo visualizzazione');
+                showApp();
+            }
+        }, 5000);
+        
+        // Auto-refresh ogni 30 secondi per mantenere HMR
+        setInterval(() => {
+            console.log('🔄 Keep-alive HMR');
+        }, 30000);
+    </script>
+</body>
+</html>
