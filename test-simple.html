@@ -118,13 +118,13 @@
         // Check automatico all'avvio
         checkServer();
         
-        // Auto-refresh della pagina ogni 10 secondi per test
+        // Reindirizza automaticamente all'app dopo il test
         setTimeout(() => {
-            log('🔄 Auto-refresh in 5 secondi...');
+            log('✅ Test completato! Reindirizzamento all\'app in 3 secondi...');
             setTimeout(() => {
-                window.location.reload();
-            }, 5000);
-        }, 10000);
+                window.location.href = '/app';
+            }, 3000);
+        }, 5000);
     </script>
 </body>
 </html>

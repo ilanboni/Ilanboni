@@ -129,6 +129,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Route di avvio rapido per webview
+  app.get("/start", (req: Request, res: Response) => {
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="it">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Avvio App React</title>
+          <style>
+              body { 
+                  margin: 0; 
+                  display: flex; 
+                  align-items: center; 
+                  justify-content: center; 
+                  min-height: 100vh; 
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white;
+                  font-family: Arial, sans-serif;
+              }
+              .loader { text-align: center; }
+              .spinner { 
+                  width: 40px; 
+                  height: 40px; 
+                  border: 3px solid rgba(255,255,255,0.3); 
+                  border-top: 3px solid white; 
+                  border-radius: 50%; 
+                  animation: spin 1s linear infinite; 
+                  margin: 0 auto 20px;
+              }
+              @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          </style>
+      </head>
+      <body>
+          <div class="loader">
+              <div class="spinner"></div>
+              <h2>🏠 Caricamento App...</h2>
+              <p>Reindirizzamento automatico all'app React</p>
+          </div>
+          <script>
+              console.log('✅ Avvio automatico app React');
+              setTimeout(() => {
+                  window.location.href = '/app';
+              }, 1500);
+          </script>
+      </body>
+      </html>
+    `);
+  });
+
   // Route di debug per verificare che React si carichi
   app.get("/debug", async (req: Request, res: Response) => {
     res.send(`
