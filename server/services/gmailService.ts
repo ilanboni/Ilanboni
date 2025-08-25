@@ -75,9 +75,9 @@ export class GmailService {
     }
 
     try {
-      console.log('[GMAIL] 📧 Controllo nuove email da immobiliare.it...');
+      console.log('[GMAIL] 📧 Controllo nuove email da immobiliare.it (ricerca ampliata)...');
       
-      // Cerca email da immobiliare.it ricevute nelle ultime 24 ore
+      // Cerca email da immobiliare.it ricevute nelle ultime 24 ore (ricerca normale)
       const query = 'from:noreply@immobiliare.it OR from:@immobiliare.it newer_than:1d';
       
       const response = await this.gmail.users.messages.list({
