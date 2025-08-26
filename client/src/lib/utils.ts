@@ -41,6 +41,11 @@ export function formatTime(time: string): string {
 
 // Generate a formal or informal greeting based on client status
 export function generateGreeting(client: Client): string {
+  // Caso speciale per clienti generici
+  if (client.firstName === 'Cliente' && client.salutation === 'Gentile') {
+    return "Gentile Cliente";
+  }
+  
   const templates = client.isFriend
     ? GREETING_TEMPLATES.informal
     : GREETING_TEMPLATES.formal;
