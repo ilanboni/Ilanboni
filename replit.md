@@ -73,7 +73,7 @@ The application is designed for deployment on Replit with:
 The application includes comprehensive environment variable configuration for all external services and can be easily deployed to cloud platforms with PostgreSQL support.
 
 ## Changelog
-- August 26, 2025. Rimosso sistema numerazione clienti e implementato nome semplice "Cliente" - Eliminati nomi problematici come "Cliente 0592", aggiornati 14 clienti esistenti a semplicemente "Cliente", modificato processore email per evitare nomi numerati futuri
+- August 26, 2025. Rimosso sistema numerazione clienti e implementato nome semplice "Cliente" con saluto "Gentile Cliente" - Eliminati nomi problematici come "Cliente 0592", aggiornati 14 clienti esistenti a semplicemente "Cliente" con saluto appropriato "Gentile Cliente", modificato processore email per evitare nomi numerati futuri
 - July 14, 2025. Risolto problema webview e automazione completata - App React funzionante, geocoding automatico attivato, workflow completo operativo
 - June 25, 2025. Initial setup
 - December 31, 2024. Fixed deployment issues after app rename - cleaned build cache and updated package name

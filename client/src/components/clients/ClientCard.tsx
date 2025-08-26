@@ -75,6 +75,7 @@ export default function ClientCard({
       case "avv": return "Avv.";
       case "prof": return "Prof.";
       case "prof.ssa": return "Prof.ssa";
+      case "Gentile": return "Gentile";
       default: return "";
     }
   };

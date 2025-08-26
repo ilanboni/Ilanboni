@@ -311,9 +311,12 @@ ESEMPI NOME CORRETTO:
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(' ') || '';
 
+    // Usa saluto speciale per clienti generici
+    const salutation = firstName === 'Cliente' ? 'Gentile' : 'Sig.';
+    
     const [newClient] = await db.insert(clients).values({
       type: 'buyer',
-      salutation: 'Sig.',
+      salutation: salutation,
       firstName,
       lastName,
       email: clientData.email || null,
