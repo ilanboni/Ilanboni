@@ -120,6 +120,7 @@ export default function MailMergePage() {
     return messageTemplate
       .replace(/<<Appellativo>>/g, contact.appellativo)
       .replace(/<<Cognome>>/g, contact.cognome)
+      .replace(/<<Indirizzo>>/g, contact.indirizzo)
       .replace(/<<Visto su>>/g, contact.vistoSu)
       .replace(/<<Caratteristiche particolari>>/g, contact.caratteristiche);
   };
