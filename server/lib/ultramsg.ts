@@ -432,6 +432,45 @@ export function getUltraMsgClient(): UltraMsgClient {
 }
 
 /**
+ * Funzione semplificata per inviare messaggi WhatsApp tramite mail merge
+ * @param phoneNumber Numero di telefono del destinatario
+ * @param message Testo del messaggio
+ * @returns Risultato dell'invio con informazioni di successo/errore
+ */
+export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<{
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}> {
+  try {
+    console.log(`[MAIL MERGE WHATSAPP] Invio messaggio a ${phoneNumber}`);
+    
+    const client = getUltraMsgClient();
+    const response = await client.sendMessage(phoneNumber, message);
+    
+    if (response.sent) {
+      console.log(`[MAIL MERGE WHATSAPP] ✅ Messaggio inviato con successo: ID ${response.id}`);
+      return {
+        success: true,
+        messageId: response.id
+      };
+    } else {
+      console.error(`[MAIL MERGE WHATSAPP] ❌ Errore nell'invio: ${response.error || response.message}`);
+      return {
+        success: false,
+        error: response.error || response.message || 'Errore sconosciuto'
+      };
+    }
+  } catch (error) {
+    console.error(`[MAIL MERGE WHATSAPP] ❌ Errore durante l'invio del messaggio:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Errore durante l\'invio del messaggio'
+    };
+  }
+}
+
+/**
  * Messaggi personalizzati per la notifica di match immobili
  * 
  * Ogni messaggio può includere questi placeholder che verranno sostituiti con i dati reali:

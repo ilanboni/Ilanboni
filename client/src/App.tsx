@@ -38,6 +38,7 @@ import AppointmentConfirmationsPage from "@/pages/appointment-confirmations";
 import CalendarPage from "@/pages/calendar";
 import GoogleOAuthPage from "@/pages/google-oauth";
 import EmailProcessorPage from "@/pages/email-processor";
+import MailMergePage from "@/pages/mail-merge/index";
 
 function Router() {
   return (
@@ -73,6 +74,7 @@ function Router() {
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/google-oauth" component={GoogleOAuthPage} />
       <Route path="/assistente" component={AssistentePage} />
+      <Route path="/mail-merge" component={MailMergePage} />
       <Route path="/email-processor" component={EmailProcessorPage} />
       <Route path="/testing/whatsapp" component={WhatsAppTestPage} />
       <Route component={NotFound} />

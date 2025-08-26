@@ -41,6 +41,7 @@ import { getWebhookForwarder, getForwardKey } from './lib/webhookForwarder';
 import geocodeRouter from "./routes/geocode";
 import { registerAIAssistantRoutes } from "./routes/aiAssistant";
 import virtualAssistantRouter from "./routes/virtualAssistant";
+import mailMergeRouter from "./routes/mailMerge";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -55,6 +56,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registra le route per l'assistente virtuale
   app.use('/api/virtual-assistant', virtualAssistantRouter);
+  
+  // Registra le route per il mail merge
+  app.use('/api/mail-merge', mailMergeRouter);
   
   // Stampa la chiave da usare per il forwarder
   const forwardKey = getForwardKey();
