@@ -15,6 +15,13 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
   Trash2, 
   Plus, 
   Send, 
@@ -56,7 +63,7 @@ export default function MailMergePage() {
   const [contacts, setContacts] = useState<MailMergeContact[]>([
     {
       id: 'example-1',
-      appellativo: 'Sig.',
+      appellativo: 'Gent.mo Sig.',
       cognome: 'Rossi',
       indirizzo: 'Via Roma 15, Milano',
       telefono: '+39 335 1234567',
@@ -66,7 +73,7 @@ export default function MailMergePage() {
     },
     {
       id: 'example-2',
-      appellativo: 'Dott.',
+      appellativo: 'Egr. Dott.',
       cognome: 'Bianchi',
       indirizzo: 'Corso Buenos Aires 78, Milano',
       telefono: '+39 347 9876543',
@@ -434,12 +441,20 @@ export default function MailMergePage() {
                 {contacts.map((contact, index) => (
                   <TableRow key={contact.id} className={index % 2 === 0 ? "bg-gray-50/50" : ""}>
                     <TableCell>
-                      <Input
+                      <Select
                         value={contact.appellativo}
-                        onChange={(e) => updateContact(contact.id, 'appellativo', e.target.value)}
-                        placeholder="Sig."
-                        className="h-8 text-sm"
-                      />
+                        onValueChange={(value) => updateContact(contact.id, 'appellativo', value)}
+                      >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Seleziona..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Gentile">Gentile</SelectItem>
+                          <SelectItem value="Egr. Dott.">Egr. Dott.</SelectItem>
+                          <SelectItem value="Gent.mo Sig.">Gent.mo Sig.</SelectItem>
+                          <SelectItem value="Gent.ma Sig.ra">Gent.ma Sig.ra</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <Input
