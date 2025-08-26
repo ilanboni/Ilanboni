@@ -263,10 +263,10 @@ ESEMPI NOME CORRETTO:
           clientData.name = cleanEmailPart.charAt(0).toUpperCase() + cleanEmailPart.slice(1).toLowerCase();
           console.log(`[EMAIL PROCESSOR] Nome estratto dall'email: ${clientData.name}`);
         } else {
-          clientData.name = 'Contatto da Immobiliare.it';
+          clientData.name = 'Cliente';
         }
       } else {
-        clientData.name = 'Contatto da Immobiliare.it';
+        clientData.name = 'Cliente';
       }
       console.log(`[EMAIL PROCESSOR] Nome mancante, uso nome professionale: ${clientData.name}`);
     }
@@ -309,7 +309,7 @@ ESEMPI NOME CORRETTO:
     // Crea nuovo cliente
     const nameParts = clientData.name.trim().split(' ');
     const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(' ') || 'Da immobiliare.it';
+    const lastName = nameParts.slice(1).join(' ') || '';
 
     const [newClient] = await db.insert(clients).values({
       type: 'buyer',

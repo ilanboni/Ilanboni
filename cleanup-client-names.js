@@ -11,10 +11,10 @@ async function cleanupClientNames() {
   console.log('🧹 Avvio pulizia nomi clienti numerati...');
   
   try {
-    // Trova tutti i clienti con nomi che contengono "Cliente"
+    // Trova tutti i clienti con nomi che contengono "Contatto"
     const numberedClients = await db.select()
       .from(clients)
-      .where(like(clients.firstName, 'Cliente%'));
+      .where(like(clients.firstName, 'Contatto%'));
     
     console.log(`📋 Trovati ${numberedClients.length} clienti con nomi numerati`);
     
@@ -41,18 +41,18 @@ async function cleanupClientNames() {
           
           if (cleanEmailPart.length > 2) {
             newFirstName = cleanEmailPart.charAt(0).toUpperCase() + cleanEmailPart.slice(1).toLowerCase();
-            newLastName = 'da Immobiliare.it';
+            newLastName = '';
             console.log(`   📧 Nome estratto dall'email: ${newFirstName}`);
           } else {
-            newFirstName = 'Contatto';
-            newLastName = 'da Immobiliare.it';
+            newFirstName = 'Cliente';
+            newLastName = '';
             console.log(`   📧 Email non utilizzabile, uso nome generico`);
           }
         } else {
-          // Senza email, usa nome professionale generico
-          newFirstName = 'Contatto';
-          newLastName = 'da Immobiliare.it';
-          console.log(`   📧 Nessuna email, uso nome generico professionale`);
+          // Senza email, usa nome semplice
+          newFirstName = 'Cliente';
+          newLastName = '';
+          console.log(`   📧 Nessuna email, uso nome generico`);
         }
         
         // Aggiorna il database
@@ -63,7 +63,7 @@ async function cleanupClientNames() {
           })
           .where(eq(clients.id, client.id));
         
-        console.log(`   ✅ Aggiornato: "${client.firstName} ${client.lastName}" → "${newFirstName} ${newLastName}"`);
+        console.log(`   ✅ Aggiornato: "${client.firstName} ${client.lastName}" → "${newFirstName.trim()}${newLastName ? ' ' + newLastName.trim() : ''}"`);
         updated++;
         
         // Pausa per non sovraccaricare il database
