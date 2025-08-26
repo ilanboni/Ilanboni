@@ -179,7 +179,7 @@ export default function MailMergePage() {
           // Send mail merge request
           const response = await apiRequest('/api/mail-merge/send', {
             method: 'POST',
-            body: JSON.stringify({
+            data: {
               appellativo: contact.appellativo,
               cognome: contact.cognome,
               indirizzo: contact.indirizzo,
@@ -187,11 +187,11 @@ export default function MailMergePage() {
               vistoSu: contact.vistoSu,
               caratteristiche: contact.caratteristiche,
               message: personalizedMessage
-            })
+            }
           });
 
-          if (response.success) {
-            if (response.isDuplicate) {
+          if (response && typeof response === 'object' && 'success' in response && response.success) {
+            if ('isDuplicate' in response && response.isDuplicate) {
               setContacts(prev => prev.map(c => 
                 c.id === contact.id 
                   ? { ...c, status: 'duplicate', message: 'Cliente già presente o messaggio già inviato' }
@@ -207,9 +207,12 @@ export default function MailMergePage() {
               successCount++;
             }
           } else {
+            const errorMessage = (response && typeof response === 'object' && 'message' in response) 
+              ? response.message as string 
+              : 'Errore sconosciuto';
             setContacts(prev => prev.map(c => 
               c.id === contact.id 
-                ? { ...c, status: 'error', message: response.message || 'Errore sconosciuto' }
+                ? { ...c, status: 'error', message: errorMessage }
                 : c
             ));
             errorCount++;
