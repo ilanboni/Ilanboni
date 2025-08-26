@@ -253,11 +253,22 @@ ESEMPI NOME CORRETTO:
    * Trova o crea un cliente con le preferenze di ricerca
    */
   private async findOrCreateClient(clientData: ExtractedClientData, propertyData?: ExtractedPropertyData): Promise<number> {
-    // Per chiamate telefoniche senza nome, crea un nome basato sul numero
-    if (!clientData.name && clientData.phone) {
-      const phoneNumber = this.normalizePhone(clientData.phone);
-      clientData.name = `Cliente ${phoneNumber.slice(-4)}`;
-      console.log(`[EMAIL PROCESSOR] Nome mancante per chiamata telefonica, uso: ${clientData.name}`);
+    // Se il nome non è presente, prova a estrarlo dall'email o usa un nome generico professionale
+    if (!clientData.name || clientData.name.toLowerCase().includes('cliente')) {
+      if (clientData.email) {
+        // Estrai il nome dalla parte prima della @ dell'email
+        const emailPart = clientData.email.split('@')[0];
+        const cleanEmailPart = emailPart.replace(/[^a-zA-Z]/g, '');
+        if (cleanEmailPart.length > 2) {
+          clientData.name = cleanEmailPart.charAt(0).toUpperCase() + cleanEmailPart.slice(1).toLowerCase();
+          console.log(`[EMAIL PROCESSOR] Nome estratto dall'email: ${clientData.name}`);
+        } else {
+          clientData.name = 'Contatto da Immobiliare.it';
+        }
+      } else {
+        clientData.name = 'Contatto da Immobiliare.it';
+      }
+      console.log(`[EMAIL PROCESSOR] Nome mancante, uso nome professionale: ${clientData.name}`);
     }
     
     if (!clientData.name) {

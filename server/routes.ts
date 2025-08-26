@@ -6507,5 +6507,53 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  // Endpoint per pulire i nomi dei clienti numerati
+  app.post("/api/clients/clean-numbered-names", async (req: Request, res: Response) => {
+    try {
+      console.log('[CLIENT CLEANER] Richiesta pulizia nomi numerati ricevuta');
+      
+      // Importa dinamicamente la utility di pulizia
+      const { clientNameCleaner } = await import('./utils/cleanClientNames');
+      
+      // Trova tutti i clienti con nomi numerati
+      const numberedClients = await clientNameCleaner.findClientsWithNumberedNames();
+      
+      if (numberedClients.length === 0) {
+        return res.json({
+          success: true,
+          message: 'Nessun cliente con nomi numerati trovato',
+          updated: 0,
+          errors: 0,
+          details: []
+        });
+      }
+      
+      // Esegui la pulizia
+      const result = await clientNameCleaner.cleanAllNumberedClients();
+      
+      res.json({
+        success: true,
+        message: `Pulizia completata: ${result.updated} clienti aggiornati, ${result.errors} errori`,
+        updated: result.updated,
+        errors: result.errors,
+        totalFound: numberedClients.length,
+        details: numberedClients.map(c => ({
+          id: c.id,
+          oldName: `${c.firstName} ${c.lastName}`,
+          email: c.email
+        }))
+      });
+      
+    } catch (error) {
+      console.error('[CLIENT CLEANER] Errore durante la pulizia:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Errore durante la pulizia dei nomi numerati',
+        updated: 0,
+        errors: 1
+      });
+    }
+  });
+
   return httpServer;
 }
