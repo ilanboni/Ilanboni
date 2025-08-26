@@ -53,7 +53,28 @@ Cordiali saluti,
 Ilan Boni – Cavour Immobiliare`;
 
 export default function MailMergePage() {
-  const [contacts, setContacts] = useState<MailMergeContact[]>([]);
+  const [contacts, setContacts] = useState<MailMergeContact[]>([
+    {
+      id: 'example-1',
+      appellativo: 'Sig.',
+      cognome: 'Rossi',
+      indirizzo: 'Via Roma 15, Milano',
+      telefono: '+39 335 1234567',
+      vistoSu: 'Immobiliare.it',
+      caratteristiche: 'terrazzo panoramico e doppi servizi',
+      status: 'pending'
+    },
+    {
+      id: 'example-2',
+      appellativo: 'Dott.',
+      cognome: 'Bianchi',
+      indirizzo: 'Corso Buenos Aires 78, Milano',
+      telefono: '+39 347 9876543',
+      vistoSu: 'Casa.it',
+      caratteristiche: 'ampio soggiorno e cucina abitabile',
+      status: 'pending'
+    }
+  ]);
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
@@ -217,7 +238,25 @@ export default function MailMergePage() {
     }
   };
 
-  // Parse CSV-like input
+  // Aggiungi righe vuote per facilitare l'inserimento
+  const addMultipleRows = (count: number = 5) => {
+    const newContacts: MailMergeContact[] = [];
+    for (let i = 0; i < count; i++) {
+      newContacts.push({
+        id: `new-${Date.now()}-${i}`,
+        appellativo: '',
+        cognome: '',
+        indirizzo: '',
+        telefono: '',
+        vistoSu: '',
+        caratteristiche: '',
+        status: 'pending'
+      });
+    }
+    setContacts([...contacts, ...newContacts]);
+  };
+
+  // Parse CSV-like input (manteniamo per compatibilità)
   const parseContacts = (text: string) => {
     const lines = text.trim().split('\n');
     const newContacts: MailMergeContact[] = [];
@@ -269,10 +308,20 @@ export default function MailMergePage() {
           <Button 
             onClick={addContact}
             variant="outline"
+            size="sm"
           >
             <Plus size={16} className="mr-2" />
-            Aggiungi Contatto
+            +1 Riga
           </Button>
+          <Button 
+            onClick={() => addMultipleRows(5)}
+            variant="outline"
+            size="sm"
+          >
+            <Plus size={16} className="mr-2" />
+            +5 Righe
+          </Button>
+          <div className="flex-1" />
           <Button 
             onClick={sendMessages}
             disabled={isSending || contacts.length === 0}
@@ -303,28 +352,61 @@ export default function MailMergePage() {
         </CardContent>
       </Card>
 
-      {/* Import Section */}
+      {/* Helper Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
             <Upload size={16} className="mr-2" />
-            Importa Contatti (Copia e Incolla da Tabella)
+            Gestione Contatti
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Textarea
-            placeholder="Incolla qui i dati separati da tabulazioni:&#10;Appellativo&#9;Cognome&#9;Indirizzo&#9;Telefono&#9;Visto su&#9;Caratteristiche"
-            onChange={(e) => {
-              if (e.target.value.trim()) {
-                parseContacts(e.target.value);
-                e.target.value = '';
-              }
-            }}
-            rows={3}
-          />
-          <p className="text-sm text-gray-500 mt-2">
-            Formato: Appellativo [TAB] Cognome [TAB] Indirizzo [TAB] Telefono [TAB] Visto su [TAB] Caratteristiche
-          </p>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Azioni Rapide</Label>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => addMultipleRows(10)}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                >
+                  +10 Righe
+                </Button>
+                <Button 
+                  onClick={() => setContacts([])}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                >
+                  Pulisci Tutto
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Importa da Excel/CSV</Label>
+              <Textarea
+                placeholder="Incolla qui i dati separati da tabulazioni"
+                onChange={(e) => {
+                  if (e.target.value.trim()) {
+                    parseContacts(e.target.value);
+                    e.target.value = '';
+                  }
+                }}
+                rows={2}
+                className="text-xs"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Formato Template</Label>
+              <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                Appellativo → Cognome → Indirizzo<br />
+                → Telefono → Visto su → Caratteristiche
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -334,94 +416,122 @@ export default function MailMergePage() {
           <CardTitle>Contatti ({contacts.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {contacts.length === 0 ? (
-            <Alert>
-              <AlertCircle size={16} />
-              <AlertDescription>
-                Nessun contatto aggiunto. Usa il pulsante "Aggiungi Contatto" o importa da una tabella.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Appellativo</TableHead>
-                    <TableHead>Cognome</TableHead>
-                    <TableHead>Indirizzo</TableHead>
-                    <TableHead>Telefono</TableHead>
-                    <TableHead>Visto su</TableHead>
-                    <TableHead>Caratteristiche</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Azioni</TableHead>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-24">Appellativo</TableHead>
+                  <TableHead className="w-32">Cognome</TableHead>
+                  <TableHead className="w-48">Indirizzo</TableHead>
+                  <TableHead className="w-32">Telefono</TableHead>
+                  <TableHead className="w-28">Visto su</TableHead>
+                  <TableHead className="w-48">Caratteristiche</TableHead>
+                  <TableHead className="w-24">Status</TableHead>
+                  <TableHead className="w-16">Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {contacts.map((contact, index) => (
+                  <TableRow key={contact.id} className={index % 2 === 0 ? "bg-gray-50/50" : ""}>
+                    <TableCell>
+                      <Input
+                        value={contact.appellativo}
+                        onChange={(e) => updateContact(contact.id, 'appellativo', e.target.value)}
+                        placeholder="Sig."
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={contact.cognome}
+                        onChange={(e) => updateContact(contact.id, 'cognome', e.target.value)}
+                        placeholder="Rossi"
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={contact.indirizzo}
+                        onChange={(e) => updateContact(contact.id, 'indirizzo', e.target.value)}
+                        placeholder="Via Roma 1, Milano"
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={contact.telefono}
+                        onChange={(e) => updateContact(contact.id, 'telefono', e.target.value)}
+                        placeholder="+39 335 1234567"
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={contact.vistoSu}
+                        onChange={(e) => updateContact(contact.id, 'vistoSu', e.target.value)}
+                        placeholder="Immobiliare.it"
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={contact.caratteristiche}
+                        onChange={(e) => updateContact(contact.id, 'caratteristiche', e.target.value)}
+                        placeholder="terrazzo panoramico"
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {getStatusBadge(contact.status)}
+                        {contact.message && (
+                          <p className="text-xs text-gray-500 max-w-20 truncate" title={contact.message}>
+                            {contact.message}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeContact(contact.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contacts.map((contact) => (
-                    <TableRow key={contact.id}>
-                      <TableCell>
-                        <Input
-                          value={contact.appellativo}
-                          onChange={(e) => updateContact(contact.id, 'appellativo', e.target.value)}
-                          placeholder="Sig."
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={contact.cognome}
-                          onChange={(e) => updateContact(contact.id, 'cognome', e.target.value)}
-                          placeholder="Rossi"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={contact.indirizzo}
-                          onChange={(e) => updateContact(contact.id, 'indirizzo', e.target.value)}
-                          placeholder="Via Roma 1, Milano"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={contact.telefono}
-                          onChange={(e) => updateContact(contact.id, 'telefono', e.target.value)}
-                          placeholder="+39 335 1234567"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={contact.vistoSu}
-                          onChange={(e) => updateContact(contact.id, 'vistoSu', e.target.value)}
-                          placeholder="Immobiliare.it"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={contact.caratteristiche}
-                          onChange={(e) => updateContact(contact.id, 'caratteristiche', e.target.value)}
-                          placeholder="terrazzo panoramico"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {getStatusBadge(contact.status)}
-                          {contact.message && (
-                            <p className="text-xs text-gray-500">{contact.message}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeContact(contact.id)}
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                ))}
+                
+                {/* Riga vuota finale per aggiungere facilmente nuovi contatti */}
+                <TableRow className="border-2 border-dashed border-gray-200 hover:border-gray-300">
+                  <TableCell colSpan={8} className="text-center py-4">
+                    <Button 
+                      onClick={addContact}
+                      variant="ghost"
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <Plus size={16} className="mr-2" />
+                      Aggiungi nuovo contatto
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+          
+          {contacts.length === 0 && (
+            <div className="text-center py-8">
+              <AlertCircle size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nessun contatto inserito</h3>
+              <p className="text-gray-500 mb-4">
+                Inizia aggiungendo dei contatti utilizzando i pulsanti sopra o modificando gli esempi precompilati.
+              </p>
+              <Button onClick={() => addMultipleRows(5)}>
+                <Plus size={16} className="mr-2" />
+                Aggiungi 5 Righe
+              </Button>
             </div>
           )}
         </CardContent>
