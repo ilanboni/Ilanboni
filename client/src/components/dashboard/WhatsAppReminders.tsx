@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, Send, Clock, User, Phone } from "lucide-react";
+import { MessageCircle, Send, Clock, User, Phone, ArrowLeft } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface WhatsAppReminder {
@@ -34,6 +35,7 @@ export default function WhatsAppReminders() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch promemoria messaggi non risposti
   const { data: reminders, isLoading } = useQuery({
@@ -95,6 +97,11 @@ export default function WhatsAppReminders() {
     setSelectedReminder(reminder);
     setDialogOpen(true);
   };
+
+  // Auto scroll per i messaggi
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversation]);
 
   const handleSendResponse = () => {
     if (!selectedReminder || !responseText.trim()) return;
@@ -225,90 +232,112 @@ export default function WhatsAppReminders() {
         </CardContent>
       </Card>
 
-      {/* Dialog conversazione */}
+      {/* Dialog conversazione - Stile WhatsApp Web */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl h-[600px] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              Conversazione con {selectedReminder?.clientName || formatPhone(selectedReminder?.phone || '')}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-4xl h-[700px] flex flex-col p-0 gap-0 bg-[#f0f2f5]">
+          {/* Header della chat */}
+          <div className="bg-[#075e54] text-white p-4 flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDialogOpen(false)}
+              className="text-white hover:bg-green-700 p-2 h-auto"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+              <User className="h-6 w-6 text-gray-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium">
+                {selectedReminder?.clientName || formatPhone(selectedReminder?.phone || '')}
+              </h3>
+              <p className="text-sm text-green-100">Online</p>
+            </div>
+          </div>
           
-          <div className="flex-1 flex flex-col">
-            {/* Storico messaggi */}
-            <ScrollArea className="flex-1 pr-4">
-              {conversationLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex gap-3">
-                      <Skeleton className="h-8 w-8 rounded-full" />
-                      <Skeleton className="h-16 w-48 rounded-lg" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {conversation?.map((message) => (
+          {/* Area messaggi con sfondo chat pattern */}
+          <div 
+            className="flex-1 p-4 overflow-y-auto bg-[#e5ddd5]"
+            style={{
+              backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ddd6ce' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='m0 40l40-40h-40v40zm40 0v-40h-40l40 40z'/%3E%3C/g%3E%3C/svg%3E\")"
+            }}
+          >
+            {conversationLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+                    <Skeleton className="h-16 w-60 rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {conversation?.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                  >
                     <div
-                      key={message.id}
-                      className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                      className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg shadow-sm ${
+                        message.direction === 'outbound'
+                          ? 'bg-[#dcf8c6] text-gray-900 rounded-br-sm'
+                          : 'bg-white text-gray-900 rounded-bl-sm'
+                      }`}
                     >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.direction === 'outbound'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-200 text-gray-900'
-                        }`}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        <p className={`text-xs mt-1 ${
-                          message.direction === 'outbound' ? 'text-blue-100' : 'text-gray-500'
-                        }`}>
-                          {formatTime(message.createdAt)}
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                      <div className={`flex justify-end items-center gap-1 mt-1`}>
+                        <p className="text-xs text-gray-500">
+                          {new Date(message.createdAt).toLocaleTimeString('it-IT', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
                         </p>
+                        {message.direction === 'outbound' && (
+                          <div className="text-green-600">
+                            <svg width="12" height="12" viewBox="0 0 16 15" fill="currentColor">
+                              <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l3.61 3.464c.143.14.361.125.484-.033L10.91 3.904a.366.366 0 0 0-.064-.512z"/>
+                            </svg>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
 
-            {/* Area risposta */}
-            <div className="border-t pt-4 mt-4">
-              <div className="space-y-3">
-                <Textarea
-                  placeholder="Scrivi la tua risposta..."
+          {/* Barra di input in basso */}
+          <div className="bg-[#f0f2f5] p-4 border-t">
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <Input
+                  placeholder="Scrivi un messaggio..."
                   value={responseText}
                   onChange={(e) => setResponseText(e.target.value)}
-                  rows={3}
-                  className="resize-none"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendResponse();
+                    }
+                  }}
+                  className="rounded-full border-0 bg-white px-4 py-2 focus:ring-2 focus:ring-green-500"
                 />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setDialogOpen(false)}
-                  >
-                    Chiudi
-                  </Button>
-                  <Button
-                    onClick={handleSendResponse}
-                    disabled={!responseText.trim() || sendResponseMutation.isPending}
-                  >
-                    {sendResponseMutation.isPending ? (
-                      <>
-                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                        Invio...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4 mr-2" />
-                        Invia Risposta
-                      </>
-                    )}
-                  </Button>
-                </div>
               </div>
+              <Button
+                onClick={handleSendResponse}
+                disabled={!responseText.trim() || sendResponseMutation.isPending}
+                size="sm"
+                className="rounded-full bg-[#075e54] hover:bg-[#0a6b5d] text-white p-3 h-auto"
+              >
+                {sendResponseMutation.isPending ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>
