@@ -363,11 +363,12 @@ export class UltraMsgClient {
       const communicationData: InsertCommunication = {
         clientId: client.id,
         type: 'whatsapp',
-        subject: 'Messaggio WhatsApp ricevuto',
+        subject: phone, // Salva il numero di telefono nel subject per la ricerca
         content: messageContent,
         summary,
         direction: 'inbound',
         needsFollowUp: true,
+        needsResponse: true, // Marca automaticamente i messaggi in entrata come da rispondere
         status: 'pending',
         // Collega alla proprietà dell'ultimo messaggio inviato se presente
         propertyId: lastOutboundComm?.propertyId || null,
@@ -439,7 +440,7 @@ export function getUltraMsgClient(): UltraMsgClient {
  */
 export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<{
   success: boolean;
-  messageId?: string;
+  data?: { id: string };
   error?: string;
 }> {
   try {
@@ -452,7 +453,7 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
       console.log(`[MAIL MERGE WHATSAPP] ✅ Messaggio inviato con successo: ID ${response.id}`);
       return {
         success: true,
-        messageId: response.id
+        data: { id: response.id }
       };
     } else {
       console.error(`[MAIL MERGE WHATSAPP] ❌ Errore nell'invio: ${response.error || response.message}`);

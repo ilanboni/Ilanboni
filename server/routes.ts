@@ -42,6 +42,7 @@ import geocodeRouter from "./routes/geocode";
 import { registerAIAssistantRoutes } from "./routes/aiAssistant";
 import virtualAssistantRouter from "./routes/virtualAssistant";
 import mailMergeRouter from "./routes/mailMerge";
+import whatsappRemindersRouter from "./routes/whatsappReminders";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -59,6 +60,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registra le route per il mail merge
   app.use('/api/mail-merge', mailMergeRouter);
+  
+  // Registra le route per i promemoria WhatsApp
+  app.use('/api/whatsapp', whatsappRemindersRouter);
   
   // Stampa la chiave da usare per il forwarder
   const forwardKey = getForwardKey();
