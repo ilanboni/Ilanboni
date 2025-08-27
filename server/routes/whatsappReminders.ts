@@ -192,65 +192,47 @@ router.post("/send-response", async (req, res) => {
   }
 });
 
-// POST /api/whatsapp/sync - Forza sincronizzazione immediata messaggi
+// POST /api/whatsapp/sync - Aggiorna dashboard con messaggi recenti
 router.post("/sync", async (req, res) => {
   try {
-    console.log(`[WHATSAPP-SYNC] 🔄 Forzando sincronizzazione immediata messaggi...`);
+    console.log(`[WHATSAPP-SYNC] 🔄 Aggiornamento dashboard WhatsApp...`);
     
-    // Importa la funzione per verificare i messaggi
-    const { fetchRecentWhatsAppMessages } = await import("../lib/ultramsgApi.js");
+    // Conta i messaggi WhatsApp recenti che necessitano risposta
+    const recentMessages = await db
+      .select({
+        id: communications.id,
+        clientId: communications.clientId,
+        subject: communications.subject,
+        content: communications.content,
+        createdAt: communications.createdAt,
+        direction: communications.direction,
+        needsResponse: communications.needsResponse
+      })
+      .from(communications)
+      .where(
+        and(
+          eq(communications.type, "whatsapp"),
+          eq(communications.direction, "inbound"),
+          eq(communications.needsResponse, true),
+          isNull(communications.respondedAt)
+        )
+      )
+      .orderBy(desc(communications.createdAt));
     
-    // Retry fino a 3 volte in caso di errori di rete
-    let lastError;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`[WHATSAPP-SYNC] Tentativo ${attempt}/3...`);
-        
-        // Esegui controllo immediato
-        const result = await fetchRecentWhatsAppMessages();
-        
-        console.log(`[WHATSAPP-SYNC] ✅ Sincronizzazione completata - ${result.processedCount} nuovi messaggi elaborati`);
-        
-        return res.json({ 
-          success: true,
-          message: "Sincronizzazione completata con successo",
-          processedCount: result.processedCount,
-          ignoredCount: result.ignoredCount,
-          attempt: attempt
-        });
-      } catch (attemptError) {
-        lastError = attemptError;
-        console.warn(`[WHATSAPP-SYNC] ⚠️ Tentativo ${attempt} fallito:`, attemptError instanceof Error ? attemptError.message : String(attemptError));
-        
-        // Aspetta 2 secondi prima del prossimo tentativo (eccetto l'ultimo)
-        if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-      }
-    }
+    console.log(`[WHATSAPP-SYNC] ✅ Dashboard aggiornato - ${recentMessages.length} messaggi che necessitano risposta`);
     
-    // Se tutti i tentativi falliscono
-    throw lastError;
+    res.json({ 
+      success: true,
+      message: "Dashboard aggiornato con successo",
+      remindersCount: recentMessages.length,
+      syncTime: new Date().toISOString()
+    });
     
   } catch (error) {
-    console.error("[WHATSAPP-SYNC] ❌ Errore nella sincronizzazione dopo 3 tentativi:", error);
-    
-    // Diagnosi dell'errore per l'utente
-    let userMessage = "Errore nella sincronizzazione";
-    if (error instanceof Error) {
-      if (error.message.includes('ECONNRESET') || error.message.includes('ETIMEDOUT')) {
-        userMessage = "Errore di connessione con UltraMsg. Riprova tra qualche secondo.";
-      } else if (error.message.includes('401') || error.message.includes('403')) {
-        userMessage = "Errore di autenticazione UltraMsg. Verifica le credenziali API.";
-      } else if (error.message.includes('429')) {
-        userMessage = "Limite di velocità UltraMsg raggiunto. Riprova tra un minuto.";
-      }
-    }
-    
+    console.error("[WHATSAPP-SYNC] ❌ Errore nell'aggiornamento dashboard:", error);
     res.status(500).json({ 
-      error: userMessage,
-      technical: error instanceof Error ? error.message : String(error),
-      retries: 3
+      error: "Errore nell'aggiornamento dashboard",
+      details: error instanceof Error ? error.message : String(error)
     });
   }
 });
