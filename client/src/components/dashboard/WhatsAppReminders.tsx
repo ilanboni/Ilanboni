@@ -249,9 +249,9 @@ export default function WhatsAppReminders() {
             <div className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5" />
               Messaggi da Rispondere
-              {reminders && reminders.length > 0 && (
+              {reminders && reminders.filter(r => r.needsResponse).length > 0 && (
                 <Badge variant="destructive" className="ml-2">
-                  {reminders.length}
+                  {reminders.filter(r => r.needsResponse).length}
                 </Badge>
               )}
             </div>
@@ -272,7 +272,7 @@ export default function WhatsAppReminders() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!reminders || reminders.length === 0 ? (
+          {!reminders || reminders.filter(r => r.needsResponse).length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
               <p>Nessun messaggio in attesa di risposta</p>
@@ -280,7 +280,7 @@ export default function WhatsAppReminders() {
             </div>
           ) : (
             <div className="space-y-3">
-              {reminders.map((reminder) => (
+              {reminders.filter(reminder => reminder.needsResponse).map((reminder) => (
                 <div
                   key={reminder.id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
