@@ -21,7 +21,10 @@ router.get("/reminders", async (req, res) => {
     const result = await pool.query(`
       SELECT 
         c.id,
-        c.subject as phone,
+        CASE 
+          WHEN cl.phone IS NOT NULL AND cl.phone != 'N/D' THEN cl.phone
+          ELSE c.subject
+        END as phone,
         c.content as last_message,
         c.created_at as last_message_at,
         c.needs_response,

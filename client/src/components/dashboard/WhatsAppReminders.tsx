@@ -323,6 +323,9 @@ export default function WhatsAppReminders() {
           className="max-w-4xl h-[700px] flex flex-col p-0 gap-0 bg-[#f0f2f5]"
           aria-describedby="whatsapp-chat-description"
         >
+          <DialogTitle className="sr-only">
+            Chat WhatsApp con {selectedReminder?.clientName || formatPhone(selectedReminder?.phone || '')}
+          </DialogTitle>
           <div id="whatsapp-chat-description" className="sr-only">
             Interfaccia chat WhatsApp per comunicare con i clienti
           </div>
