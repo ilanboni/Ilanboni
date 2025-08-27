@@ -198,23 +198,37 @@ router.post("/send-response", async (req, res) => {
       .returning({ id: communications.id });
 
     // Marca tutti i messaggi precedenti di questo numero come risposti
-    await db
+    // Cerca sia per subject che per client_id
+    const updateConditions = [
+      eq(communications.type, "whatsapp"),
+      eq(communications.direction, "inbound"),
+      eq(communications.needsResponse, true),
+      isNull(communications.respondedAt)
+    ];
+
+    if (client.length > 0) {
+      // Se esiste un cliente, cerca per client_id OR subject
+      updateConditions.push(
+        or(
+          eq(communications.subject, phone),
+          eq(communications.clientId, client[0].id)
+        )
+      );
+    } else {
+      // Se non esiste un cliente, cerca solo per subject
+      updateConditions.push(eq(communications.subject, phone));
+    }
+
+    const updateResult = await db
       .update(communications)
       .set({ 
         needsResponse: false,
         respondedAt: new Date()
       })
-      .where(
-        and(
-          eq(communications.type, "whatsapp"),
-          eq(communications.subject, phone),
-          eq(communications.direction, "inbound"),
-          eq(communications.needsResponse, true),
-          isNull(communications.respondedAt)
-        )
-      );
+      .where(and(...updateConditions))
+      .returning({ id: communications.id });
 
-    console.log(`[WHATSAPP-RESPONSE] ✅ Promemoria aggiornati per ${phone}`);
+    console.log(`[WHATSAPP-RESPONSE] ✅ Promemoria aggiornati per ${phone}. Record aggiornati: ${updateResult.length}`, updateResult.map(r => r.id));
 
     res.json({ 
       success: true, 
