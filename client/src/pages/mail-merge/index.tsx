@@ -59,7 +59,7 @@ Mi chiamo Ilan Boni, titolare di Cavour Immobiliare a Milano.
 Lo scorso anno ho concluso 16 vendite, alcune proprio con proprietari privati come Lei: all'inizio scettici, ma alla fine soddisfatti per aver venduto al prezzo giusto e senza rischi.
 
 Per spiegare meglio il mio metodo, Le invio un breve video di presentazione.
-Clicca qui per vederlo: https://youtube.com/shorts/Qf_9SfWfeGg?si=h80cJH2eJjkiOg8a
+Clicca qui per vederlo: https://tinyurl.com/VendereCasaMilano
 
 Così può farsi subito un'idea di chi sono e di come lavoro.
 
