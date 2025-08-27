@@ -45,7 +45,8 @@ export default function WhatsAppReminders() {
       if (!response.ok) {
         throw new Error('Errore nel caricamento dei promemoria');
       }
-      return response.json() as WhatsAppReminder[];
+      const data = await response.json();
+      return data as WhatsAppReminder[];
     },
     refetchInterval: 30000, // Aggiorna ogni 30 secondi
   });
@@ -59,7 +60,8 @@ export default function WhatsAppReminders() {
       if (!response.ok) {
         throw new Error('Errore nel caricamento della conversazione');
       }
-      return response.json() as ConversationMessage[];
+      const data = await response.json();
+      return data as ConversationMessage[];
     },
     enabled: !!selectedReminder?.phone,
   });
@@ -69,7 +71,7 @@ export default function WhatsAppReminders() {
     mutationFn: async ({ phone, message }: { phone: string; message: string }) => {
       return apiRequest(`/api/whatsapp/send-response`, {
         method: 'POST',
-        body: JSON.stringify({ phone, message }),
+        data: { phone, message },
       });
     },
     onSuccess: () => {
@@ -234,7 +236,13 @@ export default function WhatsAppReminders() {
 
       {/* Dialog conversazione - Stile WhatsApp Web */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl h-[700px] flex flex-col p-0 gap-0 bg-[#f0f2f5]">
+        <DialogContent 
+          className="max-w-4xl h-[700px] flex flex-col p-0 gap-0 bg-[#f0f2f5]"
+          aria-describedby="whatsapp-chat-description"
+        >
+          <div id="whatsapp-chat-description" className="sr-only">
+            Interfaccia chat WhatsApp per comunicare con i clienti
+          </div>
           {/* Header della chat */}
           <div className="bg-[#075e54] text-white p-4 flex items-center gap-3">
             <Button
