@@ -73,6 +73,7 @@ The application is designed for deployment on Replit with:
 The application includes comprehensive environment variable configuration for all external services and can be easily deployed to cloud platforms with PostgreSQL support.
 
 ## Changelog
+- August 27, 2025. Interfaccia WhatsApp Web completata con stile autentico - Implementata interfaccia chat completa stile WhatsApp Web con sfondo verde per messaggi inviati, bianco per ricevuti, header con avatar cliente, barra input con invio tramite Enter/pulsante, auto-scroll automatico, integrazione completa con UltraMsg per invio/ricezione messaggi reali
 - August 27, 2025. Webhook UltraMsg configurato e sistema completamente operativo - Risolti tutti errori TypeScript di compilazione, webhook endpoint funzionante al 100%, configurazione UltraMsg completata con eventi message_received/create/ack attivati, sistema pronto per ricezione automatica messaggi WhatsApp in produzione
 - August 27, 2025. Sistema promemoria WhatsApp completato con protezione test - Implementato riconoscimento direzione messaggi, creazione automatica clienti per numeri sconosciuti, protezione invio limitata al numero test 393407992052 durante sviluppo per evitare messaggi indesiderati a clienti reali
 - August 26, 2025. Rimosso sistema numerazione clienti e implementato nome semplice "Cliente" con saluto "Gentile Cliente" - Eliminati nomi problematici come "Cliente 0592", aggiornati 14 clienti esistenti a semplicemente "Cliente" con saluto appropriato "Gentile Cliente", modificato processore email per evitare nomi numerati futuri
