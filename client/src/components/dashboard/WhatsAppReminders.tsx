@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, Send, Clock, User, Phone, ArrowLeft } from "lucide-react";
+import { MessageCircle, Send, Clock, User, Phone, ArrowLeft, RefreshCw } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface WhatsAppReminder {
@@ -105,6 +105,33 @@ export default function WhatsAppReminders() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
 
+  // Mutation per sincronizzazione immediata
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('/api/whatsapp/sync', {
+        method: 'POST',
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sincronizzazione completata",
+        description: "I messaggi sono stati aggiornati con successo",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/reminders'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore sincronizzazione",
+        description: error?.message || "Errore durante la sincronizzazione",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSync = () => {
+    syncMutation.mutate();
+  };
+
   const handleSendResponse = () => {
     if (!selectedReminder || !responseText.trim()) return;
     
@@ -173,14 +200,30 @@ export default function WhatsAppReminders() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
-            Messaggi da Rispondere
-            {reminders && reminders.length > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {reminders.length}
-              </Badge>
-            )}
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              Messaggi da Rispondere
+              {reminders && reminders.length > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {reminders.length}
+                </Badge>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSync}
+              disabled={syncMutation.isPending}
+              className="h-8 px-2 text-xs"
+            >
+              {syncMutation.isPending ? (
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current" />
+              ) : (
+                <RefreshCw className="h-3 w-3" />
+              )}
+              <span className="ml-1">{syncMutation.isPending ? 'Sync...' : 'Sync'}</span>
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>

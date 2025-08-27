@@ -192,4 +192,30 @@ router.post("/send-response", async (req, res) => {
   }
 });
 
+// POST /api/whatsapp/sync - Forza sincronizzazione immediata messaggi
+router.post("/sync", async (req, res) => {
+  try {
+    console.log(`[WHATSAPP-SYNC] 🔄 Forzando sincronizzazione immediata messaggi...`);
+    
+    // Importa la funzione per verificare i messaggi
+    const { checkForNewMessages } = require("../lib/ultramsg");
+    
+    // Esegui controllo immediato
+    await checkForNewMessages();
+    
+    console.log(`[WHATSAPP-SYNC] ✅ Sincronizzazione completata`);
+    
+    res.json({ 
+      success: true,
+      message: "Sincronizzazione completata con successo"
+    });
+  } catch (error) {
+    console.error("[WHATSAPP-SYNC] ❌ Errore nella sincronizzazione:", error);
+    res.status(500).json({ 
+      error: "Errore nella sincronizzazione",
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 export default router;
