@@ -190,6 +190,135 @@ router.post("/send-response", async (req, res) => {
   }
 });
 
+// POST /api/whatsapp/generate-ai-response - Genera risposta IA intelligente
+router.post("/generate-ai-response", async (req, res) => {
+  try {
+    const { phone } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({ error: "Numero di telefono richiesto" });
+    }
+
+    console.log(`[AI-RESPONSE] 🤖 Generazione risposta IA per ${phone}`);
+
+    // Recupera il cliente dal numero di telefono
+    const { pool } = await import("../db");
+    const clientResult = await pool.query(`
+      SELECT c.*, b.search_area, b.max_price, b.min_size, b.urgency, b.rating, b.search_notes
+      FROM clients c
+      LEFT JOIN buyers b ON c.id = b.client_id
+      WHERE c.phone = $1 OR c.phone = $2 OR c.phone = $3
+      LIMIT 1
+    `, [phone, phone.replace(/^\+/, ''), phone.replace(/^39/, '0')]);
+
+    // Recupera la conversazione completa
+    const conversationResult = await pool.query(`
+      SELECT content, direction, created_at, summary
+      FROM communications
+      WHERE (subject = $1 OR subject = $2) AND type = 'whatsapp'
+      ORDER BY created_at ASC
+      LIMIT 10
+    `, [phone, phone.replace(/^\+/, '')]);
+
+    const client = clientResult.rows[0];
+    const conversation = conversationResult.rows;
+
+    // Costruisci il prompt per l'IA
+    let prompt = `Sei un agente immobiliare professionale che deve rispondere a un cliente WhatsApp.
+
+INFORMAZIONI CLIENTE:`;
+
+    if (client) {
+      prompt += `
+- Nome: ${client.first_name} ${client.last_name}
+- Tipologia: ${client.type || 'Non specificato'}
+- Personalità: ${client.personality || 'Non specificata'}`;
+      
+      if (client.personality) {
+        switch (client.personality.toLowerCase()) {
+          case 'emotivo':
+            prompt += `\n- STILE COMUNICAZIONE: Usa un tono caloroso, empatico, parla delle emozioni e del "sentirsi a casa"`;
+            break;
+          case 'analitico':
+            prompt += `\n- STILE COMUNICAZIONE: Fornisci dati precisi, caratteristiche tecniche, metrature, prezzi dettagliati`;
+            break;
+          case 'aperto':
+            prompt += `\n- STILE COMUNICAZIONE: Usa un tono amichevole, colloquiale, puoi essere più informale`;
+            break;
+          default:
+            prompt += `\n- STILE COMUNICAZIONE: Mantieni un tono professionale ma cordiale`;
+        }
+      }
+
+      if (client.search_area) {
+        const areas = Array.isArray(client.search_area) ? client.search_area.join(', ') : JSON.stringify(client.search_area);
+        prompt += `\n- Zone di interesse: ${areas}`;
+      }
+      if (client.max_price) {
+        prompt += `\n- Budget massimo: €${client.max_price}`;
+      }
+      if (client.min_size) {
+        prompt += `\n- Metratura minima: ${client.min_size}mq`;
+      }
+      if (client.search_notes) {
+        prompt += `\n- Note particolari: ${client.search_notes}`;
+      }
+    } else {
+      prompt += `\n- Cliente sconosciuto, usa un tono professionale ma cordiale`;
+    }
+
+    prompt += `
+
+CONVERSAZIONE PRECEDENTE:`;
+    
+    if (conversation.length > 0) {
+      conversation.forEach(msg => {
+        const direction = msg.direction === 'inbound' ? 'CLIENTE' : 'AGENTE';
+        const time = new Date(msg.created_at).toLocaleString('it-IT');
+        prompt += `\n[${time}] ${direction}: ${msg.content}`;
+      });
+    } else {
+      prompt += `\nNessuna conversazione precedente`;
+    }
+
+    prompt += `
+
+ISTRUZIONI:
+1. Rispondi all'ultimo messaggio del cliente in modo appropriato
+2. Mantieni un tono professionale ma cordiale 
+3. Se è una richiesta di informazioni, fornisci dettagli utili
+4. Se è una richiesta di appuntamento, proponi orari disponibili
+5. Personalizza la risposta in base alla personalità del cliente
+6. Usa massimo 1-2 frasi, mantieni conciso
+7. Firma sempre con "Ilan Boni - Cavour Immobiliare"
+
+Genera una risposta appropriata:`;
+
+    // Chiamata all'IA (assumendo che esista un servizio IA)
+    const { generateResponse } = await import("../lib/aiService");
+    const aiResponse = await generateResponse(prompt);
+
+    console.log(`[AI-RESPONSE] ✅ Risposta generata per ${phone}: ${aiResponse.substring(0, 50)}...`);
+
+    res.json({ 
+      success: true,
+      aiResponse: aiResponse,
+      clientInfo: client ? {
+        name: `${client.first_name} ${client.last_name}`,
+        personality: client.personality,
+        type: client.type
+      } : null
+    });
+
+  } catch (error) {
+    console.error("[AI-RESPONSE] ❌ Errore nella generazione risposta IA:", error);
+    res.status(500).json({ 
+      error: "Errore nella generazione risposta IA",
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 // POST /api/whatsapp/sync - Aggiorna dashboard con messaggi recenti
 router.post("/sync", async (req, res) => {
   try {

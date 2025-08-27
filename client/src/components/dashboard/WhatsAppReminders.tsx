@@ -31,7 +31,9 @@ interface ConversationMessage {
 
 export default function WhatsAppReminders() {
   const [selectedReminder, setSelectedReminder] = useState<WhatsAppReminder | null>(null);
-  const [responseText, setResponseText] = useState("");
+  const [manualResponseText, setManualResponseText] = useState("");
+  const [aiResponseText, setAiResponseText] = useState("");
+  const [aiResponseLoading, setAiResponseLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -79,7 +81,8 @@ export default function WhatsAppReminders() {
         title: "Risposta inviata",
         description: "Il messaggio è stato inviato con successo",
       });
-      setResponseText("");
+      setManualResponseText("");
+      setAiResponseText("");
       setDialogOpen(false);
       setSelectedReminder(null);
       // Invalida le query per aggiornare i dati
@@ -95,9 +98,37 @@ export default function WhatsAppReminders() {
     },
   });
 
+  // Mutation per generare risposta IA
+  const generateAiResponseMutation = useMutation({
+    mutationFn: async (phone: string) => {
+      return apiRequest(`/api/whatsapp/generate-ai-response`, {
+        method: 'POST',
+        data: { phone },
+      });
+    },
+    onSuccess: (data: any) => {
+      setAiResponseText(data.aiResponse || "");
+      setAiResponseLoading(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore generazione IA",
+        description: error?.message || "Errore nella generazione della risposta automatica",
+        variant: "destructive",
+      });
+      setAiResponseLoading(false);
+    },
+  });
+
   const handleOpenConversation = (reminder: WhatsAppReminder) => {
     setSelectedReminder(reminder);
     setDialogOpen(true);
+    setManualResponseText("");
+    setAiResponseText("");
+    
+    // Genera automaticamente la risposta IA
+    setAiResponseLoading(true);
+    generateAiResponseMutation.mutate(reminder.phone);
   };
 
   // Auto scroll per i messaggi
@@ -132,12 +163,21 @@ export default function WhatsAppReminders() {
     syncMutation.mutate();
   };
 
-  const handleSendResponse = () => {
-    if (!selectedReminder || !responseText.trim()) return;
+  const handleSendManualResponse = () => {
+    if (!selectedReminder || !manualResponseText.trim()) return;
     
     sendResponseMutation.mutate({
       phone: selectedReminder.phone,
-      message: responseText.trim(),
+      message: manualResponseText.trim(),
+    });
+  };
+
+  const handleSendAiResponse = () => {
+    if (!selectedReminder || !aiResponseText.trim()) return;
+    
+    sendResponseMutation.mutate({
+      phone: selectedReminder.phone,
+      message: aiResponseText.trim(),
     });
   };
 
@@ -360,35 +400,81 @@ export default function WhatsAppReminders() {
             )}
           </div>
 
-          {/* Barra di input in basso */}
-          <div className="bg-[#f0f2f5] p-4 border-t">
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <Input
-                  placeholder="Scrivi un messaggio..."
-                  value={responseText}
-                  onChange={(e) => setResponseText(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendResponse();
-                    }
-                  }}
-                  className="rounded-full border-0 bg-white px-4 py-2 focus:ring-2 focus:ring-green-500"
-                />
+          {/* Area di risposta doppia */}
+          <div className="bg-[#f0f2f5] p-4 border-t space-y-4">
+            {/* Risposta IA */}
+            <div className="bg-white rounded-lg p-3 border">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Risposta IA Suggerita</span>
               </div>
-              <Button
-                onClick={handleSendResponse}
-                disabled={!responseText.trim() || sendResponseMutation.isPending}
-                size="sm"
-                className="rounded-full bg-[#075e54] hover:bg-[#0a6b5d] text-white p-3 h-auto"
-              >
-                {sendResponseMutation.isPending ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <Textarea
+                    placeholder={aiResponseLoading ? "Generazione risposta in corso..." : "Risposta IA apparirà qui"}
+                    value={aiResponseText}
+                    onChange={(e) => setAiResponseText(e.target.value)}
+                    className="border-0 bg-gray-50 resize-none"
+                    rows={2}
+                    disabled={aiResponseLoading}
+                  />
+                </div>
+                <Button
+                  onClick={handleSendAiResponse}
+                  disabled={!aiResponseText.trim() || sendResponseMutation.isPending || aiResponseLoading}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2"
+                >
+                  {sendResponseMutation.isPending ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-1" />
+                      Invia IA
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Risposta Manuale */}
+            <div className="bg-white rounded-lg p-3 border">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Risposta Manuale</span>
+              </div>
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <Textarea
+                    placeholder="Scrivi la tua risposta personalizzata..."
+                    value={manualResponseText}
+                    onChange={(e) => setManualResponseText(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendManualResponse();
+                      }
+                    }}
+                    className="border-0 bg-gray-50 resize-none"
+                    rows={2}
+                  />
+                </div>
+                <Button
+                  onClick={handleSendManualResponse}
+                  disabled={!manualResponseText.trim() || sendResponseMutation.isPending}
+                  size="sm"
+                  className="bg-[#075e54] hover:bg-[#0a6b5d] text-white px-4 py-2"
+                >
+                  {sendResponseMutation.isPending ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-1" />
+                      Invia
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
