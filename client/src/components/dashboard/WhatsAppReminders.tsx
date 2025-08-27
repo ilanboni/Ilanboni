@@ -101,16 +101,19 @@ export default function WhatsAppReminders() {
   // Mutation per generare risposta IA
   const generateAiResponseMutation = useMutation({
     mutationFn: async (phone: string) => {
+      console.log("API Request:", `/api/whatsapp/generate-ai-response`, { method: 'POST', data: { phone } });
       return apiRequest(`/api/whatsapp/generate-ai-response`, {
         method: 'POST',
         data: { phone },
       });
     },
     onSuccess: (data: any) => {
+      console.log("AI Response received:", data);
       setAiResponseText(data.aiResponse || "");
       setAiResponseLoading(false);
     },
     onError: (error: any) => {
+      console.error("AI Response error:", error);
       toast({
         title: "Errore generazione IA",
         description: error?.message || "Errore nella generazione della risposta automatica",
