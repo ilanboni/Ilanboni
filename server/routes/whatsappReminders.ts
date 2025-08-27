@@ -198,7 +198,7 @@ router.post("/sync", async (req, res) => {
     console.log(`[WHATSAPP-SYNC] 🔄 Forzando sincronizzazione immediata messaggi...`);
     
     // Importa la funzione per verificare i messaggi
-    const { checkForNewMessages } = require("../lib/ultramsg");
+    const { checkForNewMessages } = await import("../lib/ultramsg.js");
     
     // Esegui controllo immediato
     await checkForNewMessages();
