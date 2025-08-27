@@ -9,6 +9,16 @@ export const config = {
   agentPhoneNumber: '390235981509',
 
   /**
+   * Modalità test - se true, limita l'invio WhatsApp solo ai numeri autorizzati
+   */
+  testMode: true,
+  
+  /**
+   * Numeri di telefono autorizzati per l'invio WhatsApp in modalità test
+   */
+  testPhoneNumbers: ['393407992052'],
+
+  /**
    * URL base dell'applicazione - utilizzato per i link negli SMS/WhatsApp
    */
   getBaseUrl: (): string => {

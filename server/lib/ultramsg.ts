@@ -43,8 +43,23 @@ export class UltraMsgClient {
       console.log('[ULTRAMSG] Tentativo di invio messaggio a:', phoneNumber);
       
       // Formatta il numero di telefono (rimuovi eventuali + iniziali)
-      const formattedPhone = phoneNumber.replace(/^\+/, '');
+      const formattedPhone = phoneNumber.replace(/^\+/, '').replace('@c.us', '');
       console.log('[ULTRAMSG] Numero formattato:', formattedPhone);
+
+      // Controllo modalità test - blocca l'invio se non autorizzato
+      if (config.testMode) {
+        const isAuthorized = config.testPhoneNumbers.includes(formattedPhone);
+        if (!isAuthorized) {
+          console.log(`[ULTRAMSG] 🛡️ MODALITÀ TEST: Invio bloccato al numero ${formattedPhone} (non autorizzato)`);
+          console.log(`[ULTRAMSG] 🛡️ Numeri autorizzati: ${config.testPhoneNumbers.join(', ')}`);
+          return {
+            sent: false,
+            message: `Invio bloccato in modalità test - numero ${formattedPhone} non autorizzato`,
+            error: 'TEST_MODE_BLOCKED'
+          };
+        }
+        console.log(`[ULTRAMSG] ✅ MODALITÀ TEST: Numero ${formattedPhone} autorizzato per invio`);
+      }
       
       // Prepara il payload
       const payload: UltraMsgMessage = {
