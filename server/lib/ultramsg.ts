@@ -100,7 +100,7 @@ export class UltraMsgClient {
         
         console.log('[ULTRAMSG] Risposta API:', JSON.stringify(response.data));
         return response.data;
-      } catch (axiosError) {
+      } catch (axiosError: any) {
         console.error('[ULTRAMSG] Errore nella chiamata API:', axiosError.message);
         if (axiosError.response) {
           console.error('[ULTRAMSG] Dettagli risposta errore:', JSON.stringify(axiosError.response.data));
@@ -169,7 +169,7 @@ export class UltraMsgClient {
       // Salva nel database
       const communication = await storage.createCommunication(communicationData);
       
-      console.log('[ULTRAMSG] Comunicazione salvata con ID:', communication.id, 'propertyId:', communication.propertyId);
+      console.log('[ULTRAMSG] Comunicazione salvata con ID:', `${communication.id} propertyId: ${communication.propertyId}`);
       
       return communication;
     } catch (error) {
@@ -285,7 +285,7 @@ export class UltraMsgClient {
       console.log("[ULTRAMSG] Ricerca cliente con numero di telefono normalizzato:", phone);
       
       // Cerca il cliente in base al numero di telefono
-      const client = await storage.getClientByPhone(phone);
+      let client = await storage.getClientByPhone(phone);
       
       // Verifica se il numero corrisponde al tuo numero di WhatsApp configurato
       // Utilizza la configurazione dal file config.ts che è già importato in cima al file
@@ -310,12 +310,12 @@ export class UltraMsgClient {
         try {
           // Crea un nuovo cliente per questo numero
           const newClient = await storage.createClient({
+            type: "buyer",
             firstName: "Cliente",
             lastName: "",
             phone: phone,
             salutation: "Gentile Cliente",
-            clientType: "buyer",
-            source: "whatsapp",
+            isFriend: false,
             notes: `Cliente creato automaticamente da messaggio WhatsApp del ${new Date().toLocaleDateString('it-IT')}`
           });
           
@@ -327,7 +327,7 @@ export class UltraMsgClient {
         }
       }
       
-      console.log("[ULTRAMSG] Cliente trovato:", client.id, client.firstName, client.lastName);
+      console.log("[ULTRAMSG] Cliente trovato:", `${client.id} ${client.firstName} ${client.lastName}`);
 
       // Verifica se questo messaggio è già stato registrato (usando l'ID esterno)
       if (webhookData.external_id) {
@@ -365,18 +365,14 @@ export class UltraMsgClient {
       const communicationData: InsertCommunication = {
         clientId: client.id,
         type: 'whatsapp',
-        subject: phone, // Salva il numero di telefono nel subject per la ricerca
+        subject: `Messaggio WhatsApp da ${phone}`,
         content: messageContent,
         summary,
         direction: 'inbound',
         needsFollowUp: true,
-        needsResponse: true, // Marca automaticamente i messaggi in entrata come da rispondere
         status: 'pending',
-        // Collega alla proprietà dell'ultimo messaggio inviato se presente
         propertyId: lastOutboundComm?.propertyId || null,
-        // Registra quale messaggio sta rispondendo
         responseToId: lastOutboundComm?.id || null,
-        // Imposta l'ID esterno del messaggio per evitare duplicati
         externalId: webhookData.external_id || `${phone}-${Date.now()}`
       };
       
@@ -455,7 +451,7 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
       console.log(`[MAIL MERGE WHATSAPP] ✅ Messaggio inviato con successo: ID ${response.id}`);
       return {
         success: true,
-        data: { id: response.id }
+        data: { id: response.id || "" }
       };
     } else {
       console.error(`[MAIL MERGE WHATSAPP] ❌ Errore nell'invio: ${response.error || response.message}`);
@@ -710,11 +706,10 @@ export async function sendPropertyMatchNotification(client: Client, property: Pr
     // Aggiorna la comunicazione per collegare l'immobile
     const updatedCommunication = await storage.updateCommunication(communication.id, {
       propertyId: property.id,
-      type: 'property_match',
+      type: 'whatsapp',
       subject: 'Notifica immobile corrispondente',
       status: 'completed',
-      needsFollowUp: true,
-      followUpDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 2 giorni dopo
+      needsFollowUp: true
     });
     
     return updatedCommunication || communication;
