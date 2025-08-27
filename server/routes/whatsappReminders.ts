@@ -68,25 +68,63 @@ router.get("/reminders", async (req, res) => {
 router.get("/conversation/:phone", async (req, res) => {
   try {
     const phone = decodeURIComponent(req.params.phone);
+    console.log(`[CONVERSATION] Ricerca conversazione per numero: ${phone}`);
     
-    // Trova tutti i messaggi per questo numero di telefono
-    const messages = await db
-      .select({
-        id: communications.id,
-        content: communications.content,
-        direction: communications.direction,
-        createdAt: communications.createdAt,
-        externalId: communications.externalId,
-      })
-      .from(communications)
-      .where(
-        and(
-          eq(communications.type, "whatsapp"),
-          eq(communications.subject, phone) // Il numero è salvato nel campo subject
+    // Prima trova il cliente con questo numero di telefono
+    const client = await db
+      .select({ id: clients.id })
+      .from(clients)
+      .where(eq(clients.phone, phone))
+      .limit(1);
+    
+    console.log(`[CONVERSATION] Cliente trovato:`, client);
+
+    let messages;
+    
+    if (client.length > 0) {
+      console.log(`[CONVERSATION] Cercando messaggi per client_id: ${client[0].id} OR subject: ${phone}`);
+      // Se esiste un cliente, cerca i messaggi per client_id O per subject con il numero
+      messages = await db
+        .select({
+          id: communications.id,
+          content: communications.content,
+          direction: communications.direction,
+          createdAt: communications.createdAt,
+          externalId: communications.externalId,
+        })
+        .from(communications)
+        .where(
+          and(
+            eq(communications.type, "whatsapp"),
+            or(
+              eq(communications.subject, phone),
+              eq(communications.clientId, client[0].id)
+            )
+          )
         )
-      )
-      .orderBy(communications.createdAt)
-      .limit(50); // Ultimi 50 messaggi
+        .orderBy(communications.createdAt)
+        .limit(50);
+      console.log(`[CONVERSATION] Messaggi trovati:`, messages.length);
+    } else {
+      // Se non esiste un cliente, cerca solo per subject
+      messages = await db
+        .select({
+          id: communications.id,
+          content: communications.content,
+          direction: communications.direction,
+          createdAt: communications.createdAt,
+          externalId: communications.externalId,
+        })
+        .from(communications)
+        .where(
+          and(
+            eq(communications.type, "whatsapp"),
+            eq(communications.subject, phone)
+          )
+        )
+        .orderBy(communications.createdAt)
+        .limit(50);
+    }
 
     res.json(messages);
   } catch (error) {
