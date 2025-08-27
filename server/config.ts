@@ -3,6 +3,12 @@
  */
 export const config = {
   /**
+   * Numero di telefono dell'agente WhatsApp
+   * Utilizzato per riconoscere i messaggi inviati dall'agente
+   */
+  agentPhoneNumber: '390235981509',
+
+  /**
    * URL base dell'applicazione - utilizzato per i link negli SMS/WhatsApp
    */
   getBaseUrl: (): string => {

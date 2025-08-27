@@ -288,40 +288,26 @@ export class UltraMsgClient {
         return null;
       }
       
-      // Se il numero non è registrato, invece di ignorare il messaggio,
-      // lo registriamo comunque come messaggio da un numero sconosciuto
+      // Se il numero non è registrato, crea automaticamente un nuovo cliente
       if (!client) {
-        console.warn(`[ULTRAMSG] Messaggio da numero non registrato: ${phone}`);
-        
-        // Crea una comunicazione speciale per messaggi da numeri non registrati
-        // Utilizziamo un cliente specifico come 'catch-all' per messaggi non identificati
-        const defaultClientId = 14; // Utilizza il cliente Ilan Boni come default
-        
-        // Prepara i dati per il database
-        const communicationData: InsertCommunication = {
-          clientId: defaultClientId, // Utilizza un cliente di default per numeri non registrati
-          type: 'whatsapp',
-          subject: phone, // Salva il numero di telefono nel subject per la ricerca
-          content: webhookData.body || '',
-          summary: `Messaggio da numero non registrato: ${phone.substring(0, 40)}...`,
-          direction: 'inbound',
-          needsFollowUp: true,
-          needsResponse: true, // Marca come da rispondere
-          status: 'pending',
-          propertyId: null,
-          responseToId: null,
-          externalId: webhookData.external_id || `${phone}-${Date.now()}`
-        };
-        
-        console.log("[ULTRAMSG] Salvando messaggio da numero non registrato:", communicationData);
+        console.log(`[ULTRAMSG] Cliente non trovato per numero ${phone}, creo automaticamente`);
         
         try {
-          // Salva nel database
-          const unknownComm = await storage.createCommunication(communicationData);
-          console.log("[ULTRAMSG] Messaggio da numero non registrato salvato con ID:", unknownComm.id);
-          return unknownComm;
-        } catch (saveError) {
-          console.error("[ULTRAMSG] Errore nel salvare messaggio da numero non registrato:", saveError);
+          // Crea un nuovo cliente per questo numero
+          const newClient = await storage.createClient({
+            firstName: "Cliente",
+            lastName: "",
+            phone: phone,
+            salutation: "Gentile Cliente",
+            clientType: "buyer",
+            source: "whatsapp",
+            notes: `Cliente creato automaticamente da messaggio WhatsApp del ${new Date().toLocaleDateString('it-IT')}`
+          });
+          
+          client = newClient;
+          console.log(`[ULTRAMSG] ✅ Nuovo cliente creato automaticamente con ID: ${client.id} per numero ${phone}`);
+        } catch (createError) {
+          console.error("[ULTRAMSG] Errore nella creazione automatica cliente:", createError);
           return null;
         }
       }
