@@ -45,8 +45,8 @@ router.get("/reminders", async (req, res) => {
     const formattedReminders = reminders.map((reminder) => ({
       id: reminder.id,
       phone: reminder.phone,
-      clientName: reminder.clientFirstName && reminder.clientLastName 
-        ? `${reminder.clientFirstName} ${reminder.clientLastName}`
+      clientName: reminder.clientFirstName 
+        ? `${reminder.clientFirstName} ${reminder.clientLastName || ''}`.trim()
         : null,
       lastMessage: reminder.lastMessage || "Nessun contenuto",
       lastMessageAt: reminder.lastMessageAt,
