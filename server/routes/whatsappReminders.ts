@@ -200,22 +200,57 @@ router.post("/sync", async (req, res) => {
     // Importa la funzione per verificare i messaggi
     const { fetchRecentWhatsAppMessages } = await import("../lib/ultramsgApi.js");
     
-    // Esegui controllo immediato
-    const result = await fetchRecentWhatsAppMessages();
+    // Retry fino a 3 volte in caso di errori di rete
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`[WHATSAPP-SYNC] Tentativo ${attempt}/3...`);
+        
+        // Esegui controllo immediato
+        const result = await fetchRecentWhatsAppMessages();
+        
+        console.log(`[WHATSAPP-SYNC] ✅ Sincronizzazione completata - ${result.processedCount} nuovi messaggi elaborati`);
+        
+        return res.json({ 
+          success: true,
+          message: "Sincronizzazione completata con successo",
+          processedCount: result.processedCount,
+          ignoredCount: result.ignoredCount,
+          attempt: attempt
+        });
+      } catch (attemptError) {
+        lastError = attemptError;
+        console.warn(`[WHATSAPP-SYNC] ⚠️ Tentativo ${attempt} fallito:`, attemptError instanceof Error ? attemptError.message : String(attemptError));
+        
+        // Aspetta 2 secondi prima del prossimo tentativo (eccetto l'ultimo)
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
     
-    console.log(`[WHATSAPP-SYNC] ✅ Sincronizzazione completata - ${result.processedCount} nuovi messaggi elaborati`);
+    // Se tutti i tentativi falliscono
+    throw lastError;
     
-    res.json({ 
-      success: true,
-      message: "Sincronizzazione completata con successo",
-      processedCount: result.processedCount,
-      ignoredCount: result.ignoredCount
-    });
   } catch (error) {
-    console.error("[WHATSAPP-SYNC] ❌ Errore nella sincronizzazione:", error);
+    console.error("[WHATSAPP-SYNC] ❌ Errore nella sincronizzazione dopo 3 tentativi:", error);
+    
+    // Diagnosi dell'errore per l'utente
+    let userMessage = "Errore nella sincronizzazione";
+    if (error instanceof Error) {
+      if (error.message.includes('ECONNRESET') || error.message.includes('ETIMEDOUT')) {
+        userMessage = "Errore di connessione con UltraMsg. Riprova tra qualche secondo.";
+      } else if (error.message.includes('401') || error.message.includes('403')) {
+        userMessage = "Errore di autenticazione UltraMsg. Verifica le credenziali API.";
+      } else if (error.message.includes('429')) {
+        userMessage = "Limite di velocità UltraMsg raggiunto. Riprova tra un minuto.";
+      }
+    }
+    
     res.status(500).json({ 
-      error: "Errore nella sincronizzazione",
-      details: error instanceof Error ? error.message : String(error)
+      error: userMessage,
+      technical: error instanceof Error ? error.message : String(error),
+      retries: 3
     });
   }
 });
