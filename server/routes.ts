@@ -6581,5 +6581,35 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  // Endpoint per ricevere webhook inoltrali da webhook.site o altri proxy
+  app.post("/api/whatsapp/webhook-proxy", async (req: Request, res: Response) => {
+    console.log("=== WEBHOOK PROXY RICEVUTO ===");
+    console.log("Headers:", JSON.stringify(req.headers, null, 2));
+    console.log("Body:", JSON.stringify(req.body, null, 2));
+    
+    try {
+      // Inoltra il webhook al nostro endpoint principale
+      const axios = await import('axios');
+      const response = await axios.default.post('http://localhost:5000/api/whatsapp/webhook', req.body, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      res.status(200).json({
+        success: true,
+        message: "Webhook proxy elaborato con successo",
+        originalResponse: response.data
+      });
+    } catch (error) {
+      console.error("Errore nel proxy webhook:", error);
+      res.status(500).json({
+        success: false,
+        error: "Errore nel proxy webhook",
+        details: error.message
+      });
+    }
+  });
+
   return httpServer;
 }
