@@ -71,10 +71,11 @@ export default function WhatsAppReminders() {
   // Mutation per inviare risposta
   const sendResponseMutation = useMutation({
     mutationFn: async ({ phone, message }: { phone: string; message: string }) => {
-      return apiRequest(`/api/whatsapp/send-response`, {
+      const response = await apiRequest(`/api/whatsapp/send-response`, {
         method: 'POST',
         data: { phone, message },
       });
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -102,10 +103,11 @@ export default function WhatsAppReminders() {
   const generateAiResponseMutation = useMutation({
     mutationFn: async (phone: string) => {
       console.log("API Request:", `/api/whatsapp/generate-ai-response`, { method: 'POST', data: { phone } });
-      return apiRequest(`/api/whatsapp/generate-ai-response`, {
+      const response = await apiRequest(`/api/whatsapp/generate-ai-response`, {
         method: 'POST',
         data: { phone },
       });
+      return await response.json();
     },
     onSuccess: (data: any) => {
       console.log("AI Response received:", data);
