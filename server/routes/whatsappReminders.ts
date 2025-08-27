@@ -23,7 +23,7 @@ router.get("/reminders", async (req, res) => {
         phone: communications.subject, // Il numero di telefono viene salvato in subject per WhatsApp
         lastMessage: communications.content,
         lastMessageAt: communications.createdAt,
-        needsResponse: communications.needsResponse,
+        needsResponse: communications.needs_response,
         clientId: communications.clientId,
         clientFirstName: clients.firstName,
         clientLastName: clients.lastName,
