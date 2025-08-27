@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
-import { clients, sellers, communications } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { clients, sellers, communications, mailMergeMessages, dailyGoals } from '@shared/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { sendWhatsAppMessage } from '../lib/ultramsg';
 
 const router = Router();
@@ -123,7 +123,7 @@ router.post('/send', async (req, res) => {
       
       if (whatsappResult.success) {
         // Save communication record
-        await db.insert(communications).values({
+        const communication = await db.insert(communications).values({
           clientId: clientId,
           type: 'whatsapp',
           direction: 'outgoing',
@@ -137,7 +137,37 @@ router.post('/send', async (req, res) => {
             caratteristiche: validatedData.caratteristiche,
             indirizzo: validatedData.indirizzo
           })
+        }).returning();
+
+        // Save mail merge message record
+        await db.insert(mailMergeMessages).values({
+          clientId: clientId,
+          appellativo: validatedData.appellativo,
+          cognome: validatedData.cognome,
+          indirizzo: validatedData.indirizzo,
+          telefono: normalizedPhone,
+          vistoSu: validatedData.vistoSu,
+          caratteristiche: validatedData.caratteristiche,
+          message: validatedData.message,
+          communicationId: communication[0]?.id,
+          responseStatus: 'no_response'
         });
+
+        // Update daily goal counter
+        const today = new Date().toISOString().split('T')[0];
+        await db.insert(dailyGoals)
+          .values({
+            date: today,
+            messageGoal: 10,
+            messagesSent: 1
+          })
+          .onConflictDoUpdate({
+            target: [dailyGoals.date],
+            set: {
+              messagesSent: sql`${dailyGoals.messagesSent} + 1`,
+              updatedAt: new Date()
+            }
+          });
         
         console.log(`[MAIL MERGE] Messaggio inviato con successo a ${validatedData.appellativo} ${validatedData.cognome}`);
         
@@ -177,6 +207,108 @@ router.post('/send', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Errore del server durante l\'elaborazione'
+    });
+  }
+});
+
+// Get mail merge history
+router.get('/history', async (req, res) => {
+  try {
+    const history = await db.select({
+      id: mailMergeMessages.id,
+      sentAt: mailMergeMessages.sentAt,
+      indirizzo: mailMergeMessages.indirizzo,
+      cognome: mailMergeMessages.cognome,
+      appellativo: mailMergeMessages.appellativo,
+      telefono: mailMergeMessages.telefono,
+      responseStatus: mailMergeMessages.responseStatus,
+      responseText: mailMergeMessages.responseText,
+      responseReceivedAt: mailMergeMessages.responseReceivedAt
+    })
+    .from(mailMergeMessages)
+    .orderBy(sql`${mailMergeMessages.sentAt} DESC`)
+    .limit(100);
+
+    res.json({ success: true, data: history });
+  } catch (error) {
+    console.error('[MAIL MERGE] Errore nel recupero cronologia:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nel recupero della cronologia'
+    });
+  }
+});
+
+// Get mail merge analytics
+router.get('/analytics', async (req, res) => {
+  try {
+    // Get today's goal and progress
+    const today = new Date().toISOString().split('T')[0];
+    const [todayGoal] = await db.select()
+      .from(dailyGoals)
+      .where(eq(dailyGoals.date, today))
+      .limit(1);
+
+    // Get response statistics
+    const responseStats = await db.select({
+      responseStatus: mailMergeMessages.responseStatus,
+      count: sql<number>`count(*)`
+    })
+    .from(mailMergeMessages)
+    .groupBy(mailMergeMessages.responseStatus);
+
+    // Calculate percentages
+    const total = responseStats.reduce((sum, stat) => sum + stat.count, 0);
+    const analytics = {
+      today: {
+        goal: todayGoal?.messageGoal || 10,
+        sent: todayGoal?.messagesSent || 0,
+        remaining: Math.max(0, (todayGoal?.messageGoal || 10) - (todayGoal?.messagesSent || 0))
+      },
+      responses: {
+        total,
+        positive: responseStats.find(s => s.responseStatus === 'positive')?.count || 0,
+        negative: responseStats.find(s => s.responseStatus === 'negative')?.count || 0,
+        noResponse: responseStats.find(s => s.responseStatus === 'no_response')?.count || 0
+      },
+      percentages: {
+        positive: total > 0 ? Math.round((responseStats.find(s => s.responseStatus === 'positive')?.count || 0) / total * 100) : 0,
+        negative: total > 0 ? Math.round((responseStats.find(s => s.responseStatus === 'negative')?.count || 0) / total * 100) : 0,
+        noResponse: total > 0 ? Math.round((responseStats.find(s => s.responseStatus === 'no_response')?.count || 0) / total * 100) : 0
+      }
+    };
+
+    res.json({ success: true, data: analytics });
+  } catch (error) {
+    console.error('[MAIL MERGE] Errore nel recupero analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nel recupero delle analytics'
+    });
+  }
+});
+
+// Update response status for a message
+router.put('/response/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { responseStatus, responseText } = req.body;
+
+    await db.update(mailMergeMessages)
+      .set({
+        responseStatus,
+        responseText,
+        responseReceivedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(mailMergeMessages.id, parseInt(id)));
+
+    res.json({ success: true, message: 'Stato risposta aggiornato' });
+  } catch (error) {
+    console.error('[MAIL MERGE] Errore aggiornamento risposta:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nell\'aggiornamento della risposta'
     });
   }
 });

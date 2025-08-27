@@ -27,10 +27,17 @@ import {
   Send, 
   CheckCircle, 
   AlertCircle,
-  Upload
+  Upload,
+  Calendar,
+  TrendingUp,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  Clock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 
 interface MailMergeContact {
   id: string;
@@ -84,7 +91,20 @@ export default function MailMergePage() {
   ]);
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
   const [isSending, setIsSending] = useState(false);
+  const [activeTab, setActiveTab] = useState<'compose' | 'history' | 'analytics'>('compose');
   const { toast } = useToast();
+
+  // Fetch mail merge history
+  const { data: historyData, refetch: refetchHistory } = useQuery({
+    queryKey: ['/api/mail-merge/history'],
+    enabled: activeTab === 'history'
+  });
+
+  // Fetch mail merge analytics
+  const { data: analyticsData, refetch: refetchAnalytics } = useQuery({
+    queryKey: ['/api/mail-merge/analytics'],
+    enabled: activeTab === 'analytics'
+  });
 
   // Add new empty contact
   const addContact = () => {
@@ -246,6 +266,10 @@ export default function MailMergePage() {
       });
     } finally {
       setIsSending(false);
+      // Refresh analytics after sending
+      if (activeTab === 'analytics') {
+        refetchAnalytics();
+      }
     }
   };
 
@@ -311,38 +335,92 @@ export default function MailMergePage() {
     }
   };
 
+  // Update response status for a message
+  const updateResponseStatus = async (messageId: number, responseStatus: 'positive' | 'negative' | 'no_response', responseText?: string) => {
+    try {
+      await apiRequest(`/api/mail-merge/response/${messageId}`, {
+        method: 'PUT',
+        data: { responseStatus, responseText }
+      });
+      refetchHistory();
+      refetchAnalytics();
+      toast({
+        title: "Successo",
+        description: "Stato risposta aggiornato",
+      });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore nell'aggiornamento dello stato",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Mail Merge Proprietari Privati</h1>
-        <div className="flex gap-2">
-          <Button 
-            onClick={addContact}
-            variant="outline"
-            size="sm"
-          >
-            <Plus size={16} className="mr-2" />
-            +1 Riga
-          </Button>
-          <Button 
-            onClick={() => addMultipleRows(5)}
-            variant="outline"
-            size="sm"
-          >
-            <Plus size={16} className="mr-2" />
-            +5 Righe
-          </Button>
-          <div className="flex-1" />
-          <Button 
-            onClick={sendMessages}
-            disabled={isSending || contacts.length === 0}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <Send size={16} className="mr-2" />
-            {isSending ? 'Invio in corso...' : 'Invia Tutti'}
-          </Button>
-        </div>
       </div>
+
+      {/* Navigation Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {[
+            { id: 'compose', label: 'Componi Messaggi', icon: Send },
+            { id: 'history', label: 'Cronologia Invii', icon: Clock },
+            { id: 'analytics', label: 'Analytics', icon: TrendingUp }
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Compose Tab */}
+      {activeTab === 'compose' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div className="flex gap-2">
+              <Button 
+                onClick={addContact}
+                variant="outline"
+                size="sm"
+              >
+                <Plus size={16} className="mr-2" />
+                +1 Riga
+              </Button>
+              <Button 
+                onClick={() => addMultipleRows(5)}
+                variant="outline"
+                size="sm"
+              >
+                <Plus size={16} className="mr-2" />
+                +5 Righe
+              </Button>
+            </div>
+            <Button 
+              onClick={sendMessages}
+              disabled={isSending || contacts.length === 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Send size={16} className="mr-2" />
+              {isSending ? 'Invio in corso...' : 'Invia Tutti'}
+            </Button>
+          </div>
 
       {/* Message Template */}
       <Card>
@@ -555,6 +633,233 @@ export default function MailMergePage() {
           )}
         </CardContent>
       </Card>
+        </div>
+      )}
+
+      {/* History Tab */}
+      {activeTab === 'history' && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Clock className="h-5 w-5 mr-2" />
+                Cronologia Invii Mail Merge
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {historyData?.data ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data Invio</TableHead>
+                        <TableHead>Proprietario</TableHead>
+                        <TableHead>Indirizzo</TableHead>
+                        <TableHead>Telefono</TableHead>
+                        <TableHead>Stato Risposta</TableHead>
+                        <TableHead>Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historyData.data.map((message: any) => (
+                        <TableRow key={message.id}>
+                          <TableCell>
+                            {new Date(message.sentAt).toLocaleDateString('it-IT', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            {message.appellativo} {message.cognome}
+                          </TableCell>
+                          <TableCell>{message.indirizzo}</TableCell>
+                          <TableCell>{message.telefono}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={message.responseStatus}
+                              onValueChange={(value) => updateResponseStatus(message.id, value)}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="no_response">
+                                  <div className="flex items-center">
+                                    <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                                    Nessuna risposta
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="positive">
+                                  <div className="flex items-center">
+                                    <ThumbsUp className="h-4 w-4 mr-2 text-green-500" />
+                                    Positiva
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="negative">
+                                  <div className="flex items-center">
+                                    <ThumbsDown className="h-4 w-4 mr-2 text-red-500" />
+                                    Negativa
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(message.telefono);
+                                toast({ title: "Numero copiato", description: "Numero di telefono copiato negli appunti" });
+                              }}
+                            >
+                              Copia Tel.
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-8">Nessuna cronologia disponibile</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Analytics Tab */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-6">
+          {analyticsData?.data && (
+            <>
+              {/* Daily Goal Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Obiettivo Giornaliero
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {analyticsData.data.today.sent}
+                      </div>
+                      <div className="text-sm text-gray-500">Messaggi Inviati Oggi</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {analyticsData.data.today.goal}
+                      </div>
+                      <div className="text-sm text-gray-500">Obiettivo Giornaliero</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {analyticsData.data.today.remaining}
+                      </div>
+                      <div className="text-sm text-gray-500">Rimanenti</div>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min(100, (analyticsData.data.today.sent / analyticsData.data.today.goal) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 text-center">
+                      {Math.round((analyticsData.data.today.sent / analyticsData.data.today.goal) * 100)}% completato
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Response Analytics Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2" />
+                    Statistiche Risposte
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {analyticsData.data.responses.total}
+                      </div>
+                      <div className="text-sm text-gray-500">Totale Messaggi</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {analyticsData.data.responses.positive}
+                      </div>
+                      <div className="text-sm text-gray-500">Risposte Positive</div>
+                      <div className="text-xs font-medium text-green-600">
+                        {analyticsData.data.percentages.positive}%
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600">
+                        {analyticsData.data.responses.negative}
+                      </div>
+                      <div className="text-sm text-gray-500">Risposte Negative</div>
+                      <div className="text-xs font-medium text-red-600">
+                        {analyticsData.data.percentages.negative}%
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-600">
+                        {analyticsData.data.responses.noResponse}
+                      </div>
+                      <div className="text-sm text-gray-500">Nessuna Risposta</div>
+                      <div className="text-xs font-medium text-gray-600">
+                        {analyticsData.data.percentages.noResponse}%
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Visual Progress Bars */}
+                  <div className="mt-6 space-y-3">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Risposte Positive</span>
+                        <span>{analyticsData.data.percentages.positive}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${analyticsData.data.percentages.positive}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Risposte Negative</span>
+                        <span>{analyticsData.data.percentages.negative}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-red-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${analyticsData.data.percentages.negative}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

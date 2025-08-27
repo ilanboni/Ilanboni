@@ -421,3 +421,46 @@ export type InsertAppointmentConfirmation = z.infer<typeof insertAppointmentConf
 
 export type ImmobiliareEmail = typeof immobiliareEmails.$inferSelect;
 export type InsertImmobiliareEmail = z.infer<typeof insertImmobiliareEmailSchema>;
+
+// Tabella per tracciare i messaggi di mail merge ai proprietari
+export const mailMergeMessages = pgTable("mail_merge_messages", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  appellativo: text("appellativo").notNull(),
+  cognome: text("cognome").notNull(),
+  indirizzo: text("indirizzo").notNull(),
+  telefono: text("telefono").notNull(),
+  vistoSu: text("visto_su").notNull(),
+  caratteristiche: text("caratteristiche").notNull(),
+  message: text("message").notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+  responseStatus: text("response_status").default("no_response"), // "positive", "negative", "no_response"
+  responseText: text("response_text"),
+  responseReceivedAt: timestamp("response_received_at"),
+  communicationId: integer("communication_id").references(() => communications.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Schema di inserimento per mail merge messages
+export const insertMailMergeMessageSchema = createInsertSchema(mailMergeMessages)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export type MailMergeMessage = typeof mailMergeMessages.$inferSelect;
+export type InsertMailMergeMessage = z.infer<typeof insertMailMergeMessageSchema>;
+
+// Tabella per tracciare gli obiettivi giornalieri
+export const dailyGoals = pgTable("daily_goals", {
+  id: serial("id").primaryKey(),
+  date: date("date").notNull().unique(),
+  messageGoal: integer("message_goal").default(10).notNull(),
+  messagesSent: integer("messages_sent").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const insertDailyGoalSchema = createInsertSchema(dailyGoals)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export type DailyGoal = typeof dailyGoals.$inferSelect;
+export type InsertDailyGoal = z.infer<typeof insertDailyGoalSchema>;
