@@ -198,16 +198,18 @@ router.post("/sync", async (req, res) => {
     console.log(`[WHATSAPP-SYNC] 🔄 Forzando sincronizzazione immediata messaggi...`);
     
     // Importa la funzione per verificare i messaggi
-    const { checkForNewMessages } = await import("../lib/ultramsg.js");
+    const { fetchRecentWhatsAppMessages } = await import("../lib/ultramsgApi.js");
     
     // Esegui controllo immediato
-    await checkForNewMessages();
+    const result = await fetchRecentWhatsAppMessages();
     
-    console.log(`[WHATSAPP-SYNC] ✅ Sincronizzazione completata`);
+    console.log(`[WHATSAPP-SYNC] ✅ Sincronizzazione completata - ${result.processedCount} nuovi messaggi elaborati`);
     
     res.json({ 
       success: true,
-      message: "Sincronizzazione completata con successo"
+      message: "Sincronizzazione completata con successo",
+      processedCount: result.processedCount,
+      ignoredCount: result.ignoredCount
     });
   } catch (error) {
     console.error("[WHATSAPP-SYNC] ❌ Errore nella sincronizzazione:", error);
