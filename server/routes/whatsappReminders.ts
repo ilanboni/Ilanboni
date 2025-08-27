@@ -16,43 +16,41 @@ const sendResponseSchema = z.object({
 // GET /api/whatsapp/reminders - Ottieni messaggi non risposti
 router.get("/reminders", async (req, res) => {
   try {
-    // Query per trovare messaggi WhatsApp in entrata che necessitano risposta
-    const reminders = await db
-      .select({
-        id: communications.id,
-        phone: communications.subject, // Il numero di telefono viene salvato in subject per WhatsApp
-        lastMessage: communications.content,
-        lastMessageAt: communications.createdAt,
-        needsResponse: communications.needs_response,
-        clientId: communications.clientId,
-        clientFirstName: clients.firstName,
-        clientLastName: clients.lastName,
-      })
-      .from(communications)
-      .leftJoin(clients, eq(communications.clientId, clients.id))
-      .where(
-        and(
-          eq(communications.type, "whatsapp"),
-          eq(communications.direction, "inbound"),
-          eq(communications.needsResponse, true),
-          isNull(communications.respondedAt)
-        )
-      )
-      .orderBy(desc(communications.createdAt))
-      .limit(10);
+    // Usa il pool direttamente per evitare problemi di Drizzle
+    const { pool } = await import("../db");
+    const result = await pool.query(`
+      SELECT 
+        c.id,
+        c.subject as phone,
+        c.content as last_message,
+        c.created_at as last_message_at,
+        c.needs_response,
+        c.client_id,
+        cl.first_name,
+        cl.last_name
+      FROM communications c
+      LEFT JOIN clients cl ON c.client_id = cl.id
+      WHERE c.type = 'whatsapp' 
+        AND c.direction = 'inbound'
+      ORDER BY c.created_at DESC
+      LIMIT 10
+    `);
+
+    console.log("Query result:", result.rows);
 
     // Formatta i risultati
-    const formattedReminders = reminders.map((reminder) => ({
-      id: reminder.id,
-      phone: reminder.phone,
-      clientName: reminder.clientFirstName 
-        ? `${reminder.clientFirstName} ${reminder.clientLastName || ''}`.trim()
+    const formattedReminders = result.rows.map((row: any) => ({
+      id: row.id,
+      phone: row.phone,
+      clientName: row.first_name 
+        ? `${row.first_name} ${row.last_name || ''}`.trim()
         : null,
-      lastMessage: reminder.lastMessage || "Nessun contenuto",
-      lastMessageAt: reminder.lastMessageAt,
-      needsResponse: reminder.needsResponse,
+      lastMessage: row.last_message || "Nessun contenuto",
+      lastMessageAt: row.last_message_at,
+      needsResponse: row.needs_response,
     }));
 
+    console.log("Formatted reminders:", formattedReminders);
     res.json(formattedReminders);
   } catch (error) {
     console.error("Errore nel recupero dei promemoria WhatsApp:", error);
