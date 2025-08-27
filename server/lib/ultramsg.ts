@@ -301,11 +301,12 @@ export class UltraMsgClient {
         const communicationData: InsertCommunication = {
           clientId: defaultClientId, // Utilizza un cliente di default per numeri non registrati
           type: 'whatsapp',
-          subject: `Messaggio WhatsApp da numero non registrato (${phone})`,
+          subject: phone, // Salva il numero di telefono nel subject per la ricerca
           content: webhookData.body || '',
           summary: `Messaggio da numero non registrato: ${phone.substring(0, 40)}...`,
           direction: 'inbound',
           needsFollowUp: true,
+          needsResponse: true, // Marca come da rispondere
           status: 'pending',
           propertyId: null,
           responseToId: null,
