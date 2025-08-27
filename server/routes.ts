@@ -2425,6 +2425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               summary: messageData.body.length > 50 ? `${messageData.body.substring(0, 47)}...` : messageData.body,
               direction: 'inbound',
               needsFollowUp: true,
+              needsResponse: true, // Tutti i messaggi in arrivo richiedono una risposta
               status: 'pending',
               responseToId: lastOutboundComm?.id || null,
               externalId: messageData.id

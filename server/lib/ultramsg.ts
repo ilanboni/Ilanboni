@@ -370,6 +370,7 @@ export class UltraMsgClient {
         summary,
         direction: 'inbound',
         needsFollowUp: true,
+        needsResponse: true, // Tutti i messaggi in arrivo richiedono una risposta
         status: 'pending',
         propertyId: lastOutboundComm?.propertyId || null,
         responseToId: lastOutboundComm?.id || null,
