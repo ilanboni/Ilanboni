@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurazione Webhook UltraMsg</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        .highlight { background: #fff3cd; padding: 15px; border-left: 5px solid #ffc107; margin: 15px 0; }
+        .code { background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Configurazione Webhook UltraMsg - Guida Rapida</h1>
+    
+    <div class="highlight">
+        <strong>PROBLEMA IDENTIFICATO:</strong> I messaggi arrivano sul cellulare ma non vengono ricevuti dal sistema.
+        <br><strong>SOLUZIONE:</strong> Configurare il webhook nell'account UltraMsg.
+    </div>
+
+    <div class="step">
+        <h2>📋 PASSO 1: Accedi al tuo account UltraMsg</h2>
+        <p>1. Vai su <a href="https://api.ultramsg.com" target="_blank">https://api.ultramsg.com</a></p>
+        <p>2. Fai login con le tue credenziali</p>
+        <p>3. Seleziona la tua istanza WhatsApp (instance87870)</p>
+    </div>
+
+    <div class="step">
+        <h2>⚙️ PASSO 2: Configura il Webhook</h2>
+        <p>1. Vai nella sezione <strong>"Settings"</strong> o <strong>"Webhook"</strong></p>
+        <p>2. Inserisci questo URL nel campo Webhook:</p>
+        <div class="code">
+            https://3f0d593a-88b2-4cea-ad03-76eee0e3b2f0-00-v4134pmpwrv3.janeway.replit.dev/api/whatsapp/webhook
+        </div>
+        <p>3. Seleziona gli eventi da monitorare:</p>
+        <ul>
+            <li>✅ <strong>message</strong> (messaggi ricevuti)</li>
+            <li>✅ <strong>message_received</strong> (conferma ricezione)</li>
+            <li>⚪ message_sent (opzionale)</li>
+        </ul>
+        <p>4. Imposta il metodo HTTP su <strong>POST</strong></p>
+        <p>5. Salva la configurazione</p>
+    </div>
+
+    <div class="step">
+        <h2>🧪 PASSO 3: Test del Webhook</h2>
+        <p>1. Dopo aver salvato, invia un messaggio WhatsApp al numero <strong>390235981509</strong></p>
+        <p>2. Il messaggio dovrebbe apparire automaticamente nell'app entro 2-3 secondi</p>
+        <p>3. Controlla il dashboard "WhatsApp Reminders" per verificare la ricezione</p>
+    </div>
+
+    <div class="step">
+        <h2>🔍 PASSO 4: Verifica Configurazione</h2>
+        <p>Se i messaggi non arrivano ancora:</p>
+        <ol>
+            <li>Verifica che l'URL webhook sia corretto (no spazi extra)</li>
+            <li>Controlla che l'istanza WhatsApp sia connessa e attiva</li>
+            <li>Prova a disconnettere e riconnettere WhatsApp Web</li>
+            <li>Verifica i log degli errori nel pannello UltraMsg</li>
+        </ol>
+    </div>
+
+    <div class="highlight">
+        <h3>📞 URL WEBHOOK DA COPIARE:</h3>
+        <div class="code" style="font-size: 14px; word-break: break-all;">
+            https://3f0d593a-88b2-4cea-ad03-76eee0e3b2f0-00-v4134pmpwrv3.janeway.replit.dev/api/whatsapp/webhook
+        </div>
+        <p><small>Copia questo URL esattamente come mostrato (no spazi o caratteri extra)</small></p>
+    </div>
+
+    <div class="step">
+        <h2>📊 Monitoraggio Sistema</h2>
+        <p>Una volta configurato, puoi monitorare i messaggi:</p>
+        <ul>
+            <li><strong>Dashboard App:</strong> Sezione "WhatsApp Reminders"</li>
+            <li><strong>Comunicazioni:</strong> Tutti i messaggi vengono salvati automaticamente</li>
+            <li><strong>AI Analysis:</strong> Ogni messaggio viene analizzato per sentimento e priorità</li>
+            <li><strong>Task Automatici:</strong> Il sistema crea promemoria di follow-up</li>
+        </ul>
+    </div>
+
+    <div class="success">
+        ✅ Una volta configurato, il sistema sarà completamente automatico!<br>
+        ✅ Ogni messaggio ricevuto attiva l'elaborazione AI<br>
+        ✅ Risposte suggerite generate automaticamente<br>
+        ✅ Task di follow-up creati quando necessario
+    </div>
+
+    <hr>
+    <p><small>🔧 Setup completato il 27 agosto 2025 - Sistema pronto per l'uso in produzione</small></p>
+</body>
+</html>
