@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inserimento Manuale Messaggi WhatsApp</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #25D366;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        button {
+            background: #25D366;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #20b358;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f1b0b7;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Inserimento Manuale Messaggi WhatsApp</h1>
+        
+        <div class="status">
+            <strong>💡 Soluzione Temporanea:</strong> Usa questa pagina per inserire manualmente i messaggi WhatsApp quando il webhook UltraMsg non funziona. Tutti i messaggi verranno elaborati con AI e appariranno nei promemoria.
+        </div>
+
+        <form id="messageForm">
+            <label for="phoneNumber">Numero di telefono (formato: 393407992052):</label>
+            <input type="text" id="phoneNumber" name="phoneNumber" value="393407992052" required>
+            
+            <label for="message">Messaggio ricevuto:</label>
+            <textarea id="message" name="message" placeholder="Inserisci qui il testo del messaggio WhatsApp che hai ricevuto..." required></textarea>
+            
+            <button type="submit" id="submitBtn">📤 Elabora Messaggio</button>
+        </form>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('messageForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const result = document.getElementById('result');
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const message = document.getElementById('message').value;
+            
+            // Disabilita il pulsante
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Elaborazione...';
+            
+            try {
+                const response = await fetch('/api/whatsapp/manual', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        phoneNumber: phoneNumber,
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.className = 'result success';
+                    result.style.display = 'block';
+                    result.innerHTML = `
+                        <strong>✅ Messaggio elaborato con successo!</strong><br>
+                        Cliente ID: ${data.clientId}<br>
+                        Comunicazione ID: ${data.communicationId}<br>
+                        Il messaggio è ora disponibile nei promemoria WhatsApp.
+                    `;
+                    
+                    // Pulisci il form
+                    document.getElementById('message').value = '';
+                } else {
+                    throw new Error(data.error || 'Errore sconosciuto');
+                }
+                
+            } catch (error) {
+                result.className = 'result error';
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <strong>❌ Errore durante l'elaborazione:</strong><br>
+                    ${error.message}
+                `;
+            } finally {
+                // Riabilita il pulsante
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📤 Elabora Messaggio';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -43,6 +43,7 @@ import { registerAIAssistantRoutes } from "./routes/aiAssistant";
 import virtualAssistantRouter from "./routes/virtualAssistant";
 import mailMergeRouter from "./routes/mailMerge";
 import whatsappRemindersRouter from "./routes/whatsappReminders";
+import { manualWebhookHandler } from "./routes/manualWebhook";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -6560,6 +6561,23 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
         updated: 0,
         errors: 1
       });
+    }
+  });
+
+  // Endpoint per inserimento manuale messaggi WhatsApp (soluzione alternativa al webhook)
+  app.post("/api/whatsapp/manual", manualWebhookHandler);
+
+  // Interfaccia web per inserimento manuale messaggi
+  app.get("/manual-message", async (req: Request, res: Response) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const manualHtmlPath = path.resolve(import.meta.dirname, '..', 'manual-message.html');
+      const manualHtml = await fs.promises.readFile(manualHtmlPath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html');
+      res.send(manualHtml);
+    } catch (error) {
+      res.status(500).send(`<h1>Errore</h1><p>Impossibile caricare l'interfaccia di inserimento manuale: ${error}</p>`);
     }
   });
 
