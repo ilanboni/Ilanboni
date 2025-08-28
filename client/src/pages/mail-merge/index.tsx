@@ -199,7 +199,7 @@ export default function MailMergePage() {
   });
 
   // Type-safe access to data
-  const historyMessages = Array.isArray(historyData) ? historyData : [];
+  const historyMessages = historyData?.success && Array.isArray(historyData.data) ? historyData.data : [];
   const analytics = analyticsData && typeof analyticsData === 'object' ? analyticsData as any : {};
   const propertiesData = Array.isArray(soldProperties) ? soldProperties : [];
 
@@ -476,6 +476,36 @@ export default function MailMergePage() {
     
     return null;
   };
+
+  // Sync contact status with database
+  const syncContactsWithHistory = async () => {
+    if (!historyMessages.length) return;
+    
+    setContacts(prev => prev.map(contact => {
+      // Check if this contact was already sent based on phone number
+      const sentMessage = historyMessages.find(msg => 
+        msg.telefono && contact.telefono && 
+        msg.telefono.replace(/[^\d]/g, '') === contact.telefono.replace(/[^\d]/g, '')
+      );
+      
+      if (sentMessage) {
+        return {
+          ...contact,
+          status: 'sent' as const,
+          message: 'Messaggio già inviato'
+        };
+      }
+      
+      return contact;
+    }));
+  };
+
+  // Call sync when history data changes
+  useEffect(() => {
+    if (historyMessages.length > 0) {
+      syncContactsWithHistory();
+    }
+  }, [historyMessages]);
 
   // Send messages to all contacts
   const sendMessages = async () => {
