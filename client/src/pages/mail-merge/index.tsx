@@ -164,16 +164,19 @@ export default function MailMergePage() {
     return [];
   };
 
-  const [contacts, setContacts] = useState<MailMergeContact[]>(loadContactsFromStorage());
+  const [contacts, setContacts] = useState<MailMergeContact[]>([]);
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
 
-  // Save contacts to localStorage whenever they change (including empty arrays for reset)
+  // Clear localStorage on mount since messages were sent
   useEffect(() => {
-    localStorage.setItem('mailMergeContacts', JSON.stringify(contacts));
-    // Also create a timestamped backup
-    const timestamp = new Date().toISOString();
-    localStorage.setItem(`mailMergeContacts_backup_${timestamp}`, JSON.stringify(contacts));
-  }, [contacts]);
+    localStorage.removeItem('mailMergeContacts');
+    // Clear any backup data
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('mailMergeContacts_backup_')) {
+        localStorage.removeItem(key);
+      }
+    });
+  }, []);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('private_owners');
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [isSending, setIsSending] = useState(false);
