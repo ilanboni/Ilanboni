@@ -14,7 +14,7 @@ const mailMergeSchema = z.object({
   indirizzo: z.string().min(1, 'Indirizzo richiesto'),
   telefono: z.string().min(1, 'Telefono richiesto'),
   vistoSu: z.string().min(1, 'Visto su richiesto'),
-  caratteristiche: z.string().min(1, 'Caratteristiche richieste'),
+  caratteristiche: z.string().optional(), // Caratteristiche ora opzionale
   message: z.string().min(1, 'Messaggio richiesto')
 });
 
@@ -103,10 +103,14 @@ router.post('/send', async (req, res) => {
       isNewClient = true;
       
       // Create seller record with property details
+      const caratteristicheText = validatedData.caratteristiche ? 
+        `Caratteristiche: ${validatedData.caratteristiche}` : 
+        'Caratteristiche: Non specificate';
+      
       await db.insert(sellers).values({
         clientId: clientId,
         propertyAddress: validatedData.indirizzo,
-        propertyDescription: `Proprietà vista su ${validatedData.vistoSu}. Caratteristiche: ${validatedData.caratteristiche}`,
+        propertyDescription: `Proprietà vista su ${validatedData.vistoSu}. ${caratteristicheText}`,
         hasExclusiveContract: false,
         sellingReason: 'Non specificato',
         timeline: 'Non specificato'
@@ -134,7 +138,7 @@ router.post('/send', async (req, res) => {
           metadata: JSON.stringify({
             mailMerge: true,
             vistoSu: validatedData.vistoSu,
-            caratteristiche: validatedData.caratteristiche,
+            caratteristiche: validatedData.caratteristiche || 'Non specificate',
             indirizzo: validatedData.indirizzo
           })
         }).returning();
@@ -147,7 +151,7 @@ router.post('/send', async (req, res) => {
           indirizzo: validatedData.indirizzo,
           telefono: normalizedPhone,
           vistoSu: validatedData.vistoSu,
-          caratteristiche: validatedData.caratteristiche,
+          caratteristiche: validatedData.caratteristiche || 'Non specificate',
           message: validatedData.message,
           communicationId: communication[0]?.id,
           responseStatus: 'no_response'
