@@ -190,6 +190,51 @@ export default function MailMergePage() {
     setContacts([...contacts, newContact]);
   };
 
+  // Check for backup contacts in localStorage
+  const checkForBackupContacts = () => {
+    try {
+      // Check multiple possible keys where contacts might be stored
+      const possibleKeys = ['mailMergeContacts', 'mailMergeContacts_backup', 'contacts_backup'];
+      
+      for (const key of possibleKeys) {
+        const backup = localStorage.getItem(key);
+        if (backup) {
+          try {
+            const parsedContacts = JSON.parse(backup);
+            if (Array.isArray(parsedContacts) && parsedContacts.length > 0) {
+              console.log(`Trovati ${parsedContacts.length} contatti in ${key}:`, parsedContacts);
+              setContacts(parsedContacts);
+              toast({
+                title: "Contatti Recuperati!",
+                description: `Trovati ${parsedContacts.length} contatti salvati in precedenza`,
+              });
+              return;
+            }
+          } catch (parseError) {
+            console.warn(`Errore parsing contatti da ${key}:`, parseError);
+          }
+        }
+      }
+      
+      // No backup found, show available localStorage data for debugging
+      console.log('Contenuto localStorage disponibile:');
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes('contact') || key?.includes('mail')) {
+          console.log(`${key}:`, localStorage.getItem(key));
+        }
+      }
+      
+      toast({
+        title: "Nessun Backup Trovato",
+        description: "Non sono stati trovati contatti salvati. Puoi aggiungere nuovi contatti.",
+        variant: "destructive"
+      });
+    } catch (error) {
+      console.error('Errore durante ricerca backup:', error);
+    }
+  };
+
   // Add example contacts for demonstration
   const addExampleContacts = () => {
     const exampleContacts: MailMergeContact[] = [
@@ -544,15 +589,26 @@ export default function MailMergePage() {
                 +5 Righe
               </Button>
               {contacts.length === 0 && (
-                <Button 
-                  onClick={addExampleContacts}
-                  variant="outline"
-                  size="sm"
-                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                >
-                  <Plus size={16} className="mr-2" />
-                  Aggiungi Esempi
-                </Button>
+                <>
+                  <Button 
+                    onClick={checkForBackupContacts}
+                    variant="outline"
+                    size="sm"
+                    className="text-green-600 border-green-600 hover:bg-green-50"
+                  >
+                    <Upload size={16} className="mr-2" />
+                    Cerca Contatti Salvati
+                  </Button>
+                  <Button 
+                    onClick={addExampleContacts}
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Aggiungi Esempi
+                  </Button>
+                </>
               )}
             </div>
             <Button 
