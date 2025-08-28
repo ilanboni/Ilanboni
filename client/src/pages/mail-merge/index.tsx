@@ -423,13 +423,16 @@ export default function MailMergePage() {
 
   // Generate personalized message for a contact
   const generateMessage = (contact: MailMergeContact): string => {
+    // Handle empty characteristics gracefully
+    const caratteristiche = contact.caratteristiche?.trim() || 'le sue caratteristiche uniche';
+    
     let message = messageTemplate
       .replace(/<<Appellativo>>/g, contact.appellativo)
       .replace(/<<Cognome>>/g, contact.cognome)
       .replace(/<<Via>>/g, contact.indirizzo)
       .replace(/<<Indirizzo>>/g, contact.indirizzo) // Per compatibilità con template precedenti
       .replace(/<<Visto su>>/g, contact.vistoSu)
-      .replace(/<<Caratteristiche particolari>>/g, contact.caratteristiche);
+      .replace(/<<Caratteristiche particolari>>/g, caratteristiche);
     
     // Se è selezionato il template "sold_properties", sostituisci anche i placeholder dell'immobile venduto
     if (selectedTemplate === 'sold_properties' && selectedProperty) {
@@ -449,7 +452,7 @@ export default function MailMergePage() {
     if (!contact.indirizzo.trim()) return "Indirizzo mancante";
     if (!contact.telefono.trim()) return "Numero di telefono mancante";
     if (!contact.vistoSu.trim()) return "Campo 'Visto su' mancante";
-    if (!contact.caratteristiche.trim()) return "Caratteristiche mancanti";
+    // Caratteristiche opzionale - rimosso controllo obbligatorio
     
     // Basic phone validation
     const phoneRegex = /^[+]?[0-9\s\-()]{8,}$/;
