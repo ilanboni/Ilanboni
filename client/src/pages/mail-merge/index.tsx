@@ -92,7 +92,7 @@ Ilan Boni – Cavour Immobiliare`,
     description: 'Template per proprietari vicini a immobili venduti',
     template: `<<Appellativo>> <<Cognome>>,
 
-ho visto online la pubblicità del suo immobile in vendita in <<Indirizzo>>
+ho visto online la pubblicità del suo immobile in vendita in <<Via>>
 
 Mi permetto di contattarLa in quanto lo scorso mese di luglio ho venduto un appartamento molto simile al Suo in <<Indirizzo Immobile Venduto>>.
 È stato venduto in meno di 3 settimane, con un ribasso minimo del 4% rispetto alla richiesta del proprietario.
@@ -113,7 +113,7 @@ https://tinyurl.com/VendereCasaMilano`,
     placeholders: [
       '<<Appellativo>>', 
       '<<Cognome>>', 
-      '<<Indirizzo>>',
+      '<<Via>>',
       '<<Indirizzo Immobile Venduto>>'
     ],
     needsProperty: true
@@ -226,12 +226,23 @@ export default function MailMergePage() {
 
   // Generate personalized message for a contact
   const generateMessage = (contact: MailMergeContact): string => {
-    return messageTemplate
+    let message = messageTemplate
       .replace(/<<Appellativo>>/g, contact.appellativo)
       .replace(/<<Cognome>>/g, contact.cognome)
-      .replace(/<<Indirizzo>>/g, contact.indirizzo)
+      .replace(/<<Via>>/g, contact.indirizzo)
+      .replace(/<<Indirizzo>>/g, contact.indirizzo) // Per compatibilità con template precedenti
       .replace(/<<Visto su>>/g, contact.vistoSu)
       .replace(/<<Caratteristiche particolari>>/g, contact.caratteristiche);
+    
+    // Se è selezionato il template "sold_properties", sostituisci anche i placeholder dell'immobile venduto
+    if (selectedTemplate === 'sold_properties' && selectedProperty) {
+      const selectedSoldProperty = soldProperties?.find(p => p.id.toString() === selectedProperty);
+      if (selectedSoldProperty) {
+        message = message.replace(/<<Indirizzo Immobile Venduto>>/g, selectedSoldProperty.address);
+      }
+    }
+    
+    return message;
   };
 
   // Validate contact data
