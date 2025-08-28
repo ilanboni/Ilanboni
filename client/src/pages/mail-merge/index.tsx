@@ -170,6 +170,11 @@ export default function MailMergePage() {
     enabled: selectedTemplate === 'sold_properties'
   });
 
+  // Type-safe access to data
+  const historyMessages = Array.isArray(historyData) ? historyData : [];
+  const analytics = analyticsData && typeof analyticsData === 'object' ? analyticsData : {};
+  const propertiesData = Array.isArray(soldProperties) ? soldProperties : [];
+
   // Add new empty contact
   const addContact = () => {
     const newContact: MailMergeContact = {
@@ -212,7 +217,7 @@ export default function MailMergePage() {
   // Handle property selection for sold properties template
   const handlePropertyChange = (propertyId: string) => {
     setSelectedProperty(propertyId);
-    const property = soldProperties?.find(p => p.id.toString() === propertyId);
+    const property = propertiesData?.find((p: any) => p.id.toString() === propertyId);
     if (property && selectedTemplate === 'sold_properties') {
       // Update template with property-specific placeholders
       let updatedTemplate = MESSAGE_TEMPLATES.find(t => t.id === 'sold_properties')?.template || '';
@@ -236,7 +241,7 @@ export default function MailMergePage() {
     
     // Se è selezionato il template "sold_properties", sostituisci anche i placeholder dell'immobile venduto
     if (selectedTemplate === 'sold_properties' && selectedProperty) {
-      const selectedSoldProperty = soldProperties?.find(p => p.id.toString() === selectedProperty);
+      const selectedSoldProperty = propertiesData?.find((p: any) => p.id.toString() === selectedProperty);
       if (selectedSoldProperty) {
         message = message.replace(/<<Indirizzo Immobile Venduto>>/g, selectedSoldProperty.address);
       }
@@ -558,7 +563,7 @@ export default function MailMergePage() {
                     <SelectValue placeholder="Seleziona immobile venduto" />
                   </SelectTrigger>
                   <SelectContent>
-                    {soldProperties?.map((property) => (
+                    {propertiesData?.map((property: any) => (
                       <SelectItem key={property.id} value={property.id.toString()}>
                         <div>
                           <div className="font-medium">{property.address}</div>
@@ -824,7 +829,7 @@ export default function MailMergePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {historyData?.data ? (
+              {historyMessages ? (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -838,7 +843,7 @@ export default function MailMergePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {historyData.data.map((message: any) => (
+                      {historyMessages.map((message: any) => (
                         <TableRow key={message.id}>
                           <TableCell>
                             {new Date(message.sentAt).toLocaleDateString('it-IT', {
@@ -857,7 +862,7 @@ export default function MailMergePage() {
                           <TableCell>
                             <Select
                               value={message.responseStatus}
-                              onValueChange={(value) => updateResponseStatus(message.id, value)}
+                              onValueChange={(value) => updateResponseStatus(message.id, value as 'positive' | 'negative' | 'no_response')}
                             >
                               <SelectTrigger className="w-32">
                                 <SelectValue />
@@ -912,7 +917,7 @@ export default function MailMergePage() {
       {/* Analytics Tab */}
       {activeTab === 'analytics' && (
         <div className="space-y-6">
-          {analyticsData?.data && (
+          {analytics && Object.keys(analytics).length > 0 && (
             <>
               {/* Daily Goal Card */}
               <Card>
@@ -926,19 +931,19 @@ export default function MailMergePage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-600">
-                        {analyticsData.data.today.sent}
+                        {analytics.today?.sent || 0}
                       </div>
                       <div className="text-sm text-gray-500">Messaggi Inviati Oggi</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">
-                        {analyticsData.data.today.goal}
+                        {analytics.today?.goal || 0}
                       </div>
                       <div className="text-sm text-gray-500">Obiettivo Giornaliero</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-orange-600">
-                        {analyticsData.data.today.remaining}
+                        {analytics.today?.remaining || 0}
                       </div>
                       <div className="text-sm text-gray-500">Rimanenti</div>
                     </div>
@@ -948,12 +953,12 @@ export default function MailMergePage() {
                       <div 
                         className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                         style={{ 
-                          width: `${Math.min(100, (analyticsData.data.today.sent / analyticsData.data.today.goal) * 100)}%` 
+                          width: `${Math.min(100, ((analytics.today?.sent || 0) / (analytics.today?.goal || 1)) * 100)}%` 
                         }}
                       ></div>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 text-center">
-                      {Math.round((analyticsData.data.today.sent / analyticsData.data.today.goal) * 100)}% completato
+                      {Math.round(((analytics.today?.sent || 0) / (analytics.today?.goal || 1)) * 100)}% completato
                     </div>
                   </div>
                 </CardContent>
@@ -971,35 +976,35 @@ export default function MailMergePage() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-gray-900">
-                        {analyticsData.data.responses.total}
+                        {analytics.responses?.total || 0}
                       </div>
                       <div className="text-sm text-gray-500">Totale Messaggi</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">
-                        {analyticsData.data.responses.positive}
+                        {analytics.responses?.positive || 0}
                       </div>
                       <div className="text-sm text-gray-500">Risposte Positive</div>
                       <div className="text-xs font-medium text-green-600">
-                        {analyticsData.data.percentages.positive}%
+                        {analytics.percentages?.positive || 0}%
                       </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-red-600">
-                        {analyticsData.data.responses.negative}
+                        {analytics.responses?.negative || 0}
                       </div>
                       <div className="text-sm text-gray-500">Risposte Negative</div>
                       <div className="text-xs font-medium text-red-600">
-                        {analyticsData.data.percentages.negative}%
+                        {analytics.percentages?.negative || 0}%
                       </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-gray-600">
-                        {analyticsData.data.responses.noResponse}
+                        {analytics.responses?.noResponse || 0}
                       </div>
                       <div className="text-sm text-gray-500">Nessuna Risposta</div>
                       <div className="text-xs font-medium text-gray-600">
-                        {analyticsData.data.percentages.noResponse}%
+                        {analytics.percentages?.noResponse || 0}%
                       </div>
                     </div>
                   </div>
@@ -1009,24 +1014,24 @@ export default function MailMergePage() {
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Risposte Positive</span>
-                        <span>{analyticsData.data.percentages.positive}%</span>
+                        <span>{analytics.percentages?.positive || 0}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${analyticsData.data.percentages.positive}%` }}
+                          style={{ width: `${analytics.percentages?.positive || 0}%` }}
                         ></div>
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Risposte Negative</span>
-                        <span>{analyticsData.data.percentages.negative}%</span>
+                        <span>{analytics.percentages?.negative || 0}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-red-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${analyticsData.data.percentages.negative}%` }}
+                          style={{ width: `${analytics.percentages?.negative || 0}%` }}
                         ></div>
                       </div>
                     </div>
