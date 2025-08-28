@@ -11,7 +11,7 @@ export const config = {
   /**
    * Modalità test - se true, limita l'invio WhatsApp solo ai numeri autorizzati
    */
-  testMode: true,
+  testMode: false,
   
   /**
    * Numeri di telefono autorizzati per l'invio WhatsApp in modalità test
