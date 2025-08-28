@@ -396,6 +396,20 @@ export default function MailMergePage() {
     setContacts(contacts.filter(contact => contact.id !== id));
   };
 
+  // Reset error contacts status
+  const resetErrorContacts = () => {
+    setContacts(contacts.map(contact => 
+      contact.status === 'error' 
+        ? { ...contact, status: 'pending', message: undefined }
+        : contact
+    ));
+    
+    toast({
+      title: "Stato contatti reimpostato",
+      description: "I contatti con errore sono stati reimpostati e possono essere inviati nuovamente",
+    });
+  };
+
   // Handle template change
   const handleTemplateChange = (templateId: string) => {
     const template = MESSAGE_TEMPLATES.find(t => t.id === templateId);
@@ -870,32 +884,45 @@ export default function MailMergePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Azioni Rapide</Label>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={fixIncompleteContacts}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                >
-                  <CheckCircle size={14} className="mr-1" />
-                  Correggi Errori
-                </Button>
-                <Button 
-                  onClick={() => addMultipleRows(10)}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                >
-                  +10 Righe
-                </Button>
-                <Button 
-                  onClick={() => setContacts([])}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                >
-                  Pulisci Tutto
-                </Button>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={fixIncompleteContacts}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <CheckCircle size={14} className="mr-1" />
+                    Correggi Errori
+                  </Button>
+                  <Button 
+                    onClick={() => addMultipleRows(10)}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    +10 Righe
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={resetErrorContacts}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-orange-600 border-orange-600 hover:bg-orange-50"
+                  >
+                    <AlertCircle size={14} className="mr-1" />
+                    Reset Errori
+                  </Button>
+                  <Button 
+                    onClick={() => setContacts([])}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    Pulisci Tutto
+                  </Button>
+                </div>
               </div>
             </div>
             
