@@ -1696,15 +1696,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteClient(id: number): Promise<boolean> {
-    // First delete related records
-    await db.delete(buyers).where(eq(buyers.clientId, id));
-    await db.delete(sellers).where(eq(sellers.clientId, id));
-    await db.delete(appointments).where(eq(appointments.clientId, id));
-    await db.delete(tasks).where(eq(tasks.clientId, id));
-    await db.delete(communications).where(eq(communications.clientId, id));
-    
-    const result = await db.delete(clients).where(eq(clients.id, id)).returning();
-    return result.length > 0;
+    try {
+      // First delete related records
+      await db.delete(buyers).where(eq(buyers.clientId, id));
+      await db.delete(sellers).where(eq(sellers.clientId, id));
+      await db.delete(appointments).where(eq(appointments.clientId, id));
+      await db.delete(tasks).where(eq(tasks.clientId, id));
+      await db.delete(communications).where(eq(communications.clientId, id));
+      
+      // Delete mail merge messages
+      await db.execute(sql`DELETE FROM mail_merge_messages WHERE client_id = ${id}`);
+      
+      const result = await db.delete(clients).where(eq(clients.id, id)).returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("[DatabaseStorage.deleteClient] Errore durante l'eliminazione del cliente:", error);
+      throw error;
+    }
   }
 
   // Buyer methods
