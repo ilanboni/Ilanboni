@@ -600,6 +600,21 @@ export default function MailMergePage() {
               </div>
             </div>
           </div>
+          
+          {/* Message Preview */}
+          {contacts.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Anteprima Messaggio (Primo Contatto)</Label>
+              <div className="bg-gray-50 border rounded-lg p-4">
+                <div className="text-sm text-gray-600 mb-2">
+                  Destinatario: {contacts[0].appellativo} {contacts[0].cognome} ({contacts[0].telefono})
+                </div>
+                <div className="whitespace-pre-wrap text-sm bg-white border rounded p-3">
+                  {generateMessage(contacts[0])}
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
