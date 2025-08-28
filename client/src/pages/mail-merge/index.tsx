@@ -126,10 +126,37 @@ export default function MailMergePage() {
   // Load contacts from localStorage or use empty array
   const loadContactsFromStorage = (): MailMergeContact[] => {
     try {
-      const saved = localStorage.getItem('mailMergeContacts');
-      if (saved) {
-        const contacts = JSON.parse(saved);
-        return Array.isArray(contacts) ? contacts : [];
+      // Try multiple keys including timestamped backups
+      const keys = ['mailMergeContacts'];
+      
+      // Add recent backup keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('mailMergeContacts_backup_')) {
+          keys.push(key);
+        }
+      }
+      
+      // Sort backup keys by timestamp (newest first)
+      keys.sort((a, b) => {
+        if (a === 'mailMergeContacts') return -1;
+        if (b === 'mailMergeContacts') return 1;
+        return b.localeCompare(a);
+      });
+      
+      for (const key of keys) {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          try {
+            const contacts = JSON.parse(saved);
+            if (Array.isArray(contacts) && contacts.length > 0) {
+              console.log(`Recuperati ${contacts.length} contatti da ${key}:`, contacts);
+              return contacts;
+            }
+          } catch (parseError) {
+            console.warn(`Errore parsing da ${key}:`, parseError);
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading contacts from localStorage:', error);
@@ -189,6 +216,37 @@ export default function MailMergePage() {
       status: 'pending'
     };
     setContacts([...contacts, newContact]);
+  };
+
+  // Fix incomplete contacts
+  const fixIncompleteContacts = () => {
+    setContacts(prev => prev.map(contact => {
+      const updated = { ...contact };
+      
+      // Fix missing fields with default values
+      if (!updated.caratteristiche?.trim()) {
+        updated.caratteristiche = 'la posizione strategica e le ottime finiture';
+        updated.status = 'pending';
+        delete updated.message;
+      }
+      if (!updated.vistoSu?.trim()) {
+        updated.vistoSu = 'Idealista.it';
+        updated.status = 'pending';
+        delete updated.message;
+      }
+      if (!updated.appellativo?.trim()) {
+        updated.appellativo = 'Gentile';
+        updated.status = 'pending';
+        delete updated.message;
+      }
+      
+      return updated;
+    }));
+    
+    toast({
+      title: "Contatti Corretti",
+      description: "Campi mancanti completati automaticamente"
+    });
   };
 
   // Check for backup contacts in localStorage
@@ -810,6 +868,15 @@ export default function MailMergePage() {
             <div className="space-y-2">
               <Label className="text-sm font-medium">Azioni Rapide</Label>
               <div className="flex gap-2">
+                <Button 
+                  onClick={fixIncompleteContacts}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                >
+                  <CheckCircle size={14} className="mr-1" />
+                  Correggi Errori
+                </Button>
                 <Button 
                   onClick={() => addMultipleRows(10)}
                   variant="outline"
