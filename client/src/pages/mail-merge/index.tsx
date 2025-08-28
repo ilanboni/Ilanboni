@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -123,29 +123,29 @@ https://tinyurl.com/VendereCasaMilano`,
 const DEFAULT_MESSAGE_TEMPLATE = MESSAGE_TEMPLATES[0].template;
 
 export default function MailMergePage() {
-  const [contacts, setContacts] = useState<MailMergeContact[]>([
-    {
-      id: 'example-1',
-      appellativo: 'Gent.mo Sig.',
-      cognome: 'Rossi',
-      indirizzo: 'Via Roma 15, Milano',
-      telefono: '+39 335 1234567',
-      vistoSu: 'Immobiliare.it',
-      caratteristiche: 'terrazzo panoramico e doppi servizi',
-      status: 'pending'
-    },
-    {
-      id: 'example-2',
-      appellativo: 'Egr. Dott.',
-      cognome: 'Bianchi',
-      indirizzo: 'Corso Buenos Aires 78, Milano',
-      telefono: '+39 347 9876543',
-      vistoSu: 'Casa.it',
-      caratteristiche: 'ampio soggiorno e cucina abitabile',
-      status: 'pending'
+  // Load contacts from localStorage or use empty array
+  const loadContactsFromStorage = (): MailMergeContact[] => {
+    try {
+      const saved = localStorage.getItem('mailMergeContacts');
+      if (saved) {
+        const contacts = JSON.parse(saved);
+        return Array.isArray(contacts) ? contacts : [];
+      }
+    } catch (error) {
+      console.error('Error loading contacts from localStorage:', error);
     }
-  ]);
+    return [];
+  };
+
+  const [contacts, setContacts] = useState<MailMergeContact[]>(loadContactsFromStorage());
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
+
+  // Save contacts to localStorage whenever they change
+  useEffect(() => {
+    if (contacts.length > 0) {
+      localStorage.setItem('mailMergeContacts', JSON.stringify(contacts));
+    }
+  }, [contacts]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('private_owners');
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [isSending, setIsSending] = useState(false);
@@ -188,6 +188,33 @@ export default function MailMergePage() {
       status: 'pending'
     };
     setContacts([...contacts, newContact]);
+  };
+
+  // Add example contacts for demonstration
+  const addExampleContacts = () => {
+    const exampleContacts: MailMergeContact[] = [
+      {
+        id: 'example-1',
+        appellativo: 'Gent.mo Sig.',
+        cognome: 'Rossi',
+        indirizzo: 'Via Roma 15, Milano',
+        telefono: '+39 335 1234567',
+        vistoSu: 'Immobiliare.it',
+        caratteristiche: 'terrazzo panoramico e doppi servizi',
+        status: 'pending'
+      },
+      {
+        id: 'example-2',
+        appellativo: 'Egr. Dott.',
+        cognome: 'Bianchi',
+        indirizzo: 'Corso Buenos Aires 78, Milano',
+        telefono: '+39 347 9876543',
+        vistoSu: 'Casa.it',
+        caratteristiche: 'ampio soggiorno e cucina abitabile',
+        status: 'pending'
+      }
+    ];
+    setContacts([...contacts, ...exampleContacts]);
   };
 
   // Update contact field
@@ -516,6 +543,17 @@ export default function MailMergePage() {
                 <Plus size={16} className="mr-2" />
                 +5 Righe
               </Button>
+              {contacts.length === 0 && (
+                <Button 
+                  onClick={addExampleContacts}
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                >
+                  <Plus size={16} className="mr-2" />
+                  Aggiungi Esempi
+                </Button>
+              )}
             </div>
             <Button 
               onClick={sendMessages}
@@ -526,6 +564,15 @@ export default function MailMergePage() {
               {isSending ? 'Invio in corso...' : 'Invia Tutti'}
             </Button>
           </div>
+
+          {/* Info Alert about automatic saving */}
+          {contacts.length > 0 && (
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertDescription className="text-blue-800">
+                💾 I tuoi contatti vengono salvati automaticamente nel browser e non si perderanno al refresh della pagina.
+              </AlertDescription>
+            </Alert>
+          )}
 
       {/* Template Selection and Message Template */}
       <Card>
