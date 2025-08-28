@@ -90,32 +90,31 @@ Ilan Boni – Cavour Immobiliare`,
     id: 'sold_properties',
     name: 'Immobili Venduti',
     description: 'Template per proprietari vicini a immobili venduti',
-    template: `Buongiorno <<Appellativo>> <<Cognome>>,
+    template: `<<Appellativo>> <<Cognome>>,
 
-Mi chiamo Ilan Boni, titolare di Cavour Immobiliare a Milano.
+ho visto online la pubblicità del suo immobile in vendita in <<Indirizzo>>
 
-Le scrivo perché recentemente ho venduto un appartamento in <<Indirizzo Immobile Venduto>> e ho notato che Lei ha un immobile in vendita nella stessa zona in <<Indirizzo>>: <<Caratteristiche particolari>>.
+Mi permetto di contattarLa in quanto lo scorso mese di luglio ho venduto un appartamento molto simile al Suo in <<Indirizzo Immobile Venduto>>.
+È stato venduto in meno di 3 settimane, con un ribasso minimo del 4% rispetto alla richiesta del proprietario.
 
-Data la mia conoscenza approfondita del mercato immobiliare della zona e il successo ottenuto con la vendita del <<Tipo Immobile Venduto>> in <<Via Immobile Venduto>>, credo di poter essere di grande aiuto anche per la vendita del Suo immobile.
+Ho già una serie di clienti che stanno cercando immobili con caratteristiche simili al Suo e sono concretamente interessati ad acquistare in zona.
 
-Il mio approccio si basa su:
-✓ Valutazioni accurate basate su vendite reali della zona
-✓ Marketing mirato a compratori qualificati
-✓ Negoziazioni efficaci per ottenere il miglior prezzo
+Per questo periodo c'è un fattore in più: settembre e ottobre sono i mesi migliori per vendere, perché il mercato riparte dopo l'estate e molti acquirenti vogliono chiudere entro fine anno.
 
-Se desidera conoscere i dettagli della vendita in <<Via Immobile Venduto>> e come posso applicare la stessa strategia al Suo immobile in <<Indirizzo>>, sono disponibile per un incontro senza impegno.
+Se vuole capire come intercettare questi clienti prima che comprino altrove, mi contatti subito.
+
+Nel frattempo può ottenere informazioni su di me online: troverà recensioni, risultati e informazioni sulla mia attività istituzionale e di Agente immobiliare.
 
 Cordiali saluti,
 Ilan Boni – Cavour Immobiliare
-Tel: +39 02 xxx xxx xxxx`,
+
+www.cavourimmobiliare.it
+https://tinyurl.com/VendereCasaMilano`,
     placeholders: [
       '<<Appellativo>>', 
       '<<Cognome>>', 
       '<<Indirizzo>>',
-      '<<Caratteristiche particolari>>',
-      '<<Indirizzo Immobile Venduto>>',
-      '<<Tipo Immobile Venduto>>',
-      '<<Via Immobile Venduto>>'
+      '<<Indirizzo Immobile Venduto>>'
     ],
     needsProperty: true
   }
