@@ -51,7 +51,23 @@ interface MailMergeContact {
   message?: string;
 }
 
-const DEFAULT_MESSAGE_TEMPLATE = `Buongiorno <<Appellativo>> <<Cognome>>,
+// Template types
+interface MessageTemplate {
+  id: string;
+  name: string;
+  description: string;
+  template: string;
+  placeholders: string[];
+  needsProperty?: boolean;
+}
+
+// Message templates
+const MESSAGE_TEMPLATES: MessageTemplate[] = [
+  {
+    id: 'private_owners',
+    name: 'Proprietari Privati',
+    description: 'Template per contattare proprietari privati generici',
+    template: `Buongiorno <<Appellativo>> <<Cognome>>,
 
 ho visto l'annuncio del suo appartamento su <<Visto su>> e sono rimasto colpito in particolare da <<Caratteristiche particolari>>.
 
@@ -66,7 +82,45 @@ Così può farsi subito un'idea di chi sono e di come lavoro.
 Se pensa che ci siano le condizioni, possiamo sentirci senza impegno.
 
 Cordiali saluti,
-Ilan Boni – Cavour Immobiliare`;
+Ilan Boni – Cavour Immobiliare`,
+    placeholders: ['<<Appellativo>>', '<<Cognome>>', '<<Visto su>>', '<<Caratteristiche particolari>>'],
+    needsProperty: false
+  },
+  {
+    id: 'sold_properties',
+    name: 'Immobili Venduti',
+    description: 'Template per proprietari vicini a immobili venduti',
+    template: `Buongiorno <<Appellativo>> <<Cognome>>,
+
+Mi chiamo Ilan Boni, titolare di Cavour Immobiliare a Milano.
+
+Le scrivo perché recentemente ho venduto un appartamento in <<Indirizzo Immobile Venduto>> e ho notato che Lei ha un immobile in vendita nella stessa zona: <<Caratteristiche particolari>>.
+
+Data la mia conoscenza approfondita del mercato immobiliare della zona e il successo ottenuto con la vendita del <<Tipo Immobile Venduto>> in <<Via Immobile Venduto>>, credo di poter essere di grande aiuto anche per la vendita del Suo immobile.
+
+Il mio approccio si basa su:
+✓ Valutazioni accurate basate su vendite reali della zona
+✓ Marketing mirato a compratori qualificati
+✓ Negoziazioni efficaci per ottenere il miglior prezzo
+
+Se desidera conoscere i dettagli della vendita in <<Via Immobile Venduto>> e come posso applicare la stessa strategia al Suo immobile, sono disponibile per un incontro senza impegno.
+
+Cordiali saluti,
+Ilan Boni – Cavour Immobiliare
+Tel: +39 02 xxx xxx xxxx`,
+    placeholders: [
+      '<<Appellativo>>', 
+      '<<Cognome>>', 
+      '<<Caratteristiche particolari>>',
+      '<<Indirizzo Immobile Venduto>>',
+      '<<Tipo Immobile Venduto>>',
+      '<<Via Immobile Venduto>>'
+    ],
+    needsProperty: true
+  }
+];
+
+const DEFAULT_MESSAGE_TEMPLATE = MESSAGE_TEMPLATES[0].template;
 
 export default function MailMergePage() {
   const [contacts, setContacts] = useState<MailMergeContact[]>([
@@ -92,6 +146,8 @@ export default function MailMergePage() {
     }
   ]);
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('private_owners');
+  const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [isSending, setIsSending] = useState(false);
   const [activeTab, setActiveTab] = useState<'compose' | 'history' | 'analytics'>('compose');
   const { toast } = useToast();
@@ -106,6 +162,12 @@ export default function MailMergePage() {
   const { data: analyticsData, refetch: refetchAnalytics } = useQuery({
     queryKey: ['/api/mail-merge/analytics'],
     enabled: activeTab === 'analytics'
+  });
+
+  // Fetch sold properties for template selection
+  const { data: soldProperties } = useQuery({
+    queryKey: ['/api/properties', { status: 'sold' }],
+    enabled: selectedTemplate === 'sold_properties'
   });
 
   // Add new empty contact
@@ -135,6 +197,31 @@ export default function MailMergePage() {
   // Remove contact
   const removeContact = (id: string) => {
     setContacts(contacts.filter(contact => contact.id !== id));
+  };
+
+  // Handle template change
+  const handleTemplateChange = (templateId: string) => {
+    const template = MESSAGE_TEMPLATES.find(t => t.id === templateId);
+    if (template) {
+      setSelectedTemplate(templateId);
+      setMessageTemplate(template.template);
+      setSelectedProperty(''); // Reset property selection when changing template
+    }
+  };
+
+  // Handle property selection for sold properties template
+  const handlePropertyChange = (propertyId: string) => {
+    setSelectedProperty(propertyId);
+    const property = soldProperties?.find(p => p.id.toString() === propertyId);
+    if (property && selectedTemplate === 'sold_properties') {
+      // Update template with property-specific placeholders
+      let updatedTemplate = MESSAGE_TEMPLATES.find(t => t.id === 'sold_properties')?.template || '';
+      updatedTemplate = updatedTemplate
+        .replace(/<<Indirizzo Immobile Venduto>>/g, property.address)
+        .replace(/<<Tipo Immobile Venduto>>/g, property.type)
+        .replace(/<<Via Immobile Venduto>>/g, property.address.split(',')[0] || property.address);
+      setMessageTemplate(updatedTemplate);
+    }
   };
 
   // Generate personalized message for a contact
@@ -424,22 +511,84 @@ export default function MailMergePage() {
             </Button>
           </div>
 
-      {/* Message Template */}
+      {/* Template Selection and Message Template */}
       <Card>
         <CardHeader>
-          <CardTitle>Template Messaggio</CardTitle>
+          <CardTitle>Selezione Template Messaggio</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Textarea
-            value={messageTemplate}
-            onChange={(e) => setMessageTemplate(e.target.value)}
-            rows={15}
-            className="font-mono text-sm"
-            placeholder="Template del messaggio con segnaposto..."
-          />
-          <p className="text-sm text-gray-500 mt-2">
-            Usa i segnaposto: {'<<Appellativo>>'}, {'<<Cognome>>'}, {'<<Visto su>>'}, {'<<Caratteristiche particolari>>'}
-          </p>
+        <CardContent className="space-y-4">
+          {/* Template Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-select">Tipo di Template</Label>
+              <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MESSAGE_TEMPLATES.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      <div>
+                        <div className="font-medium">{template.name}</div>
+                        <div className="text-sm text-gray-500">{template.description}</div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Property Selection for Sold Properties Template */}
+            {selectedTemplate === 'sold_properties' && (
+              <div className="space-y-2">
+                <Label htmlFor="property-select">Immobile Venduto</Label>
+                <Select value={selectedProperty} onValueChange={handlePropertyChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona immobile venduto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {soldProperties?.map((property) => (
+                      <SelectItem key={property.id} value={property.id.toString()}>
+                        <div>
+                          <div className="font-medium">{property.address}</div>
+                          <div className="text-sm text-gray-500">
+                            {property.type} - {property.size}m² - €{property.price?.toLocaleString()}
+                          </div>
+                        </div>
+                      </SelectItem>
+                    )) || (
+                      <SelectItem value="no-properties" disabled>
+                        Nessun immobile venduto disponibile
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {/* Template Text */}
+          <div className="space-y-2">
+            <Label htmlFor="template-text">Template Messaggio</Label>
+            <Textarea
+              id="template-text"
+              value={messageTemplate}
+              onChange={(e) => setMessageTemplate(e.target.value)}
+              rows={18}
+              className="font-mono text-sm"
+              placeholder="Template del messaggio con segnaposto..."
+            />
+            <div className="text-sm text-gray-500">
+              <div className="font-medium mb-1">Segnaposto disponibili:</div>
+              <div className="flex flex-wrap gap-2">
+                {MESSAGE_TEMPLATES.find(t => t.id === selectedTemplate)?.placeholders.map((placeholder, index) => (
+                  <Badge key={index} variant="outline" className="text-xs">
+                    {placeholder}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
