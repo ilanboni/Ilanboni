@@ -94,7 +94,7 @@ Ilan Boni – Cavour Immobiliare`,
 
 Mi chiamo Ilan Boni, titolare di Cavour Immobiliare a Milano.
 
-Le scrivo perché recentemente ho venduto un appartamento in <<Indirizzo Immobile Venduto>> e ho notato che Lei ha un immobile in vendita nella stessa zona: <<Caratteristiche particolari>>.
+Le scrivo perché recentemente ho venduto un appartamento in <<Indirizzo Immobile Venduto>> e ho notato che Lei ha un immobile in vendita nella stessa zona in <<Indirizzo>>: <<Caratteristiche particolari>>.
 
 Data la mia conoscenza approfondita del mercato immobiliare della zona e il successo ottenuto con la vendita del <<Tipo Immobile Venduto>> in <<Via Immobile Venduto>>, credo di poter essere di grande aiuto anche per la vendita del Suo immobile.
 
@@ -103,7 +103,7 @@ Il mio approccio si basa su:
 ✓ Marketing mirato a compratori qualificati
 ✓ Negoziazioni efficaci per ottenere il miglior prezzo
 
-Se desidera conoscere i dettagli della vendita in <<Via Immobile Venduto>> e come posso applicare la stessa strategia al Suo immobile, sono disponibile per un incontro senza impegno.
+Se desidera conoscere i dettagli della vendita in <<Via Immobile Venduto>> e come posso applicare la stessa strategia al Suo immobile in <<Indirizzo>>, sono disponibile per un incontro senza impegno.
 
 Cordiali saluti,
 Ilan Boni – Cavour Immobiliare
@@ -111,6 +111,7 @@ Tel: +39 02 xxx xxx xxxx`,
     placeholders: [
       '<<Appellativo>>', 
       '<<Cognome>>', 
+      '<<Indirizzo>>',
       '<<Caratteristiche particolari>>',
       '<<Indirizzo Immobile Venduto>>',
       '<<Tipo Immobile Venduto>>',
