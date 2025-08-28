@@ -787,14 +787,33 @@ export default function MailMergePage() {
                 </>
               )}
             </div>
-            <Button 
-              onClick={sendMessages}
-              disabled={isSending || contacts.length === 0}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Send size={16} className="mr-2" />
-              {isSending ? 'Invio in corso...' : 'Invia Tutti'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => {
+                  syncContactsWithHistory();
+                  // Automatically fix incomplete contacts
+                  fixIncompleteContacts();
+                  toast({
+                    title: "Sincronizzazione completata",
+                    description: "Stato contatti aggiornato e dati mancanti riparati"
+                  });
+                }}
+                variant="outline"
+                size="sm"
+                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                <CheckCircle size={16} className="mr-2" />
+                Aggiorna e Ripara
+              </Button>
+              <Button 
+                onClick={sendMessages}
+                disabled={isSending || contacts.length === 0}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Send size={16} className="mr-2" />
+                {isSending ? 'Invio in corso...' : 'Invia Tutti'}
+              </Button>
+            </div>
           </div>
 
           {/* Info Alert about automatic saving */}
