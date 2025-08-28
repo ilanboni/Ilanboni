@@ -131,10 +131,11 @@ router.post('/send', async (req, res) => {
           clientId: clientId,
           type: 'whatsapp',
           direction: 'outgoing',
+          subject: `Mail Merge - Proprietà ${validatedData.indirizzo}`,
           content: validatedData.message,
           timestamp: new Date(),
           status: 'sent',
-          externalId: whatsappResult.messageId?.toString() || null,
+          externalId: whatsappResult.data?.id?.toString() || null,
           metadata: JSON.stringify({
             mailMerge: true,
             vistoSu: validatedData.vistoSu,
@@ -153,7 +154,7 @@ router.post('/send', async (req, res) => {
           vistoSu: validatedData.vistoSu,
           caratteristiche: validatedData.caratteristiche || 'Non specificate',
           message: validatedData.message,
-          communicationId: communication[0]?.id,
+          communicationId: (communication as any[])[0]?.id,
           responseStatus: 'no_response'
         });
 
