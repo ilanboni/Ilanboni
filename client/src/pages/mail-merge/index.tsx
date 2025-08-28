@@ -140,11 +140,12 @@ export default function MailMergePage() {
   const [contacts, setContacts] = useState<MailMergeContact[]>(loadContactsFromStorage());
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
 
-  // Save contacts to localStorage whenever they change
+  // Save contacts to localStorage whenever they change (including empty arrays for reset)
   useEffect(() => {
-    if (contacts.length > 0) {
-      localStorage.setItem('mailMergeContacts', JSON.stringify(contacts));
-    }
+    localStorage.setItem('mailMergeContacts', JSON.stringify(contacts));
+    // Also create a timestamped backup
+    const timestamp = new Date().toISOString();
+    localStorage.setItem(`mailMergeContacts_backup_${timestamp}`, JSON.stringify(contacts));
   }, [contacts]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('private_owners');
   const [selectedProperty, setSelectedProperty] = useState<string>('');
@@ -233,6 +234,67 @@ export default function MailMergePage() {
     } catch (error) {
       console.error('Errore durante ricerca backup:', error);
     }
+  };
+
+  // Add 5 ready-to-use contacts for quick restart
+  const addFiveContacts = () => {
+    const fiveContacts: MailMergeContact[] = [
+      {
+        id: 'contact-1',
+        appellativo: 'Gent.mo Sig.',
+        cognome: 'Rossi',
+        indirizzo: 'Via Brera 12, Milano',
+        telefono: '+39 335 1234567',
+        vistoSu: 'Immobiliare.it',
+        caratteristiche: 'terrazzo panoramico e doppi servizi',
+        status: 'pending'
+      },
+      {
+        id: 'contact-2',
+        appellativo: 'Egr. Dott.',
+        cognome: 'Bianchi',
+        indirizzo: 'Corso Buenos Aires 78, Milano',
+        telefono: '+39 347 9876543',
+        vistoSu: 'Casa.it',
+        caratteristiche: 'ampio soggiorno e cucina abitabile',
+        status: 'pending'
+      },
+      {
+        id: 'contact-3',
+        appellativo: 'Gent.ma Dott.ssa',
+        cognome: 'Verdi',
+        indirizzo: 'Via Montenapoleone 25, Milano',
+        telefono: '+39 333 5566778',
+        vistoSu: 'Immobiliare.it',
+        caratteristiche: 'affacciata su corte interna silenziosa',
+        status: 'pending'
+      },
+      {
+        id: 'contact-4',
+        appellativo: 'Egr. Sig.',
+        cognome: 'Neri',
+        indirizzo: 'Viale Monza 150, Milano',
+        telefono: '+39 348 1122334',
+        vistoSu: 'Casa.it',
+        caratteristiche: 'piano alto con ascensore',
+        status: 'pending'
+      },
+      {
+        id: 'contact-5',
+        appellativo: 'Gent.mo Avv.',
+        cognome: 'Ferrari',
+        indirizzo: 'Corso Venezia 40, Milano',
+        telefono: '+39 340 9988776',
+        vistoSu: 'Immobiliare.it',
+        caratteristiche: 'zona centrale ben servita',
+        status: 'pending'
+      }
+    ];
+    setContacts(fiveContacts);
+    toast({
+      title: "5 Contatti Aggiunti",
+      description: "Contatti pronti per l'invio. Modifica i dati se necessario.",
+    });
   };
 
   // Add example contacts for demonstration
@@ -600,13 +662,22 @@ export default function MailMergePage() {
                     Cerca Contatti Salvati
                   </Button>
                   <Button 
+                    onClick={addFiveContacts}
+                    variant="outline"
+                    size="sm"
+                    className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Aggiungi 5 Contatti
+                  </Button>
+                  <Button 
                     onClick={addExampleContacts}
                     variant="outline"
                     size="sm"
                     className="text-blue-600 border-blue-600 hover:bg-blue-50"
                   >
                     <Plus size={16} className="mr-2" />
-                    Aggiungi Esempi
+                    Altri Esempi
                   </Button>
                 </>
               )}
