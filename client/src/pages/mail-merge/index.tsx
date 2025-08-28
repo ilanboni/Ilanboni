@@ -173,7 +173,7 @@ export default function MailMergePage() {
 
   // Type-safe access to data
   const historyMessages = Array.isArray(historyData) ? historyData : [];
-  const analytics = analyticsData && typeof analyticsData === 'object' ? analyticsData : {};
+  const analytics = analyticsData && typeof analyticsData === 'object' ? analyticsData as any : {};
   const propertiesData = Array.isArray(soldProperties) ? soldProperties : [];
 
   // Add new empty contact
