@@ -59,15 +59,26 @@ interface MessageTemplate {
   template: string;
   placeholders: string[];
   needsProperty?: boolean;
+  category?: string;
 }
 
-// Message templates
-const MESSAGE_TEMPLATES: MessageTemplate[] = [
+interface TemplateCategory {
+  id: string;
+  name: string;
+  templates: MessageTemplate[];
+}
+
+// Message templates organized by categories
+const TEMPLATE_CATEGORIES: TemplateCategory[] = [
   {
-    id: 'private_owners',
+    id: 'private_owners_category',
     name: 'Proprietari Privati',
-    description: 'Template per contattare proprietari privati generici',
-    template: `Buongiorno <<Appellativo>> <<Cognome>>,
+    templates: [
+      {
+        id: 'private_owners',
+        name: 'Contatto Generico',
+        description: 'Template per contattare proprietari privati generici',
+        template: `Buongiorno <<Appellativo>> <<Cognome>>,
 
 ho visto l'annuncio del suo appartamento su <<Visto su>> e sono rimasto colpito in particolare da <<Caratteristiche particolari>>.
 
@@ -83,14 +94,64 @@ Se pensa che ci siano le condizioni, possiamo sentirci senza impegno.
 
 Cordiali saluti,
 Ilan Boni – Cavour Immobiliare`,
-    placeholders: ['<<Appellativo>>', '<<Cognome>>', '<<Visto su>>', '<<Caratteristiche particolari>>'],
-    needsProperty: false
+        placeholders: ['<<Appellativo>>', '<<Cognome>>', '<<Visto su>>', '<<Caratteristiche particolari>>'],
+        needsProperty: false,
+        category: 'private_owners_category'
+      },
+      {
+        id: 'existing_buyer_message',
+        name: 'Invio messaggi per compratore esistente',
+        description: 'Template per contattare proprietari quando hai già un compratore interessato',
+        template: `<<Appellativo>> <<Cognome>>,
+
+ho visto l'annuncio del suo immobile su <<Visto su>> in <<Indirizzo>>.
+
+Mi chiamo Ilan Boni, titolare di Cavour Immobiliare a Milano, e ho un cliente già pre-qualificato e molto interessato al suo tipo di proprietà.
+
+Il mio cliente sta cercando specificamente <<Caratteristiche richieste>> in zona <<Zona>>, e il suo immobile corrisponde perfettamente ai suoi criteri.
+
+Abbiamo già:
+• Verifica finanziaria completata
+• Mutuo pre-approvato per l'importo richiesto
+• Disponibilità per visita immediata
+
+Se è interessato a una vendita rapida e sicura, possiamo organizzare una visita entro 48 ore.
+
+Il vantaggio per Lei:
+✓ Cliente qualificato e motivato
+✓ Tempi di vendita ridotti
+✓ Trattativa diretta senza intermediazioni multiple
+✓ Assistenza completa nella gestione della pratica
+
+Se vuole saperne di più, può chiamarmi direttamente o rispondere a questo messaggio.
+
+Cordiali saluti,
+Ilan Boni – Cavour Immobiliare
+Tel: 02.3598.1509
+
+www.cavourimmobiliare.it`,
+        placeholders: [
+          '<<Appellativo>>', 
+          '<<Cognome>>', 
+          '<<Visto su>>', 
+          '<<Indirizzo>>',
+          '<<Caratteristiche richieste>>',
+          '<<Zona>>'
+        ],
+        needsProperty: false,
+        category: 'private_owners_category'
+      }
+    ]
   },
   {
-    id: 'sold_properties',
+    id: 'sold_properties_category', 
     name: 'Immobili Venduti',
-    description: 'Template per proprietari vicini a immobili venduti',
-    template: `<<Appellativo>> <<Cognome>>,
+    templates: [
+      {
+        id: 'sold_properties',
+        name: 'Proprietari Vicini',
+        description: 'Template per proprietari vicini a immobili venduti',
+        template: `<<Appellativo>> <<Cognome>>,
 
 ho visto online la pubblicità del suo immobile in vendita in <<Via>>
 
@@ -110,15 +171,21 @@ Ilan Boni – Cavour Immobiliare
 
 www.cavourimmobiliare.it
 https://tinyurl.com/VendereCasaMilano`,
-    placeholders: [
-      '<<Appellativo>>', 
-      '<<Cognome>>', 
-      '<<Via>>',
-      '<<Indirizzo Immobile Venduto>>'
-    ],
-    needsProperty: true
+        placeholders: [
+          '<<Appellativo>>', 
+          '<<Cognome>>', 
+          '<<Via>>',
+          '<<Indirizzo Immobile Venduto>>'
+        ],
+        needsProperty: true,
+        category: 'sold_properties_category'
+      }
+    ]
   }
 ];
+
+// Flatten templates for backward compatibility
+const MESSAGE_TEMPLATES: MessageTemplate[] = TEMPLATE_CATEGORIES.flatMap(category => category.templates);
 
 const DEFAULT_MESSAGE_TEMPLATE = MESSAGE_TEMPLATES[0].template;
 
@@ -843,13 +910,20 @@ export default function MailMergePage() {
                   <SelectValue placeholder="Seleziona un template" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MESSAGE_TEMPLATES.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      <div>
-                        <div className="font-medium">{template.name}</div>
-                        <div className="text-sm text-gray-500">{template.description}</div>
+                  {TEMPLATE_CATEGORIES.map((category) => (
+                    <div key={category.id}>
+                      <div className="px-2 py-1.5 text-sm font-semibold text-gray-700 bg-gray-50 border-b">
+                        {category.name}
                       </div>
-                    </SelectItem>
+                      {category.templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id} className="pl-6">
+                          <div>
+                            <div className="font-medium">{template.name}</div>
+                            <div className="text-sm text-gray-500">{template.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </div>
                   ))}
                 </SelectContent>
               </Select>
