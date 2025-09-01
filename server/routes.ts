@@ -2778,6 +2778,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Endpoint per ottenere tutti i contatti WhatsApp con cronologia
+  app.get("/api/whatsapp/contacts", async (req: Request, res: Response) => {
+    try {
+      console.log('[WHATSAPP-CONTACTS] Recupero lista contatti');
+      
+      // Ottieni tutti i clienti con comunicazioni WhatsApp, ordinate per ultimo messaggio
+      const contactsQuery = await db
+        .select({
+          clientId: communications.clientId,
+          phone: clients.phone,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          lastMessage: communications.content,
+          lastMessageAt: communications.createdAt,
+          direction: communications.direction,
+          needsResponse: communications.needsResponse
+        })
+        .from(communications)
+        .innerJoin(clients, eq(communications.clientId, clients.id))
+        .where(eq(communications.type, 'whatsapp'))
+        .orderBy(desc(communications.createdAt));
+
+      // Raggruppa per cliente e prendi l'ultimo messaggio
+      const contactsMap = new Map();
+      
+      contactsQuery.forEach(row => {
+        const key = `${row.clientId}-${row.phone}`;
+        if (!contactsMap.has(key)) {
+          contactsMap.set(key, {
+            id: row.clientId,
+            phone: row.phone,
+            clientName: `${row.firstName || ''} ${row.lastName || ''}`.trim() || undefined,
+            lastMessage: row.lastMessage,
+            lastMessageAt: row.lastMessageAt,
+            needsResponse: row.needsResponse || false
+          });
+        }
+      });
+
+      const contacts = Array.from(contactsMap.values());
+      
+      console.log(`[WHATSAPP-CONTACTS] Trovati ${contacts.length} contatti`);
+      res.json(contacts);
+
+    } catch (error) {
+      console.error("[WHATSAPP-CONTACTS] Errore:", error);
+      res.status(500).json({
+        success: false,
+        error: "Errore nel recupero dei contatti",
+        details: error.message
+      });
+    }
+  });
+
+  // Endpoint per ottenere la conversazione di un cliente specifico
+  app.get("/api/whatsapp/conversation/:phone", async (req: Request, res: Response) => {
+    try {
+      const { phone } = req.params;
+      const normalizedPhone = phone.replace(/\D/g, '');
+      
+      console.log(`[WHATSAPP-CONVERSATION] Recupero conversazione per: ${normalizedPhone}`);
+
+      // Trova il cliente dal numero di telefono
+      const client = await storage.getClientByPhone(normalizedPhone);
+      
+      if (!client) {
+        return res.status(404).json({
+          success: false,
+          error: "Cliente non trovato"
+        });
+      }
+
+      // Recupera tutti i messaggi della conversazione
+      const messages = await db
+        .select({
+          id: communications.id,
+          content: communications.content,
+          direction: communications.direction,
+          createdAt: communications.createdAt,
+          externalId: communications.externalId
+        })
+        .from(communications)
+        .where(
+          and(
+            eq(communications.clientId, client.id),
+            eq(communications.type, 'whatsapp')
+          )
+        )
+        .orderBy(communications.createdAt);
+
+      console.log(`[WHATSAPP-CONVERSATION] Trovati ${messages.length} messaggi`);
+      res.json(messages);
+
+    } catch (error) {
+      console.error("[WHATSAPP-CONVERSATION] Errore:", error);
+      res.status(500).json({
+        success: false,
+        error: "Errore nel recupero della conversazione",
+        details: error.message
+      });
+    }
+  });
   
   // Endpoint di test per simulare la ricezione di un messaggio WhatsApp
   // Endpoint semplice per verificare che il webhook sia raggiungibile

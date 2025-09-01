@@ -9,7 +9,7 @@ import MarketAnalysis from "@/components/dashboard/MarketAnalysis";
 import SearchAnalytics from "@/components/dashboard/SearchAnalytics";
 import SharedPropertiesRanking from "@/components/dashboard/SharedPropertiesRanking";
 import WhatsAppSender from "@/components/dashboard/WhatsAppSender";
-import WhatsAppReminders from "@/components/dashboard/WhatsAppReminders";
+import MessagesPanel from "@/components/dashboard/MessagesPanel";
 import DailyGoals from "@/components/dashboard/DailyGoals";
 import PerformanceAnalytics from "@/components/dashboard/PerformanceAnalytics";
 import AIPerformanceInsights from "@/components/dashboard/AIPerformanceInsights";
@@ -84,8 +84,8 @@ export default function Dashboard() {
           {/* AI Performance Insights */}
           <AIPerformanceInsights />
           
-          {/* WhatsApp Reminders */}
-          <WhatsAppReminders />
+          {/* Messages Panel */}
+          <MessagesPanel />
           
           {/* WhatsApp Sender */}
           <WhatsAppSender />
