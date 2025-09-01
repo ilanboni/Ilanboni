@@ -209,7 +209,7 @@ export default function MessagesPanel() {
       <CardContent className="p-0 h-[calc(100%-4rem)]">
         <div className="flex h-full">
           {/* Lista contatti */}
-          <div className="w-1/3 border-r bg-gray-50">
+          <div className="w-80 border-r bg-gray-50 flex-shrink-0">
             <ScrollArea className="h-full">
               {/* Sezione Urgenti */}
               {urgentContacts.length > 0 && (
@@ -330,10 +330,10 @@ export default function MessagesPanel() {
                             className={`flex mb-3 ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`max-w-[70%] px-4 py-2 rounded-lg shadow-sm ${
+                              className={`max-w-[60%] px-3 py-2 rounded-lg shadow-sm ${
                                 message.direction === 'outbound'
-                                  ? 'bg-[#dcf8c6] text-gray-900 ml-12'
-                                  : 'bg-white text-gray-900 mr-12'
+                                  ? 'bg-[#dcf8c6] text-gray-900 ml-8'
+                                  : 'bg-white text-gray-900 mr-8'
                               }`}
                             >
                               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
