@@ -327,13 +327,13 @@ export default function MessagesPanel() {
                         {conversation.map((message: ConversationMessage) => (
                           <div
                             key={message.id}
-                            className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                            className={`flex mb-3 ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm ${
+                              className={`max-w-[70%] px-4 py-2 rounded-lg shadow-sm ${
                                 message.direction === 'outbound'
-                                  ? 'bg-[#dcf8c6] text-gray-900'
-                                  : 'bg-white text-gray-900'
+                                  ? 'bg-[#dcf8c6] text-gray-900 ml-12'
+                                  : 'bg-white text-gray-900 mr-12'
                               }`}
                             >
                               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
