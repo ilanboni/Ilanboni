@@ -6,6 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, Send, User, Calendar, AlertTriangle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -29,6 +32,14 @@ interface ConversationMessage {
 export default function MessagesPanel() {
   const [selectedContact, setSelectedContact] = useState<WhatsAppContact | null>(null);
   const [messageText, setMessageText] = useState("");
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [taskForm, setTaskForm] = useState({
+    title: "",
+    date: "",
+    time: "",
+    location: "",
+    notes: ""
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -74,22 +85,31 @@ export default function MessagesPanel() {
 
   // Mutation per creare task
   const createTaskMutation = useMutation({
-    mutationFn: async ({ clientPhone }: { clientPhone: string }) => {
+    mutationFn: async (taskData: { 
+      clientPhone: string;
+      title: string;
+      date: string;
+      time: string;
+      location: string;
+      notes: string;
+    }) => {
       return await apiRequest(`/api/whatsapp/create-task`, {
         method: 'POST',
-        data: { clientPhone }
+        data: taskData
       });
     },
     onSuccess: () => {
+      setShowTaskDialog(false);
+      setTaskForm({ title: "", date: "", time: "", location: "", notes: "" });
       toast({
-        title: "Task creato",
+        title: "Appuntamento creato",
         description: "Task e appuntamento Google Calendar creati con successo"
       });
     },
     onError: (error: any) => {
       toast({
         title: "Errore",
-        description: error.message || "Errore nella creazione del task",
+        description: error.message || "Errore nella creazione dell'appuntamento",
         variant: "destructive"
       });
     }
@@ -107,8 +127,34 @@ export default function MessagesPanel() {
   const handleCreateTask = () => {
     if (!selectedContact) return;
     
+    // Pre-popola il form con dati dal contatto
+    setTaskForm(prev => ({
+      ...prev,
+      title: `Appuntamento con ${selectedContact.clientName || selectedContact.phone}`,
+      date: new Date().toISOString().split('T')[0], // Data di oggi
+      time: "10:00", // Orario predefinito
+    }));
+    
+    setShowTaskDialog(true);
+  };
+
+  const handleSubmitTask = () => {
+    if (!selectedContact || !taskForm.title || !taskForm.date || !taskForm.time) {
+      toast({
+        title: "Campi richiesti",
+        description: "Compila almeno titolo, data e orario",
+        variant: "destructive"
+      });
+      return;
+    }
+
     createTaskMutation.mutate({
-      clientPhone: selectedContact.phone
+      clientPhone: selectedContact.phone,
+      title: taskForm.title,
+      date: taskForm.date,
+      time: taskForm.time,
+      location: taskForm.location,
+      notes: taskForm.notes
     });
   };
 
@@ -129,8 +175,9 @@ export default function MessagesPanel() {
   const urgentContacts = contacts?.filter(c => c.needsResponse) || [];
   const normalContacts = contacts?.filter(c => !c.needsResponse) || [];
 
-  if (isLoading) {
-    return (
+  return (
+    <>
+    {isLoading ? (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -146,10 +193,7 @@ export default function MessagesPanel() {
           </div>
         </CardContent>
       </Card>
-    );
-  }
-
-  return (
+    ) : (
     <Card className="h-[600px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -350,5 +394,96 @@ export default function MessagesPanel() {
         </div>
       </CardContent>
     </Card>
+    )}
+
+    {/* Dialog per creare task */}
+    <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Crea Appuntamento</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title">Titolo appuntamento *</Label>
+            <Input
+              id="title"
+              value={taskForm.title}
+              onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="es. Visita appartamento"
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="date">Data *</Label>
+              <Input
+                id="date"
+                type="date"
+                value={taskForm.date}
+                onChange={(e) => setTaskForm(prev => ({ ...prev, date: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="time">Orario *</Label>
+              <Input
+                id="time"
+                type="time"
+                value={taskForm.time}
+                onChange={(e) => setTaskForm(prev => ({ ...prev, time: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="location">Luogo</Label>
+            <Input
+              id="location"
+              value={taskForm.location}
+              onChange={(e) => setTaskForm(prev => ({ ...prev, location: e.target.value }))}
+              placeholder="es. Via Roma 123, Milano"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Note</Label>
+            <Textarea
+              id="notes"
+              value={taskForm.notes}
+              onChange={(e) => setTaskForm(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Note aggiuntive..."
+              rows={2}
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowTaskDialog(false)}
+              disabled={createTaskMutation.isPending}
+            >
+              Annulla
+            </Button>
+            <Button
+              onClick={handleSubmitTask}
+              disabled={createTaskMutation.isPending}
+              className="bg-[#25d366] hover:bg-[#20ba5a] text-white"
+            >
+              {createTaskMutation.isPending ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Crea Appuntamento
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

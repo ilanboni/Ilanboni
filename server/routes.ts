@@ -2680,12 +2680,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint per creare task da conversazione WhatsApp
   app.post("/api/whatsapp/create-task", async (req: Request, res: Response) => {
     try {
-      const { clientPhone } = req.body;
+      const { clientPhone, title, date, time, location, notes } = req.body;
       
-      if (!clientPhone) {
+      if (!clientPhone || !title || !date || !time) {
         return res.status(400).json({
           success: false,
-          error: "Numero di telefono richiesto"
+          error: "Campi richiesti: clientPhone, title, date, time"
         });
       }
 
@@ -2719,19 +2719,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `${msg.direction === 'inbound' ? 'Cliente' : 'Agente'}: ${msg.content}`
       ).join('\n');
 
-      // Crea il task nella dashboard
-      const taskDate = new Date();
-      taskDate.setHours(taskDate.getHours() + 2); // Task per tra 2 ore
+      // Crea il task nella dashboard con dati del form
+      const appointmentDateTime = new Date(`${date}T${time}:00`);
 
       const taskData = {
-        type: "whatsapp_followup",
-        title: `Follow-up WhatsApp - ${client.firstName} ${client.lastName}`,
-        description: `Follow-up conversazione WhatsApp con ${client.firstName} ${client.lastName} (${clientPhone})\n\nUltimi messaggi:\n${messageContext}`,
+        type: "appointment",
+        title: title,
+        description: `${notes || `Appuntamento con ${client.firstName} ${client.lastName} (${clientPhone})`}${location ? `\n\nLuogo: ${location}` : ''}\n\nUltimi messaggi:\n${messageContext}`,
         clientId: client.id,
         status: "pending",
-        dueDate: taskDate.toISOString().split('T')[0],
+        dueDate: date,
         assignedTo: 1,
-        priority: "medium"
+        priority: "high"
       };
 
       const [newTask] = await db
@@ -2745,12 +2744,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { googleCalendarService } = await import('./services/googleCalendar');
         
         const eventData = {
-          title: `Follow-up WhatsApp - ${client.firstName} ${client.lastName}`,
-          description: `Follow-up conversazione WhatsApp\n\nCliente: ${client.firstName} ${client.lastName}\nTelefono: ${clientPhone}\n\nUltimi messaggi:\n${messageContext}`,
-          startDate: taskDate,
-          endDate: new Date(taskDate.getTime() + 60 * 60 * 1000), // 1 ora
+          title: title,
+          description: `${notes || `Appuntamento con ${client.firstName} ${client.lastName}`}\n\nCliente: ${client.firstName} ${client.lastName}\nTelefono: ${clientPhone}${location ? `\nLuogo: ${location}` : ''}\n\nUltimi messaggi:\n${messageContext}`,
+          startDate: appointmentDateTime,
+          endDate: new Date(appointmentDateTime.getTime() + 60 * 60 * 1000), // 1 ora
           clientId: client.id,
-          type: 'follow_up'
+          type: 'appointment',
+          location: location || undefined
         };
 
         calendarEvent = await googleCalendarService.createEvent(eventData);
