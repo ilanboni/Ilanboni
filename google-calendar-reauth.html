@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Riautenticazione Google Calendar</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .alert { background: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px; margin: 20px 0; }
+        .success { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
+        button { background: #4285f4; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #357ae8; }
+        .step { margin: 20px 0; padding: 15px; border-left: 4px solid #007bff; background: #f8f9fa; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .token-display { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 5px; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>🔑 Riautenticazione Google Calendar</h1>
+    
+    <div class="alert">
+        <strong>⚠️ Token Google Calendar Scaduti</strong><br>
+        I token di autenticazione per Google Calendar sono scaduti (giugno 2025). 
+        È necessario riautenticarsi per ripristinare la sincronizzazione degli appuntamenti.
+    </div>
+
+    <div class="step">
+        <h3>🔄 Problema Identificato</h3>
+        <p>
+            Il task "<strong>Pubblicare appartamento</strong>" è stato salvato correttamente nel database, 
+            ma non è apparso nel Google Calendar a causa dell'errore di autenticazione.
+        </p>
+    </div>
+
+    <div class="step">
+        <h3>📋 Procedura di Riautenticazione</h3>
+        <p><strong>Passo 1:</strong> Clicca sul pulsante qui sotto per iniziare l'autenticazione Google</p>
+        <button onclick="startAuth()">🚀 Avvia Autenticazione Google Calendar</button>
+        
+        <p><strong>Passo 2:</strong> Verrai reindirizzato a Google per autorizzare l'accesso</p>
+        <p><strong>Passo 3:</strong> Copia il codice di autorizzazione che riceverai</p>
+        <p><strong>Passo 4:</strong> Incolla il codice qui sotto e clicca "Salva Token"</p>
+        
+        <div style="margin: 20px 0;">
+            <label for="authCode"><strong>Codice di Autorizzazione:</strong></label><br>
+            <input type="text" id="authCode" style="width: 100%; padding: 8px; margin: 5px 0;" placeholder="Incolla qui il codice ricevuto da Google">
+            <button onclick="saveToken()" style="margin-top: 10px;">💾 Salva Token</button>
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>✅ Dopo la Riautenticazione</h3>
+        <p>Una volta completata la riautenticazione:</p>
+        <ul>
+            <li>I nuovi appuntamenti verranno sincronizzati automaticamente con Google Calendar</li>
+            <li>Potrai tornare alla dashboard e creare altri task</li>
+            <li>Il sistema funzionerà normalmente per i prossimi mesi</li>
+        </ul>
+    </div>
+
+    <div id="result" style="margin: 20px 0;"></div>
+
+    <script>
+        const CLIENT_ID = '876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com';
+        const REDIRECT_URI = window.location.origin + '/oauth/callback';
+        const SCOPES = 'https://www.googleapis.com/auth/calendar';
+
+        function startAuth() {
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${CLIENT_ID}&` +
+                `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+                `response_type=code&` +
+                `scope=${encodeURIComponent(SCOPES)}&` +
+                `access_type=offline&` +
+                `prompt=consent`;
+            
+            document.getElementById('result').innerHTML = `
+                <div class="info">
+                    <strong>🔗 Link di Autorizzazione Creato</strong><br>
+                    <p>Clicca sul link qui sotto per autorizzare l'applicazione:</p>
+                    <a href="${authUrl}" target="_blank" style="word-break: break-all; color: #007bff;">
+                        ${authUrl}
+                    </a>
+                    <br><br>
+                    <p><strong>Nota:</strong> Il link si aprirà in una nuova scheda. Dopo l'autorizzazione, copia il codice che riceverai e incollalo sopra.</p>
+                </div>`;
+            
+            // Apri anche automaticamente
+            window.open(authUrl, '_blank');
+        }
+
+        async function saveToken() {
+            const authCode = document.getElementById('authCode').value.trim();
+            
+            if (!authCode) {
+                document.getElementById('result').innerHTML = `
+                    <div class="alert">
+                        <strong>❌ Errore</strong><br>
+                        Per favore inserisci il codice di autorizzazione ricevuto da Google.
+                    </div>`;
+                return;
+            }
+
+            document.getElementById('result').innerHTML = `
+                <div class="info">
+                    <strong>⏳ Salvataggio Token...</strong><br>
+                    Sto salvando i token di accesso per Google Calendar...
+                </div>`;
+
+            try {
+                const response = await fetch('/api/oauth/google/calendar/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: authCode,
+                        redirect_uri: REDIRECT_URI
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('result').innerHTML = `
+                        <div class="success">
+                            <strong>✅ Autenticazione Completata!</strong><br>
+                            <p>Google Calendar è stato riautenticato con successo.</p>
+                            <p>Ora puoi tornare alla <a href="/">dashboard</a> e creare nuovi appuntamenti.</p>
+                            <p><strong>Stato:</strong> ${result.message}</p>
+                        </div>`;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <div class="alert">
+                            <strong>❌ Errore nel Salvare i Token</strong><br>
+                            ${result.error || 'Errore sconosciuto durante il salvataggio'}
+                        </div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div class="alert">
+                        <strong>❌ Errore di Connessione</strong><br>
+                        Errore durante la comunicazione con il server: ${error.message}
+                    </div>`;
+            }
+        }
+    </script>
+</body>
+</html>
