@@ -2676,6 +2676,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({ success: true, message: "Webhook ricevuto (con errori)" });
     }
   });
+
+  // Endpoint per creare task da conversazione WhatsApp
+  app.post("/api/whatsapp/create-task", async (req: Request, res: Response) => {
+    try {
+      const { clientPhone } = req.body;
+      
+      if (!clientPhone) {
+        return res.status(400).json({
+          success: false,
+          error: "Numero di telefono richiesto"
+        });
+      }
+
+      console.log(`[CREATE-TASK] Creazione task per cliente: ${clientPhone}`);
+
+      // Trova il cliente dal numero di telefono
+      const normalizedPhone = clientPhone.replace(/\D/g, '');
+      const client = await storage.getClientByPhone(normalizedPhone);
+      
+      if (!client) {
+        return res.status(404).json({
+          success: false,
+          error: "Cliente non trovato"
+        });
+      }
+
+      // Recupera gli ultimi messaggi della conversazione per il contesto
+      const conversationQuery = await db
+        .select()
+        .from(communications)
+        .where(
+          and(
+            eq(communications.clientId, client.id),
+            eq(communications.type, 'whatsapp')
+          )
+        )
+        .orderBy(desc(communications.createdAt))
+        .limit(5);
+      
+      const messageContext = conversationQuery.map(msg => 
+        `${msg.direction === 'inbound' ? 'Cliente' : 'Agente'}: ${msg.content}`
+      ).join('\n');
+
+      // Crea il task nella dashboard
+      const taskDate = new Date();
+      taskDate.setHours(taskDate.getHours() + 2); // Task per tra 2 ore
+
+      const taskData = {
+        type: "whatsapp_followup",
+        title: `Follow-up WhatsApp - ${client.firstName} ${client.lastName}`,
+        description: `Follow-up conversazione WhatsApp con ${client.firstName} ${client.lastName} (${clientPhone})\n\nUltimi messaggi:\n${messageContext}`,
+        clientId: client.id,
+        status: "pending",
+        dueDate: taskDate.toISOString().split('T')[0],
+        assignedTo: 1,
+        priority: "medium"
+      };
+
+      const [newTask] = await db
+        .insert(tasks)
+        .values(taskData)
+        .returning();
+
+      // Crea evento Google Calendar
+      let calendarEvent = null;
+      try {
+        const { googleCalendarService } = await import('./services/googleCalendar');
+        
+        const eventData = {
+          title: `Follow-up WhatsApp - ${client.firstName} ${client.lastName}`,
+          description: `Follow-up conversazione WhatsApp\n\nCliente: ${client.firstName} ${client.lastName}\nTelefono: ${clientPhone}\n\nUltimi messaggi:\n${messageContext}`,
+          startDate: taskDate,
+          endDate: new Date(taskDate.getTime() + 60 * 60 * 1000), // 1 ora
+          clientId: client.id,
+          type: 'follow_up'
+        };
+
+        calendarEvent = await googleCalendarService.createEvent(eventData);
+        console.log(`[CREATE-TASK] Evento calendario creato: ${calendarEvent?.id}`);
+      } catch (calendarError) {
+        console.error('[CREATE-TASK] Errore creazione calendario:', calendarError);
+        // Non bloccare se il calendario fallisce
+      }
+
+      console.log(`[CREATE-TASK] Task creato con successo: ${newTask.id}`);
+
+      res.json({
+        success: true,
+        task: newTask,
+        calendarEvent: calendarEvent?.id ? { id: calendarEvent.id } : null,
+        message: "Task e appuntamento calendario creati con successo"
+      });
+
+    } catch (error) {
+      console.error("[CREATE-TASK] Errore:", error);
+      res.status(500).json({
+        success: false,
+        error: "Errore nella creazione del task",
+        details: error.message
+      });
+    }
+  });
   
   // Endpoint di test per simulare la ricezione di un messaggio WhatsApp
   // Endpoint semplice per verificare che il webhook sia raggiungibile

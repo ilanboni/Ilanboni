@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, Send, Clock, User, Phone, ArrowLeft, RefreshCw } from "lucide-react";
+import { MessageCircle, Send, Clock, User, Phone, ArrowLeft, RefreshCw, Calendar, Plus } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface WhatsAppReminder {
@@ -66,6 +66,31 @@ export default function WhatsAppReminders() {
       return data as ConversationMessage[];
     },
     enabled: !!selectedReminder?.phone,
+  });
+
+  // Mutation per creare task
+  const createTaskMutation = useMutation({
+    mutationFn: async ({ clientPhone }: { clientPhone: string }) => {
+      return await apiRequest(`/api/whatsapp/create-task`, {
+        method: 'POST',
+        data: { clientPhone }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Task creato",
+        description: "Task e appuntamento Google Calendar creati con successo"
+      });
+      setDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nella creazione del task",
+        variant: "destructive"
+      });
+    }
   });
 
   // Mutation per inviare risposta
@@ -183,6 +208,14 @@ export default function WhatsAppReminders() {
     sendResponseMutation.mutate({
       phone: selectedReminder.phone,
       message: aiResponseText.trim(),
+    });
+  };
+
+  const handleCreateTask = () => {
+    if (!selectedReminder) return;
+    
+    createTaskMutation.mutate({
+      clientPhone: selectedReminder.phone
     });
   };
 
@@ -406,6 +439,26 @@ export default function WhatsAppReminders() {
                 <div ref={messagesEndRef} />
               </div>
             )}
+          </div>
+
+          {/* Barra azioni task */}
+          <div className="bg-white border-t p-3">
+            <div className="flex justify-center">
+              <Button
+                onClick={handleCreateTask}
+                disabled={createTaskMutation.isPending}
+                variant="outline"
+                size="sm"
+                className="bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-700"
+              >
+                {createTaskMutation.isPending ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-orange-600 border-t-transparent rounded-full mr-2" />
+                ) : (
+                  <Calendar className="h-4 w-4 mr-2" />
+                )}
+                Crea Task
+              </Button>
+            </div>
           </div>
 
           {/* Area di risposta doppia */}
