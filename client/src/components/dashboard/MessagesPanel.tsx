@@ -41,7 +41,7 @@ export default function MessagesPanel() {
 
   // Fetch conversazione del contatto selezionato
   const { data: conversation, isLoading: conversationLoading } = useQuery<ConversationMessage[]>({
-    queryKey: ['/api/whatsapp/conversation', selectedContact?.phone],
+    queryKey: [`/api/whatsapp/conversation/${selectedContact?.phone}`],
     enabled: !!selectedContact?.phone,
     refetchInterval: 5000, // Aggiorna ogni 5 secondi quando una chat è aperta
   });
