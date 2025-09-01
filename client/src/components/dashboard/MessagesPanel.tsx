@@ -34,13 +34,13 @@ export default function MessagesPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch tutti i contatti con cronologia messaggi
-  const { data: contacts, isLoading } = useQuery({
+  const { data: contacts, isLoading } = useQuery<WhatsAppContact[]>({
     queryKey: ['/api/whatsapp/contacts'],
     refetchInterval: 30000, // Aggiorna ogni 30 secondi
   });
 
   // Fetch conversazione del contatto selezionato
-  const { data: conversation, isLoading: conversationLoading } = useQuery({
+  const { data: conversation, isLoading: conversationLoading } = useQuery<ConversationMessage[]>({
     queryKey: ['/api/whatsapp/conversation', selectedContact?.phone],
     enabled: !!selectedContact?.phone,
     refetchInterval: 5000, // Aggiorna ogni 5 secondi quando una chat è aperta
@@ -126,8 +126,8 @@ export default function MessagesPanel() {
   }, [conversation]);
 
   // Separa contatti urgenti e normali
-  const urgentContacts = contacts?.filter((c: WhatsAppContact) => c.needsResponse) || [];
-  const normalContacts = contacts?.filter((c: WhatsAppContact) => !c.needsResponse) || [];
+  const urgentContacts = contacts?.filter(c => c.needsResponse) || [];
+  const normalContacts = contacts?.filter(c => !c.needsResponse) || [];
 
   if (isLoading) {
     return (
