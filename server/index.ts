@@ -26,6 +26,16 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Servi file HTML statici dalla root del progetto
+app.use(express.static('.', {
+  extensions: ['html'],
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html');
+    }
+  }
+}));
+
 // Aggiungi il router diagnostico per webhook WhatsApp
 app.use('/api/diagnostic', diagnosticRouter);
 
