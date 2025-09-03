@@ -163,7 +163,7 @@ export default function MapLocationSelector({
       const newPosition = { lat: value.lat, lng: value.lng };
       
       // Crea nuovo marker
-      markerRef.current = L.marker(newPosition, {
+      markerRef.current = window.L.marker(newPosition, {
         draggable: !readOnly
       }).addTo(mapInstanceRef.current);
       
@@ -247,7 +247,7 @@ export default function MapLocationSelector({
     }
     
     // Create new marker
-    markerRef.current = L.marker(latlng, {
+    markerRef.current = window.L.marker(latlng, {
       draggable: !readOnly
     }).addTo(mapInstanceRef.current);
     

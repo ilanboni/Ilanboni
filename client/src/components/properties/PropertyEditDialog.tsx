@@ -84,6 +84,9 @@ export default function PropertyEditDialog({
       location: property?.location || null,
       isShared: property?.isShared || false,
       isOwned: property?.isOwned || true,
+      ownerName: property?.ownerName || "",
+      ownerPhone: property?.ownerPhone || "",
+      ownerEmail: property?.ownerEmail || "",
     },
   });
   
@@ -109,6 +112,9 @@ export default function PropertyEditDialog({
         location: property.location || null,
         isShared: typeof property.isShared === 'boolean' ? property.isShared : false,
         isOwned: typeof property.isOwned === 'boolean' ? property.isOwned : true,
+        ownerName: property.ownerName || "",
+        ownerPhone: property.ownerPhone || "",
+        ownerEmail: property.ownerEmail || "",
       };
       
       console.log("Form values being set:", JSON.stringify(formValues, null, 2));
