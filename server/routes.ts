@@ -1184,6 +1184,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newProperty = await storage.createProperty(standardizedData);
       
+      // Se sono stati forniti dati del proprietario, crea automaticamente un cliente venditore
+      if (standardizedData.ownerName && standardizedData.ownerPhone) {
+        try {
+          console.log(`[POST /api/properties] Creazione cliente venditore per proprietario: ${standardizedData.ownerName}`);
+          
+          // Verifica se esiste già un cliente con questo numero di telefono
+          const existingClient = await storage.getClientByPhone(standardizedData.ownerPhone);
+          
+          let sellerId;
+          if (existingClient) {
+            console.log(`[POST /api/properties] Cliente esistente trovato: ${existingClient.id}`);
+            
+            // Se il cliente esistente non è un venditore, convertilo in venditore
+            if (existingClient.type !== 'seller') {
+              await storage.updateClient(existingClient.id, { type: 'seller' });
+              console.log(`[POST /api/properties] Cliente ${existingClient.id} convertito in venditore`);
+            }
+            
+            // Trova o crea il record seller
+            let seller = await storage.getSellerByClientId(existingClient.id);
+            if (!seller) {
+              seller = await storage.createSeller({ clientId: existingClient.id, propertyId: newProperty.id });
+              console.log(`[POST /api/properties] Record seller creato per cliente esistente ${existingClient.id}`);
+            } else {
+              // Aggiorna il seller con il nuovo immobile
+              await storage.updateSeller(seller.id, { propertyId: newProperty.id });
+              console.log(`[POST /api/properties] Record seller ${seller.id} aggiornato con immobile ${newProperty.id}`);
+            }
+            sellerId = seller.id;
+          } else {
+            // Crea un nuovo cliente venditore
+            const [firstName, ...lastNameParts] = standardizedData.ownerName.trim().split(' ');
+            const lastName = lastNameParts.join(' ') || '';
+            
+            const newClient = await storage.createClient({
+              type: 'seller',
+              salutation: 'Gentile Cliente',
+              firstName: firstName || 'Cliente',
+              lastName: lastName || '',
+              email: standardizedData.ownerEmail || null,
+              phone: standardizedData.ownerPhone,
+              contractType: 'sale'
+            });
+            
+            console.log(`[POST /api/properties] Nuovo cliente venditore creato: ${newClient.id}`);
+            
+            // Crea il record seller associato
+            const seller = await storage.createSeller({ 
+              clientId: newClient.id, 
+              propertyId: newProperty.id 
+            });
+            
+            console.log(`[POST /api/properties] Record seller creato: ${seller.id} per immobile ${newProperty.id}`);
+            sellerId = seller.id;
+          }
+        } catch (ownerError) {
+          console.error("[POST /api/properties] Errore nella creazione del cliente proprietario:", ownerError);
+          // Non blocchiamo la creazione dell'immobile se fallisce la creazione del cliente
+        }
+      }
+      
       // Cerca acquirenti compatibili con questo immobile
       try {
         console.log(`[POST /api/properties] Verifica corrispondenze per il nuovo immobile ${newProperty.id}`);

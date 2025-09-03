@@ -25,7 +25,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { PropertyWithDetails } from "@/types";
+import { PropertyWithDetails } from "@/types/index";
 import { PROPERTY_TYPES, CITY_AREAS } from "@/lib/constants";
 import { MapSelector } from "../maps/MapSelector";
 
@@ -44,6 +44,10 @@ const propertyFormSchema = z.object({
   isOwned: z.boolean().default(true),
   externalLink: z.string().url().optional().or(z.literal("")),
   location: z.any().optional(),
+  // Owner information fields
+  ownerName: z.string().optional(),
+  ownerPhone: z.string().optional(),
+  ownerEmail: z.string().email().optional().or(z.literal("")),
   // Shared property fields
   agencyName: z.string().optional(),
   contactPerson: z.string().optional(),
@@ -88,6 +92,10 @@ export default function PropertyForm({
       isOwned: initialData.isOwned || true,
       externalLink: initialData.externalLink || "",
       location: initialData.location || undefined,
+      // Owner information
+      ownerName: initialData.ownerName || "",
+      ownerPhone: initialData.ownerPhone || "",
+      ownerEmail: initialData.ownerEmail || "",
       // Shared property details
       agencyName: initialData.sharedDetails?.agencyName || "",
       contactPerson: initialData.sharedDetails?.contactPerson || "",
@@ -108,6 +116,10 @@ export default function PropertyForm({
       isOwned: true,
       externalLink: "",
       location: undefined,
+      // Owner information
+      ownerName: "",
+      ownerPhone: "",
+      ownerEmail: "",
       agencyName: "",
       contactPerson: "",
       contactPhone: "",
@@ -133,8 +145,9 @@ export default function PropertyForm({
         <form onSubmit={form.handleSubmit(handleFormSubmit)}>
           {/* Property Details Tab */}
           <Tabs defaultValue="details" className="mb-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="details">Dettagli Immobile</TabsTrigger>
+              <TabsTrigger value="owner">Proprietario</TabsTrigger>
               <TabsTrigger value="description">Descrizione</TabsTrigger>
               <TabsTrigger value="sharing" disabled={!isSharedProperty}>
                 Condivisione
@@ -396,6 +409,66 @@ export default function PropertyForm({
                   </FormItem>
                 )}
               />
+            </TabsContent>
+            
+            {/* Owner Information Tab */}
+            <TabsContent value="owner" className="space-y-4 mt-4">
+              <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+                <h3 className="text-sm font-medium text-green-800 mb-1">
+                  Informazioni Proprietario
+                </h3>
+                <p className="text-sm text-green-600">
+                  Inserisci i dati del proprietario dell'immobile. Se i dati vengono compilati, verrà automaticamente creato un cliente venditore.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="ownerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome e Cognome</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Mario Rossi" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="ownerPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefono</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+39 123 456 7890" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="ownerEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email" 
+                          placeholder="mario.rossi@email.com" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </TabsContent>
             
             {/* Description Tab */}
