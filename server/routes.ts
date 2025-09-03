@@ -4652,20 +4652,20 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
           // Crea sempre l'evento nel calendario, indipendentemente dalla presenza del cliente
           console.log(`[CALENDAR] Attempting to create calendar event for ${confirmation.lastName}`);
           try {
-            const { googleCalendarService } = await import('./services/googleCalendar');
-            console.log(`[CALENDAR] Google Calendar service imported successfully`);
-            const calendarEvent = await googleCalendarService.createEventFromAppointmentConfirmation(confirmation);
-            console.log(`[CALENDAR] Created calendar event for appointment with ${confirmation.lastName}`, calendarEvent?.id ? `- ID: ${calendarEvent.id}` : '');
+            // Verifica se esiste già un evento per questa conferma di appuntamento
+            const existingEvent = await db
+              .select()
+              .from(calendarEvents)
+              .where(eq(calendarEvents.appointmentConfirmationId, confirmation.id))
+              .limit(1);
             
-            // Se la creazione dell'evento locale è riuscita ma la sync Google è fallita, tenta un retry
-            if (calendarEvent?.id && !calendarEvent.googleCalendarId) {
-              console.log(`[CALENDAR] Attempting Google Calendar sync retry for event ${calendarEvent.id}`);
-              try {
-                await googleCalendarService.syncEventToGoogle(calendarEvent.id);
-                console.log(`[CALENDAR] Successfully synced event ${calendarEvent.id} to Google Calendar on retry`);
-              } catch (retryError) {
-                console.error(`[CALENDAR] Retry sync failed for event ${calendarEvent.id}:`, retryError);
-              }
+            if (existingEvent.length > 0) {
+              console.log(`[CALENDAR] Event already exists for appointment confirmation ${confirmation.id}, skipping creation`);
+            } else {
+              const { googleCalendarService } = await import('./services/googleCalendar');
+              console.log(`[CALENDAR] Google Calendar service imported successfully`);
+              const calendarEvent = await googleCalendarService.createEventFromAppointmentConfirmation(confirmation);
+              console.log(`[CALENDAR] Created calendar event for appointment with ${confirmation.lastName}`, calendarEvent?.id ? `- ID: ${calendarEvent.id}` : '');
             }
           } catch (calendarError) {
             console.error('[CALENDAR] Error creating calendar event:', calendarError);
