@@ -23,6 +23,39 @@ export interface GeocodingResult {
 }
 
 /**
+ * Formatta un indirizzo per mostrare solo strada, numero civico e città
+ * @param item Risultato grezzo da Nominatim
+ * @returns Indirizzo formattato in modo pulito
+ */
+function formatCleanAddress(item: any): string {
+  const address = item.address;
+  if (!address) return item.display_name;
+
+  // Estrai le componenti essenziali
+  const road = address.road || address.street || '';
+  const houseNumber = address.house_number || '';
+  const city = address.city || address.town || address.village || address.municipality || '';
+
+  // Costruisci l'indirizzo pulito
+  let cleanAddress = '';
+  
+  if (road && houseNumber) {
+    cleanAddress = `${road} ${houseNumber}`;
+  } else if (road) {
+    cleanAddress = road;
+  }
+  
+  if (city && cleanAddress) {
+    cleanAddress += `, ${city}`;
+  } else if (city) {
+    cleanAddress = city;
+  }
+
+  // Se non riusciamo a costruire un indirizzo pulito, usa quello originale
+  return cleanAddress || item.display_name;
+}
+
+/**
  * Geocodifica un indirizzo con Nominatim
  * @param address L'indirizzo da geocodificare (es. "Via Roma 1, Milano, Italia")
  * @returns Un array di risultati con coordinate e dettagli dell'indirizzo
@@ -59,7 +92,7 @@ export async function geocodeAddress(address: string): Promise<GeocodingResult[]
     return data.map(item => ({
       lat: parseFloat(item.lat),
       lng: parseFloat(item.lon),
-      display_name: item.display_name,
+      display_name: formatCleanAddress(item), // Usa l'indirizzo formattato
       address: item.address
     }));
   } catch (error: any) {
@@ -102,7 +135,7 @@ export async function reverseGeocode(lat: number, lng: number): Promise<Geocodin
     return {
       lat: parseFloat(data.lat),
       lng: parseFloat(data.lon),
-      display_name: data.display_name,
+      display_name: formatCleanAddress(data), // Usa l'indirizzo formattato
       address: data.address
     };
   } catch (error) {

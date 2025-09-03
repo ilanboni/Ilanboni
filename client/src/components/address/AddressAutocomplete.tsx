@@ -90,7 +90,8 @@ export default function AddressAutocomplete({
     }
     query += ', Italia';  // Limitiamo ai risultati italiani
     
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=5&countrycodes=it`)
+    // Usa il nostro endpoint proxy per indirizzi puliti
+    fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
       .then(response => response.json())
       .then((data: any) => {
         // Assicuriamoci che data sia un array e facciamo validazione
@@ -98,11 +99,18 @@ export default function AddressAutocomplete({
           item && 
           typeof item === 'object' && 
           typeof item.display_name === 'string' &&
-          typeof item.lat === 'string' &&
-          typeof item.lon === 'string'
+          typeof item.lat === 'number' &&
+          typeof item.lng === 'number'
         ) : [];
         
-        setSuggestions(validResults as AutocompleteResult[]);
+        // Converte i risultati dal formato del server al formato del client
+        const convertedResults = validResults.map(item => ({
+          ...item,
+          lat: item.lat.toString(),
+          lon: item.lng.toString()
+        }));
+        
+        setSuggestions(convertedResults as AutocompleteResult[]);
         
         // Mostra un messaggio se non ci sono risultati
         if (validResults.length === 0 && debouncedValue.length >= 3) {
