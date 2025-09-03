@@ -391,12 +391,11 @@ class GoogleCalendarService {
         // Assume current year if not specified
         const currentYear = new Date().getFullYear();
         
-        // Crea la data in ora locale italiana e converte in UTC
+        // Mantieni l'orario locale - Google Calendar gestirà il fuso orario
         const localDate = new Date(currentYear, month, day, hour, minute);
-        const utcDate = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // UTC+2 -> UTC
         
-        console.log(`[CALENDAR] Parsed weekday date (direct ore format) - Local: ${localDate} -> UTC: ${utcDate}`);
-        return utcDate;
+        console.log(`[CALENDAR] Parsed weekday date (direct ore format) - Local: ${localDate}`);
+        return localDate;
       }
 
       // Pattern alternativo per giorni senza virgola: "Lunedì 9/6 alle ore 15"
