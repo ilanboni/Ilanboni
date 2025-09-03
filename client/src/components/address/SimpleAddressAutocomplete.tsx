@@ -66,86 +66,37 @@ export default function SimpleAddressAutocomplete({
 
     setLoading(true);
     
-    // Prima proviamo con Photon (più veloce)
     try {
-      console.log(`Ricerca con provider: ${searchProvider}`);
+      console.log('Ricerca con API proxy backend:', value);
       
-      if (searchProvider === 'photon') {
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(value)}&limit=5&lang=it`);
-        
-        if (!res.ok) {
-          // Se Photon fallisce, prova con Nominatim
-          console.log('Photon non disponibile, tento con Nominatim...');
-          setSearchProvider('nominatim');
-          throw new Error(`Errore Photon API: ${res.status}`);
-        }
-        
-        const data = await res.json();
-        
-        if (!data.features || data.features.length === 0) {
-          console.log('Nessun risultato da Photon, tento con Nominatim...');
-          setSearchProvider('nominatim');
-          throw new Error('Nessun risultato trovato');
-        } else {
-          setSuggestions(data.features);
-          console.log('Suggerimenti trovati (Photon):', data.features.length);
-        }
+      // Usa la nostra API proxy per indirizzi puliti e formattati
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Italia')}`);
+      
+      if (!res.ok) {
+        throw new Error(`Errore API: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      
+      if (!data || data.length === 0) {
+        setError('Nessun risultato trovato.');
+        setSuggestions([]);
       } else {
-        // Utilizzo Nominatim come fallback
-        const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&limit=5&addressdetails=1&countrycodes=it`;
+        // Converte i risultati dal formato server al formato Nominatim compatibile
+        const convertedSuggestions = data.map((item: any) => ({
+          display_name: item.display_name, // Già formattato pulitamente dal server
+          lat: item.lat.toString(),
+          lon: item.lng.toString(),
+          address: item.address
+        }));
         
-        const res = await fetch(nominatimUrl).catch(() => null);
-        if (!res || !res.ok) {
-          // Continua senza errore se l'API non è disponibile
-          setSuggestions([]);
-          return;
-        }
-        
-        const data = await res.json();
-        
-        if (!data || data.length === 0) {
-          setError('Nessun risultato trovato.');
-          setSuggestions([]);
-        } else {
-          setSuggestions(data);
-          console.log('Suggerimenti trovati (Nominatim):', data.length);
-        }
+        setSuggestions(convertedSuggestions);
+        console.log('Suggerimenti trovati (API Proxy):', convertedSuggestions.length);
       }
     } catch (err) {
       console.error('Errore nella ricerca indirizzi:', err);
-      
-      // Se siamo già in modalità Nominatim e fallisce, permettiamo comunque l'inserimento manuale
-      if (searchProvider === 'nominatim') {
-        setError('');
-        setSuggestions([]);
-      } else {
-        // Altrimenti prova con Nominatim
-        try {
-          const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&limit=5&addressdetails=1&countrycodes=it`;
-          
-          const res = await fetch(nominatimUrl).catch(() => null);
-          if (!res || !res.ok) {
-            // API non disponibile, continua senza errore
-            setSuggestions([]);
-            return;
-          }
-          
-          const data = await res.json();
-          
-          if (!data || data.length === 0) {
-            setError('Nessun risultato trovato.');
-            setSuggestions([]);
-          } else {
-            setSuggestions(data);
-            console.log('Suggerimenti trovati (Nominatim fallback):', data.length);
-          }
-        } catch (fallbackErr) {
-          console.error('Fallback Nominatim fallito:', fallbackErr);
-          // Non mostriamo errore per permettere l'inserimento manuale
-          setError('');
-          setSuggestions([]);
-        }
-      }
+      setError('');
+      setSuggestions([]);
     } finally {
       setLoading(false);
     }
