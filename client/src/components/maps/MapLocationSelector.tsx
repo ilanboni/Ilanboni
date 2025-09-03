@@ -250,8 +250,8 @@ export default function MapLocationSelector({
     onChange(undefined);
   };
   
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
     
     // Utilizziamo il proxy backend per il geocoding
@@ -282,18 +282,27 @@ export default function MapLocationSelector({
     <div className={cn("relative", className)}>
       {!readOnly && (
         <div className="absolute top-2 left-2 right-2 z-[400] bg-white rounded shadow-sm flex">
-          <form onSubmit={handleSearch} className="flex flex-1">
-            <Input
-              type="text"
-              placeholder="Cerca indirizzo..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="rounded-r-none border-r-0"
-            />
-            <Button type="submit" variant="default" className="rounded-l-none px-3">
-              <Search className="h-4 w-4" />
-            </Button>
-          </form>
+          <Input
+            type="text"
+            placeholder="Cerca indirizzo..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="rounded-r-none border-r-0"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSearch(e);
+              }
+            }}
+          />
+          <Button 
+            type="button" 
+            variant="default" 
+            className="rounded-l-none px-3"
+            onClick={handleSearch}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
         </div>
       )}
       
