@@ -22,8 +22,10 @@ import {
   calendarEvents,
   appointments,
   mailMergeMessages,
+  propertyVisits,
   type PropertySent,
-  type AppointmentConfirmation
+  type AppointmentConfirmation,
+  type PropertyVisit
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like, isNotNull, ne, isNull } from "drizzle-orm";
@@ -4694,6 +4696,148 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
       }
     } catch (error) {
       console.error("Errore nell'invio della conferma appuntamento:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // Endpoint per ottenere appuntamenti che necessitano follow-up
+  app.get("/api/appointment-confirmations/pending-follow-up", async (req: Request, res: Response) => {
+    try {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      // Cerca appuntamenti con data di ieri che non hanno ancora una visita registrata
+      const pendingAppointments = await db
+        .select({
+          id: appointmentConfirmations.id,
+          appointmentDate: appointmentConfirmations.appointmentDate,
+          appointmentTime: appointmentConfirmations.appointmentTime,
+          lastName: appointmentConfirmations.lastName,
+          firstName: appointmentConfirmations.firstName,
+          phone: appointmentConfirmations.phone,
+          propertyAddress: appointmentConfirmations.propertyAddress,
+          propertyCode: appointmentConfirmations.propertyCode,
+          clientId: appointmentConfirmations.clientId,
+          propertyId: appointmentConfirmations.propertyId,
+          sharedPropertyId: appointmentConfirmations.sharedPropertyId,
+          sentAt: appointmentConfirmations.sentAt
+        })
+        .from(appointmentConfirmations)
+        .leftJoin(propertyVisits, eq(propertyVisits.appointmentConfirmationId, appointmentConfirmations.id))
+        .where(
+          and(
+            eq(appointmentConfirmations.sent, true),
+            gte(appointmentConfirmations.appointmentDate, yesterday.toISOString().split('T')[0]),
+            lt(appointmentConfirmations.appointmentDate, new Date().toISOString().split('T')[0]),
+            isNull(propertyVisits.id) // Non ha ancora una visita registrata
+          )
+        )
+        .orderBy(asc(appointmentConfirmations.appointmentDate));
+      
+      res.json(pendingAppointments);
+    } catch (error) {
+      console.error("Errore nel recupero degli appuntamenti in sospeso:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // Endpoint per salvare il follow-up di un appuntamento
+  app.post("/api/appointment-confirmations/:id/follow-up", async (req: Request, res: Response) => {
+    try {
+      const confirmationId = parseInt(req.params.id);
+      const { outcome, notes } = req.body;
+      
+      if (!outcome) {
+        return res.status(400).json({ error: "L'esito è obbligatorio" });
+      }
+      
+      // Recupera i dettagli dell'appuntamento
+      const [confirmation] = await db
+        .select()
+        .from(appointmentConfirmations)
+        .where(eq(appointmentConfirmations.id, confirmationId));
+      
+      if (!confirmation) {
+        return res.status(404).json({ error: "Appuntamento non trovato" });
+      }
+      
+      // Crea la record della visita
+      const visitData = {
+        appointmentConfirmationId: confirmationId,
+        clientId: confirmation.clientId,
+        propertyId: confirmation.propertyId,
+        sharedPropertyId: confirmation.sharedPropertyId,
+        visitDate: new Date(confirmation.appointmentDate),
+        outcome,
+        notes: notes || "",
+        propertyAddress: confirmation.propertyAddress,
+        propertyCode: confirmation.propertyCode || null,
+        clientName: `${confirmation.firstName} ${confirmation.lastName}`.trim(),
+        followUpRequired: outcome === 'positive',
+        reminderShown: true
+      };
+      
+      const [visit] = await db
+        .insert(propertyVisits)
+        .values(visitData)
+        .returning();
+      
+      // Crea attività per il cliente
+      const clientActivityData = {
+        type: "property_visit",
+        title: `Visita immobile - ${confirmation.propertyAddress}`,
+        description: `Visita effettuata il ${new Date(confirmation.appointmentDate).toLocaleDateString('it-IT')} con esito: ${outcome.toUpperCase()}. ${notes ? 'Note: ' + notes : ''}`,
+        dueDate: new Date().toISOString(),
+        priority: outcome === 'positive' ? 'high' : 'medium',
+        status: "completed",
+        clientId: confirmation.clientId,
+        linkedEntityType: "property_visit",
+        linkedEntityId: visit.id
+      };
+      
+      await db.insert(tasks).values(clientActivityData);
+      
+      // Se c'è una proprietà collegata, crea attività anche per l'immobile
+      if (confirmation.propertyId || confirmation.sharedPropertyId) {
+        const propertyActivityData = {
+          type: "client_visit",
+          title: `Visita cliente - ${confirmation.firstName} ${confirmation.lastName}`,
+          description: `Visita effettuata il ${new Date(confirmation.appointmentDate).toLocaleDateString('it-IT')} da ${confirmation.firstName} ${confirmation.lastName} con esito: ${outcome.toUpperCase()}. ${notes ? 'Note: ' + notes : ''}`,
+          dueDate: new Date().toISOString(),
+          priority: outcome === 'positive' ? 'high' : 'medium',
+          status: "completed",
+          propertyId: confirmation.propertyId,
+          sharedPropertyId: confirmation.sharedPropertyId,
+          linkedEntityType: "property_visit",
+          linkedEntityId: visit.id
+        };
+        
+        await db.insert(tasks).values(propertyActivityData);
+      }
+      
+      // Se l'esito è positivo, crea un task di follow-up
+      if (outcome === 'positive') {
+        const followUpDate = new Date();
+        followUpDate.setDate(followUpDate.getDate() + 3); // Follow-up tra 3 giorni
+        
+        const followUpTaskData = {
+          type: "follow_up",
+          title: `Follow-up cliente interessato - ${confirmation.firstName} ${confirmation.lastName}`,
+          description: `Il cliente ha mostrato interesse per l'immobile in ${confirmation.propertyAddress}. Contattare per verificare se desidera procedere.`,
+          dueDate: followUpDate.toISOString(),
+          priority: "high",
+          status: "pending",
+          clientId: confirmation.clientId,
+          linkedEntityType: "property_visit",
+          linkedEntityId: visit.id
+        };
+        
+        await db.insert(tasks).values(followUpTaskData);
+      }
+      
+      res.json(visit);
+    } catch (error) {
+      console.error("Errore nel salvare il follow-up:", error);
       res.status(500).json({ error: "Errore interno del server" });
     }
   });

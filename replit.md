@@ -73,6 +73,7 @@ The application is designed for deployment on Replit with:
 The application includes comprehensive environment variable configuration for all external services and can be easily deployed to cloud platforms with PostgreSQL support.
 
 ## Changelog
+- September 3, 2025. Sistema follow-up appuntamenti implementato - Popup automatico il giorno dopo l'appuntamento con indirizzo, dati cliente, dropdown esito (Positivo/Negativo/Neutro), note, tracking visite complete con attività sincronizzate tra cliente e immobile, follow-up automatici per esiti positivi
 - September 3, 2025. Duplicazione eventi Google Calendar eliminata - Aggiunto controllo per evitare creazione multipla eventi stesso appuntamento, verifica tramite appointmentConfirmationId prima di creare nuovo evento calendario
 - September 3, 2025. Problema fuso orario Google Calendar risolto - Rimossa conversione manuale UTC nel parsing date che causava eventi spostati di 2 ore, tutti i pattern date ora usano orario locale lasciando che Google Calendar gestisca correttamente il timezone Europe/Rome
 - September 3, 2025. Sistema salvataggio proprietà condivise completamente riparato - Risolto errore "Dati aggiornamento non validi" pulendo campi extra (tasks, communications, timestamps) prima invio API, metodi DatabaseStorage mancanti implementati, sistema CRUD proprietà condivise ora operativo

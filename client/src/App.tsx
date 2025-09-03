@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import AppLayout from "@/components/layouts/AppLayout";
 import { AddressAutocompleteProvider } from "@/components/address/AddressAutocompleteProvider";
+import AppointmentFollowUpPopup from "@/components/appointments/AppointmentFollowUpPopup";
+import { useAppointmentFollowUp } from "@/hooks/useAppointmentFollowUp";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import ClientsPage from "@/pages/clients/index";
@@ -82,9 +84,11 @@ function Router() {
   );
 }
 
-function App() {
+function AppWithProviders() {
+  const { showPopup, setShowPopup } = useAppointmentFollowUp();
+
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
       <ThemeProvider defaultTheme="light" storageKey="realestate-crm-theme">
         <TooltipProvider>
           <AddressAutocompleteProvider>
@@ -92,9 +96,21 @@ function App() {
             <AppLayout>
               <Router />
             </AppLayout>
+            <AppointmentFollowUpPopup 
+              isOpen={showPopup} 
+              onClose={() => setShowPopup(false)} 
+            />
           </AddressAutocompleteProvider>
         </TooltipProvider>
       </ThemeProvider>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppWithProviders />
     </QueryClientProvider>
   );
 }

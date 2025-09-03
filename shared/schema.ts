@@ -208,6 +208,25 @@ export const marketInsights = pgTable("market_insights", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// Tabella per tracciare le visite agli immobili con esiti
+export const propertyVisits = pgTable("property_visits", {
+  id: serial("id").primaryKey(),
+  appointmentConfirmationId: integer("appointment_confirmation_id").notNull().references(() => appointmentConfirmations.id),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
+  visitDate: timestamp("visit_date").notNull(),
+  outcome: text("outcome"), // "positive", "negative", "neutral"
+  notes: text("notes"),
+  propertyAddress: text("property_address").notNull(),
+  propertyCode: text("property_code"),
+  clientName: text("client_name").notNull(),
+  followUpRequired: boolean("follow_up_required").default(false),
+  reminderShown: boolean("reminder_shown").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // Create insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 // Redefine client schema manually per avere maggiore controllo
@@ -257,6 +276,7 @@ export const insertConversationThreadSchema = createInsertSchema(conversationThr
 export const insertCommunicationPropertySchema = createInsertSchema(communicationProperties)
   .omit({ id: true, createdAt: true });
 export const insertMarketInsightSchema = createInsertSchema(marketInsights).omit({ id: true, createdAt: true });
+export const insertPropertyVisitSchema = createInsertSchema(propertyVisits).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Tabella per tracciare gli immobili inviati ai clienti
 export const propertySent = pgTable("property_sent", {
@@ -375,6 +395,9 @@ export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 
 export type PropertySent = typeof propertySent.$inferSelect;
 export type InsertPropertySent = z.infer<typeof insertPropertySentSchema>;
+
+export type PropertyVisit = typeof propertyVisits.$inferSelect;
+export type InsertPropertyVisit = z.infer<typeof insertPropertyVisitSchema>;
 
 // Custom types for front-end usage
 export type ClientWithDetails = Client & {
