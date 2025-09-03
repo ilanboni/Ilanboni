@@ -28,19 +28,30 @@ export default function MapLocationSelector({
   const [searchQuery, setSearchQuery] = useState("");
   
   useEffect(() => {
-    // Only initialize if leaflet is available
+    // Always load leaflet assets if not present
     if (!window.L) {
       const linkElement = document.createElement('link');
       linkElement.rel = 'stylesheet';
-      linkElement.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css';
+      linkElement.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      linkElement.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+      linkElement.crossOrigin = '';
       document.head.appendChild(linkElement);
       
       const scriptElement = document.createElement('script');
-      scriptElement.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js';
-      scriptElement.onload = () => setIsMapLoaded(true);
+      scriptElement.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      scriptElement.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+      scriptElement.crossOrigin = '';
+      scriptElement.onload = () => {
+        console.log("Leaflet caricato con successo");
+        setIsMapLoaded(true);
+      };
+      scriptElement.onerror = () => {
+        console.error("Errore nel caricamento di Leaflet");
+      };
       document.head.appendChild(scriptElement);
       return;
     } else {
+      console.log("Leaflet già disponibile");
       setIsMapLoaded(true);
     }
   }, []);

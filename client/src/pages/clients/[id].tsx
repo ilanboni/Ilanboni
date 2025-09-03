@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin } from "lucide-react";
+import { MapPin, Building } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
@@ -508,7 +508,7 @@ export default function ClientDetailPage() {
               <span>WhatsApp</span>
             </Button>
             
-            {client && client.type === 'seller' && (
+            {client && (
               <PropertyAssociationModal 
                 client={{
                   id: client.id,
@@ -516,6 +516,15 @@ export default function ClientDetailPage() {
                   lastName: client.lastName,
                   type: client.type
                 }}
+                trigger={
+                  <Button 
+                    variant="outline" 
+                    className="gap-2 border-purple-600 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Building className="h-4 w-4" />
+                    <span>Associa Proprietà</span>
+                  </Button>
+                }
               />
             )}
 

@@ -505,12 +505,12 @@ export default function PropertyEditDialog({
                     <div>
                       <div className="grid gap-4">
                         {/* Vista interattiva quando abbiamo coordinate valide */}
-                        {field.value && typeof field.value.lat === 'number' && typeof field.value.lng === 'number' ? (
+                        {field.value && field.value.lat && field.value.lng ? (
                           <div className="relative">
                             <div className="h-72 w-full border rounded-md overflow-hidden">
                               <MapPreview 
-                                lat={field.value.lat}
-                                lng={field.value.lng}
+                                lat={Number(field.value.lat)}
+                                lng={Number(field.value.lng)}
                                 height="100%"
                               />
                             </div>
@@ -541,8 +541,8 @@ export default function PropertyEditDialog({
                         
                         <div className="flex justify-between items-center">
                           <div className="text-sm text-gray-500">
-                            {field.value && typeof field.value.lat === 'number' && typeof field.value.lng === 'number' ? (
-                              <span>Posizione impostata: {field.value.lat.toFixed(6)}, {field.value.lng.toFixed(6)}</span>
+                            {field.value && field.value.lat && field.value.lng ? (
+                              <span>Posizione impostata: {Number(field.value.lat).toFixed(6)}, {Number(field.value.lng).toFixed(6)}</span>
                             ) : (
                               <span>Posizione non impostata</span>
                             )}
