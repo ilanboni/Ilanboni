@@ -2660,6 +2660,35 @@ export class DatabaseStorage implements IStorage {
     console.log(`[matchBuyersForProperty] ${matchingClients.length} clienti corrispondono all'immobile ${propertyId} dopo tutti i controlli`);
     return matchingClients;
   }
+
+  // Shared property methods
+  async createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty> {
+    const result = await db.insert(sharedProperties).values(sharedProperty).returning();
+    return result[0];
+  }
+
+  async updateSharedProperty(id: number, data: Partial<InsertSharedProperty>): Promise<SharedProperty | undefined> {
+    const result = await db.update(sharedProperties)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(sharedProperties.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteSharedProperty(id: number): Promise<boolean> {
+    try {
+      // Delete related tasks and communications first
+      await db.delete(tasks).where(eq(tasks.sharedPropertyId, id));
+      await db.delete(communications).where(eq(communications.sharedPropertyId, id));
+      
+      // Delete the shared property
+      const result = await db.delete(sharedProperties).where(eq(sharedProperties.id, id)).returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("[DatabaseStorage.deleteSharedProperty] Error deleting shared property:", error);
+      return false;
+    }
+  }
 }
 
 // Export storage instance
