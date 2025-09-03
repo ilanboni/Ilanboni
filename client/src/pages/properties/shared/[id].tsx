@@ -187,19 +187,33 @@ export default function SharedPropertyDetailsPage() {
   const handleUpdate = (data: InsertSharedProperty) => {
     console.log("Dati completi da inviare per modifica:", data);
 
+    // Pulisce i dati per inviare solo i campi validi del schema InsertSharedProperty
+    const {
+      // Rimuovi campi che non sono parte del schema di inserimento
+      id,
+      createdAt,
+      updatedAt,
+      tasks,
+      communications,
+      lastActivity,
+      matchingBuyers,
+      ...cleanData
+    } = data as any;
+
     // Assicuriamoci che i campi agency siano correttamente definiti
     const dataToSend = {
-      ...data,
-      floor: data.floor || "",
-      agency1Name: data.agency1Name || "",
-      agency1Link: data.agency1Link || "",
-      agency2Name: data.agency2Name || "",
-      agency2Link: data.agency2Link || "",
-      agency3Name: data.agency3Name || "",
-      agency3Link: data.agency3Link || ""
+      ...cleanData,
+      floor: cleanData.floor || "",
+      agency1Name: cleanData.agency1Name || "",
+      agency1Link: cleanData.agency1Link || "",
+      agency2Name: cleanData.agency2Name || "",
+      agency2Link: cleanData.agency2Link || "",
+      agency3Name: cleanData.agency3Name || "",
+      agency3Link: cleanData.agency3Link || ""
     };
     
-    console.log("Dati finali dopo pulizia:", dataToSend);
+    console.log("Dati da inviare all'API:", dataToSend);
+    console.log("API Request:", `/api/shared-properties/${params.id}`, { method: 'PATCH', data: dataToSend });
     updateMutation.mutate(dataToSend);
   };
   
