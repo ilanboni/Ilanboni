@@ -96,50 +96,41 @@ export default function MapLocationSelector({
       console.log("Creating new map instance");
       try {
         // Set default view to Milan, Italy
-        mapInstanceRef.current = L.map(mapRef.current).setView([45.4642, 9.1900], 12);
+        mapInstanceRef.current = window.L.map(mapRef.current).setView([45.4642, 9.1900], 12);
         console.log("Map instance created successfully");
+        
+        // Add base tile layer
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(mapInstanceRef.current);
+        
+        // Add click handler for placing marker
+        if (!readOnly) {
+          mapInstanceRef.current.on('click', function(e: any) {
+            addMarker(e.latlng);
+          });
+        }
+        
+        // Fix map rendering issue
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.invalidateSize();
+          }
+        }, 300);
+        
       } catch (error) {
         console.error("Error creating map instance:", error);
         return;
       }
-      
-      // Add base tile layer
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(mapInstanceRef.current);
-      
-      // Add click handler for placing marker
-      if (!readOnly) {
-        mapInstanceRef.current.on('click', function(e: any) {
-          addMarker(e.latlng);
-        });
-      }
-      
-      // Fix map rendering issue with multiple attempts
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 100);
-      
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 500);
-      
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 1000);
     }
     
     // Load existing marker if available
     if (value && value.lat && value.lng) {
       console.log("Adding marker with coordinates:", value);
       addMarker({ lat: value.lat, lng: value.lng });
-      mapInstanceRef.current.setView([value.lat, value.lng], 16);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.setView([value.lat, value.lng], 16);
+      }
     } else if (mapInstanceRef.current && !markerRef.current) {
       // Se non c'è un valore, centriamo comunque la mappa su Milano
       mapInstanceRef.current.setView([45.4642, 9.1900], 12);

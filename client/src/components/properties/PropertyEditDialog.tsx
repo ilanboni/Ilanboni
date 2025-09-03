@@ -621,6 +621,70 @@ export default function PropertyEditDialog({
             
             <Separator />
             
+            {/* Owner Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Informazioni Proprietario</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="ownerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome proprietario</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Nome completo del proprietario" 
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="ownerPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefono proprietario</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Numero di telefono" 
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="ownerEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email proprietario</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="email"
+                        placeholder="email@proprietario.com" 
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <Separator />
+            
             <DialogFooter>
               <Button 
                 type="button" 
