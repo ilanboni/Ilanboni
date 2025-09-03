@@ -2063,6 +2063,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Associate property to seller client
+  app.post("/api/clients/:id/associate-property", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const { propertyId } = req.body;
+      
+      if (isNaN(clientId) || !propertyId) {
+        return res.status(400).json({ error: "ID cliente o immobile non valido" });
+      }
+
+      // Check if client exists and is a seller
+      const client = await storage.getClient(clientId);
+      if (!client || client.type !== 'seller') {
+        return res.status(404).json({ error: "Cliente venditore non trovato" });
+      }
+
+      // Check if property exists
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+
+      // Find or create seller record
+      let seller = await storage.getSellerByClientId(clientId);
+      if (!seller) {
+        seller = await storage.createSeller({ clientId, propertyId: null });
+      }
+
+      // Associate property to seller
+      const updatedSeller = await storage.updateSeller(seller.id, { propertyId });
+      
+      res.json({
+        success: true,
+        message: "Immobile associato al cliente",
+        seller: updatedSeller
+      });
+    } catch (error) {
+      console.error(`[POST /api/clients/${req.params.id}/associate-property]`, error);
+      res.status(500).json({ error: "Errore durante l'associazione dell'immobile" });
+    }
+  });
+
   // API per WhatsApp con UltraMsg
   
   // Endpoint di test per verificare la ricezione delle richieste API

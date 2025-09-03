@@ -50,6 +50,10 @@ export default function NewPropertyPage() {
     contactPhone: z.string().optional(),
     contactEmail: z.string().email().optional(),
     isAcquired: z.boolean().default(false),
+    // Owner fields
+    ownerName: z.string().optional(),
+    ownerPhone: z.string().optional(),
+    ownerEmail: z.string().email().optional().or(z.literal("")),
   });
   
   // Define form with explicit typing
@@ -60,6 +64,9 @@ export default function NewPropertyPage() {
     contactPhone?: string;
     contactEmail?: string;
     isAcquired: boolean;
+    ownerName?: string;
+    ownerPhone?: string;
+    ownerEmail?: string;
   }>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -78,6 +85,9 @@ export default function NewPropertyPage() {
       location: null,
       isShared: false,
       isAcquired: false,
+      ownerName: "",
+      ownerPhone: "",
+      ownerEmail: "",
     },
   });
   
@@ -529,6 +539,77 @@ export default function NewPropertyPage() {
                         </FormItem>
                       )}
                     />
+
+                    {/* Owner Information Section */}
+                    <Separator className="my-6" />
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-lg font-medium">Informazioni Proprietario</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Inserisci i dati di contatto del proprietario dell'immobile (opzionale)
+                        </p>
+                      </div>
+                      
+                      <div className="grid md:grid-cols-3 gap-4">
+                        {/* Owner Name */}
+                        <FormField
+                          control={form.control}
+                          name="ownerName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nome proprietario</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Mario Rossi" 
+                                  {...field}
+                                  value={field.value || ""}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Owner Phone */}
+                        <FormField
+                          control={form.control}
+                          name="ownerPhone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Telefono proprietario</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="+39 123 456 7890" 
+                                  {...field}
+                                  value={field.value || ""}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Owner Email */}
+                        <FormField
+                          control={form.control}
+                          name="ownerEmail"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email proprietario</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="email"
+                                  placeholder="mario.rossi@email.com" 
+                                  {...field}
+                                  value={field.value || ""}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
 
                     {/* Location Map */}
                     <FormField

@@ -35,6 +35,7 @@ import { AIAssistantResponseModal } from "@/components/communications/AIAssistan
 import { useToast } from "@/hooks/use-toast";
 import PreferenceDetails from "@/components/clients/PreferenceDetails";
 import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
+import PropertyAssociationModal from "@/components/clients/PropertyAssociationModal";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -507,6 +508,17 @@ export default function ClientDetailPage() {
               <span>WhatsApp</span>
             </Button>
             
+            {client && client.type === 'seller' && (
+              <PropertyAssociationModal 
+                client={{
+                  id: client.id,
+                  firstName: client.firstName,
+                  lastName: client.lastName,
+                  type: client.type
+                }}
+              />
+            )}
+
             <Button
               variant="outline"
               className="gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
