@@ -73,14 +73,24 @@ export default function MapLocationSelector({
 
   // Effetto per inizializzare la mappa
   useEffect(() => {
-    if (!isMapLoaded || !mapRef.current || !window.L) return;
+    if (!isMapLoaded || !mapRef.current || !window.L) {
+      console.log("Map initialization skipped:", { isMapLoaded, hasMapRef: !!mapRef.current, hasLeaflet: !!window.L });
+      return;
+    }
     
     console.log("Initializing map with value:", value);
     
     // Initialize map if it doesn't exist
     if (!mapInstanceRef.current) {
-      // Set default view to Milan, Italy
-      mapInstanceRef.current = L.map(mapRef.current).setView([45.4642, 9.1900], 12);
+      console.log("Creating new map instance");
+      try {
+        // Set default view to Milan, Italy
+        mapInstanceRef.current = L.map(mapRef.current).setView([45.4642, 9.1900], 12);
+        console.log("Map instance created successfully");
+      } catch (error) {
+        console.error("Error creating map instance:", error);
+        return;
+      }
       
       // Add base tile layer
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -94,12 +104,24 @@ export default function MapLocationSelector({
         });
       }
       
-      // Fix map rendering issue
+      // Fix map rendering issue with multiple attempts
       setTimeout(() => {
         if (mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
         }
       }, 100);
+      
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 500);
+      
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 1000);
     }
     
     // Load existing marker if available
@@ -323,6 +345,29 @@ export default function MapLocationSelector({
       )}
       
       {!isMapLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-md">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">Caricamento mappa...</p>
+          </div>
+        </div>
+      )}
+      
+      {isMapLoaded && !mapInstanceRef.current && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-100 rounded-md">
+          <div className="text-center text-red-600">
+            <p className="text-sm">Errore caricamento mappa</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="text-xs underline mt-1"
+            >
+              Ricarica pagina
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {false && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-70 rounded-md">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
