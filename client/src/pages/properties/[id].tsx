@@ -585,10 +585,11 @@ export default function PropertyDetailPage() {
       {property && (
         <PropertyEditDialog 
           open={isEditDialogOpen} 
-          onOpenChange={setIsEditDialogOpen} 
+          onClose={() => setIsEditDialogOpen(false)}
           property={property}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["/api/properties", id] });
+            setIsEditDialogOpen(false);
           }}
         />
       )}

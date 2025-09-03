@@ -111,12 +111,24 @@ export default function MapLocationSelector({
           });
         }
         
-        // Fix map rendering issue
+        // Fix map rendering issue with multiple attempts
         setTimeout(() => {
           if (mapInstanceRef.current) {
             mapInstanceRef.current.invalidateSize();
           }
-        }, 300);
+        }, 100);
+        
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.invalidateSize();
+          }
+        }, 500);
+        
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.invalidateSize();
+          }
+        }, 1000);
         
       } catch (error) {
         console.error("Error creating map instance:", error);
