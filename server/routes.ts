@@ -1319,6 +1319,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedProperty = await storage.updateProperty(propertyId, updateData);
       
       // Gestione creazione cliente venditore se richiesto
+      console.log(`[PATCH /api/properties/${propertyId}] Debug creazione cliente:`, {
+        createOwnerAsClient: req.body.createOwnerAsClient,
+        ownerFirstName: req.body.ownerFirstName,
+        ownerPhone: req.body.ownerPhone,
+        keys: Object.keys(req.body)
+      });
+      
       if (req.body.createOwnerAsClient && req.body.ownerFirstName && req.body.ownerPhone) {
         try {
           console.log(`[PATCH /api/properties/${propertyId}] Creazione cliente venditore richiesta`);
