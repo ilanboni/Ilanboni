@@ -36,6 +36,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { insertPropertySchema } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import MapLocationSelector from "@/components/maps/MapLocationSelector";
 import MapPreview from "@/components/maps/MapPreview";
 import AddressSelectorPlaceholder from "@/components/address/AddressSelectorPlaceholder";
@@ -64,9 +71,23 @@ export default function PropertyEditDialog({
     console.log("PropertyEditDialog received property:", property);
   }, [property]);
   
+  // Extended schema for complete seller client creation
+  const propertyEditSchema = insertPropertySchema.extend({
+    createOwnerAsClient: z.boolean().default(false),
+    ownerSalutation: z.string().optional(),
+    ownerFirstName: z.string().optional(),
+    ownerLastName: z.string().optional(),
+    ownerBirthDate: z.date().nullable().optional(),
+    ownerReligion: z.string().optional(),
+    ownerIsFriend: z.boolean().default(false),
+    ownerNotes: z.string().optional(),
+  });
+
+  type PropertyEditFormValues = z.infer<typeof propertyEditSchema>;
+
   // Define form with explicit typing
-  const form = useForm<z.infer<typeof insertPropertySchema>>({
-    resolver: zodResolver(insertPropertySchema),
+  const form = useForm<PropertyEditFormValues>({
+    resolver: zodResolver(propertyEditSchema),
     // Inizializziamo con i valori dalla proprietà direttamente
     defaultValues: {
       type: property?.type || "",
@@ -87,6 +108,14 @@ export default function PropertyEditDialog({
       ownerName: property?.ownerName || "",
       ownerPhone: property?.ownerPhone || "",
       ownerEmail: property?.ownerEmail || "",
+      createOwnerAsClient: false,
+      ownerSalutation: "",
+      ownerFirstName: "",
+      ownerLastName: "",
+      ownerBirthDate: null,
+      ownerReligion: "",
+      ownerIsFriend: false,
+      ownerNotes: "",
     },
   });
   
@@ -115,6 +144,14 @@ export default function PropertyEditDialog({
         ownerName: property.ownerName || "",
         ownerPhone: property.ownerPhone || "",
         ownerEmail: property.ownerEmail || "",
+        createOwnerAsClient: false,
+        ownerSalutation: "",
+        ownerFirstName: property.ownerName?.split(' ')[0] || "",
+        ownerLastName: property.ownerName?.split(' ').slice(1).join(' ') || "",
+        ownerBirthDate: null,
+        ownerReligion: "",
+        ownerIsFriend: false,
+        ownerNotes: "",
       };
       
       console.log("Form values being set:", JSON.stringify(formValues, null, 2));
@@ -129,7 +166,7 @@ export default function PropertyEditDialog({
   
   // Update property mutation
   const updatePropertyMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof insertPropertySchema>) => {
+    mutationFn: async (data: PropertyEditFormValues) => {
       console.log("Updating property with data:", data);
       
       // Assicurati che i valori booleani siano correttamente inviati
@@ -184,7 +221,7 @@ export default function PropertyEditDialog({
   });
   
   // Form submission handler
-  const onSubmit = (data: z.infer<typeof insertPropertySchema>) => {
+  const onSubmit = (data: PropertyEditFormValues) => {
     updatePropertyMutation.mutate(data);
   };
   
@@ -627,66 +664,313 @@ export default function PropertyEditDialog({
             
             <Separator />
             
-            {/* Owner Information Section */}
+            {/* Seller Client Creation Section */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Informazioni Proprietario</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="ownerName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome proprietario</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Nome completo del proprietario" 
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="ownerPhone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telefono proprietario</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Numero di telefono" 
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                <h3 className="text-sm font-medium text-blue-800 mb-1">
+                  Crea Cliente Venditore
+                </h3>
+                <p className="text-sm text-blue-600">
+                  Inserisci i dati completi del proprietario per creare automaticamente un cliente venditore associato a questo immobile.
+                </p>
               </div>
               
               <FormField
                 control={form.control}
-                name="ownerEmail"
+                name="createOwnerAsClient"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email proprietario</FormLabel>
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mb-4">
                     <FormControl>
-                      <Input 
-                        type="email"
-                        placeholder="email@proprietario.com" 
-                        {...field}
-                        value={field.value || ""}
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Crea cliente venditore</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Attiva per creare automaticamente un cliente venditore con i dati inseriti
+                      </p>
+                    </div>
                   </FormItem>
                 )}
               />
+              
+              {form.watch("createOwnerAsClient") && (
+                <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                  <h4 className="font-medium text-gray-900">Dati Cliente Venditore</h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ownerSalutation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Saluto</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleziona saluto" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Gentile Cliente">Gentile Cliente</SelectItem>
+                              <SelectItem value="Egregio Signor">Egregio Signor</SelectItem>
+                              <SelectItem value="Gentile Signora">Gentile Signora</SelectItem>
+                              <SelectItem value="Gentile Dottore">Gentile Dottore</SelectItem>
+                              <SelectItem value="Gentile Dottoressa">Gentile Dottoressa</SelectItem>
+                              <SelectItem value="Gentile Ingegnere">Gentile Ingegnere</SelectItem>
+                              <SelectItem value="Gentile Architetto">Gentile Architetto</SelectItem>
+                              <SelectItem value="Gentile Avvocato">Gentile Avvocato</SelectItem>
+                              <SelectItem value="Gentile Professor">Gentile Professor</SelectItem>
+                              <SelectItem value="Gentile Professoressa">Gentile Professoressa</SelectItem>
+                              <SelectItem value="Spettabile Ditta">Spettabile Ditta</SelectItem>
+                              <SelectItem value="Egregi Signori">Egregi Signori</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="ownerIsFriend"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormLabel>Cliente amico</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ownerFirstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Mario" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="ownerLastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cognome</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Rossi" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ownerPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefono</FormLabel>
+                          <FormControl>
+                            <Input placeholder="+39 123 456 7890" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="ownerEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="mario.rossi@email.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ownerReligion"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Religione (per auguri personalizzati)</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleziona religione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">Nessuna/Non specificata</SelectItem>
+                              <SelectItem value="cattolica">Cattolica</SelectItem>
+                              <SelectItem value="ortodossa">Ortodossa</SelectItem>
+                              <SelectItem value="protestante">Protestante</SelectItem>
+                              <SelectItem value="islamica">Islamica</SelectItem>
+                              <SelectItem value="ebraica">Ebraica</SelectItem>
+                              <SelectItem value="induista">Induista</SelectItem>
+                              <SelectItem value="buddista">Buddista</SelectItem>
+                              <SelectItem value="altra">Altra</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="ownerBirthDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Data di nascita</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
+                                >
+                                  {field.value ? (
+                                    format(field.value, "PPP", { locale: it })
+                                  ) : (
+                                    "Seleziona data"
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value || undefined}
+                                onSelect={field.onChange}
+                                disabled={(date) =>
+                                  date > new Date() || date < new Date("1900-01-01")
+                                }
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="ownerNotes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Note sul cliente</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Inserisci qui eventuali note sul cliente..."
+                            className="resize-none"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+              
+              {!form.watch("createOwnerAsClient") && (
+                <>
+                  <h3 className="text-lg font-medium">Informazioni Proprietario</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Inserisci i dati di contatto del proprietario dell'immobile (opzionale)
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="ownerName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome proprietario</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Mario Rossi" 
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="ownerPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefono proprietario</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="+39 123 456 7890" 
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="ownerEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email proprietario</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="email"
+                            placeholder="mario.rossi@email.com" 
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
             </div>
             
             <Separator />
