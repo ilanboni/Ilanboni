@@ -135,8 +135,8 @@ export default function PerformanceAnalytics() {
                     {item.sent} inviati • {item.responses} risposte
                   </div>
                 </div>
-                <Badge className={`text-xs ${getResponseRateColor(item.responseRate)}`}>
-                  {item.responseRate.toFixed(1)}%
+                <Badge className={`text-xs ${getResponseRateColor(item.responseRate || 0)}`}>
+                  {item.responseRate ? item.responseRate.toFixed(1) : '0.0'}%
                 </Badge>
               </div>
             ))}
