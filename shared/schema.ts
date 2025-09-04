@@ -258,7 +258,21 @@ export const insertSellerSchema = z.object({
   clientId: z.number(),
   propertyId: z.number().optional().nullable()
 });
-export const insertPropertySchema = createInsertSchema(properties).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPropertySchema = createInsertSchema(properties)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    // Owner/Seller client information fields for form
+    ownerSalutation: z.string().optional(),
+    ownerFirstName: z.string().optional(), 
+    ownerLastName: z.string().optional(),
+    ownerPhone: z.string().optional(),
+    ownerEmail: z.string().optional(),
+    ownerNotes: z.string().optional(),
+    ownerBirthday: z.string().optional(),
+    ownerReligion: z.string().optional(),
+    ownerIsFriend: z.boolean().optional(),
+    createOwnerAsClient: z.boolean().optional(),
+  });
 export const insertSharedPropertySchema = createInsertSchema(sharedProperties)
   .omit({ id: true })
   .extend({

@@ -1184,10 +1184,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newProperty = await storage.createProperty(standardizedData);
       
-      // Se sono stati forniti dati del proprietario, crea automaticamente un cliente venditore
-      if (standardizedData.ownerName && standardizedData.ownerPhone) {
+      // Se è stato abilitato il flag per creare il cliente venditore, procedi con la creazione
+      if (standardizedData.createOwnerAsClient && standardizedData.ownerFirstName && standardizedData.ownerPhone) {
         try {
-          console.log(`[POST /api/properties] Creazione cliente venditore per proprietario: ${standardizedData.ownerName}`);
+          const ownerFullName = `${standardizedData.ownerFirstName} ${standardizedData.ownerLastName || ''}`.trim();
+          console.log(`[POST /api/properties] Creazione cliente venditore completo per proprietario: ${ownerFullName}`);
           
           // Verifica se esiste già un cliente con questo numero di telefono
           const existingClient = await storage.getClientByPhone(standardizedData.ownerPhone);
@@ -1214,21 +1215,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             sellerId = seller.id;
           } else {
-            // Crea un nuovo cliente venditore
-            const [firstName, ...lastNameParts] = standardizedData.ownerName.trim().split(' ');
-            const lastName = lastNameParts.join(' ') || '';
-            
-            const newClient = await storage.createClient({
+            // Crea un nuovo cliente venditore con tutti i dati forniti
+            const newClientData = {
               type: 'seller',
-              salutation: 'Gentile Cliente',
-              firstName: firstName || 'Cliente',
-              lastName: lastName || '',
+              salutation: standardizedData.ownerSalutation || 'Gentile Cliente',
+              firstName: standardizedData.ownerFirstName,
+              lastName: standardizedData.ownerLastName || '',
               email: standardizedData.ownerEmail || null,
               phone: standardizedData.ownerPhone,
-              contractType: 'sale'
-            });
+              contractType: 'sale',
+              notes: standardizedData.ownerNotes || null,
+              birthday: standardizedData.ownerBirthday || null,
+              religion: standardizedData.ownerReligion || null,
+              isFriend: standardizedData.ownerIsFriend || false
+            };
             
-            console.log(`[POST /api/properties] Nuovo cliente venditore creato: ${newClient.id}`);
+            const newClient = await storage.createClient(newClientData);
+            console.log(`[POST /api/properties] Nuovo cliente venditore completo creato: ${newClient.id}`);
             
             // Crea il record seller associato
             const seller = await storage.createSeller({ 
@@ -1240,7 +1243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             sellerId = seller.id;
           }
         } catch (ownerError) {
-          console.error("[POST /api/properties] Errore nella creazione del cliente proprietario:", ownerError);
+          console.error("[POST /api/properties] Errore nella creazione del cliente venditore:", ownerError);
           // Non blocchiamo la creazione dell'immobile se fallisce la creazione del cliente
         }
       }
