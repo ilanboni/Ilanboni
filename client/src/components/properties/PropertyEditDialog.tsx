@@ -830,7 +830,7 @@ export default function PropertyEditDialog({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">Nessuna/Non specificata</SelectItem>
+                              <SelectItem value="none">Nessuna/Non specificata</SelectItem>
                               <SelectItem value="cattolica">Cattolica</SelectItem>
                               <SelectItem value="ortodossa">Ortodossa</SelectItem>
                               <SelectItem value="protestante">Protestante</SelectItem>
