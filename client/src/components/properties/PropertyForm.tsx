@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select, 
@@ -26,7 +25,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { PropertyWithDetails } from "@/types/index";
+import { Property } from "@/types/index";
 import { PROPERTY_TYPES, CITY_AREAS } from "@/lib/constants";
 import { MapSelector } from "../maps/MapSelector";
 
@@ -491,6 +490,9 @@ export default function PropertyForm({
                               <SelectItem value="Gentile Signora">Gentile Signora</SelectItem>
                               <SelectItem value="Gentile Dottore">Gentile Dottore</SelectItem>
                               <SelectItem value="Gentile Dottoressa">Gentile Dottoressa</SelectItem>
+                              <SelectItem value="Cara">Cara</SelectItem>
+                              <SelectItem value="Caro">Caro</SelectItem>
+                              <SelectItem value="Ciao">Ciao</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

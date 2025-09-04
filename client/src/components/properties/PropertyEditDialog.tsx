@@ -729,6 +729,9 @@ export default function PropertyEditDialog({
                               <SelectItem value="Gentile Professoressa">Gentile Professoressa</SelectItem>
                               <SelectItem value="Spettabile Ditta">Spettabile Ditta</SelectItem>
                               <SelectItem value="Egregi Signori">Egregi Signori</SelectItem>
+                              <SelectItem value="Cara">Cara</SelectItem>
+                              <SelectItem value="Caro">Caro</SelectItem>
+                              <SelectItem value="Ciao">Ciao</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

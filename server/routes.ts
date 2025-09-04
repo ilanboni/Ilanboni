@@ -1318,6 +1318,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedProperty = await storage.updateProperty(propertyId, updateData);
       
+      // Gestione creazione cliente venditore se richiesto
+      if (req.body.createOwnerAsClient && req.body.ownerFirstName && req.body.ownerPhone) {
+        try {
+          console.log(`[PATCH /api/properties/${propertyId}] Creazione cliente venditore richiesta`);
+          
+          // Verifica se esiste già un cliente con lo stesso telefono
+          const existingClient = await storage.getClientByPhone(req.body.ownerPhone);
+          
+          if (!existingClient) {
+            // Crea nuovo cliente venditore
+            const newClient = await storage.createClient({
+              type: 'seller',
+              salutation: req.body.ownerSalutation || 'Gentile Cliente',
+              firstName: req.body.ownerFirstName,
+              lastName: req.body.ownerLastName || '',
+              phone: req.body.ownerPhone,
+              email: req.body.ownerEmail || null,
+              religion: req.body.ownerReligion || null,
+              birthday: req.body.ownerBirthDate || null,
+              isFriend: req.body.ownerIsFriend || false,
+              notes: req.body.ownerNotes || '',
+              contractType: null
+            });
+            
+            console.log(`[PATCH /api/properties/${propertyId}] Cliente venditore creato con ID: ${newClient.id}`);
+          } else {
+            console.log(`[PATCH /api/properties/${propertyId}] Cliente venditore già esistente con telefono: ${req.body.ownerPhone}`);
+          }
+        } catch (clientError) {
+          console.error(`[PATCH /api/properties/${propertyId}] Errore nella creazione del cliente venditore:`, clientError);
+          // Non bloccare l'aggiornamento dell'immobile se fallisce la creazione del cliente
+        }
+      }
+      
       // Se ci sono cambiamenti significativi o l'immobile è stato reso disponibile, verifica i match
       if (hasSignificantChanges || req.body.status === 'available') {
         try {

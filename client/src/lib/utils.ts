@@ -46,16 +46,17 @@ export function generateGreeting(client: Client): string {
     return "Gentile Cliente";
   }
   
-  const templates = client.isFriend
-    ? GREETING_TEMPLATES.informal
-    : GREETING_TEMPLATES.formal;
+  // Determina se il saluto è amichevole in base al salutation
+  const friendlySalutations = ['Cara', 'Caro', 'Ciao'];
+  const isInformalSalutation = friendlySalutations.includes(client.salutation);
   
-  const randomIndex = Math.floor(Math.random() * templates.length);
-  const template = templates[randomIndex];
+  // Se il saluto è amichevole, usa format amichevole con il nome
+  if (isInformalSalutation) {
+    return `${client.salutation} ${client.firstName}`;
+  }
   
-  return template
-    .replace("{firstName}", client.firstName)
-    .replace("{lastName}", client.lastName);
+  // Altrimenti usa il formato formale con cognome
+  return `${client.salutation} ${client.lastName}`;
 }
 
 // Get a random message template for WhatsApp
