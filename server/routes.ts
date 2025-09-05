@@ -1783,6 +1783,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint per ottenere gli appuntamenti di un cliente
+  app.get("/api/clients/:id/appointments", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const appointments = await storage.getAppointmentsByClientId(clientId);
+      res.json(appointments);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/appointments]`, error);
+      res.status(500).json({ error: "Errore durante il recupero degli appuntamenti del cliente" });
+    }
+  });
+
   // Endpoint per ottenere le attività di un immobile
   app.get("/api/properties/:id/tasks", async (req: Request, res: Response) => {
     try {
