@@ -301,12 +301,32 @@ export default function PropertyDetailPage() {
   // Fetch property appointments
   const { data: appointments, isLoading: isAppointmentsLoading } = useQuery<Appointment[]>({
     queryKey: ["/api/properties", id, "appointments"],
+    queryFn: async () => {
+      console.log("Caricamento appuntamenti per immobile ID:", id);
+      const response = await fetch(`/api/properties/${id}/appointments`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      console.log("Appuntamenti caricati:", data);
+      return data;
+    },
     enabled: !isNaN(id),
   });
   
   // Fetch property tasks
   const { data: tasks, isLoading: isTasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/properties", id, "tasks"],
+    queryFn: async () => {
+      console.log("Caricamento compiti per immobile ID:", id);
+      const response = await fetch(`/api/properties/${id}/tasks`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      console.log("Compiti caricati:", data);
+      return data;
+    },
     enabled: !isNaN(id),
   });
   
