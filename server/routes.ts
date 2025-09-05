@@ -1814,6 +1814,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Errore durante il recupero delle attività dell'immobile" });
     }
   });
+
+  // Endpoint per ottenere gli appuntamenti di un immobile
+  app.get("/api/properties/:id/appointments", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const appointments = await storage.getAppointmentsByPropertyId(propertyId);
+      res.json(appointments);
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}/appointments]`, error);
+      res.status(500).json({ error: "Errore durante il recupero degli appuntamenti dell'immobile" });
+    }
+  });
   
   // Endpoint per ottenere le attività di una proprietà condivisa
   app.get("/api/shared-properties/:id/tasks", async (req: Request, res: Response) => {
