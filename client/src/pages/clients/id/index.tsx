@@ -776,9 +776,10 @@ export default function ClientDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-48">Data</TableHead>
-                          <TableHead className="w-36">Ora</TableHead>
-                          <TableHead className="w-40">Tipo</TableHead>
+                          <TableHead className="w-32">Data</TableHead>
+                          <TableHead className="w-24">Ora</TableHead>
+                          <TableHead className="w-48">Immobile</TableHead>
+                          <TableHead className="w-32">Tipo</TableHead>
                           <TableHead>Note</TableHead>
                           <TableHead className="w-32">Stato</TableHead>
                           <TableHead className="w-20 text-right">Azioni</TableHead>
@@ -789,6 +790,17 @@ export default function ClientDetailPage() {
                           <TableRow key={appointment.id}>
                             <TableCell>{formatDate(appointment.date)}</TableCell>
                             <TableCell>{appointment.time}</TableCell>
+                            <TableCell>
+                              {(appointment as any).property?.address ? (
+                                <Link href={`/properties/${appointment.propertyId}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                                  <div className="max-w-[200px] truncate">
+                                    {(appointment as any).property.address}
+                                  </div>
+                                </Link>
+                              ) : (
+                                <span className="text-gray-400">Non specificato</span>
+                              )}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="text-gray-700">
                                 {appointment.type === "visit"
