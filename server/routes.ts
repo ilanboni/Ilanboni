@@ -272,7 +272,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const communications = await storage.getCommunicationsByClientId(clientId);
-      res.json(communications);
+      
+      // Arricchisce le comunicazioni con i dati degli immobili
+      const enrichedCommunications = await Promise.all(
+        communications.map(async (comm) => {
+          if (comm.propertyId) {
+            try {
+              const property = await storage.getProperty(comm.propertyId);
+              return {
+                ...comm,
+                property: property ? {
+                  id: property.id,
+                  address: property.address,
+                  price: property.price,
+                  size: property.size
+                } : null
+              };
+            } catch (error) {
+              console.warn(`Errore nel caricamento immobile ${comm.propertyId}:`, error);
+              return { ...comm, property: null };
+            }
+          }
+          return { ...comm, property: null };
+        })
+      );
+      
+      res.json(enrichedCommunications);
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/communications]`, error);
       res.status(500).json({ error: "Errore durante il recupero delle comunicazioni del cliente" });

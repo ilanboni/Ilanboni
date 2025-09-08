@@ -940,6 +940,7 @@ export default function ClientDetailPage() {
                           <TableHead className="w-32">Tipo</TableHead>
                           <TableHead className="w-48">Data</TableHead>
                           <TableHead>Oggetto</TableHead>
+                          <TableHead className="w-48">Immobile</TableHead>
                           <TableHead className="w-32">Stato</TableHead>
                           <TableHead className="w-24">Follow-up</TableHead>
                           <TableHead className="w-20 text-right">Azioni</TableHead>
@@ -974,6 +975,20 @@ export default function ClientDetailPage() {
                                   )}
                                 </div>
                               </Link>
+                            </TableCell>
+                            <TableCell>
+                              {(comm as any).property ? (
+                                <Link href={`/properties/${(comm as any).property.id}`}>
+                                  <div className="hover:text-primary-700 cursor-pointer">
+                                    <div className="font-medium text-sm">{(comm as any).property.address}</div>
+                                    <div className="text-xs text-gray-500">
+                                      €{(comm as any).property.price?.toLocaleString()} • {(comm as any).property.size} m²
+                                    </div>
+                                  </div>
+                                </Link>
+                              ) : (
+                                <span className="text-gray-400 text-sm">Nessun immobile</span>
+                              )}
                             </TableCell>
                             <TableCell>
                               {comm.status && (
