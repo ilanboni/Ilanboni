@@ -263,9 +263,9 @@ export default function PropertyDetailPage() {
     }
   }, [property, form, id, queryClient]);
   
-  // Fetch property communications with the same dynamic key approach
+  // Fetch property communications with standardized key approach
   const { data: communications, isLoading: isCommunicationsLoading } = useQuery<Communication[]>({
-    queryKey: [`property-${id}-communications`, id],
+    queryKey: ["/api/properties", id, "communications"],
     queryFn: async () => {
       console.log("Caricamento comunicazioni per immobile ID:", id);
       

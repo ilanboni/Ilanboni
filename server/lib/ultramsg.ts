@@ -437,6 +437,70 @@ export class UltraMsgClient {
         .filter(comm => comm.direction === "outbound")
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
       
+      // Se non c'è comunicazione outbound, prova a dedurre l'immobile dal contenuto
+      let deducedPropertyId: number | null = null;
+      if (!lastOutboundComm?.propertyId) {
+        console.log(`[ULTRAMSG-CORRELATION] Nessuna comunicazione outbound trovata per cliente ${client.id}, deduco immobile dal contenuto`);
+        
+        // Cerca riferimenti a indirizzi nel messaggio
+        const addressPatterns = [
+          /(?:via|viale|corso|piazza|largo)\s+[\w\s,]+\d+/gi,
+          /\b[\w\s]+\s+\d+(?:,\s*\w+)?\b/gi // Pattern generale per indirizzi
+        ];
+        
+        let mentionedAddresses: string[] = [];
+        for (const pattern of addressPatterns) {
+          const matches = messageContent.match(pattern);
+          if (matches) {
+            mentionedAddresses = mentionedAddresses.concat(matches);
+          }
+        }
+        
+        if (mentionedAddresses.length > 0) {
+          console.log(`[ULTRAMSG-CORRELATION] Indirizzi trovati nel messaggio:`, mentionedAddresses);
+          
+          // Cerca immobili che contengono questi indirizzi
+          const properties = await storage.getAllProperties();
+          for (const address of mentionedAddresses) {
+            const cleanAddress = address.trim().toLowerCase();
+            const matchingProperty = properties.find(p => 
+              p.address.toLowerCase().includes(cleanAddress) ||
+              cleanAddress.includes(p.address.toLowerCase().split(',')[0].trim())
+            );
+            
+            if (matchingProperty) {
+              deducedPropertyId = matchingProperty.id;
+              console.log(`[ULTRAMSG-CORRELATION] Immobile correlato: ${matchingProperty.id} - ${matchingProperty.address}`);
+              break;
+            }
+          }
+        }
+        
+        // Se non trova nessun indirizzo, cerca nell'ultima email immobiliare.it del cliente
+        if (!deducedPropertyId) {
+          console.log(`[ULTRAMSG-CORRELATION] Nessun indirizzo trovato, cerco nelle email immobiliare.it`);
+          try {
+            const { db } = await import('../db');
+            const { immobiliareEmails } = await import('../../shared/schema');
+            const { eq, desc } = await import('drizzle-orm');
+            
+            const emailQuery = await db
+              .select()
+              .from(immobiliareEmails)
+              .where(eq(immobiliareEmails.clientPhone, phone))
+              .orderBy(desc(immobiliareEmails.receivedAt))
+              .limit(1);
+              
+            if (emailQuery.length > 0 && emailQuery[0].propertyId) {
+              deducedPropertyId = emailQuery[0].propertyId;
+              console.log(`[ULTRAMSG-CORRELATION] Immobile correlato da email: ${deducedPropertyId}`);
+            }
+          } catch (error) {
+            console.log(`[ULTRAMSG-CORRELATION] Errore nella ricerca email:`, error);
+          }
+        }
+      }
+      
       // Prepara i dati per il database
       const communicationData: InsertCommunication = {
         clientId: client.id,
@@ -448,7 +512,7 @@ export class UltraMsgClient {
         needsFollowUp: true,
         needsResponse: true, // Tutti i messaggi in arrivo richiedono una risposta
         status: 'pending',
-        propertyId: lastOutboundComm?.propertyId || null,
+        propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
         responseToId: lastOutboundComm?.id || null,
         externalId: webhookData.external_id || `${phone}-${Date.now()}`
       };
