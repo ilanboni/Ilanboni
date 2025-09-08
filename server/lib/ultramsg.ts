@@ -179,6 +179,54 @@ export class UltraMsgClient {
   }
 
   /**
+   * Estrae informazioni nome e saluto da un messaggio WhatsApp
+   */
+  private extractNameFromMessage(messageBody: string): { salutation?: string; firstName?: string; lastName?: string } | null {
+    try {
+      // Pattern per riconoscere saluti formali italiani
+      const salutationPatterns = [
+        { pattern: /^(Gent\.ma Sig\.ra)\s+([A-Za-z\u00C0-\u017F]+(?:\s+[A-Za-z\u00C0-\u017F]+)?)/i, salutation: 'Gent.ma Sig.ra' },
+        { pattern: /^(Egr\.?\s+Dott\.?)\s+([A-Za-z\u00C0-\u017F]+(?:\s+[A-Za-z\u00C0-\u017F]+)?)/i, salutation: 'Egr. Dott.' },
+        { pattern: /^(Egr\.?\s+Sig\.?)\s+([A-Za-z\u00C0-\u017F]+(?:\s+[A-Za-z\u00C0-\u017F]+)?)/i, salutation: 'Egr. Sig.' },
+        { pattern: /^(Gent\.?\s+Dott\.?)\s+([A-Za-z\u00C0-\u017F]+(?:\s+[A-Za-z\u00C0-\u017F]+)?)/i, salutation: 'Gent. Dott.' },
+        { pattern: /^(Egr\.?\s+Avv\.?)\s+([A-Za-z\u00C0-\u017F]+(?:\s+[A-Za-z\u00C0-\u017F]+)?)/i, salutation: 'Egr. Avv.to' },
+        { pattern: /^(Spett\.le)\s+([A-Za-z\u00C0-\u017F]+(?:\s+[A-Za-z\u00C0-\u017F]+)?)/i, salutation: 'Spett.le' },
+        { pattern: /^(Caro|Cara)\s+([A-Za-z\u00C0-\u017F]+(?:\s+[A-Za-z\u00C0-\u017F]+)?)/i, salutation: 'match' }
+      ];
+
+      const firstLine = messageBody.split('\n')[0].trim();
+      console.log(`[NAME-EXTRACTION] Analyzing first line: "${firstLine}"`);
+
+      for (const { pattern, salutation } of salutationPatterns) {
+        const match = firstLine.match(pattern);
+        if (match) {
+          const extractedSalutation = salutation === 'match' ? match[1] : salutation;
+          const fullName = match[2].trim();
+          
+          // Separa nome e cognome
+          const nameParts = fullName.split(/\s+/);
+          const firstName = nameParts[0];
+          const lastName = nameParts.slice(1).join(' ') || '';
+          
+          console.log(`[NAME-EXTRACTION] ✅ Found: salutation="${extractedSalutation}", firstName="${firstName}", lastName="${lastName}"`);
+          
+          return {
+            salutation: extractedSalutation,
+            firstName,
+            lastName
+          };
+        }
+      }
+      
+      console.log(`[NAME-EXTRACTION] No formal name pattern found in: "${firstLine}"`);
+      return null;
+    } catch (error) {
+      console.error(`[NAME-EXTRACTION] Error extracting name:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Processa un webhook in arrivo da UltraMsg
    * @param webhookData Dati del webhook
    * @returns La comunicazione creata
@@ -328,6 +376,34 @@ export class UltraMsgClient {
       }
       
       console.log("[ULTRAMSG] Cliente trovato:", `${client.id} ${client.firstName} ${client.lastName}`);
+
+      // CORRELAZIONE AUTOMATICA NOMI DA WHATSAPP
+      // Se il cliente ha un nome generico e il messaggio contiene informazioni migliori, aggiorna il cliente
+      if (client && (client.firstName === 'Cliente' || client.salutation === 'Gentile Cliente')) {
+        console.log("[NAME-CORRELATION] Cliente con nome generico trovato, verifica messaggi in arrivo per informazioni migliori");
+        
+        const extractedInfo = this.extractNameFromMessage(messageContent);
+        if (extractedInfo) {
+          console.log(`[NAME-CORRELATION] ✅ Informazioni nome estratte dal messaggio: ${JSON.stringify(extractedInfo)}`);
+          
+          try {
+            // Aggiorna il cliente con le informazioni reali
+            const updatedClient = await storage.updateClient(client.id, {
+              salutation: extractedInfo.salutation || client.salutation,
+              firstName: extractedInfo.firstName || client.firstName, 
+              lastName: extractedInfo.lastName || client.lastName,
+              notes: `${client.notes || ''}\n[AGGIORNAMENTO AUTOMATICO] Nome aggiornato da messaggio WhatsApp il ${new Date().toLocaleDateString('it-IT')}: ${extractedInfo.salutation} ${extractedInfo.firstName} ${extractedInfo.lastName}`.trim()
+            });
+            
+            client = updatedClient;
+            console.log(`[NAME-CORRELATION] ✅ Cliente ${client.id} aggiornato automaticamente: ${client.salutation} ${client.firstName} ${client.lastName}`);
+          } catch (updateError) {
+            console.error("[NAME-CORRELATION] ❌ Errore nell'aggiornamento automatico del cliente:", updateError);
+          }
+        } else {
+          console.log("[NAME-CORRELATION] Nessuna informazione nome formale trovata nel messaggio");
+        }
+      }
 
       // Verifica se questo messaggio è già stato registrato (usando l'ID esterno)
       if (webhookData.external_id) {
