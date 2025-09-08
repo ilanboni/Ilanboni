@@ -1000,7 +1000,10 @@ export default function PropertyDetailPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {appointment.clientName || "N/D"}
+                          {appointment.client ? 
+                            `${appointment.client.firstName} ${appointment.client.lastName}`.trim() || "N/D"
+                            : "N/D"
+                          }
                         </TableCell>
                         <TableCell>
                           {appointment.type || "N/D"}
