@@ -377,6 +377,39 @@ export class UltraMsgClient {
       
       console.log("[ULTRAMSG] Cliente trovato:", `${client.id} ${client.firstName} ${client.lastName}`);
 
+      // VERIFICA MESSAGGIO IN ARRIVO PER CONFERMA APPUNTAMENTO
+      // Aggiunti pattern per gestire messaggi come "confermo la disponibilità per la visita di oggi pomeriggio alle 15:30" 
+      const incomingMessageContent = webhookData.body || webhookData.text || webhookData.content || webhookData.message || '';
+      
+      try {
+        const { isAppointmentConfirmation, extractAppointmentData, createCalendarEventFromAppointment } = await import('../services/appointmentExtractor');
+        
+        if (isAppointmentConfirmation(incomingMessageContent)) {
+          console.log("[ULTRAMSG-APPOINTMENT-INCOMING] ✅ Rilevata conferma appuntamento nel messaggio IN ARRIVO da cliente:", client.firstName, client.lastName);
+          
+          const appointmentData = extractAppointmentData(incomingMessageContent, phone);
+          
+          if (appointmentData) {
+            console.log("[ULTRAMSG-APPOINTMENT-INCOMING] ✅ Dati appuntamento estratti:", appointmentData);
+            
+            // Crea automaticamente l'evento in Google Calendar
+            const calendarSuccess = await createCalendarEventFromAppointment(appointmentData);
+            
+            if (calendarSuccess) {
+              console.log("[ULTRAMSG-APPOINTMENT-INCOMING] ✅ Evento creato automaticamente in Google Calendar per", appointmentData.clientName);
+            } else {
+              console.log("[ULTRAMSG-APPOINTMENT-INCOMING] ❌ Errore nella creazione automatica dell'evento in Calendar");
+            }
+          } else {
+            console.log("[ULTRAMSG-APPOINTMENT-INCOMING] ❌ Impossibile estrarre i dati dell'appuntamento dal messaggio in arrivo");
+          }
+        } else {
+          console.log("[ULTRAMSG-APPOINTMENT-INCOMING] Messaggio in arrivo non è una conferma appuntamento");
+        }
+      } catch (appointmentError) {
+        console.error("[ULTRAMSG-APPOINTMENT-INCOMING] Errore nell'elaborazione automatica dell'appuntamento in arrivo:", appointmentError);
+      }
+
       // CORRELAZIONE AUTOMATICA NOMI DA WHATSAPP
       // Se il cliente ha un nome generico e il messaggio contiene informazioni migliori, aggiorna il cliente
       if (client && (client.firstName === 'Cliente' || client.salutation === 'Gentile Cliente')) {

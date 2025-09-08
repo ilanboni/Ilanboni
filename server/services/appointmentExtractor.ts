@@ -53,6 +53,7 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
     
     // Pattern per estrarre la data e l'ora dell'appuntamento
     const dateTimePatterns = [
+      // Pattern originali per appuntamenti formali
       // "Martedì 10/6, alle ore 16:00" - handles accented characters
       /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
       // "Lunedì 10/6, ore 14:00" - handles accented characters  
@@ -64,7 +65,17 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
       // "17/06/2025 ore 10:00"
       /appuntamento di\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+ore\s+(\d{1,2}:\d{2})/i,
       // "2025-06-18 alle ore 13:12"
-      /appuntamento di\s+(\d{4}-\d{1,2}-\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i
+      /appuntamento di\s+(\d{4}-\d{1,2}-\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
+      
+      // Pattern aggiuntivi per conferme - aggiunti per gestire messaggi di Israel
+      // "confermo la disponibilità per la visita di oggi pomeriggio alle 15:30"
+      /(?:confermo|confermare).*(?:disponibilità|visita).*di\s+(oggi|domani).*alle\s+(\d{1,2}:\d{2})/i,
+      // "confermo per oggi alle 15:30"
+      /(?:confermo|confermare|ok|d'accordo).*(?:per\s+)?(oggi|domani).*alle\s+(\d{1,2}:\d{2})/i,
+      // "va bene per domani mattina alle 10:00"
+      /(?:va bene|ok|d'accordo).*(?:per\s+)?(oggi|domani).*alle\s+(\d{1,2}:\d{2})/i,
+      // "sì per oggi alle 15:30"
+      /(?:sì|ok|va bene).*(?:per\s+)?(oggi|domani).*alle\s+(\d{1,2}:\d{2})/i
     ];
     
     let appointmentDate: Date | null = null;
@@ -142,8 +153,16 @@ function parseAppointmentDateTime(dateStr: string, timeStr: string): Date | null
     const currentYear = new Date().getFullYear();
     let parsedDate: Date;
     
+    // Gestione "oggi" e "domani" - aggiunti per messaggi di conferma
+    if (dateStr.toLowerCase() === 'oggi') {
+      parsedDate = new Date(); // Oggi
+    }
+    else if (dateStr.toLowerCase() === 'domani') {
+      parsedDate = new Date();
+      parsedDate.setDate(parsedDate.getDate() + 1); // Domani
+    }
     // Formato ISO "2025-06-18"
-    if (dateStr.includes('-') && dateStr.length === 10) {
+    else if (dateStr.includes('-') && dateStr.length === 10) {
       const [year, month, day] = dateStr.split('-').map(Number);
       parsedDate = new Date(year, month - 1, day);
     }
