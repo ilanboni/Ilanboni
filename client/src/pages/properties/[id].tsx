@@ -888,7 +888,7 @@ export default function PropertyDetailPage() {
                             key={comm.id} 
                             communication={comm}
                             clientName={(() => {
-                              if (comm.direction === "inbound" && comm.clientId) {
+                              if (comm.clientId) {
                                 return clientNamesById[comm.clientId] || `Cliente #${comm.clientId}`;
                               }
                               if (comm.direction === "inbound" && !comm.clientId) {
@@ -1172,7 +1172,7 @@ export default function PropertyDetailPage() {
           }}
           communication={selectedCommunication}
           clientName={(() => {
-            if (selectedCommunication.direction === "inbound" && selectedCommunication.clientId) {
+            if (selectedCommunication.clientId) {
               return clientNamesById[selectedCommunication.clientId] || `Cliente #${selectedCommunication.clientId}`;
             }
             if (selectedCommunication.direction === "inbound" && !selectedCommunication.clientId) {
@@ -1320,7 +1320,13 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate, o
       </TableCell>
       <TableCell>
         <div className="font-medium">
-          {clientName}
+          {communication.clientId ? (
+            <Link href={`/clients/${communication.clientId}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+              {clientName}
+            </Link>
+          ) : (
+            clientName
+          )}
         </div>
       </TableCell>
       <TableCell>
