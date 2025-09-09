@@ -25,7 +25,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Property } from "@/types/index";
+// import { Property } from "@/types/index";
 import { PROPERTY_TYPES, CITY_AREAS } from "@/lib/constants";
 import { MapSelector } from "../maps/MapSelector";
 
@@ -67,7 +67,7 @@ const propertyFormSchema = z.object({
 type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 
 interface PropertyFormProps {
-  initialData?: PropertyWithDetails;
+  initialData?: any;
   onSubmit: (data: PropertyFormValues) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
