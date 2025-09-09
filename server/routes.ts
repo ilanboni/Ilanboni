@@ -7672,5 +7672,124 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  // Endpoint per recuperare tutti i task
+  app.get("/api/tasks", async (req: Request, res: Response) => {
+    try {
+      const { status, type } = req.query;
+      const filters: any = {};
+      if (status) filters.status = status as string;
+      if (type) filters.type = type as string;
+      
+      const tasks = await storage.getTasks(filters);
+      res.json(tasks);
+    } catch (error) {
+      console.error('[GET /api/tasks]', error);
+      res.status(500).json({ error: 'Failed to fetch tasks' });
+    }
+  });
+
+  // Endpoint per creare task chiamata generica
+  app.post("/api/tasks/generic-call", async (req: Request, res: Response) => {
+    try {
+      const { contactName, contactPhone, contactEmail, propertyInterest, notes } = req.body;
+      
+      const today = new Date();
+      const taskData = {
+        type: "generic_call",
+        title: `Chiamata da richiamare: ${contactName || contactPhone}`,
+        description: `Chiamata generica ricevuta da ${contactName || 'contatto'} per interesse immobiliare`,
+        dueDate: today,
+        status: "pending",
+        contactName,
+        contactPhone,
+        contactEmail,
+        propertyInterest,
+        notes,
+        assignedTo: 1 // Default admin user
+      };
+      
+      const task = await storage.createTask(taskData);
+      res.json(task);
+    } catch (error) {
+      console.error('[POST /api/tasks/generic-call]', error);
+      res.status(500).json({ error: 'Failed to create generic call task' });
+    }
+  });
+
+  // Endpoint per aggiornare un task
+  app.put("/api/tasks/:id", async (req: Request, res: Response) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ error: 'Invalid task ID' });
+      }
+      
+      const updatedTask = await storage.updateTask(taskId, req.body);
+      if (!updatedTask) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
+      
+      res.json(updatedTask);
+    } catch (error) {
+      console.error(`[PUT /api/tasks/${req.params.id}]`, error);
+      res.status(500).json({ error: 'Failed to update task' });
+    }
+  });
+
+  // Endpoint per creare cliente da task
+  app.post("/api/tasks/:id/create-client", async (req: Request, res: Response) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ error: 'Invalid task ID' });
+      }
+      
+      const { firstName, lastName, email, propertyType, minSize, maxPrice, urgency, searchNotes } = req.body;
+      
+      // Recupera il task per ottenere le informazioni di contatto
+      const task = await storage.getTask(taskId);
+      if (!task) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
+      
+      // Crea il cliente
+      const clientData = {
+        type: "buyer",
+        salutation: "Gent.mo",
+        firstName: firstName || task.contactName?.split(' ')[0] || "Cliente",
+        lastName: lastName || task.contactName?.split(' ').slice(1).join(' ') || "",
+        phone: task.contactPhone || "",
+        email: email || task.contactEmail || "",
+        contractType: "sale"
+      };
+      
+      const client = await storage.createClient(clientData);
+      
+      // Crea le preferenze buyer se specificate
+      if (propertyType || minSize || maxPrice) {
+        const buyerData = {
+          clientId: client.id,
+          minSize: minSize || null,
+          maxPrice: maxPrice || null,
+          urgency: urgency || 3,
+          searchNotes: searchNotes || `Interessato a: ${task.propertyInterest || 'immobili generici'}\nNote: ${task.notes || ''}`
+        };
+        
+        await storage.createBuyer(buyerData);
+      }
+      
+      // Marca il task come completato e collega il cliente
+      await storage.updateTask(taskId, {
+        status: "completed",
+        clientId: client.id
+      });
+      
+      res.json({ client, task: await storage.getTask(taskId) });
+    } catch (error) {
+      console.error(`[POST /api/tasks/${req.params.id}/create-client]`, error);
+      res.status(500).json({ error: 'Failed to create client from task' });
+    }
+  });
+
   return httpServer;
 }
