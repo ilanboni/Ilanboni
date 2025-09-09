@@ -158,6 +158,7 @@ export default function PropertyEditDialog({
       };
       
       console.log("Form values being set:", JSON.stringify(formValues, null, 2));
+      console.log("🎯 PropertyEditDialog - immobiliareItId in formValues:", formValues.immobiliareItId);
       
       // Reset del form in due passaggi per assicurare l'aggiornamento corretto
       form.reset({});
