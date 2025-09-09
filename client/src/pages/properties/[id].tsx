@@ -100,6 +100,7 @@ const formSchema = z.object({
   isShared: z.boolean().optional().default(false),
   isOwned: z.boolean().optional().default(true),
   externalLink: z.string().optional().nullable(),
+  immobiliareItId: z.string().optional().nullable(),
   location: z.any().optional().nullable(),
 });
 
@@ -161,6 +162,7 @@ export default function PropertyDetailPage() {
       isShared: false,
       isOwned: true,
       externalLink: "",
+      immobiliareItId: "",
       location: null,
     },
   });
@@ -249,6 +251,7 @@ export default function PropertyDetailPage() {
         isShared: property.isShared || false,
         isOwned: property.isOwned || true,
         externalLink: property.externalLink || "",
+        immobiliareItId: property.immobiliareItId || "",
         location: property.location || null,
       });
       
@@ -674,6 +677,13 @@ export default function PropertyDetailPage() {
                         <a href={property.externalLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                           <i className="fas fa-external-link-alt mr-1"></i> Visualizza
                         </a>
+                      </div>
+                    )}
+                    {property?.immobiliareItId && (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-1">ID Immobiliare.it</div>
+                        <div className="text-blue-600 font-medium">{property.immobiliareItId}</div>
+                        <div className="text-xs text-gray-400 mt-1">Per associazione automatica email</div>
                       </div>
                     )}
                   </div>
