@@ -365,22 +365,25 @@ export default function PropertyForm({
                 <FormField
                   control={form.control}
                   name="immobiliareItId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ID Immobiliare.it</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="text"
-                          placeholder="122999712"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        ID univoco dell'annuncio Immobiliare.it per associazione automatica email
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    console.log("🔍 PropertyForm - Rendering immobiliareItId field:", field.value);
+                    return (
+                      <FormItem>
+                        <FormLabel>ID Immobiliare.it</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="122999712"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          ID univoco dell'annuncio Immobiliare.it per associazione automatica email
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 
               </div>
