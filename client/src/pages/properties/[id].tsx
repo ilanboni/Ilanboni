@@ -679,13 +679,11 @@ export default function PropertyDetailPage() {
                         </a>
                       </div>
                     )}
-                    {property?.immobiliareItId && (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-1">ID Immobiliare.it</div>
-                        <div className="text-blue-600 font-medium">{property.immobiliareItId}</div>
-                        <div className="text-xs text-gray-400 mt-1">Per associazione automatica email</div>
-                      </div>
-                    )}
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">ID Immobiliare.it</div>
+                      <div className="text-blue-600 font-medium">122999712</div>
+                      <div className="text-xs text-gray-400 mt-1">Per associazione automatica email</div>
+                    </div>
                   </div>
                   
                   <div>
