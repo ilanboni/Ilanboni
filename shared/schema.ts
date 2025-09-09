@@ -80,6 +80,7 @@ export const properties = pgTable("properties", {
   isShared: boolean("is_shared").default(false), // if shared with other agencies
   isOwned: boolean("is_owned").default(true), // if our agency owns the listing
   externalLink: text("external_link"), // link to listing on website
+  immobiliareItId: text("immobiliare_it_id"), // ID annuncio immobiliare.it per associazione automatica email
   ownerName: text("owner_name"), // nome del proprietario
   ownerPhone: text("owner_phone"), // telefono del proprietario  
   ownerEmail: text("owner_email"), // email del proprietario
