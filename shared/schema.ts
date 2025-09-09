@@ -136,7 +136,7 @@ export const appointments = pgTable("appointments", {
 // Tasks and alerts
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  type: text("type").notNull(), // followUp, noResponse, birthday, etc.
+  type: text("type").notNull(), // followUp, noResponse, birthday, generic_call, etc.
   title: text("title").notNull(),
   description: text("description"),
   clientId: integer("client_id").references(() => clients.id),
@@ -145,6 +145,12 @@ export const tasks = pgTable("tasks", {
   dueDate: date("due_date").notNull(),
   status: text("status").default("pending"), // pending, completed, cancelled
   assignedTo: integer("assigned_to").references(() => users.id),
+  // Campi aggiuntivi per chiamate generiche
+  contactName: text("contact_name"), // Nome contatto per chiamate generiche
+  contactPhone: text("contact_phone"), // Telefono contatto
+  contactEmail: text("contact_email"), // Email contatto  
+  propertyInterest: text("property_interest"), // Tipo immobile di interesse
+  notes: text("notes"), // Note libere
   createdAt: timestamp("created_at").defaultNow()
 });
 
