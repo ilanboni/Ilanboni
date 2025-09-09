@@ -895,17 +895,32 @@ export default function PropertyDetailPage() {
                     </TableHeader>
                     <TableBody>
                       <TooltipProvider>
-                        {communications.map((comm) => (
-                          <PropertyCommunicationRow 
-                            key={comm.id} 
-                            communication={comm}
-                            clientName={(() => {
-                              if (comm.clientId) {
-                                return clientNamesById[comm.clientId] || `Cliente #${comm.clientId}`;
+                        {communications.map((comm) => {
+                          // Extract phone helper function
+                          const extractPhoneFromContent = (content: string, subject: string) => {
+                            const fullText = subject + " " + content;
+                            const phoneMatch = fullText.match(/(?:Telefono|Tel):?\s*(\+?39)?\s*([\d\s]{8,})|(\+39\s*[\d\s]{9,})/i);
+                            if (phoneMatch) {
+                              if (phoneMatch[3]) {
+                                return phoneMatch[3].replace(/\s/g, "");
+                              } else if (phoneMatch[2]) {
+                                return "+39" + phoneMatch[2].replace(/\s/g, "");
                               }
-                              if (comm.direction === "inbound" && !comm.clientId) {
-                                // Extract contact info from communication content for unregistered contacts
-                                const extractContactFromContent = (content: string, subject: string) => {
+                            }
+                            return "";
+                          };
+                          
+                          return (
+                            <PropertyCommunicationRow 
+                              key={comm.id} 
+                              communication={comm}
+                              clientName={(() => {
+                                if (comm.clientId) {
+                                  return clientNamesById[comm.clientId] || `Cliente #${comm.clientId}`;
+                                }
+                                if (comm.direction === "inbound" && !comm.clientId) {
+                                  // Extract contact info from communication content for unregistered contacts
+                                  const extractContactFromContent = (content: string, subject: string) => {
                                   const fullText = subject + " " + content;
                                   
                                   // Try to extract phone number
@@ -943,6 +958,16 @@ export default function PropertyDetailPage() {
                               }
                               return "Sistema";
                             })()}
+                            clientPhone={(() => {
+                              if (comm.clientId) {
+                                // TODO: Get client phone from client data if available
+                                return "";
+                              }
+                              if (comm.direction === "inbound" && !comm.clientId) {
+                                return extractPhoneFromContent(comm.content || "", comm.subject || "");
+                              }
+                              return "";
+                            })()}
                             onStatusUpdate={(communication?: any) => {
                               // If communication is passed, handle appointment creation
                               if (communication) {
@@ -954,8 +979,9 @@ export default function PropertyDetailPage() {
                               }
                             }}
                             onViewCommunication={handleViewCommunication}
-                          />
-                        ))}
+                            />
+                          );
+                        })}
                       </TooltipProvider>
                     </TableBody>
                   </Table>
