@@ -43,6 +43,7 @@ const propertyFormSchema = z.object({
   isShared: z.boolean().default(false),
   isOwned: z.boolean().default(true),
   externalLink: z.string().url().optional().or(z.literal("")),
+  immobiliareItId: z.string().optional(),
   location: z.any().optional(),
   // Owner/Seller client information fields
   ownerSalutation: z.string().optional(),
@@ -98,6 +99,7 @@ export default function PropertyForm({
       isShared: initialData.isShared || false,
       isOwned: initialData.isOwned || true,
       externalLink: initialData.externalLink || "",
+      immobiliareItId: (initialData as any).immobiliareItId || "",
       location: initialData.location || undefined,
       // Owner/Seller client information
       ownerSalutation: "",
@@ -129,6 +131,7 @@ export default function PropertyForm({
       isShared: false,
       isOwned: true,
       externalLink: "",
+      immobiliareItId: "",
       location: undefined,
       // Owner/Seller client information
       ownerSalutation: "Gentile Cliente",
@@ -354,6 +357,26 @@ export default function PropertyForm({
                           {...field}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="immobiliareItId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ID Immobiliare.it</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="119032725"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        ID dell'annuncio su immobiliare.it per associazione automatica delle email
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
