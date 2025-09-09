@@ -885,7 +885,8 @@ export default function PropertyDetailPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Data</TableHead>
-                        <TableHead>Cliente</TableHead>
+                        <TableHead>Nome Cliente</TableHead>
+                        <TableHead>Telefono</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead>Oggetto</TableHead>
                         <TableHead>Gestione</TableHead>
@@ -1202,11 +1203,12 @@ export default function PropertyDetailPage() {
 interface PropertyCommunicationRowProps {
   communication: any;
   clientName: string;
+  clientPhone?: string;
   onStatusUpdate: (communication?: any) => void;
   onViewCommunication: (communication: any) => void;
 }
 
-function PropertyCommunicationRow({ communication, clientName, onStatusUpdate, onViewCommunication }: PropertyCommunicationRowProps) {
+function PropertyCommunicationRow({ communication, clientName, clientPhone, onStatusUpdate, onViewCommunication }: PropertyCommunicationRowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1339,6 +1341,11 @@ function PropertyCommunicationRow({ communication, clientName, onStatusUpdate, o
           ) : (
             clientName
           )}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="text-sm text-gray-600">
+          {clientPhone || "N/D"}
         </div>
       </TableCell>
       <TableCell>
