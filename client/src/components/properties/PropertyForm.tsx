@@ -211,6 +211,28 @@ export default function PropertyForm({
                 
                 <FormField
                   control={form.control}
+                  name="immobiliareItId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-blue-600 font-bold">🏠 ID Immobiliare.it</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="122999712"
+                          className="border-blue-300 bg-blue-50"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-blue-600">
+                        ID univoco dell'annuncio Immobiliare.it per associazione automatica email
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
                   name="type"
                   render={({ field }) => (
                     <FormItem>
@@ -411,29 +433,6 @@ export default function PropertyForm({
                 />
               </div>
               
-              <FormField
-                control={form.control}
-                name="immobiliareItId"
-                render={({ field }) => {
-                  console.log("🔍 PropertyForm - Rendering immobiliareItId field:", field.value);
-                  return (
-                    <FormItem>
-                      <FormLabel>ID Immobiliare.it</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="text"
-                          placeholder="122999712"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        ID univoco dell'annuncio Immobiliare.it per associazione automatica email
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
               
               <FormField
                 control={form.control}
