@@ -124,6 +124,7 @@ export default function PropertyEditDialog({
   useEffect(() => {
     if (open && property) {
       console.log("PropertyEditDialog - Updating form with data:", JSON.stringify(property, null, 2));
+      console.log("PropertyEditDialog - immobiliareItId value:", property.immobiliareItId);
       
       // Prepariamo i valori assicurandoci che tutti i campi siano definiti
       const formValues = {
