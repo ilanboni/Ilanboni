@@ -138,6 +138,7 @@ export default function PropertyEditDialog({
         description: property.description || "",
         status: property.status || "available",
         externalLink: property.externalLink || "",
+        immobiliareItId: property.immobiliareItId || "",
         location: property.location || null,
         isShared: typeof property.isShared === 'boolean' ? property.isShared : false,
         isOwned: typeof property.isOwned === 'boolean' ? property.isOwned : true,
