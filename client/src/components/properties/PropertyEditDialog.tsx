@@ -354,6 +354,29 @@ export default function PropertyEditDialog({
                 )}
               />
               
+              {/* ID Immobiliare.it */}
+              <FormField
+                control={form.control}
+                name="immobiliareItId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-blue-600 font-bold">🏠 ID Immobiliare.it</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="122999712"
+                        className="border-blue-300 bg-blue-50"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-blue-600">
+                      ID univoco dell'annuncio Immobiliare.it per associazione automatica email
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               {/* Size */}
               <FormField
                 control={form.control}
