@@ -43,6 +43,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TaskManager } from "@/components/tasks/TaskManager";
 
 // Appointment form schema
 const appointmentFormSchema = z.object({
@@ -656,6 +657,9 @@ export default function CommunicationsPage() {
             </Link>
           </div>
         </div>
+
+        {/* Task Manager per chiamate generiche */}
+        <TaskManager filter="generic_call" />
         
         <Separator />
         
