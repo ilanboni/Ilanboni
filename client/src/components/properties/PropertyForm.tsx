@@ -383,25 +383,6 @@ export default function PropertyForm({
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="immobiliareItId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ID Immobiliare.it</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="119032725"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        ID dell'annuncio su immobiliare.it per associazione automatica delle email
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
