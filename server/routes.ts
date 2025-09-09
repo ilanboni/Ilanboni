@@ -746,6 +746,253 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Registra esito chiamata per una comunicazione
+  app.post("/api/communications/:id/record-call", async (req: Request, res: Response) => {
+    try {
+      const communicationId = parseInt(req.params.id);
+      if (isNaN(communicationId)) {
+        return res.status(400).json({ error: "ID comunicazione non valido" });
+      }
+
+      const { outcome } = req.body;
+      if (!outcome || typeof outcome !== 'string' || outcome.trim().length === 0) {
+        return res.status(400).json({ error: "Esito della chiamata obbligatorio" });
+      }
+
+      const communication = await storage.getCommunication(communicationId);
+      if (!communication) {
+        return res.status(404).json({ error: "Comunicazione non trovata" });
+      }
+
+      // Crea una nuova comunicazione di tipo "phone" per registrare l'esito della chiamata
+      const callRecord = await storage.createCommunication({
+        clientId: communication.clientId,
+        propertyId: communication.propertyId,
+        sharedPropertyId: communication.sharedPropertyId,
+        type: "phone",
+        subject: `Esito chiamata - ${communication.subject}`,
+        content: outcome.trim(),
+        direction: "outbound",
+        managementStatus: "managed",
+        responseToId: communicationId
+      });
+
+      res.json({
+        success: true,
+        message: "Esito chiamata registrato",
+        callRecord
+      });
+    } catch (error) {
+      console.error(`[POST /api/communications/${req.params.id}/record-call]`, error);
+      res.status(500).json({ error: "Errore durante la registrazione dell'esito chiamata" });
+    }
+  });
+
+  // Crea cliente con ricerca automatica basata su immobile
+  app.post("/api/communications/:id/create-client-with-search", async (req: Request, res: Response) => {
+    try {
+      const communicationId = parseInt(req.params.id);
+      if (isNaN(communicationId)) {
+        return res.status(400).json({ error: "ID comunicazione non valido" });
+      }
+
+      const { propertyId, propertyPrice, propertySize, propertyLocation } = req.body;
+
+      const communication = await storage.getCommunication(communicationId);
+      if (!communication) {
+        return res.status(404).json({ error: "Comunicazione non trovata" });
+      }
+
+      // Estrai informazioni dal contenuto della comunicazione
+      const content = communication.content || "";
+      const clientNameMatch = content.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
+      const emailMatch = content.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+      
+      const clientName = clientNameMatch ? clientNameMatch[1] : "Cliente";
+      const clientEmail = emailMatch ? emailMatch[1] : null;
+      
+      // Crea il cliente
+      const nameParts = clientName.split(' ');
+      const firstName = nameParts[0] || "Cliente";
+      const lastName = nameParts.slice(1).join(' ') || "";
+
+      const clientData = {
+        type: "buyer" as const,
+        salutation: "Gentile Cliente",
+        firstName: firstName,
+        lastName: lastName,
+        isFriend: false,
+        email: clientEmail,
+        phone: "000000000", // Placeholder, dovrà essere aggiornato manualmente
+        religion: null,
+        birthday: null,
+        contractType: null,
+        notes: `Cliente creato da comunicazione Immobiliare.it: ${communication.subject}`
+      };
+
+      const client = await storage.createClient(clientData);
+
+      // Crea il compratore con criteri di ricerca basati sull'immobile
+      const searchCriteria = {
+        radius: 600, // 600 metri
+        maxPrice: Math.floor(propertyPrice * 1.1), // +10%
+        minSize: Math.floor(propertySize * 0.9), // -10%
+        searchArea: propertyLocation || null
+      };
+
+      const buyerData = {
+        clientId: client.id,
+        searchArea: searchCriteria.searchArea,
+        minSize: searchCriteria.minSize,
+        maxPrice: searchCriteria.maxPrice,
+        urgency: 3,
+        rating: 3,
+        searchNotes: `Ricerca automatica basata su immobile ID ${propertyId}: raggio ${searchCriteria.radius}m, prezzo max €${searchCriteria.maxPrice?.toLocaleString()}, metratura min ${searchCriteria.minSize}mq`
+      };
+
+      const buyer = await storage.createBuyer(buyerData);
+
+      // Aggiorna la comunicazione per collegarla al cliente
+      await storage.updateCommunication(communicationId, {
+        clientId: client.id,
+        managementStatus: "client_created"
+      });
+
+      // Crea task di follow-up
+      await storage.createTask({
+        type: "followUp",
+        title: `Follow-up nuovo cliente: ${client.firstName} ${client.lastName}`,
+        description: `Contattare il cliente per verificare interesse e aggiornare numero di telefono. Criteri ricerca: max €${searchCriteria.maxPrice?.toLocaleString()}, min ${searchCriteria.minSize}mq, raggio ${searchCriteria.radius}m.`,
+        clientId: client.id,
+        propertyId: propertyId,
+        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Domani
+        status: "pending"
+      });
+
+      res.json({
+        success: true,
+        message: "Cliente e ricerca automatica creati",
+        client,
+        buyer,
+        searchCriteria
+      });
+    } catch (error) {
+      console.error(`[POST /api/communications/${req.params.id}/create-client-with-search]`, error);
+      res.status(500).json({ error: "Errore durante la creazione del cliente con ricerca" });
+    }
+  });
+
+  // Crea appuntamento rapido con cliente
+  app.post("/api/communications/:id/create-quick-appointment", async (req: Request, res: Response) => {
+    try {
+      const communicationId = parseInt(req.params.id);
+      if (isNaN(communicationId)) {
+        return res.status(400).json({ error: "ID comunicazione non valido" });
+      }
+
+      const { 
+        salutation, 
+        firstName, 
+        lastName, 
+        phone, 
+        date, 
+        time, 
+        address,
+        propertyId,
+        propertyPrice,
+        propertySize,
+        propertyLocation
+      } = req.body;
+
+      // Validazione dati obbligatori
+      if (!salutation || !firstName || !lastName || !phone || !date || !time || !address) {
+        return res.status(400).json({ error: "Tutti i campi sono obbligatori" });
+      }
+
+      const communication = await storage.getCommunication(communicationId);
+      if (!communication) {
+        return res.status(404).json({ error: "Comunicazione non trovata" });
+      }
+
+      // Crea il cliente
+      const clientData = {
+        type: "buyer" as const,
+        salutation: salutation,
+        firstName: firstName,
+        lastName: lastName,
+        isFriend: false,
+        email: null,
+        phone: phone,
+        religion: null,
+        birthday: null,
+        contractType: null,
+        notes: `Cliente creato da appuntamento rapido tramite comunicazione: ${communication.subject}`
+      };
+
+      const client = await storage.createClient(clientData);
+
+      // Crea il compratore con criteri di ricerca
+      const searchCriteria = {
+        maxPrice: Math.floor(propertyPrice * 1.1), // +10%
+        minSize: Math.floor(propertySize * 0.9), // -10%
+        searchArea: propertyLocation || null
+      };
+
+      const buyerData = {
+        clientId: client.id,
+        searchArea: searchCriteria.searchArea,
+        minSize: searchCriteria.minSize,
+        maxPrice: searchCriteria.maxPrice,
+        urgency: 4, // Urgenza alta per chi prenota appuntamento
+        rating: 4,
+        searchNotes: `Ricerca automatica da appuntamento rapido: prezzo max €${searchCriteria.maxPrice?.toLocaleString()}, metratura min ${searchCriteria.minSize}mq`
+      };
+
+      await storage.createBuyer(buyerData);
+
+      // Crea l'appuntamento usando il sistema esistente
+      const appointmentData = {
+        clientId: client.id,
+        propertyId: propertyId,
+        date: date,
+        time: time,
+        type: "visit",
+        status: "scheduled",
+        notes: `Appuntamento creato tramite form rapido da comunicazione Immobiliare.it`
+      };
+
+      const appointment = await storage.createAppointment(appointmentData);
+
+      // Aggiorna la comunicazione
+      await storage.updateCommunication(communicationId, {
+        clientId: client.id,
+        managementStatus: "client_created"
+      });
+
+      // Crea comunicazione di conferma appuntamento
+      await storage.createCommunication({
+        clientId: client.id,
+        propertyId: propertyId,
+        type: "whatsapp",
+        subject: `Conferma appuntamento ${date} ore ${time}`,
+        content: `Appuntamento confermato per ${firstName} ${lastName} in data ${date} alle ore ${time} presso ${address}`,
+        direction: "outbound",
+        managementStatus: "managed"
+      });
+
+      res.json({
+        success: true,
+        message: "Cliente e appuntamento creati",
+        client,
+        appointment,
+        searchCriteria
+      });
+    } catch (error) {
+      console.error(`[POST /api/communications/${req.params.id}/create-quick-appointment]`, error);
+      res.status(500).json({ error: "Errore durante la creazione dell'appuntamento rapido" });
+    }
+  });
+
   // Elimina una comunicazione
   app.delete("/api/communications/:id", async (req: Request, res: Response) => {
     try {
