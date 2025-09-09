@@ -361,6 +361,27 @@ export default function PropertyForm({
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="immobiliareItId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ID Immobiliare.it</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="122999712"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        ID univoco dell'annuncio Immobiliare.it per associazione automatica email
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
                 <FormField
                   control={form.control}
