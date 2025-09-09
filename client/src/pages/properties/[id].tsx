@@ -74,6 +74,7 @@ import {
 } from "@/components/ui/select";
 import BuyersToNotifyList from "@/components/properties/BuyersToNotifyList";
 import NotifiedBuyersList from "@/components/properties/NotifiedBuyersList";
+import CommunicationCallManager from "@/components/communications/CommunicationCallManager";
 import { 
   type PropertyWithDetails,
   type Communication,
@@ -1181,6 +1182,7 @@ export default function PropertyDetailPage() {
             setSelectedCommunication(null);
           }}
           communication={selectedCommunication}
+          property={property}
           clientName={(() => {
             if (selectedCommunication.clientId) {
               return clientNamesById[selectedCommunication.clientId] || `Cliente #${selectedCommunication.clientId}`;
@@ -1390,12 +1392,14 @@ function CommunicationDetailsDialog({
   isOpen, 
   onClose, 
   communication, 
-  clientName 
+  clientName,
+  property
 }: {
   isOpen: boolean;
   onClose: () => void;
   communication: any;
   clientName: string;
+  property?: any;
 }) {
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/D";
@@ -1520,6 +1524,20 @@ function CommunicationDetailsDialog({
             </div>
           )}
         </div>
+
+        {/* Call Manager for inbound emails without client */}
+        {communication.type === "email" && 
+         communication.direction === "inbound" && 
+         !communication.clientId && (
+          <CommunicationCallManager 
+            communication={communication}
+            property={property}
+            onSuccess={() => {
+              // Refresh the communications data
+              window.location.reload();
+            }}
+          />
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
