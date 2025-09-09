@@ -68,6 +68,15 @@ export class EmailPropertyLinker {
    * Verifica se un'email è correlata a una proprietà specifica
    */
   private isEmailRelatedToProperty(emailText: string, property: any): boolean {
+    // Prima controlla se c'è un match tramite ID immobiliare.it (più preciso)
+    if (property.immobiliareItId) {
+      const extractedId = this.extractImmobiliareItId(emailText);
+      if (extractedId && extractedId === property.immobiliareItId) {
+        console.log(`[EMAIL LINKER] ✅ Match perfetto tramite ID Immobiliare.it: ${extractedId}`);
+        return true;
+      }
+    }
+
     const address = property.address.toLowerCase();
     
     // Estrai componenti dell'indirizzo
@@ -87,6 +96,31 @@ export class EmailPropertyLinker {
 
     // Se almeno 2 componenti corrispondono, considera correlata
     return matches >= 2;
+  }
+
+  /**
+   * Estrae l'ID dell'annuncio immobiliare.it dall'email
+   */
+  private extractImmobiliareItId(emailText: string): string | null {
+    // Pattern per estrarre l'ID da URL immobiliare.it
+    // Es: https://www.immobiliare.it/annunci/119032725/
+    const immobiliareUrlPattern = /(?:https?:\/\/)?(?:www\.)?immobiliare\.it\/annunci\/(\d+)/gi;
+    const match = immobiliareUrlPattern.exec(emailText);
+    
+    if (match && match[1]) {
+      return match[1];
+    }
+    
+    // Pattern alternativo per ID senza URL completo 
+    // Es: "annuncio 119032725" o "codice 119032725"
+    const idPattern = /(?:annuncio|codice|id)\s*:?\s*(\d{8,9})/gi;
+    const idMatch = idPattern.exec(emailText);
+    
+    if (idMatch && idMatch[1]) {
+      return idMatch[1];
+    }
+    
+    return null;
   }
 
   /**

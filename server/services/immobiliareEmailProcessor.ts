@@ -81,7 +81,7 @@ export class ImmobiliareEmailProcessor {
       const clientId = await this.findOrCreateClient(extractedData.client, extractedData.property);
       
       // Trova l'immobile tramite riconoscimento automatico o dati estratti
-      const propertyId = await this.findProperty(extractedData.property, emailData.subject);
+      const propertyId = await this.findProperty(extractedData.property, emailData.subject, emailData.body);
 
       // Crea il task
       const taskId = await this.createTask(
@@ -357,7 +357,25 @@ ESEMPI NOME CORRETTO:
   /**
    * Trova un immobile esistente
    */
-  private async findProperty(propertyData: ExtractedPropertyData, emailSubject?: string): Promise<number | null> {
+  private async findProperty(propertyData: ExtractedPropertyData, emailSubject?: string, emailBody?: string): Promise<number | null> {
+    // Prima di tutto, cerca tramite ID immobiliare.it estratto dall'email
+    const immobiliareId = this.extractImmobiliareItId(emailSubject, emailBody);
+    if (immobiliareId) {
+      console.log(`[EMAIL PROCESSOR] ID Immobiliare.it estratto: ${immobiliareId}`);
+      
+      const propertyByImmobiliareId = await db.select()
+        .from(properties)
+        .where(eq(properties.immobiliareItId, immobiliareId))
+        .limit(1);
+        
+      if (propertyByImmobiliareId.length > 0) {
+        console.log(`[EMAIL PROCESSOR] ✅ Immobile trovato tramite ID Immobiliare.it: ${immobiliareId} → ID ${propertyByImmobiliareId[0].id}`);
+        return propertyByImmobiliareId[0].id;
+      } else {
+        console.log(`[EMAIL PROCESSOR] ⚠️ Nessun immobile trovato con ID Immobiliare.it: ${immobiliareId}`);
+      }
+    }
+
     // Mapping automatico dei riferimenti agli immobili per riconoscimento immediato
     const propertyReferenceMappings: Record<string, number> = {
       'Bel': 14,           // Viale Belisario
@@ -560,6 +578,36 @@ ESEMPI NOME CORRETTO:
     console.log(`[EMAIL PROCESSOR] Numero normalizzato: ${phone} → ${normalized}`);
     
     return normalized;
+  }
+
+  /**
+   * Estrae l'ID dell'annuncio immobiliare.it dall'email
+   */
+  private extractImmobiliareItId(emailSubject?: string, emailBody?: string): string | null {
+    const fullText = `${emailSubject || ''} ${emailBody || ''}`;
+    
+    // Pattern per estrarre l'ID da URL immobiliare.it
+    // Es: https://www.immobiliare.it/annunci/119032725/
+    const immobiliareUrlPattern = /(?:https?:\/\/)?(?:www\.)?immobiliare\.it\/annunci\/(\d+)/gi;
+    const match = immobiliareUrlPattern.exec(fullText);
+    
+    if (match && match[1]) {
+      console.log(`[EMAIL PROCESSOR] Estratto ID Immobiliare.it: ${match[1]} da URL: ${match[0]}`);
+      return match[1];
+    }
+    
+    // Pattern alternativo per ID senza URL completo 
+    // Es: "annuncio 119032725" o "codice 119032725"
+    const idPattern = /(?:annuncio|codice|id)\s*:?\s*(\d{8,9})/gi;
+    const idMatch = idPattern.exec(fullText);
+    
+    if (idMatch && idMatch[1]) {
+      console.log(`[EMAIL PROCESSOR] Estratto ID Immobiliare.it alternativo: ${idMatch[1]}`);
+      return idMatch[1];
+    }
+    
+    console.log(`[EMAIL PROCESSOR] Nessun ID Immobiliare.it trovato nell'email`);
+    return null;
   }
 
   /**
