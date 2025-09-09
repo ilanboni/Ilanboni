@@ -273,6 +273,8 @@ export const insertPropertySchema = createInsertSchema(properties)
     ownerReligion: z.string().optional(),
     ownerIsFriend: z.boolean().optional(),
     createOwnerAsClient: z.boolean().optional(),
+    // Additional fields
+    immobiliareItId: z.string().optional(),
   });
 export const insertSharedPropertySchema = createInsertSchema(sharedProperties)
   .omit({ id: true })
