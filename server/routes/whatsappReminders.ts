@@ -197,6 +197,16 @@ router.post("/send-response", async (req, res) => {
       })
       .returning({ id: communications.id });
 
+    // ✅ NUOVO: Marca task di comunicazione come completati quando si invia risposta
+    try {
+      const { markInboundTaskCompleted } = await import('../services/inboundTaskManager');
+      if (client.length > 0) {
+        await markInboundTaskCompleted(client[0].id, 'whatsapp');
+      }
+    } catch (error) {
+      console.error('[WHATSAPP-RESPONSE] ❌ Errore marcatura task completati:', error);
+    }
+
     // Marca tutti i messaggi precedenti di questo numero come risposti
     // Cerca sia per subject che per client_id
     const updateConditions = [

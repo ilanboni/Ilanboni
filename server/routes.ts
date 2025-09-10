@@ -7689,6 +7689,27 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   });
 
   // Endpoint per creare task chiamata generica
+  // Endpoint per creare task automatici dalle comunicazioni in ingresso esistenti
+  app.post("/api/tasks/backfill-inbound", async (req: Request, res: Response) => {
+    try {
+      console.log('[BACKFILL-INBOUND] Avvio backfill task per comunicazioni in ingresso...');
+      
+      const { backfillInboundTasks } = await import('./services/inboundTaskManager');
+      await backfillInboundTasks();
+      
+      res.json({ 
+        success: true, 
+        message: "Backfill task comunicazioni inbound completato con successo"
+      });
+    } catch (error) {
+      console.error('[BACKFILL-INBOUND] Errore:', error);
+      res.status(500).json({ 
+        error: "Errore durante il backfill dei task",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   app.post("/api/tasks/generic-call", async (req: Request, res: Response) => {
     try {
       const { contactName, contactPhone, contactEmail, propertyInterest, notes } = req.body;

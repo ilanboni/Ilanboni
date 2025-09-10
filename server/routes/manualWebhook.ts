@@ -64,6 +64,22 @@ export async function manualWebhookHandler(req: Request, res: Response) {
 
     console.log('[MANUAL-WEBHOOK] Comunicazione creata:', communication.id);
 
+    // ✅ NUOVO: Crea automaticamente un task per questa comunicazione in ingresso
+    try {
+      const { createInboundTask } = await import('../services/inboundTaskManager');
+      await createInboundTask(
+        communication.id,
+        client.id,
+        undefined, // propertyId - sarà determinato successivamente se necessario
+        undefined, // sharedPropertyId - sarà determinato successivamente se necessario
+        'whatsapp',
+        message
+      );
+      console.log('[MANUAL-WEBHOOK] ✅ Task automatico creato per comunicazione');
+    } catch (error) {
+      console.error('[MANUAL-WEBHOOK] ❌ Errore creazione task automatico:', error);
+    }
+
     // Analizza il sentimento e crea task se necessario
     try {
       // Usa il servizio di sentiment analysis esistente
