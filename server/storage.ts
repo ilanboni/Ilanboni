@@ -2505,7 +2505,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    const result = query.orderBy(desc(tasks.dueDate));
+    const result = query.orderBy(desc(tasks.createdAt));
     
     if (filters?.limit) {
       return await result.limit(filters.limit);
