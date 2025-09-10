@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { AdvancedCallForm } from "./AdvancedCallForm";
+// import { AdvancedCallForm } from "./AdvancedCallForm"; // DISABILITATO per loop infinito
 
 interface Task {
   id: number;
@@ -522,11 +522,11 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
         </DialogContent>
       </Dialog>
 
-      {/* Advanced Call Form */}
-      <AdvancedCallForm 
+      {/* Advanced Call Form - DISABILITATO: richiede riscrittura completa per risolvere loop infinito React */}
+      {/* <AdvancedCallForm 
         open={showAdvancedForm} 
         onOpenChange={setShowAdvancedForm}
-      />
+      /> */}
     </Card>
   );
 }

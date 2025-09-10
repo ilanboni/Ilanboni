@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -50,40 +50,61 @@ export function AdvancedCallForm({ open, onOpenChange, initialData }: AdvancedCa
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Query per recuperare tutte le proprietà
+  // Query per recuperare tutte le proprietà - con stabilizzazione per evitare loop
   const { data: properties = [], isLoading: propertiesLoading } = useQuery({
     queryKey: ["/api/properties"],
     queryFn: () => apiRequest("/api/properties", { method: "GET" }),
     enabled: open,
+    staleTime: 10 * 60 * 1000, // 10 minuti di cache per evitare rivalidazioni frequenti
+    cacheTime: 15 * 60 * 1000, // 15 minuti
+    refetchOnWindowFocus: false, // Evita rivalidazioni automatiche
+    refetchOnMount: false, // Evita rivalidazioni al mount se cache è valida
   });
 
-  // Effect per inizializzare i dati se forniti
+  // Stabilizza initialData per evitare loop infiniti
+  const stableInitialData = useMemo(() => {
+    return initialData ? {
+      contactName: initialData.contactName || "",
+      contactPhone: initialData.contactPhone || "",
+      contactEmail: initialData.contactEmail || ""
+    } : null;
+  }, [initialData?.contactName, initialData?.contactPhone, initialData?.contactEmail]);
+
+  // Effect per inizializzare i dati se forniti - ora con dipendenze stabili
   useEffect(() => {
-    if (initialData && open) {
-      const nameParts = initialData.contactName?.split(" ") || ["", ""];
+    if (stableInitialData && open) {
+      const nameParts = stableInitialData.contactName.split(" ") || ["", ""];
       setFormData(prev => ({
         ...prev,
         firstName: nameParts[0] || "",
         lastName: nameParts.slice(1).join(" ") || "",
-        phone: initialData.contactPhone || "",
-        email: initialData.contactEmail || "",
+        phone: stableInitialData.contactPhone,
+        email: stableInitialData.contactEmail,
       }));
     }
-  }, [initialData, open]);
+  }, [stableInitialData, open]);
 
-  // Filtro proprietà in base alla ricerca
+  // Memorizza le proprietà per evitare loop infiniti
+  const stableProperties = useMemo(() => {
+    return Array.isArray(properties) ? properties : [];
+  }, [properties]);
+
+  // Filtro proprietà in base alla ricerca con stabilizzazione
   useEffect(() => {
-    if (formData.propertySearch && Array.isArray(properties) && properties.length > 0) {
-      const filtered = properties.filter((property: Property) =>
+    if (!formData.propertySearch.trim()) {
+      setPropertySearchResults([]);
+      return;
+    }
+
+    if (stableProperties.length > 0) {
+      const filtered = stableProperties.filter((property: Property) =>
         property.title.toLowerCase().includes(formData.propertySearch.toLowerCase()) ||
         property.address.toLowerCase().includes(formData.propertySearch.toLowerCase()) ||
         property.immobiliareItId?.includes(formData.propertySearch)
       );
       setPropertySearchResults(filtered.slice(0, 5)); // Limita a 5 risultati
-    } else {
-      setPropertySearchResults([]);
     }
-  }, [formData.propertySearch, properties]);
+  }, [formData.propertySearch, stableProperties]);
 
   // Mutation per creare task chiamata
   const createTaskMutation = useMutation({
