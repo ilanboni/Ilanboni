@@ -43,7 +43,7 @@ export default function TasksPage() {
   
   // State for filtering
   const [statusFilter, setStatusFilter] = useState<string>("pending");
-  const [typeFilter, setTypeFilter] = useState<string>("call_response");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   
   // Fetch tasks
