@@ -4,56 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Task } from "@/types";
 
 export default function TasksAndAlerts() {
-  // In a real app, we would fetch this data from the API
-  // For this prototype, we'll use some sample data
+  // Fetch real tasks from API
   const { data: tasks, isLoading } = useQuery({
-    queryKey: ['/api/tasks'],
+    queryKey: ['/api/tasks', 'pending'],
     queryFn: async () => {
-      // This would be replaced with a real API call
-      return [
-        {
-          id: 1,
-          type: "noResponse",
-          title: "Mancata risposta",
-          description: "Dott. Ferrari non ha visualizzato l'appartamento in Via Roma.",
-          createdAt: "2023-09-20T10:30:00Z",
-          dueDate: "2023-09-20T18:30:00Z",
-          client: {
-            id: 101,
-            firstName: "Ferrari",
-            lastName: "Dott.",
-            phone: "+391234567890"
-          }
-        },
-        {
-          id: 2,
-          type: "followUp",
-          title: "Follow-up cliente",
-          description: "Contattare Sig.ra Bianchi per feedback dopo la visita.",
-          createdAt: "2023-09-20T09:15:00Z",
-          dueDate: "2023-09-20T17:00:00Z",
-          client: {
-            id: 102,
-            firstName: "Bianchi",
-            lastName: "Sig.ra",
-            phone: "+391234567891"
-          }
-        },
-        {
-          id: 3,
-          type: "birthday",
-          title: "Compleanno cliente",
-          description: "Compleanno di Marco Verdi, inviare auguri personalizzati.",
-          createdAt: "2023-09-19T14:00:00Z",
-          dueDate: "2023-09-21T10:00:00Z",
-          client: {
-            id: 103,
-            firstName: "Marco",
-            lastName: "Verdi",
-            phone: "+391234567892"
-          }
-        }
-      ] as Task[];
+      const response = await fetch('/api/tasks?status=pending&limit=5');
+      if (!response.ok) {
+        throw new Error('Failed to fetch tasks');
+      }
+      return await response.json();
     }
   });
 
@@ -79,6 +38,18 @@ export default function TasksAndAlerts() {
         return (
           <span className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
             <i className="fas fa-birthday-cake"></i>
+          </span>
+        );
+      case "call_response":
+        return (
+          <span className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+            <i className="fas fa-comment-dots"></i>
+          </span>
+        );
+      case "generic_call":
+        return (
+          <span className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+            <i className="fas fa-phone"></i>
           </span>
         );
       default:

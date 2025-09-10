@@ -166,6 +166,10 @@ export default function TasksPage() {
         return <AlertTriangle className="h-8 w-8 text-red-500" />;
       case "birthday":
         return <Calendar className="h-8 w-8 text-green-500" />;
+      case "call_response":
+        return <MessageSquare className="h-8 w-8 text-blue-500" />;
+      case "generic_call":
+        return <Phone className="h-8 w-8 text-purple-500" />;
       default:
         return <Clock className="h-8 w-8 text-gray-400" />;
     }
@@ -179,6 +183,10 @@ export default function TasksPage() {
         return "Mancata risposta";
       case "birthday":
         return "Compleanno cliente";
+      case "call_response":
+        return "Comunicazione ricevuta";
+      case "generic_call":
+        return "Chiamata generica";
       default:
         return type;
     }
@@ -282,6 +290,8 @@ export default function TasksPage() {
                 <SelectItem value="followUp">Follow-up</SelectItem>
                 <SelectItem value="noResponse">Mancata risposta</SelectItem>
                 <SelectItem value="birthday">Compleanno</SelectItem>
+                <SelectItem value="call_response">Comunicazioni ricevute</SelectItem>
+                <SelectItem value="generic_call">Chiamate generiche</SelectItem>
               </SelectContent>
             </Select>
           </div>
