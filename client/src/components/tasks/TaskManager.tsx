@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { AdvancedCallForm } from "./AdvancedCallForm";
 
 interface Task {
   id: number;
@@ -36,6 +37,7 @@ interface TaskManagerProps {
 
 export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showAdvancedForm, setShowAdvancedForm] = useState(false);
   const [showClientDialog, setShowClientDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createTaskForm, setCreateTaskForm] = useState({
@@ -61,14 +63,16 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
   // Query per recuperare i task
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["/api/tasks", filter],
-    queryFn: () => apiRequest(`/api/tasks${filter !== "all" ? `?type=${filter}` : ""}`),
+    queryFn: () => apiRequest(`/api/tasks${filter !== "all" ? `?type=${filter}` : ""}`, {
+      method: "GET"
+    }),
   });
 
   // Mutation per creare task
   const createTaskMutation = useMutation({
     mutationFn: (data: any) => apiRequest("/api/tasks/generic-call", {
       method: "POST",
-      body: JSON.stringify(data),
+      data: data,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -100,7 +104,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
     mutationFn: ({ id, data }: { id: number; data: any }) => 
       apiRequest(`/api/tasks/${id}`, {
         method: "PUT",
-        body: JSON.stringify(data),
+        data: data,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -113,11 +117,13 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
 
   // Mutation per creare cliente da task
   const createClientMutation = useMutation({
-    mutationFn: ({ taskId, data }: { taskId: number; data: any }) =>
-      apiRequest(`/api/tasks/${taskId}/create-client`, {
+    mutationFn: async ({ taskId, data }: { taskId: number; data: any }) => {
+      const response = await apiRequest(`/api/tasks/${taskId}/create-client`, {
         method: "POST",
-        body: JSON.stringify(data),
-      }),
+        data: data,
+      });
+      return await response.json();
+    },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
@@ -134,7 +140,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
       });
       toast({
         title: "Cliente creato con successo",
-        description: `Cliente ${result.client.firstName} ${result.client.lastName} creato dal task.`,
+        description: `Cliente ${result.client?.firstName || ''} ${result.client?.lastName || ''} creato dal task.`,
       });
     },
     onError: (error) => {
@@ -223,21 +229,30 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
     );
   }
 
-  const pendingTasks = tasks.filter((task: Task) => task.status === "pending");
+  const pendingTasks = Array.isArray(tasks) ? tasks.filter((task: Task) => task.status === "pending") : [];
 
   return (
     <Card>
       {showTitle && (
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Task da Completare</CardTitle>
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <i className="fas fa-plus mr-2"></i>
-                Nuova Chiamata
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
+          <div className="flex gap-2">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => setShowAdvancedForm(true)}
+            >
+              <i className="fas fa-phone mr-2"></i>
+              Form Avanzato
+            </Button>
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <i className="fas fa-plus mr-2"></i>
+                  Chiamata Rapida
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Nuova Chiamata da Richiamare</DialogTitle>
               </DialogHeader>
@@ -305,6 +320,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </CardHeader>
       )}
       
@@ -505,6 +521,12 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Advanced Call Form */}
+      <AdvancedCallForm 
+        open={showAdvancedForm} 
+        onOpenChange={setShowAdvancedForm}
+      />
     </Card>
   );
 }
