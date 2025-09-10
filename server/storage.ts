@@ -95,7 +95,7 @@ export interface IStorage {
   
   // Task methods
   getTask(id: number): Promise<Task | undefined>;
-  getTasks(filters?: { status?: string; type?: string }): Promise<Task[]>;
+  getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number }): Promise<Task[]>;
   getTasksByClientId(clientId: number): Promise<Task[]>;
   getTasksByPropertyId(propertyId: number): Promise<Task[]>;
   getTasksBySharedPropertyId(sharedPropertyId: number): Promise<Task[]>;
@@ -2477,7 +2477,7 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async getTasks(filters?: { status?: string; type?: string }): Promise<Task[]> {
+  async getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number }): Promise<Task[]> {
     let query = db.select().from(tasks);
     
     if (filters) {
@@ -2491,12 +2491,27 @@ export class DatabaseStorage implements IStorage {
         conditions.push(eq(tasks.type, filters.type));
       }
       
+      if (filters.search) {
+        conditions.push(
+          or(
+            like(tasks.title, `%${filters.search}%`),
+            like(tasks.description, `%${filters.search}%`)
+          )
+        );
+      }
+      
       if (conditions.length > 0) {
         query = query.where(and(...conditions));
       }
     }
     
-    return await query.orderBy(desc(tasks.dueDate));
+    const result = query.orderBy(desc(tasks.dueDate));
+    
+    if (filters?.limit) {
+      return await result.limit(filters.limit);
+    }
+    
+    return await result;
   }
 
   async getTasksByClientId(clientId: number): Promise<Task[]> {

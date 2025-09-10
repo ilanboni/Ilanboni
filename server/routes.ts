@@ -7675,10 +7675,12 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   // Endpoint per recuperare tutti i task
   app.get("/api/tasks", async (req: Request, res: Response) => {
     try {
-      const { status, type } = req.query;
+      const { status, type, search, limit } = req.query;
       const filters: any = {};
       if (status) filters.status = status as string;
       if (type) filters.type = type as string;
+      if (search) filters.search = search as string;
+      if (limit) filters.limit = parseInt(limit as string, 10);
       
       const tasks = await storage.getTasks(filters);
       res.json(tasks);

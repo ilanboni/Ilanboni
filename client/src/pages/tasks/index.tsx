@@ -50,8 +50,14 @@ export default function TasksPage() {
   const { data: tasks, isLoading, isError } = useQuery({
     queryKey: ['/api/tasks', statusFilter, typeFilter, searchQuery],
     queryFn: async () => {
-      // This would be a real API call
-      const response = await fetch('/api/tasks');
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (typeFilter && typeFilter !== 'all') params.append('type', typeFilter);
+      if (searchQuery) params.append('search', searchQuery);
+      
+      const url = `/api/tasks${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch tasks');
       }
