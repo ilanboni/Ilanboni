@@ -49,6 +49,7 @@ import mailMergeRouter from "./routes/mailMerge";
 import whatsappRemindersRouter from "./routes/whatsappReminders";
 import { manualWebhookHandler } from "./routes/manualWebhook";
 import { backfillInboundTasks, createInboundTask } from "./services/inboundTaskManager";
+import { taskSyncScheduler } from "./services/taskSyncScheduler";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -7710,6 +7711,64 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
         error: "Errore durante il backfill dei task",
         details: error instanceof Error ? error.message : String(error)
       });
+    }
+  });
+
+  // Endpoint per il controllo del sistema di sincronizzazione automatica
+  app.get("/api/tasks/sync-status", async (req: Request, res: Response) => {
+    try {
+      const status = taskSyncScheduler.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('[GET /api/tasks/sync-status]', error);
+      res.status(500).json({ error: 'Failed to get sync status' });
+    }
+  });
+
+  app.post("/api/tasks/sync-now", async (req: Request, res: Response) => {
+    try {
+      console.log('[SYNC-NOW] Avvio sincronizzazione manuale...');
+      await taskSyncScheduler.syncNow();
+      res.json({ 
+        success: true, 
+        message: "Sincronizzazione manuale completata con successo"
+      });
+    } catch (error) {
+      console.error('[SYNC-NOW] Errore:', error);
+      res.status(500).json({ 
+        error: "Errore durante sincronizzazione manuale",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/tasks/sync-start", async (req: Request, res: Response) => {
+    try {
+      taskSyncScheduler.start();
+      const status = taskSyncScheduler.getStatus();
+      res.json({ 
+        success: true, 
+        message: "Sincronizzazione automatica avviata",
+        status
+      });
+    } catch (error) {
+      console.error('[SYNC-START] Errore:', error);
+      res.status(500).json({ error: 'Failed to start sync scheduler' });
+    }
+  });
+
+  app.post("/api/tasks/sync-stop", async (req: Request, res: Response) => {
+    try {
+      taskSyncScheduler.stop();
+      const status = taskSyncScheduler.getStatus();
+      res.json({ 
+        success: true, 
+        message: "Sincronizzazione automatica fermata",
+        status
+      });
+    } catch (error) {
+      console.error('[SYNC-STOP] Errore:', error);
+      res.status(500).json({ error: 'Failed to stop sync scheduler' });
     }
   });
 
