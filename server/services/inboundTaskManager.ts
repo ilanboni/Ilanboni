@@ -124,11 +124,8 @@ export async function backfillInboundTasks(): Promise<void> {
   try {
     console.log('[INBOUND-TASK] Avvio backfill task per comunicazioni in ingresso...');
 
-    // Recupera tutte le comunicazioni inbound recenti (ultimi 7 giorni) che necessitano risposta
-    const communications = await storage.getCommunications({
-      direction: 'inbound',
-      needsResponse: true
-    });
+    // Recupera tutte le comunicazioni recenti (ultimi 7 giorni)
+    const communications = await storage.getCommunications();
 
     console.log(`[INBOUND-TASK] Trovate ${communications.length} comunicazioni inbound da elaborare`);
 
@@ -177,16 +174,16 @@ export async function markInboundTaskCompleted(
   try {
     console.log(`[INBOUND-TASK] Marcatura task completati per cliente ${clientId} (${communicationType})`);
 
-    // Trova task pendenti per questo cliente relativo al tipo di comunicazione
+    // Trova task pendenti relativo al tipo di comunicazione
     const tasks = await storage.getTasks({
-      clientId,
       status: 'pending',
       type: 'call_response'
     });
 
     let tasksCompleted = 0;
     for (const task of tasks) {
-      if (task.notes?.includes(`comunicazione ${communicationType}`)) {
+      // Filtra per clientId e tipo di comunicazione
+      if (task.clientId === clientId && task.notes?.includes(`comunicazione ${communicationType}`)) {
         await storage.updateTask(task.id, {
           status: 'completed'
         });

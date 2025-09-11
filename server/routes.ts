@@ -48,6 +48,7 @@ import virtualAssistantRouter from "./routes/virtualAssistant";
 import mailMergeRouter from "./routes/mailMerge";
 import whatsappRemindersRouter from "./routes/whatsappReminders";
 import { manualWebhookHandler } from "./routes/manualWebhook";
+import { backfillInboundTasks, createInboundTask } from "./services/inboundTaskManager";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
