@@ -2,6 +2,37 @@ import { storage } from "../storage";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
+// CORREZIONE CRITICA: Sistema idempotente per prevenire duplicazioni
+const processedByCommunicationId = new Map<number, number>(); // commId → taskId
+const creationMutex = new Map<number, boolean>(); // commId → isCreating
+
+/**
+ * Hydrata l'indice delle comunicazioni processate dal database esistente
+ */
+async function hydrateProcessedCommunications(): Promise<void> {
+  try {
+    const allTasks = await storage.getTasks();
+    
+    for (const task of allTasks) {
+      if (task.notes) {
+        // Estrai ID comunicazione dalle note usando regex robusto
+        const match = task.notes.match(/\bID:\s*(\d+)\b/);
+        if (match) {
+          const commId = parseInt(match[1]);
+          processedByCommunicationId.set(commId, task.id);
+        }
+      }
+    }
+    
+    console.log(`[INBOUND-TASK] 🔄 Hydratato indice: ${processedByCommunicationId.size} comunicazioni processate`);
+  } catch (error) {
+    console.error('[INBOUND-TASK] ❌ Errore hydratazione indice:', error);
+  }
+}
+
+// Hydrata l'indice all'avvio del modulo
+hydrateProcessedCommunications();
+
 /**
  * Crea automaticamente un task per una comunicazione in ingresso
  * @param communicationId ID della comunicazione
@@ -20,31 +51,65 @@ export async function createInboundTask(
   content: string = ''
 ): Promise<void> {
   try {
+    // CORREZIONE CRITICA: Controllo idempotente per evitare duplicazioni
+    if (processedByCommunicationId.has(communicationId)) {
+      const existingTaskId = processedByCommunicationId.get(communicationId);
+      console.log(`[INBOUND-TASK] ⏭️  Task già esistente per comunicazione ${communicationId} (task ID: ${existingTaskId}), saltato`);
+      return;
+    }
+
+    // CORREZIONE CRITICA: Mutex per prevenire creazioni concorrenti
+    if (creationMutex.get(communicationId)) {
+      console.log(`[INBOUND-TASK] ⏸️  Creazione in corso per comunicazione ${communicationId}, aspetto...`);
+      return;
+    }
+
+    // Imposta mutex
+    creationMutex.set(communicationId, true);
+    
     console.log(`[INBOUND-TASK] Creazione task automatico per comunicazione ${communicationId}`);
+
+    // CORREZIONE CRITICA: Carica la comunicazione completa per dati accurati
+    const communication = await storage.getCommunication(communicationId);
+    if (!communication) {
+      console.warn(`[INBOUND-TASK] ⚠️ Comunicazione ${communicationId} non trovata, usando dati passati`);
+    }
+
+    // Usa i dati della comunicazione quando disponibili
+    const actualClientId = clientId || communication?.clientId;
+    const actualPropertyId = propertyId || communication?.propertyId;
+    const actualSharedPropertyId = sharedPropertyId || communication?.sharedPropertyId;
+    const actualContent = content || communication?.content || '';
+    const actualType = communicationType || communication?.type || 'whatsapp';
 
     // Determina informazioni cliente
     let clientInfo = '';
     let contactPhone = '';
-    if (clientId) {
-      const client = await storage.getClient(clientId);
+    if (actualClientId) {
+      const client = await storage.getClient(actualClientId);
       if (client) {
         clientInfo = `${client.firstName} ${client.lastName}`.trim() || 'Cliente';
         contactPhone = client.phone || '';
       }
     }
+    
+    // Se non c'è un cliente, prova ad estrarre il telefono dalla comunicazione
+    if (!contactPhone && communication) {
+      contactPhone = communication.senderPhone || communication.contactPhone || '';
+    }
 
     // Determina informazioni immobile
     let propertyInfo = '';
-    let taskPropertyId = propertyId || undefined;
-    let taskSharedPropertyId = sharedPropertyId || undefined;
+    let taskPropertyId = actualPropertyId || undefined;
+    let taskSharedPropertyId = actualSharedPropertyId || undefined;
 
-    if (propertyId) {
-      const property = await storage.getProperty(propertyId);
+    if (actualPropertyId) {
+      const property = await storage.getProperty(actualPropertyId);
       if (property) {
         propertyInfo = ` per l'immobile in ${property.address}`;
       }
-    } else if (sharedPropertyId) {
-      const sharedProperty = await storage.getSharedProperty(sharedPropertyId);
+    } else if (actualSharedPropertyId) {
+      const sharedProperty = await storage.getSharedProperty(actualSharedPropertyId);
       if (sharedProperty) {
         propertyInfo = ` per l'immobile in ${sharedProperty.address}`;
       }
@@ -100,19 +165,25 @@ export async function createInboundTask(
       type: taskType,
       title,
       description,
-      clientId: clientId || null,
+      clientId: actualClientId || null,
       propertyId: taskPropertyId || null,
       sharedPropertyId: taskSharedPropertyId || null,
       dueDate,
       status: 'pending',
       contactPhone: contactPhone || null,
-      notes: `Task creato automaticamente da comunicazione ${communicationType} ID: ${communicationId}`
+      notes: `Task creato automaticamente da comunicazione ${actualType} ID: ${communicationId}`
     });
+
+    // CORREZIONE CRITICA: Registra nell'indice per evitare duplicazioni future
+    processedByCommunicationId.set(communicationId, task.id);
 
     console.log(`[INBOUND-TASK] ✅ Task creato con ID ${task.id}: ${title}`);
 
   } catch (error) {
     console.error(`[INBOUND-TASK] ❌ Errore creazione task per comunicazione ${communicationId}:`, error);
+  } finally {
+    // CORREZIONE CRITICA: Rimuovi mutex sempre, anche in caso di errore
+    creationMutex.delete(communicationId);
   }
 }
 
@@ -122,27 +193,41 @@ export async function createInboundTask(
  */
 export async function backfillInboundTasks(): Promise<void> {
   try {
-    console.log('[INBOUND-TASK] Avvio backfill task per comunicazioni in ingresso...');
+    console.log('[INBOUND-TASK] 🔄 Avvio backfill task per comunicazioni inbound...');
 
-    // Recupera tutte le comunicazioni recenti (ultimi 7 giorni)
-    const communications = await storage.getCommunications();
+    // Filtra per ultimi 7 giorni per evitare processare tutta la storia
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    console.log(`[INBOUND-TASK] Trovate ${communications.length} comunicazioni inbound da elaborare`);
+    // CORREZIONE: getCommunications non supporta filtri, implementa filtraggio manuale
+    const allCommunications = await storage.getCommunications();
+    const communications = allCommunications.filter(comm => {
+      const commDate = new Date(comm.createdAt || comm.timestamp || 0);
+      return commDate >= sevenDaysAgo;
+    });
+
+    console.log(`[INBOUND-TASK] Trovate ${communications.length} comunicazioni recenti da elaborare`);
+
+    // CORREZIONE CRITICA: Carica tutti i task UNA VOLTA per evitare O(N^2)
+    const allTasks = await storage.getTasks();
 
     let tasksCreated = 0;
     for (const comm of communications) {
-      // Verifica se esiste già un task per questa comunicazione
-      const existingTasks = await storage.getTasks({
-        type: 'call_response'
+      // CORREZIONE CRITICA: Verifica esistenza ROBUSTA per ID comunicazione unico
+      const commIdString = comm.id.toString();
+      const hasExistingTask = allTasks.some(task => {
+        if (!task.notes) return false;
+        
+        // Verifica multipli pattern per essere certi
+        return task.notes.includes(`ID: ${commIdString}`) ||
+               task.notes.includes(`comunicazione whatsapp ID: ${commIdString}`) ||
+               task.notes.includes(`comunicazione email ID: ${commIdString}`) ||
+               task.notes.includes(`comunicazione phone ID: ${commIdString}`) ||
+               task.notes.includes(` ID: ${commIdString}`)  // Con spazio prima
       });
 
-      // Cerca task che potrebbero essere collegati a questa comunicazione
-      const hasExistingTask = existingTasks.some(task => 
-        task.clientId === comm.clientId && 
-        task.notes?.includes(`comunicazione ${comm.type}`)
-      );
-
       if (!hasExistingTask) {
+        console.log(`[INBOUND-TASK] Creando task per comunicazione ${comm.id} (tipo: ${comm.type})`);
         await createInboundTask(
           comm.id,
           comm.clientId || undefined,
@@ -152,6 +237,8 @@ export async function backfillInboundTasks(): Promise<void> {
           comm.content || ''
         );
         tasksCreated++;
+      } else {
+        console.log(`[INBOUND-TASK] ⏭️  Task già esistente per comunicazione ${comm.id}, saltato`);
       }
     }
 

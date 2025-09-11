@@ -5,6 +5,9 @@ interface SyncSchedulerOptions {
   enabled?: boolean;
 }
 
+// CORREZIONE CRITICA: Flag globale per prevenire scheduler multipli
+let globalSchedulerRunning = false;
+
 class TaskSyncScheduler {
   private intervalId: NodeJS.Timeout | null = null;
   private intervalMs: number;
@@ -24,10 +27,12 @@ class TaskSyncScheduler {
       return;
     }
 
-    if (this.intervalId) {
-      console.log('[TASK-SYNC] ⚠️ Scheduler già avviato');
+    if (globalSchedulerRunning || this.intervalId) {
+      console.log('[TASK-SYNC] ⚠️ Scheduler già avviato globalmente');
       return;
     }
+
+    globalSchedulerRunning = true;
 
     console.log(`[TASK-SYNC] 🚀 Avvio sincronizzazione automatica ogni ${this.intervalMs / 60000} minuti`);
 
@@ -49,6 +54,7 @@ class TaskSyncScheduler {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+      globalSchedulerRunning = false;
       console.log('[TASK-SYNC] ⏹️ Scheduler fermato');
     }
   }
