@@ -343,8 +343,8 @@ export default function CommunicationsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  // Fetch all communications
-  const { data: communications, isLoading } = useQuery<Communication[]>({
+  // Fetch all communications with auto-refresh every 5 minutes
+  const { data: communications, isLoading, isFetching } = useQuery<Communication[]>({
     queryKey: ["/api/communications"],
     queryFn: async () => {
       const response = await fetch('/api/communications');
@@ -353,11 +353,19 @@ export default function CommunicationsPage() {
       }
       return await response.json();
     },
+    refetchInterval: 300000, // 5 minutes
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 60000 // 1 minute
   });
   
-  // Fetch all clients for name display
+  // Fetch all clients for name display with auto-refresh
   const { data: clients } = useQuery({
     queryKey: ["/api/clients"],
+    refetchInterval: 300000, // 5 minutes
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 60000 // 1 minute
   });
 
   // Mutation for updating management status
