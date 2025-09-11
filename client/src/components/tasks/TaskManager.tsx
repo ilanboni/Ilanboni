@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { ChevronDown, ChevronRight, Users } from "lucide-react";
 // import { AdvancedCallForm } from "./AdvancedCallForm"; // DISABILITATO per loop infinito
 
 interface Task {
@@ -231,6 +232,65 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
 
   const pendingTasks = Array.isArray(tasks) ? tasks.filter((task: Task) => task.status === "pending") : [];
 
+  // Raggruppa i task per cliente
+  const groupedTasks = useMemo(() => {
+    const groups = new Map<string, {
+      clientKey: string;
+      clientName: string;
+      clientId: number | null;
+      tasks: Task[];
+      totalTasks: number;
+    }>();
+
+    pendingTasks.forEach((task: Task) => {
+      // Crea una chiave per il raggruppamento
+      let clientKey: string;
+      let clientName: string;
+      
+      if (task.clientId) {
+        clientKey = `client_${task.clientId}`;
+        clientName = task.contactName || `Cliente ID ${task.clientId}`;
+      } else if (task.contactName) {
+        clientKey = `contact_${task.contactName.toLowerCase().replace(/\s+/g, '_')}`;
+        clientName = task.contactName;
+      } else {
+        clientKey = `unknown_${task.id}`;
+        clientName = 'Cliente Sconosciuto';
+      }
+
+      if (!groups.has(clientKey)) {
+        groups.set(clientKey, {
+          clientKey,
+          clientName,
+          clientId: task.clientId,
+          tasks: [],
+          totalTasks: 0
+        });
+      }
+
+      const group = groups.get(clientKey)!;
+      group.tasks.push(task);
+      group.totalTasks = group.tasks.length;
+    });
+
+    return Array.from(groups.values()).sort((a, b) => b.totalTasks - a.totalTasks);
+  }, [pendingTasks]);
+
+  // Stato per gestire l'espansione dei gruppi
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (clientKey: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(clientKey)) {
+        newSet.delete(clientKey);
+      } else {
+        newSet.add(clientKey);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <Card>
       {showTitle && (
@@ -325,7 +385,27 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
       )}
       
       <CardContent>
-        {pendingTasks.length === 0 ? (
+        {/* Statistiche raggruppamento */}
+        {groupedTasks.length > 0 && (
+          <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-blue-700">
+                <Users className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  {groupedTasks.length === 1 ? 
+                    '1 cliente con task da gestire' :
+                    `${groupedTasks.length} clienti con task da gestire`
+                  }
+                </span>
+              </div>
+              <div className="text-sm text-blue-600">
+                {pendingTasks.length} task totali
+              </div>
+            </div>
+          </div>
+        )}
+
+        {groupedTasks.length === 0 ? (
           <div className="py-10 text-center text-gray-500">
             <div className="text-5xl mb-4 text-gray-300">
               <i className="fas fa-tasks"></i>
@@ -335,87 +415,141 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
           </div>
         ) : (
           <div className="space-y-4">
-            {pendingTasks.map((task: Task) => (
-              <div key={task.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
+            {groupedTasks.map((group) => (
+              <div key={group.clientKey} className="border rounded-lg">
+                {/* Header del gruppo cliente */}
+                <div 
+                  className="p-4 bg-gray-50 cursor-pointer flex items-center justify-between hover:bg-gray-100 transition-colors"
+                  onClick={() => toggleGroup(group.clientKey)}
+                >
+                  <div className="flex items-center gap-3">
+                    {expandedGroups.has(group.clientKey) ? 
+                      <ChevronDown className="h-5 w-5 text-gray-500" /> : 
+                      <ChevronRight className="h-5 w-5 text-gray-500" />
+                    }
+                    <Users className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <h3 className="font-semibold text-lg">{group.clientName}</h3>
+                      <p className="text-sm text-gray-600">
+                        {group.totalTasks === 1 ? 
+                          '1 comunicazione da gestire' : 
+                          `${group.totalTasks} comunicazioni da gestire`
+                        }
+                      </p>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
-                    {getTypeBadge(task.type)}
-                    {getStatusBadge(task.status)}
+                    <Badge 
+                      variant="secondary" 
+                      className={`${group.totalTasks > 3 ? 'bg-red-50 text-red-700' : group.totalTasks > 1 ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'}`}
+                    >
+                      {group.totalTasks} task
+                    </Badge>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {formatDate(task.dueDate)}
-                  </div>
                 </div>
                 
-                <div>
-                  <h4 className="font-medium">{task.title}</h4>
-                  {task.description && (
-                    <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  {task.contactName && (
-                    <div>
-                      <span className="font-medium text-gray-700">Nome:</span>
-                      <span className="ml-1">{task.contactName}</span>
+                {/* Contenuto espandibile del gruppo */}
+                {expandedGroups.has(group.clientKey) && (
+                  <div className="divide-y">
+                    {group.tasks.map((task: Task) => (
+                      <div key={task.id} className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {getTypeBadge(task.type)}
+                            {getStatusBadge(task.status)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {formatDate(task.dueDate)}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-medium text-sm">{task.title}</h4>
+                          {task.description && (
+                            <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          {task.contactPhone && (
+                            <div>
+                              <span className="font-medium text-gray-700">Telefono:</span>
+                              <span className="ml-1">{task.contactPhone}</span>
+                            </div>
+                          )}
+                          {task.contactEmail && (
+                            <div>
+                              <span className="font-medium text-gray-700">Email:</span>
+                              <span className="ml-1">{task.contactEmail}</span>
+                            </div>
+                          )}
+                          {task.propertyInterest && (
+                            <div>
+                              <span className="font-medium text-gray-700">Interesse:</span>
+                              <span className="ml-1">{task.propertyInterest}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {task.notes && (
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-700">Note:</span>
+                            <p className="mt-1 text-gray-600">{task.notes}</p>
+                          </div>
+                        )}
+                        
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelectedTask(task);
+                              setClientForm(prev => ({
+                                ...prev,
+                                firstName: task.contactName?.split(' ')[0] || "",
+                                lastName: task.contactName?.split(' ').slice(1).join(' ') || "",
+                                email: task.contactEmail || "",
+                              }));
+                              setShowClientDialog(true);
+                            }}
+                          >
+                            <i className="fas fa-user-plus mr-2"></i>
+                            Crea Cliente
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateTaskMutation.mutate({ id: task.id, data: { status: "completed" } })}
+                            disabled={updateTaskMutation.isPending}
+                          >
+                            {updateTaskMutation.isPending && <i className="fas fa-spinner animate-spin mr-2"></i>}
+                            <i className="fas fa-check mr-2"></i>
+                            Completa
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Azioni rapide per tutto il gruppo */}
+                    <div className="p-4 bg-gray-50 border-t">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            group.tasks.forEach(task => {
+                              updateTaskMutation.mutate({ id: task.id, data: { status: "completed" } });
+                            });
+                          }}
+                          disabled={updateTaskMutation.isPending}
+                          className="text-green-700 border-green-200 hover:bg-green-50"
+                        >
+                          <i className="fas fa-check-double mr-2"></i>
+                          Completa Tutti ({group.totalTasks})
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                  {task.contactPhone && (
-                    <div>
-                      <span className="font-medium text-gray-700">Telefono:</span>
-                      <span className="ml-1">{task.contactPhone}</span>
-                    </div>
-                  )}
-                  {task.contactEmail && (
-                    <div>
-                      <span className="font-medium text-gray-700">Email:</span>
-                      <span className="ml-1">{task.contactEmail}</span>
-                    </div>
-                  )}
-                  {task.propertyInterest && (
-                    <div>
-                      <span className="font-medium text-gray-700">Interesse:</span>
-                      <span className="ml-1">{task.propertyInterest}</span>
-                    </div>
-                  )}
-                </div>
-                
-                {task.notes && (
-                  <div className="text-sm">
-                    <span className="font-medium text-gray-700">Note:</span>
-                    <p className="mt-1 text-gray-600">{task.notes}</p>
                   </div>
                 )}
-                
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTask(task);
-                      setClientForm(prev => ({
-                        ...prev,
-                        firstName: task.contactName?.split(' ')[0] || "",
-                        lastName: task.contactName?.split(' ').slice(1).join(' ') || "",
-                        email: task.contactEmail || "",
-                      }));
-                      setShowClientDialog(true);
-                    }}
-                  >
-                    <i className="fas fa-user-plus mr-2"></i>
-                    Crea Cliente
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => updateTaskMutation.mutate({ id: task.id, data: { status: "completed" } })}
-                    disabled={updateTaskMutation.isPending}
-                  >
-                    {updateTaskMutation.isPending && <i className="fas fa-spinner animate-spin mr-2"></i>}
-                    <i className="fas fa-check mr-2"></i>
-                    Completa
-                  </Button>
-                </div>
               </div>
             ))}
           </div>
