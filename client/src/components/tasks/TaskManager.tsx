@@ -211,25 +211,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
     }
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        {showTitle && (
-          <CardHeader>
-            <CardTitle>Task da Completare</CardTitle>
-          </CardHeader>
-        )}
-        <CardContent>
-          <div className="flex justify-center py-8">
-            <div className="animate-spin text-3xl text-gray-300">
-              <i className="fas fa-spinner"></i>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
+  // Questi hook devono essere chiamati PRIMA di qualsiasi return condizionale
   const pendingTasks = Array.isArray(tasks) ? tasks.filter((task: Task) => task.status === "pending") : [];
 
   // Raggruppa i task per cliente
@@ -290,6 +272,25 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
       return newSet;
     });
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        {showTitle && (
+          <CardHeader>
+            <CardTitle>Task da Completare</CardTitle>
+          </CardHeader>
+        )}
+        <CardContent>
+          <div className="flex justify-center py-8">
+            <div className="animate-spin text-3xl text-gray-300">
+              <i className="fas fa-spinner"></i>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
