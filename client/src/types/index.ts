@@ -3,6 +3,9 @@ import {
   Appointment, Task, MarketInsight, User 
 } from "@shared/schema";
 
+// Re-export types from shared schema
+export type { Task, ClientWithDetails, Client, Property, PropertyWithDetails, Appointment, MarketInsight, User };
+
 // Extended types for frontend
 
 export interface MapLocation {
@@ -92,7 +95,7 @@ export type ClientType = 'buyer' | 'seller';
 export type PropertyStatus = 'available' | 'pending' | 'sold';
 export type AppointmentType = 'visit' | 'call';
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled';
-export type TaskType = 'followUp' | 'noResponse' | 'birthday' | 'reminder';
+export type TaskType = 'followUp' | 'noResponse' | 'birthday' | 'reminder' | 'call_response' | 'generic_call' | 'client_conversation';
 export type TaskStatus = 'pending' | 'completed' | 'cancelled';
 export type ReligionType = 'christian' | 'jewish' | 'muslim' | 'hindu' | 'buddhist' | 'none' | 'other';
 export type ContractType = 'rent' | 'sale';

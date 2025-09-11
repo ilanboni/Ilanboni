@@ -68,7 +68,7 @@ export default function TasksPage() {
   // Mutations for tasks
   const completeTaskMutation = useMutation({
     mutationFn: async (taskId: number) => {
-      return await apiRequest('PATCH', `/api/tasks/${taskId}/complete`, null);
+      return await apiRequest(`/api/tasks/${taskId}/complete`, { method: 'PATCH' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -89,7 +89,7 @@ export default function TasksPage() {
   const postponeTaskMutation = useMutation({
     mutationFn: async (taskId: number) => {
       // Postpone by 1 day
-      return await apiRequest('PATCH', `/api/tasks/${taskId}/postpone`, { days: 1 });
+      return await apiRequest(`/api/tasks/${taskId}/postpone`, { method: 'PATCH', data: { days: 1 } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -109,7 +109,7 @@ export default function TasksPage() {
   
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: number) => {
-      return await apiRequest('DELETE', `/api/tasks/${taskId}`);
+      return await apiRequest(`/api/tasks/${taskId}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
