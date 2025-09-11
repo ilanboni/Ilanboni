@@ -104,6 +104,11 @@ export interface IStorage {
   completeTask(id: number): Promise<Task | undefined>;
   deleteTask(id: number): Promise<boolean>;
   
+  // Client conversation task methods
+  findClientConversationTask(clientId: number): Promise<Task | undefined>;
+  upsertClientConversationTask(clientId: number, data: Partial<InsertTask>): Promise<Task>;
+  getClientCommunicationsTimeline(clientId: number): Promise<Communication[]>;
+  
   // Market insight methods
   getMarketInsight(id: number): Promise<MarketInsight | undefined>;
   getMarketInsights(filters?: { area?: string; month?: number; year?: number }): Promise<MarketInsight[]>;
@@ -989,6 +994,43 @@ export class MemStorage implements IStorage {
   
   async deleteTask(id: number): Promise<boolean> {
     return this.taskStore.delete(id);
+  }
+  
+  // Client conversation task methods
+  async findClientConversationTask(clientId: number): Promise<Task | undefined> {
+    return Array.from(this.taskStore.values()).find(
+      task => task.type === 'client_conversation' && task.clientId === clientId
+    );
+  }
+  
+  async upsertClientConversationTask(clientId: number, data: Partial<InsertTask>): Promise<Task> {
+    const existingTask = await this.findClientConversationTask(clientId);
+    
+    if (existingTask) {
+      // Update existing task
+      const updatedTask: Task = {
+        ...existingTask,
+        ...data,
+        id: existingTask.id,
+        createdAt: existingTask.createdAt
+      };
+      this.taskStore.set(existingTask.id, updatedTask);
+      return updatedTask;
+    } else {
+      // Create new task
+      return await this.createTask({
+        ...data,
+        type: 'client_conversation',
+        clientId: clientId,
+        title: data.title || `Gestire comunicazioni con cliente ${clientId}`,
+        dueDate: data.dueDate || new Date().toISOString().split('T')[0],
+        status: data.status || 'pending'
+      } as InsertTask);
+    }
+  }
+  
+  async getClientCommunicationsTimeline(clientId: number): Promise<Communication[]> {
+    return await this.getCommunicationsByClientId(clientId);
   }
   
   // Communication methods

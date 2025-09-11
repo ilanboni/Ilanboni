@@ -136,7 +136,7 @@ export const appointments = pgTable("appointments", {
 // Tasks and alerts
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  type: text("type").notNull(), // followUp, noResponse, birthday, generic_call, etc.
+  type: text("type").notNull(), // followUp, noResponse, birthday, generic_call, client_conversation, etc.
   title: text("title").notNull(),
   description: text("description"),
   clientId: integer("client_id").references(() => clients.id),
