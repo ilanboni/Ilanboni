@@ -196,7 +196,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
   };
 
   // Questi hook devono essere chiamati PRIMA di qualsiasi return condizionale
-  const pendingTasks = Array.isArray(tasks) ? tasks.filter((task: Task) => task.status === "pending") : [];
+  const pendingTasks = Array.isArray(tasks) ? tasks.filter((task: TaskWithClient) => task.status === "pending") : [];
 
   // Raggruppa i task per cliente
   const groupedTasks = useMemo(() => {
@@ -440,7 +440,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
                 {/* Contenuto espandibile del gruppo */}
                 {expandedGroups.has(group.clientKey) && (
                   <div className="divide-y">
-                    {group.tasks.map((task: Task) => (
+                    {group.tasks.map((task: TaskWithClient) => (
                       <div key={task.id} className="p-4 space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
