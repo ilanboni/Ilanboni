@@ -73,7 +73,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
       data: data,
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/tasks") });
       setShowCreateDialog(false);
       setCreateTaskForm({
         contactName: "",
@@ -105,7 +105,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
         data: data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/tasks") });
       toast({
         title: "Task aggiornato",
         description: "Lo stato del task è stato modificato.",
@@ -123,7 +123,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
       return await response.json();
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/tasks") });
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       setShowClientDialog(false);
       setSelectedTask(null);
