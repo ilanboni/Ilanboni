@@ -63,10 +63,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
 
   // Query per recuperare i task
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ["/api/tasks", filter],
-    queryFn: () => apiRequest(`/api/tasks${filter !== "all" ? `?type=${filter}` : ""}`, {
-      method: "GET"
-    }),
+    queryKey: [`/api/tasks${filter !== "all" ? `?type=${filter}` : ""}`],
   });
 
   // Mutation per creare task
