@@ -34,7 +34,8 @@ async function hydrateProcessedCommunications(): Promise<void> {
 hydrateProcessedCommunications();
 
 /**
- * Crea automaticamente un task per una comunicazione in ingresso
+ * Crea/aggiorna automaticamente un task di conversazione cliente per una comunicazione in ingresso
+ * Consolida tutte le comunicazioni di un cliente in un singolo task unificato
  * @param communicationId ID della comunicazione
  * @param clientId ID del cliente (se disponibile)
  * @param propertyId ID dell'immobile (se disponibile)
@@ -54,20 +55,20 @@ export async function createInboundTask(
     // CORREZIONE CRITICA: Controllo idempotente per evitare duplicazioni
     if (processedByCommunicationId.has(communicationId)) {
       const existingTaskId = processedByCommunicationId.get(communicationId);
-      console.log(`[INBOUND-TASK] ⏭️  Task già esistente per comunicazione ${communicationId} (task ID: ${existingTaskId}), saltato`);
+      console.log(`[INBOUND-TASK] ⏭️  Comunicazione ${communicationId} già processata (task ID: ${existingTaskId}), saltato`);
       return;
     }
 
     // CORREZIONE CRITICA: Mutex per prevenire creazioni concorrenti
     if (creationMutex.get(communicationId)) {
-      console.log(`[INBOUND-TASK] ⏸️  Creazione in corso per comunicazione ${communicationId}, aspetto...`);
+      console.log(`[INBOUND-TASK] ⏸️  Elaborazione in corso per comunicazione ${communicationId}, aspetto...`);
       return;
     }
 
     // Imposta mutex
     creationMutex.set(communicationId, true);
     
-    console.log(`[INBOUND-TASK] Creazione task automatico per comunicazione ${communicationId}`);
+    console.log(`[INBOUND-TASK] 🔄 Elaborazione comunicazione ${communicationId} per task cliente consolidato`);
 
     // CORREZIONE CRITICA: Carica la comunicazione completa per dati accurati
     const communication = await storage.getCommunication(communicationId);
@@ -82,102 +83,16 @@ export async function createInboundTask(
     const actualContent = content || communication?.content || '';
     const actualType = communicationType || communication?.type || 'whatsapp';
 
-    // Determina informazioni cliente
-    let clientInfo = '';
-    let contactPhone = '';
-    if (actualClientId) {
-      const client = await storage.getClient(actualClientId);
-      if (client) {
-        clientInfo = `${client.firstName} ${client.lastName}`.trim() || 'Cliente';
-        contactPhone = client.phone || '';
-      }
-    }
-    
-    // Se non c'è un cliente, prova ad estrarre il telefono dalla comunicazione
-    if (!contactPhone && communication) {
-      contactPhone = communication.senderPhone || communication.contactPhone || '';
+    // STRATEGIA CONSOLIDAMENTO: Se non c'è cliente, crea task generico tradizionale
+    if (!actualClientId) {
+      console.log(`[INBOUND-TASK] 📝 Nessun cliente identificato, creazione task generico tradizionale`);
+      await createGenericInboundTask(communicationId, actualPropertyId, actualSharedPropertyId, actualType, actualContent);
+      return;
     }
 
-    // Determina informazioni immobile
-    let propertyInfo = '';
-    let taskPropertyId = actualPropertyId || undefined;
-    let taskSharedPropertyId = actualSharedPropertyId || undefined;
-
-    if (actualPropertyId) {
-      const property = await storage.getProperty(actualPropertyId);
-      if (property) {
-        propertyInfo = ` per l'immobile in ${property.address}`;
-      }
-    } else if (actualSharedPropertyId) {
-      const sharedProperty = await storage.getSharedProperty(actualSharedPropertyId);
-      if (sharedProperty) {
-        propertyInfo = ` per l'immobile in ${sharedProperty.address}`;
-      }
-    }
-
-    // Determina il tipo di task e titolo
-    let taskType = 'call_response';
-    let title = '';
-    let description = '';
-
-    switch (communicationType) {
-      case 'whatsapp':
-        title = clientInfo 
-          ? `Rispondere a ${clientInfo} su WhatsApp${propertyInfo}`
-          : `Gestire messaggio WhatsApp da ${contactPhone}${propertyInfo}`;
-        description = `Messaggio WhatsApp ricevuto: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`;
-        break;
-      case 'email':
-        title = clientInfo 
-          ? `Rispondere email a ${clientInfo}${propertyInfo}`
-          : `Gestire email${propertyInfo}`;
-        description = `Email ricevuta: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`;
-        break;
-      case 'phone':
-        title = clientInfo 
-          ? `Richiamare ${clientInfo}${propertyInfo}`
-          : `Gestire chiamata da ${contactPhone}${propertyInfo}`;
-        description = `Chiamata ricevuta`;
-        break;
-      default:
-        title = clientInfo 
-          ? `Rispondere a ${clientInfo}${propertyInfo}`
-          : `Gestire comunicazione${propertyInfo}`;
-        description = `Comunicazione ricevuta: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`;
-    }
-
-    // Se non c'è un cliente specifico, è un task generico
-    if (!clientId && !propertyId && !sharedPropertyId) {
-      taskType = 'generic_call';
-      title = contactPhone 
-        ? `Gestire chiamata da ${contactPhone}`
-        : 'Gestire comunicazione ricevuta';
-      description += '\n\nTask generico: assegna a un immobile, crea nuovo cliente o elimina se non necessario.';
-    }
-
-    // Data di scadenza: domani per task urgenti
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dueDate = format(tomorrow, 'yyyy-MM-dd');
-
-    // Crea il task
-    const task = await storage.createTask({
-      type: taskType,
-      title,
-      description,
-      clientId: actualClientId || null,
-      propertyId: taskPropertyId || null,
-      sharedPropertyId: taskSharedPropertyId || null,
-      dueDate,
-      status: 'pending',
-      contactPhone: contactPhone || null,
-      notes: `Task creato automaticamente da comunicazione ${actualType} ID: ${communicationId}`
-    });
-
-    // CORREZIONE CRITICA: Registra nell'indice per evitare duplicazioni future
-    processedByCommunicationId.set(communicationId, task.id);
-
-    console.log(`[INBOUND-TASK] ✅ Task creato con ID ${task.id}: ${title}`);
+    // STRATEGIA CONSOLIDAMENTO: Con cliente, usa sistema task consolidato per cliente
+    console.log(`[INBOUND-TASK] 👤 Cliente ${actualClientId} identificato, aggiornamento task conversazione consolidato`);
+    await upsertClientConversationTask(communicationId, actualClientId, actualPropertyId, actualSharedPropertyId, actualType, actualContent);
 
   } catch (error) {
     console.error(`[INBOUND-TASK] ❌ Errore creazione task per comunicazione ${communicationId}:`, error);
@@ -247,6 +162,130 @@ export async function backfillInboundTasks(): Promise<void> {
   } catch (error) {
     console.error('[INBOUND-TASK] ❌ Errore durante backfill task:', error);
   }
+}
+
+/**
+ * Crea task generico per comunicazioni senza cliente identificato (logica tradizionale)
+ */
+async function createGenericInboundTask(
+  communicationId: number,
+  propertyId?: number,
+  sharedPropertyId?: number,
+  communicationType: string = 'whatsapp',
+  content: string = ''
+): Promise<void> {
+  const communication = await storage.getCommunication(communicationId);
+  const contactPhone = communication?.senderPhone || communication?.contactPhone || '';
+  
+  let title = '';
+  let description = '';
+  let taskType = 'generic_call';
+
+  switch (communicationType) {
+    case 'whatsapp':
+      title = `Gestire messaggio WhatsApp da ${contactPhone}`;
+      description = `Messaggio WhatsApp ricevuto: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`;
+      break;
+    case 'email':
+      title = `Gestire email`;
+      description = `Email ricevuta: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`;
+      break;
+    case 'phone':
+      title = `Gestire chiamata da ${contactPhone}`;
+      description = `Chiamata ricevuta`;
+      break;
+    default:
+      title = 'Gestire comunicazione ricevuta';
+      description = `Comunicazione ricevuta: "${content.substring(0, 100)}${content.length > 100 ? '...' : ''}"`;
+  }
+
+  description += '\n\nTask generico: assegna a un immobile, crea nuovo cliente o elimina se non necessario.';
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dueDate = format(tomorrow, 'yyyy-MM-dd');
+
+  const task = await storage.createTask({
+    type: taskType,
+    title,
+    description,
+    clientId: null,
+    propertyId: propertyId || null,
+    sharedPropertyId: sharedPropertyId || null,
+    dueDate,
+    status: 'pending',
+    contactPhone: contactPhone || null,
+    notes: `Task creato automaticamente da comunicazione ${communicationType} ID: ${communicationId}`
+  });
+
+  processedByCommunicationId.set(communicationId, task.id);
+  console.log(`[INBOUND-TASK] ✅ Task generico creato con ID ${task.id}: ${title}`);
+}
+
+/**
+ * Crea/aggiorna task di conversazione cliente consolidato
+ */
+async function upsertClientConversationTask(
+  communicationId: number,
+  clientId: number,
+  propertyId?: number,
+  sharedPropertyId?: number,
+  communicationType: string = 'whatsapp',
+  content: string = ''
+): Promise<void> {
+  // Ottieni informazioni cliente
+  const client = await storage.getClient(clientId);
+  const clientName = client ? `${client.firstName} ${client.lastName}`.trim() || 'Cliente' : `Cliente ${clientId}`;
+
+  // Ottieni timeline comunicazioni per contare messaggi non risposti
+  const communications = await storage.getClientCommunicationsTimeline(clientId);
+  const inboundComms = communications.filter(c => !c.isFromMe && c.needsResponse);
+  const totalInbound = inboundComms.length;
+
+  // Conta i tipi di comunicazione per il titolo
+  const whatsappCount = communications.filter(c => c.type === 'whatsapp' && !c.isFromMe).length;
+  const emailCount = communications.filter(c => c.type === 'email' && !c.isFromMe).length;
+  const phoneCount = communications.filter(c => c.type === 'phone' && !c.isFromMe).length;
+
+  // Costruisci titolo dinamico
+  let communicationTypes = [];
+  if (whatsappCount > 0) communicationTypes.push(`WhatsApp (${whatsappCount})`);
+  if (emailCount > 0) communicationTypes.push(`Email (${emailCount})`);
+  if (phoneCount > 0) communicationTypes.push(`Telefono (${phoneCount})`);
+
+  const title = `Gestire conversazione con ${clientName} - ${communicationTypes.join(', ')}`;
+  
+  // Ultima comunicazione per descrizione
+  const lastComm = communications
+    .filter(c => !c.isFromMe)
+    .sort((a, b) => new Date(b.createdAt || b.timestamp || 0).getTime() - new Date(a.createdAt || a.timestamp || 0).getTime())[0];
+
+  let description = `Cliente: ${clientName}\n`;
+  description += `Comunicazioni in attesa di risposta: ${totalInbound}\n`;
+  if (lastComm) {
+    description += `\nUltimo messaggio (${lastComm.type}):\n"${lastComm.content?.substring(0, 200)}${(lastComm.content?.length || 0) > 200 ? '...' : ''}"`;
+  }
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dueDate = format(tomorrow, 'yyyy-MM-dd');
+
+  // Determina status: pending se ci sono messaggi non risposti, altrimenti completed
+  const status = totalInbound > 0 ? 'pending' : 'completed';
+
+  const task = await storage.upsertClientConversationTask(clientId, {
+    title,
+    description,
+    dueDate,
+    status,
+    propertyId: propertyId || null,
+    sharedPropertyId: sharedPropertyId || null,
+    contactPhone: client?.phone || null,
+    notes: `Task consolidato per cliente ${clientId}. Include comunicazioni: ${communications.map(c => c.id).join(', ')}`
+  });
+
+  processedByCommunicationId.set(communicationId, task.id);
+  console.log(`[INBOUND-TASK] ✅ Task conversazione ${status === 'pending' ? 'aggiornato' : 'creato'} per ${clientName} (ID: ${task.id})`);
 }
 
 /**
