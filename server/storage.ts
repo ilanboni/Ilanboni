@@ -95,7 +95,7 @@ export interface IStorage {
   
   // Task methods
   getTask(id: number): Promise<Task | undefined>;
-  getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number }): Promise<Task[]>;
+  getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number }): Promise<TaskWithClient[]>;
   getTasksByClientId(clientId: number): Promise<Task[]>;
   getTasksByPropertyId(propertyId: number): Promise<Task[]>;
   getTasksBySharedPropertyId(sharedPropertyId: number): Promise<Task[]>;
@@ -909,8 +909,15 @@ export class MemStorage implements IStorage {
     return this.taskStore.get(id);
   }
   
-  async getTasks(filters?: { status?: string; type?: string }): Promise<Task[]> {
+  async getTasks(filters?: { status?: string; type?: string }): Promise<TaskWithClient[]> {
     let tasks = Array.from(this.taskStore.values());
+    
+    // Aggiunge i campi clientFirstName e clientLastName per compatibilità
+    const tasksWithClient: TaskWithClient[] = tasks.map(task => ({
+      ...task,
+      clientFirstName: task.clientId ? this.clientStore.get(task.clientId)?.firstName || null : null,
+      clientLastName: task.clientId ? this.clientStore.get(task.clientId)?.lastName || null : null,
+    }));
     
     if (filters) {
       if (filters.status && filters.status !== "all") {
@@ -2519,8 +2526,12 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number }): Promise<Task[]> {
-    let query = db.select().from(tasks);
+  async getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number }): Promise<TaskWithClient[]> {
+    let query = db.select({
+      ...tasks,
+      clientFirstName: clients.firstName,
+      clientLastName: clients.lastName
+    }).from(tasks).leftJoin(clients, eq(tasks.clientId, clients.id));
     
     if (filters) {
       const conditions: SQL[] = [];

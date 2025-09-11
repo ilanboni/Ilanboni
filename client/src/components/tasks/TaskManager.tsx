@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { TaskWithClient } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,21 +16,7 @@ import { it } from "date-fns/locale";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
 // import { AdvancedCallForm } from "./AdvancedCallForm"; // DISABILITATO per loop infinito
 
-interface Task {
-  id: number;
-  type: string;
-  title: string;
-  description: string | null;
-  status: string;
-  dueDate: string;
-  contactName: string | null;
-  contactPhone: string | null;
-  contactEmail: string | null;
-  propertyInterest: string | null;
-  notes: string | null;
-  clientId: number | null;
-  createdAt: string;
-}
+// Usa TaskWithClient dal schema condiviso che include clientFirstName e clientLastName
 
 interface TaskManagerProps {
   showTitle?: boolean;
@@ -40,7 +27,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showAdvancedForm, setShowAdvancedForm] = useState(false);
   const [showClientDialog, setShowClientDialog] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskWithClient | null>(null);
   const [createTaskForm, setCreateTaskForm] = useState({
     contactName: "",
     contactPhone: "",
@@ -62,7 +49,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
   const queryClient = useQueryClient();
 
   // Query per recuperare i task
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: tasks = [], isLoading } = useQuery<TaskWithClient[]>({
     queryKey: [`/api/tasks${filter !== "all" ? `?type=${filter}` : ""}`],
   });
 
@@ -217,18 +204,22 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
       clientKey: string;
       clientName: string;
       clientId: number | null;
-      tasks: Task[];
+      tasks: TaskWithClient[];
       totalTasks: number;
     }>();
 
-    pendingTasks.forEach((task: Task) => {
+    pendingTasks.forEach((task: TaskWithClient) => {
       // Crea una chiave per il raggruppamento
       let clientKey: string;
       let clientName: string;
       
       if (task.clientId) {
         clientKey = `client_${task.clientId}`;
-        clientName = task.contactName || `Cliente ID ${task.clientId}`;
+        if (task.clientFirstName || task.clientLastName) {
+          clientName = `${task.clientFirstName || ''} ${task.clientLastName || ''}`.trim() || `Cliente ID ${task.clientId}`;
+        } else {
+          clientName = task.contactName || `Cliente ID ${task.clientId}`;
+        }
       } else if (task.contactName) {
         clientKey = `contact_${task.contactName.toLowerCase().replace(/\s+/g, '_')}`;
         clientName = task.contactName;
