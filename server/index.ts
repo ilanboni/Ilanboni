@@ -80,8 +80,32 @@ function startWhatsAppPolling() {
 }
 
 // Funzione che gestisce il polling delle email Gmail
-function startGmailPolling() {
+async function startGmailPolling() {
   console.log("📧 Inizializzazione sistema di polling email Gmail...");
+  
+  // Aspetta che il servizio Gmail sia inizializzato con timeout
+  try {
+    console.log("📧 Attesa inizializzazione Gmail service...");
+    
+    // Timeout di 10 secondi per l'inizializzazione Gmail
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout inizializzazione Gmail')), 10000)
+    );
+    
+    await Promise.race([gmailService.ready, timeout]);
+    const status = gmailService.getStatus();
+    console.log("📧 Gmail service status:", status);
+    
+    if (!status.authenticated) {
+      console.log("📧 ⚠️ Gmail service non autenticato - polling disabilitato");
+      return;
+    }
+    
+    console.log("📧 ✅ Gmail service pronto - avvio polling");
+  } catch (error) {
+    console.error("📧 ❌ Errore inizializzazione Gmail service:", error);
+    return;
+  }
   
   // Esegui immediatamente la prima verifica
   pollGmailMessages();
@@ -165,7 +189,7 @@ async function pollWhatsAppMessages() {
     startWhatsAppPolling();
     
     // Avvia il polling delle email Gmail dopo l'avvio del server
-    startGmailPolling();
+    void startGmailPolling().catch(err => console.error('📧 ❌ Errore avvio Gmail polling:', err));
     
     // Avvia lo scheduler per i follow-up automatici (verifica ogni ora = 60 minuti)
     startFollowUpScheduler(60);

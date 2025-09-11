@@ -24,9 +24,10 @@ interface GmailMessage {
 export class GmailService {
   private gmail: any;
   private isAuthenticated = false;
+  public ready: Promise<void>;
 
   constructor() {
-    this.initializeGmail();
+    this.ready = this.initializeGmail();
   }
 
   private async initializeGmail() {
