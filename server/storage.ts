@@ -2805,6 +2805,43 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
+
+  // Client conversation task methods
+  async findClientConversationTask(clientId: number): Promise<Task | undefined> {
+    const result = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.type, 'client_conversation'), eq(tasks.clientId, clientId)))
+      .limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async upsertClientConversationTask(clientId: number, data: Partial<InsertTask>): Promise<Task> {
+    const existingTask = await this.findClientConversationTask(clientId);
+    
+    if (existingTask) {
+      // Update existing task
+      const result = await db.update(tasks)
+        .set(data)
+        .where(eq(tasks.id, existingTask.id))
+        .returning();
+      return result[0];
+    } else {
+      // Create new task
+      return await this.createTask({
+        ...data,
+        type: 'client_conversation',
+        clientId: clientId,
+        title: data.title || `Gestire comunicazioni con cliente ${clientId}`,
+        dueDate: data.dueDate || new Date().toISOString().split('T')[0],
+        status: data.status || 'pending'
+      } as InsertTask);
+    }
+  }
+
+  async getClientCommunicationsTimeline(clientId: number): Promise<Communication[]> {
+    return await this.getCommunicationsByClientId(clientId);
+  }
 }
 
 // Export storage instance

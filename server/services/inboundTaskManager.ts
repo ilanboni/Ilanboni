@@ -15,11 +15,24 @@ async function hydrateProcessedCommunications(): Promise<void> {
     
     for (const task of allTasks) {
       if (task.notes) {
-        // Estrai ID comunicazione dalle note usando regex robusto
-        const match = task.notes.match(/\bID:\s*(\d+)\b/);
-        if (match) {
-          const commId = parseInt(match[1]);
+        // Pattern classico: "ID: 123"
+        const classicMatch = task.notes.match(/\bID:\s*(\d+)\b/);
+        if (classicMatch) {
+          const commId = parseInt(classicMatch[1]);
           processedByCommunicationId.set(commId, task.id);
+        }
+        
+        // Pattern consolidato: "Include comunicazioni: 456, 789, 101"
+        const consolidatedMatch = task.notes.match(/Include comunicazioni:\s*([\d,\s]+)/);
+        if (consolidatedMatch) {
+          const commIds = consolidatedMatch[1]
+            .split(',')
+            .map(id => parseInt(id.trim()))
+            .filter(id => !isNaN(id));
+          
+          for (const commId of commIds) {
+            processedByCommunicationId.set(commId, task.id);
+          }
         }
       }
     }
@@ -86,13 +99,13 @@ export async function createInboundTask(
     // STRATEGIA CONSOLIDAMENTO: Se non c'è cliente, crea task generico tradizionale
     if (!actualClientId) {
       console.log(`[INBOUND-TASK] 📝 Nessun cliente identificato, creazione task generico tradizionale`);
-      await createGenericInboundTask(communicationId, actualPropertyId, actualSharedPropertyId, actualType, actualContent);
+      await createGenericInboundTask(communicationId, actualPropertyId || undefined, actualSharedPropertyId || undefined, actualType, actualContent);
       return;
     }
 
     // STRATEGIA CONSOLIDAMENTO: Con cliente, usa sistema task consolidato per cliente
     console.log(`[INBOUND-TASK] 👤 Cliente ${actualClientId} identificato, aggiornamento task conversazione consolidato`);
-    await upsertClientConversationTask(communicationId, actualClientId, actualPropertyId, actualSharedPropertyId, actualType, actualContent);
+    await upsertClientConversationTask(communicationId, actualClientId, actualPropertyId || undefined, actualSharedPropertyId || undefined, actualType, actualContent);
 
   } catch (error) {
     console.error(`[INBOUND-TASK] ❌ Errore creazione task per comunicazione ${communicationId}:`, error);
@@ -117,7 +130,7 @@ export async function backfillInboundTasks(): Promise<void> {
     // CORREZIONE: getCommunications non supporta filtri, implementa filtraggio manuale
     const allCommunications = await storage.getCommunications();
     const communications = allCommunications.filter(comm => {
-      const commDate = new Date(comm.createdAt || comm.timestamp || 0);
+      const commDate = new Date(comm.createdAt || 0);
       return commDate >= sevenDaysAgo;
     });
 
@@ -175,7 +188,7 @@ async function createGenericInboundTask(
   content: string = ''
 ): Promise<void> {
   const communication = await storage.getCommunication(communicationId);
-  const contactPhone = communication?.senderPhone || communication?.contactPhone || '';
+  const contactPhone = ''; // Note: Communication type doesn't have senderPhone or contactPhone fields
   
   let title = '';
   let description = '';
@@ -239,13 +252,13 @@ async function upsertClientConversationTask(
 
   // Ottieni timeline comunicazioni per contare messaggi non risposti
   const communications = await storage.getClientCommunicationsTimeline(clientId);
-  const inboundComms = communications.filter(c => !c.isFromMe && c.needsResponse);
+  const inboundComms = communications.filter(c => c.direction === 'inbound' && c.needsResponse);
   const totalInbound = inboundComms.length;
 
   // Conta i tipi di comunicazione per il titolo
-  const whatsappCount = communications.filter(c => c.type === 'whatsapp' && !c.isFromMe).length;
-  const emailCount = communications.filter(c => c.type === 'email' && !c.isFromMe).length;
-  const phoneCount = communications.filter(c => c.type === 'phone' && !c.isFromMe).length;
+  const whatsappCount = communications.filter(c => c.type === 'whatsapp' && c.direction === 'inbound').length;
+  const emailCount = communications.filter(c => c.type === 'email' && c.direction === 'inbound').length;
+  const phoneCount = communications.filter(c => c.type === 'phone' && c.direction === 'inbound').length;
 
   // Costruisci titolo dinamico
   let communicationTypes = [];
@@ -257,8 +270,8 @@ async function upsertClientConversationTask(
   
   // Ultima comunicazione per descrizione
   const lastComm = communications
-    .filter(c => !c.isFromMe)
-    .sort((a, b) => new Date(b.createdAt || b.timestamp || 0).getTime() - new Date(a.createdAt || a.timestamp || 0).getTime())[0];
+    .filter(c => c.direction === 'inbound')
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())[0];
 
   let description = `Cliente: ${clientName}\n`;
   description += `Comunicazioni in attesa di risposta: ${totalInbound}\n`;
