@@ -41,7 +41,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, RefreshCw, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TaskManager } from "@/components/tasks/TaskManager";
 
@@ -342,6 +342,17 @@ export default function CommunicationsPage() {
   const [appointmentCommunication, setAppointmentCommunication] = useState<any>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  
+  // Manual refresh function
+  const handleManualRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+    toast({
+      title: "Aggiornamento dati",
+      description: "Ricaricamento comunicazioni in corso...",
+      duration: 2000,
+    });
+  };
   
   // Fetch all communications with auto-refresh every 5 minutes
   const { data: communications, isLoading, isFetching } = useQuery<Communication[]>({
@@ -762,7 +773,32 @@ export default function CommunicationsPage() {
         
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle>Elenco comunicazioni</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Elenco comunicazioni</CardTitle>
+              <div className="flex items-center gap-3">
+                {isFetching && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Aggiornamento...</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  <span>Auto-refresh ogni 5 min</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleManualRefresh}
+                  disabled={isFetching}
+                  className="gap-2"
+                  data-testid="button-refresh-communications"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+                  Aggiorna
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
