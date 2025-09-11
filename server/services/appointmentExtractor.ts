@@ -29,16 +29,30 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
     
     // Pattern per estrarre il nome del cliente
     const namePatterns = [
+      // Salutazioni formali tradizionali
       /(?:Egr\.|Egregio|Gentile|Dott\.|Sig\.|Dott\.ssa|Sig\.ra)\s+([^,]+)/i,
-      /(?:egr_sig|egr_dott)\s+([^,]+)/i
+      /(?:egr_sig|egr_dott)\s+([^,]+)/i,
+      // Pattern flessibili per nomi dopo saluti informali
+      // "Buongiorno Ilaria," (con virgola)
+      /(?:Buongiorno|Buonasera|Salve|Ciao)\s+([^,]+),/i,
+      // "Buongiorno Ilaria" (senza virgola, fino al prossimo spazio)
+      /(?:Buongiorno|Buonasera|Salve|Ciao)\s+([A-Za-zÀ-ÿ]+)/i
     ];
     
     let clientName = '';
-    for (const pattern of namePatterns) {
+    console.log('[APPOINTMENT-EXTRACTOR] Testing name patterns against:', messageContent.substring(0, 100));
+    
+    for (let i = 0; i < namePatterns.length; i++) {
+      const pattern = namePatterns[i];
+      console.log(`[APPOINTMENT-EXTRACTOR] Testing pattern ${i + 1}:`, pattern);
+      
       const nameMatch = messageContent.match(pattern);
       if (nameMatch) {
         clientName = nameMatch[1].trim();
+        console.log(`[APPOINTMENT-EXTRACTOR] ✅ Pattern ${i + 1} matched! Captured:`, clientName);
         break;
+      } else {
+        console.log(`[APPOINTMENT-EXTRACTOR] Pattern ${i + 1} no match`);
       }
     }
     
@@ -53,15 +67,15 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
     
     // Pattern per estrarre la data e l'ora dell'appuntamento
     const dateTimePatterns = [
-      // Pattern originali per appuntamenti formali
-      // "Martedì 10/6, alle ore 16:00" - handles accented characters
-      /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
-      // "Lunedì 10/6, ore 14:00" - handles accented characters  
-      /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+ore\s+(\d{1,2}:\d{2})/i,
-      // "Lunedì 23/6, ore 18" - handles single-digit hours without minutes
-      /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2}),\s+ore\s+(\d{1,2})(?![:\d])/i,
-      // "mercoledì 11/06 alle ore 09:00" (senza virgola) - handles accented characters
-      /appuntamento di\s+((?:Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\s+\d{1,2}\/\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
+      // Pattern originali per appuntamenti formali (ora case-insensitive)
+      // "Martedì 10/6, alle ore 16:00" o "martedì 10/6, alle ore 16:00"
+      /appuntamento di\s+((?:lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+\d{1,2}\/\d{1,2}),\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
+      // "Lunedì 10/6, ore 14:00" o "lunedì 10/6, ore 14:00"
+      /appuntamento di\s+((?:lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+\d{1,2}\/\d{1,2}),\s+ore\s+(\d{1,2}:\d{2})/i,
+      // "Lunedì 23/6, ore 18" o "lunedì 23/6, ore 18" - handles single-digit hours without minutes
+      /appuntamento di\s+((?:lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+\d{1,2}\/\d{1,2}),\s+ore\s+(\d{1,2})(?![:\d])/i,
+      // "mercoledì 11/06 alle ore 09:00" (senza virgola) - case-insensitive
+      /appuntamento di\s+((?:lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+\d{1,2}\/\d{1,2})\s+alle\s+ore\s+(\d{1,2}:\d{2})/i,
       // "17/06/2025 ore 10:00"
       /appuntamento di\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+ore\s+(\d{1,2}:\d{2})/i,
       // "2025-06-18 alle ore 13:12"
@@ -105,6 +119,8 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
     
     // Pattern per estrarre l'indirizzo
     const addressPatterns = [
+      /(?:in|presso|a)\s+((?:via|viale|piazza|corso|largo)\s+[^.!?]+?)(?:\.|!|\?|,|$)/i,
+      /(?:in|presso|a)\s+([^.!?]+?)(?:\.\s+(?:Le|Per|La|Attendo))/i,
       /in\s+([^.]+?)(?:\.\s+(?:Per|La)|\.\s*$)/i,
       /in\s+(.+?)(?:\.\s+La ringrazio)/i
     ];
@@ -119,8 +135,8 @@ export function extractAppointmentData(messageContent: string, clientPhone: stri
     }
     
     if (!address) {
-      console.log('[APPOINTMENT-EXTRACTOR] Indirizzo non trovato');
-      return null;
+      console.log('[APPOINTMENT-EXTRACTOR] ⚠️ Indirizzo non trovato, continuando senza indirizzo...');
+      address = 'Indirizzo non specificato';
     }
     
     console.log('[APPOINTMENT-EXTRACTOR] Dati estratti:', {
@@ -214,7 +230,7 @@ function parseAppointmentDateTime(dateStr: string, timeStr: string): Date | null
 /**
  * Crea automaticamente un evento in Google Calendar da una conferma appuntamento WhatsApp
  */
-export async function createCalendarEventFromAppointment(appointmentData: AppointmentData): Promise<boolean> {
+export async function createCalendarEventFromAppointment(appointmentData: AppointmentData, appointmentConfirmationId?: number): Promise<boolean> {
   try {
     console.log('[APPOINTMENT-EXTRACTOR] Creando evento calendario per:', appointmentData.clientName);
     
@@ -225,20 +241,21 @@ export async function createCalendarEventFromAppointment(appointmentData: Appoin
     // Formato titolo: "Nome Cognome - Numero telefono"
     const title = `${appointmentData.clientName} - ${appointmentData.clientPhone}`;
     
-    // Crea l'evento
+    // Crea l'evento con protezione anti-loop usando appointmentConfirmationId
     const event = await googleCalendarService.createEvent({
       title,
       description: `Appuntamento per visita immobile - Estratto automaticamente da WhatsApp`,
       startDate: appointmentData.appointmentDate,
       endDate,
-      location: appointmentData.address
+      location: appointmentData.address,
+      appointmentConfirmationId // Questo previene duplicati
     });
     
-    console.log('[APPOINTMENT-EXTRACTOR] Evento calendario creato con ID:', event.id);
+    console.log('[APPOINTMENT-EXTRACTOR] ✅ Evento calendario creato con ID:', event.id);
     return true;
     
   } catch (error) {
-    console.error('[APPOINTMENT-EXTRACTOR] Errore creazione evento calendario:', error);
+    console.error('[APPOINTMENT-EXTRACTOR] ❌ Errore creazione evento calendario:', error);
     return false;
   }
 }
