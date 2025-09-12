@@ -265,12 +265,43 @@ export async function createCalendarEventFromAppointment(appointmentData: Appoin
  */
 export function isAppointmentConfirmation(messageContent: string): boolean {
   const confirmationKeywords = [
+    // Pattern di conferma diretta
     'confermo appuntamento',
     'conferma appuntamento',
     'le confermo l\'appuntamento',
-    'confermo l\'appuntamento'
+    'confermo l\'appuntamento',
+    
+    // Pattern più generici ma comuni
+    'le confermo la visita',
+    'confermo la visita',
+    'le confermo',
+    'confermo per',
+    'appuntamento per',
+    'visita per',
+    'appuntamento di',
+    'visita di',
+    'appuntamento delle',
+    'appuntamento alle',
+    'visita alle',
+    'visita delle'
   ];
   
   const lowerContent = messageContent.toLowerCase();
-  return confirmationKeywords.some(keyword => lowerContent.includes(keyword));
+  
+  // Verifica se contiene almeno una parola chiave di conferma
+  const hasConfirmationKeyword = confirmationKeywords.some(keyword => lowerContent.includes(keyword));
+  
+  // Verifica se contiene indicatori di data/ora (più specifico)
+  const hasTimeIndicator = /\b(ore|h|:)\s*\d{1,2}[:\.]?\d{0,2}\b/.test(lowerContent) ||
+    /\b\d{1,2}[\/\-\.]\d{1,2}\b/.test(lowerContent) ||
+    /\b(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|oggi|domani)\b/.test(lowerContent);
+  
+  // Verifica se contiene indicatori di luogo
+  const hasLocationIndicator = /\b(via|viale|corso|piazza|presso|in)\b/.test(lowerContent);
+  
+  // Messaggio è una conferma appuntamento se:
+  // 1. Contiene parole chiave di conferma E (data/ora O luogo)
+  // 2. O contiene "appuntamento" E data/ora E luogo
+  return (hasConfirmationKeyword && (hasTimeIndicator || hasLocationIndicator)) ||
+         (lowerContent.includes('appuntamento') && hasTimeIndicator && hasLocationIndicator);
 }
