@@ -264,44 +264,41 @@ export async function createCalendarEventFromAppointment(appointmentData: Appoin
  * Verifica se un messaggio è una conferma appuntamento
  */
 export function isAppointmentConfirmation(messageContent: string): boolean {
-  const confirmationKeywords = [
-    // Pattern di conferma diretta
-    'confermo appuntamento',
-    'conferma appuntamento',
-    'le confermo l\'appuntamento',
-    'confermo l\'appuntamento',
-    
-    // Pattern più generici ma comuni
-    'le confermo la visita',
-    'confermo la visita',
-    'le confermo',
-    'confermo per',
-    'appuntamento per',
-    'visita per',
-    'appuntamento di',
-    'visita di',
-    'appuntamento delle',
-    'appuntamento alle',
-    'visita alle',
-    'visita delle'
-  ];
-  
   const lowerContent = messageContent.toLowerCase();
   
-  // Verifica se contiene almeno una parola chiave di conferma
-  const hasConfirmationKeyword = confirmationKeywords.some(keyword => lowerContent.includes(keyword));
+  // Pattern ESPLICITI di conferma - richiede verbi di conferma specifici
+  const confirmationPatterns = [
+    // Conferme dirette con "confermo/confermare"
+    /\b(confermo|confermare)\s+(l['']?appuntamento|la visita|che|per)/i,
+    /\ble\s+confermo\b/i,
+    /\bconfermo\s+per\b/i,
+    
+    // Conferme di accordo esplicite
+    /\b(ok|va bene|d['']accordo)\s+per\s+(l['']?appuntamento|la visita|oggi|domani)/i,
+    /\b(sì|ok)\s*,?\s*(confermo|va bene|d['']accordo)/i,
+    
+    // Conferme di disponibilità
+    /\bconfermo\s+(la\s+)?disponibilità/i,
+    /\bsono\s+disponibile\s+per/i,
+    /\bva\s+bene\s+per/i
+  ];
   
-  // Verifica se contiene indicatori di data/ora (più specifico)
+  // Verifica pattern di conferma espliciti
+  const hasExplicitConfirmation = confirmationPatterns.some(pattern => pattern.test(messageContent));
+  
+  if (!hasExplicitConfirmation) {
+    // Se non c'è conferma esplicita, rifiuta immediatamente
+    // Questo elimina false positive come messaggi di outreach
+    return false;
+  }
+  
+  // Se c'è conferma esplicita, verifica presenza di dettagli appuntamento
   const hasTimeIndicator = /\b(ore|h|:)\s*\d{1,2}[:\.]?\d{0,2}\b/.test(lowerContent) ||
     /\b\d{1,2}[\/\-\.]\d{1,2}\b/.test(lowerContent) ||
     /\b(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|oggi|domani)\b/.test(lowerContent);
   
-  // Verifica se contiene indicatori di luogo
   const hasLocationIndicator = /\b(via|viale|corso|piazza|presso|in)\b/.test(lowerContent);
   
-  // Messaggio è una conferma appuntamento se:
-  // 1. Contiene parole chiave di conferma E (data/ora O luogo)
-  // 2. O contiene "appuntamento" E data/ora E luogo
-  return (hasConfirmationKeyword && (hasTimeIndicator || hasLocationIndicator)) ||
-         (lowerContent.includes('appuntamento') && hasTimeIndicator && hasLocationIndicator);
+  // Conferma appuntamento se ha conferma esplicita + (tempo O luogo)
+  return hasExplicitConfirmation && (hasTimeIndicator || hasLocationIndicator);
 }

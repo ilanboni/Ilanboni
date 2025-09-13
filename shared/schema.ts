@@ -335,6 +335,7 @@ export const calendarEvents = pgTable("calendar_events", {
   propertyId: integer("property_id").references(() => properties.id),
   appointmentConfirmationId: integer("appointment_confirmation_id").references(() => appointmentConfirmations.id),
   googleEventId: text("google_event_id"), // ID dell'evento su Google Calendar
+  dedupeKey: text("dedupe_key"), // Hash MD5 per idempotenza: md5(title|startDate|location)
   syncStatus: text("sync_status").default("pending"), // 'pending', 'synced', 'failed'
   syncError: text("sync_error"),
   lastSyncAt: timestamp("last_sync_at"),

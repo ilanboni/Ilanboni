@@ -81,11 +81,44 @@ class GoogleCalendarService {
   }
 
   /**
-   * Crea un evento nel calendario interno e su Google Calendar
+   * Crea un evento nel calendario interno e su Google Calendar con protezione anti-duplicati
    */
   async createEvent(eventData: CalendarEventData): Promise<any> {
     try {
-      // Crea l'evento nel database locale
+      // Genera sempre un hash deterministico per idempotenza
+      const hashInput = `${eventData.title}|${eventData.startDate.toISOString()}|${eventData.location || ''}`;
+      const crypto = await import('crypto');
+      const dedupeKey = crypto.createHash('md5').update(hashInput).digest('hex');
+      
+      console.log(`[CALENDAR] DedupeKey generato: ${dedupeKey} per evento: ${eventData.title}`);
+
+      // Verifica se esiste già un evento con appointmentConfirmationId O dedupeKey
+      const existingEventQueries = [];
+      
+      if (eventData.appointmentConfirmationId) {
+        existingEventQueries.push(
+          db.select().from(calendarEvents)
+            .where(eq(calendarEvents.appointmentConfirmationId, eventData.appointmentConfirmationId))
+            .limit(1)
+        );
+      }
+      
+      existingEventQueries.push(
+        db.select().from(calendarEvents)
+          .where(eq(calendarEvents.dedupeKey, dedupeKey))
+          .limit(1)
+      );
+
+      // Controlla tutti i possibili duplicati
+      for (const query of existingEventQueries) {
+        const result = await query;
+        if (result.length > 0) {
+          console.log(`[CALENDAR] ⚠️ Evento duplicato trovato con ID: ${result[0].id} (dedupeKey: ${result[0].dedupeKey}), salto creazione`);
+          return result[0];
+        }
+      }
+
+      // Crea l'evento nel database locale (solo se non esiste)
       const [localEvent] = await db
         .insert(calendarEvents)
         .values({
@@ -97,11 +130,12 @@ class GoogleCalendarService {
           clientId: eventData.clientId,
           propertyId: eventData.propertyId,
           appointmentConfirmationId: eventData.appointmentConfirmationId,
+          dedupeKey: dedupeKey, // Salva il dedupeKey per prevenire duplicati futuri
           syncStatus: 'pending'
         })
         .returning();
 
-      console.log(`[CALENDAR] Created local event: ${localEvent.title}`);
+      console.log(`[CALENDAR] ✅ Creato nuovo evento locale: ${localEvent.title} (ID: ${localEvent.id}, dedupeKey: ${dedupeKey})`);
 
       // Se Google Calendar è configurato, sincronizza
       if (this.isConfigured) {
