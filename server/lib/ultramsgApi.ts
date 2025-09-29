@@ -419,3 +419,41 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
     throw error;
   }
 }
+
+/**
+ * Invia un file (PDF/JPEG) tramite WhatsApp UltraMsg
+ * @param phoneNumber Numero di telefono del destinatario
+ * @param fileBuffer Buffer del file
+ * @param fileName Nome del file
+ * @param caption Didascalia opzionale
+ * @returns Risultato dell'invio
+ */
+export async function sendWhatsAppFile(
+  phoneNumber: string, 
+  fileBuffer: Buffer, 
+  fileName: string, 
+  caption?: string
+): Promise<{success: boolean, messageId?: string, error?: string}> {
+  try {
+    const ultraMsgClient = getUltraMsgClient();
+    const response = await ultraMsgClient.sendFile(phoneNumber, fileBuffer, fileName, caption);
+    
+    if (response && response.sent) {
+      return {
+        success: true,
+        messageId: response.id || undefined
+      };
+    } else {
+      return {
+        success: false,
+        error: response.error || 'Errore sconosciuto nell\'invio del file'
+      };
+    }
+  } catch (error: any) {
+    console.error('Errore nell\'invio del file WhatsApp:', error);
+    return {
+      success: false,
+      error: error.message || 'Errore durante l\'invio del file WhatsApp'
+    };
+  }
+}
