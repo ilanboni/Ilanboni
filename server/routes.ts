@@ -62,6 +62,18 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
+    // DEBUG TEMPORANEO: Logga tutti i dettagli del file ricevuto
+    console.log("🔍 [MULTER DEBUG] File ricevuto:", {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      fieldname: file.fieldname
+    });
+    
+    // ACCETTA TUTTO TEMPORANEAMENTE PER DEBUGGING
+    cb(null, true);
+    
+    /*
     // Accetta solo PDF e immagini
     const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (allowedMimes.includes(file.mimetype)) {
@@ -69,6 +81,7 @@ const upload = multer({
     } else {
       cb(new Error('Tipo di file non supportato. Sono supportati solo PDF, JPG, JPEG e PNG.'));
     }
+    */
   }
 });
 
