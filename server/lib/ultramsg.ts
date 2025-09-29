@@ -32,6 +32,98 @@ export class UltraMsgClient {
   }
 
   /**
+   * Invia un file (PDF/JPEG) tramite WhatsApp UltraMsg
+   * @param phoneNumber Numero di telefono del destinatario
+   * @param fileBuffer Buffer del file
+   * @param fileName Nome del file
+   * @param caption Didascalia opzionale
+   * @returns Response from UltraMsg API
+   */
+  async sendFile(phoneNumber: string, fileBuffer: Buffer, fileName: string, caption?: string): Promise<UltraMsgMessageResponse> {
+    try {
+      console.log('[ULTRAMSG] Tentativo di invio file a:', phoneNumber, 'File:', fileName);
+      
+      // Formatta il numero di telefono (rimuovi eventuali + iniziali)
+      const formattedPhone = phoneNumber.replace(/^\+/, '').replace('@c.us', '');
+      console.log('[ULTRAMSG] Numero formattato:', formattedPhone);
+
+      // Controllo modalità test - blocca l'invio se non autorizzato
+      if (config.testMode) {
+        const isAuthorized = config.testPhoneNumbers.includes(formattedPhone);
+        if (!isAuthorized) {
+          console.log(`[ULTRAMSG] 🛡️ MODALITÀ TEST: Invio file bloccato al numero ${formattedPhone} (non autorizzato)`);
+          return {
+            sent: false,
+            message: `Invio file bloccato in modalità test - numero ${formattedPhone} non autorizzato`,
+            error: 'TEST_MODE_BLOCKED'
+          };
+        }
+        console.log(`[ULTRAMSG] ✅ MODALITÀ TEST: Numero ${formattedPhone} autorizzato per invio file`);
+      }
+      
+      // Determina il tipo di file e l'endpoint appropriato
+      const fileExtension = fileName.toLowerCase().split('.').pop();
+      let endpoint = '';
+      
+      if (fileExtension === 'pdf') {
+        endpoint = 'messages/document';
+      } else if (['jpg', 'jpeg', 'png'].includes(fileExtension || '')) {
+        endpoint = 'messages/image';
+      } else {
+        throw new Error(`Tipo di file non supportato: ${fileExtension}. Supportati: PDF, JPG, JPEG, PNG`);
+      }
+      
+      console.log('[ULTRAMSG] Usando endpoint:', endpoint);
+      
+      // Prepara il form data per il file upload
+      const FormData = (await import('form-data')).default;
+      const formData = new FormData();
+      
+      formData.append('to', formattedPhone);
+      formData.append('file', fileBuffer, {
+        filename: fileName,
+        contentType: fileExtension === 'pdf' ? 'application/pdf' : `image/${fileExtension}`
+      });
+      
+      if (caption) {
+        formData.append('caption', caption);
+      }
+      
+      console.log('[ULTRAMSG] Invio file tramite endpoint:', `${this.apiUrl}/${endpoint}`);
+      
+      try {
+        const response = await axios.post<UltraMsgMessageResponse>(
+          `${this.apiUrl}/${endpoint}`,
+          formData,
+          {
+            headers: {
+              ...formData.getHeaders(),
+            },
+            params: {
+              token: this.apiToken
+            }
+          }
+        );
+        
+        console.log('[ULTRAMSG] Risposta API file:', JSON.stringify(response.data));
+        return response.data;
+      } catch (axiosError: any) {
+        console.error('[ULTRAMSG] Errore nella chiamata API file:', axiosError.message);
+        if (axiosError.response) {
+          console.error('[ULTRAMSG] Dettagli risposta errore file:', JSON.stringify(axiosError.response.data));
+        }
+        throw axiosError;
+      }
+    } catch (error) {
+      console.error('Errore nell\'invio del file WhatsApp:', error);
+      if (axios.isAxiosError(error) && error.response) {
+        throw new Error(`UltraMsg API file error: ${error.response.data.error || error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Invia un messaggio WhatsApp tramite UltraMsg
    * @param phoneNumber Numero di telefono del destinatario (formato internazionale con o senza +)
    * @param message Testo del messaggio

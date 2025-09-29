@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage } from "./storage";
 import { google } from 'googleapis';
 import { 
@@ -2827,6 +2828,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[POST /api/whatsapp/send]", error);
       res.status(500).json({ 
         error: "Errore durante l'invio del messaggio WhatsApp", 
+        details: error.message || "Errore sconosciuto" 
+      });
+    }
+  });
+
+  // Configurazione multer per il file upload
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      // Accetta solo PDF e immagini
+      const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Tipo di file non supportato. Sono supportati solo PDF, JPG, JPEG e PNG.'));
+      }
+    }
+  });
+
+  // Endpoint per inviare file tramite WhatsApp
+  app.post("/api/whatsapp/send-file", upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      console.log("[ULTRAMSG FILE] Ricevuta richiesta di invio file:", {
+        body: req.body,
+        file: req.file ? { 
+          originalname: req.file.originalname, 
+          mimetype: req.file.mimetype, 
+          size: req.file.size 
+        } : null
+      });
+
+      if (!req.file) {
+        return res.status(400).json({ 
+          error: "Nessun file allegato" 
+        });
+      }
+
+      const { clientId, caption } = req.body;
+
+      if (!clientId) {
+        return res.status(400).json({ 
+          error: "ID cliente è obbligatorio" 
+        });
+      }
+
+      // Trova il cliente
+      const client = await storage.getClientById(parseInt(clientId));
+      if (!client) {
+        return res.status(404).json({ 
+          error: "Cliente non trovato" 
+        });
+      }
+
+      if (!client.phone) {
+        return res.status(400).json({ 
+          error: "Cliente non ha un numero di telefono registrato" 
+        });
+      }
+
+      try {
+        // Ottieni il client UltraMsg
+        const ultraMsgClient = getUltraMsgClient();
+        
+        console.log("[ULTRAMSG FILE] Invio file:", req.file.originalname, "a cliente:", client.phone);
+        
+        // Invia il file tramite UltraMsg
+        const ultraMsgResponse = await ultraMsgClient.sendFile(
+          client.phone,
+          req.file.buffer,
+          req.file.originalname,
+          caption
+        );
+        
+        if (!ultraMsgResponse.sent) {
+          throw new Error(`Errore nell'invio del file: ${ultraMsgResponse.error || 'Unknown error'}`);
+        }
+
+        // Salva una comunicazione nel database per tracciare l'invio del file
+        const communicationData = {
+          clientId: client.id,
+          type: 'whatsapp',
+          subject: `File WhatsApp: ${req.file.originalname}`,
+          content: `File inviato: ${req.file.originalname}${caption ? `\nDidascalia: ${caption}` : ''}`,
+          summary: `File ${req.file.originalname}`,
+          direction: 'outbound' as const,
+          needsFollowUp: false,
+          status: 'completed' as const,
+          propertyId: null,
+          responseToId: null
+        };
+        
+        const communication = await storage.createCommunication(communicationData);
+        
+        res.status(201).json({
+          success: true,
+          message: "File WhatsApp inviato con successo",
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          communication
+        });
+      } catch (apiError: any) {
+        console.error("[POST /api/whatsapp/send-file] Errore API UltraMsg:", apiError);
+        res.status(500).json({ 
+          error: "Errore durante l'invio del file WhatsApp", 
+          details: apiError.message || "Errore API sconosciuto" 
+        });
+      }
+    } catch (error: any) {
+      console.error("[POST /api/whatsapp/send-file]", error);
+      res.status(500).json({ 
+        error: "Errore durante l'invio del file WhatsApp", 
         details: error.message || "Errore sconosciuto" 
       });
     }
