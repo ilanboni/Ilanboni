@@ -111,7 +111,7 @@ export default function WhatsAppSender() {
 
         // FETCH NATIVO - FORZATO (no caching)
         addDebugInfo(`🔥 USANDO FETCH NATIVO: ${Date.now()}`);
-        return fetch('/api/whatsapp/send-file?' + Date.now(), {
+        return fetch('/api/whatsapp/send-file-test?' + Date.now(), {
           method: 'POST',
           body: formData,
         })
@@ -140,7 +140,7 @@ export default function WhatsAppSender() {
             formData.append('file', data.file);
             if (data.caption) formData.append('caption', data.caption);
 
-            const response = await fetch('/api/whatsapp/send-file', {
+            const response = await fetch('/api/whatsapp/send-file-test', {
               method: 'POST',
               body: formData,
             });

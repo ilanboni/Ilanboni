@@ -2850,6 +2850,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ENDPOINT DI TEST SEMPLIFICATO PER IL FILE UPLOAD
+  app.post("/api/whatsapp/send-file-test", upload.single('file'), async (req: Request, res: Response) => {
+    console.log("🎯 [FILE TEST] ENDPOINT TEST RAGGIUNTO!");
+    console.log("🎯 [FILE TEST] File presente:", !!req.file);
+    console.log("🎯 [FILE TEST] Body:", req.body);
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Nessun file allegato" });
+      }
+      
+      const { to } = req.body;
+      if (!to) {
+        return res.status(400).json({ error: "Numero di telefono obbligatorio" });
+      }
+      
+      console.log("🎯 [FILE TEST] File ricevuto:", req.file.originalname, "Size:", req.file.size);
+      
+      // Per ora restituisco successo senza inviare realmente
+      res.json({
+        success: true,
+        message: "File ricevuto correttamente nel test endpoint",
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        to: to
+      });
+      
+    } catch (error: any) {
+      console.error("🎯 [FILE TEST] Errore:", error);
+      res.status(500).json({ 
+        error: "Errore nel test upload", 
+        details: error.message 
+      });
+    }
+  });
+
   // Endpoint per inviare file tramite WhatsApp
   app.post("/api/whatsapp/send-file", upload.single('file'), async (req: Request, res: Response) => {
     console.log("🔥 [ULTRAMSG FILE] ENDPOINT RAGGIUNTO! Request headers:", JSON.stringify(req.headers, null, 2));
