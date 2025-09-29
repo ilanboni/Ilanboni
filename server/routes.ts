@@ -2515,7 +2515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API per WhatsApp con UltraMsg
   
   // Endpoint di test per verificare la ricezione delle richieste API
-  app.post("/api/whatsapp/test", (req: Request, res: Response) => {
+  app.post("/api/whatsapp/test", upload.single('file'), (req: Request, res: Response) => {
     console.log("🚀 [ULTRAMSG TEST] Ricevuta richiesta di test:", req.body);
     console.log("🚀 [ULTRAMSG TEST] Headers:", req.headers);
     console.log("🚀 [ULTRAMSG TEST] Content-Type:", req.get('content-type'));

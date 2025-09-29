@@ -124,7 +124,7 @@ export default function WhatsAppSender() {
         .then(async response => {
           console.log("🎯 DEBUG: PROMISE THEN RAGGIUNTA!", response);
           console.log("🎯 DEBUG: Response URL:", response.url);
-          console.log("🎯 DEBUG: Response Headers:", [...response.headers.entries()]);
+          console.log("🎯 DEBUG: Response Headers:", Object.fromEntries(response.headers.entries()));
           addDebugInfo(`📩 Risposta da: ${response.url}`);
           addDebugInfo(`📩 Status: ${response.status} ${response.statusText}`);
           
@@ -147,9 +147,9 @@ export default function WhatsAppSender() {
             console.log("✅ DEBUG: JSON parsed successfully:", jsonData);
             addDebugInfo(`✅ File inviato con successo!`);
             return jsonData;
-          } catch (jsonError) {
+          } catch (jsonError: any) {
             console.error("❌ DEBUG: JSON parsing failed:", jsonError);
-            addDebugInfo(`❌ JSON parsing failed: ${jsonError.message}`);
+            addDebugInfo(`❌ JSON parsing failed: ${jsonError.message || 'Unknown JSON error'}`);
             throw jsonError;
           }
         })
