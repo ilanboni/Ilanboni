@@ -597,7 +597,7 @@ export class UltraMsgClient {
           console.log(`[ULTRAMSG-CORRELATION] Indirizzi trovati nel messaggio:`, mentionedAddresses);
           
           // Cerca immobili che contengono questi indirizzi
-          const properties = await storage.getAllProperties();
+          const properties = await storage.getProperties();
           for (const address of mentionedAddresses) {
             const cleanAddress = address.trim().toLowerCase();
             const matchingProperty = properties.find(p => 
