@@ -2523,6 +2523,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       body: req.body
     });
   });
+
+  // ENDPOINT SUPER-SEMPLICE PER DEBUG FILE UPLOAD
+  app.post("/api/whatsapp/file-debug", (req: Request, res: Response) => {
+    console.log("🚀 [FILE DEBUG] ENDPOINT RAGGIUNTO!");
+    console.log("🚀 [FILE DEBUG] Headers:", req.headers);
+    console.log("🚀 [FILE DEBUG] Body keys:", Object.keys(req.body));
+    console.log("🚀 [FILE DEBUG] Body:", req.body);
+    
+    res.json({
+      success: true,
+      message: "Debug endpoint raggiunto con successo!",
+      timestamp: new Date().toISOString(),
+      bodyKeys: Object.keys(req.body),
+      contentType: req.get('content-type')
+    });
+  });
   
   // Endpoint alternativo per invio diretto messaggi WhatsApp
   app.post("/api/whatsapp/test-direct-send", async (req: Request, res: Response) => {
