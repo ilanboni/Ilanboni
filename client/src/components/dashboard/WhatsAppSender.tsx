@@ -123,7 +123,10 @@ export default function WhatsAppSender() {
         })
         .then(async response => {
           console.log("🎯 DEBUG: PROMISE THEN RAGGIUNTA!", response);
-          addDebugInfo(`📩 Risposta ricevuta: ${response.status} ${response.statusText}`);
+          console.log("🎯 DEBUG: Response URL:", response.url);
+          console.log("🎯 DEBUG: Response Headers:", [...response.headers.entries()]);
+          addDebugInfo(`📩 Risposta da: ${response.url}`);
+          addDebugInfo(`📩 Status: ${response.status} ${response.statusText}`);
           
           if (!response.ok) {
             console.log("❌ DEBUG: Response not OK:", response);
@@ -133,10 +136,22 @@ export default function WhatsAppSender() {
           }
           
           console.log("✅ DEBUG: Response OK, parsing JSON...");
-          const jsonData = await response.json();
-          console.log("✅ DEBUG: JSON parsed successfully:", jsonData);
-          addDebugInfo(`✅ File inviato con successo!`);
-          return jsonData;
+          // Clono la response per leggere il testo raw
+          const responseClone = response.clone();
+          const textResponse = await responseClone.text();
+          console.log("✅ DEBUG: Raw response text:", textResponse);
+          addDebugInfo(`📄 Risposta raw: ${textResponse.substring(0, 100)}...`);
+          
+          try {
+            const jsonData = await response.json();
+            console.log("✅ DEBUG: JSON parsed successfully:", jsonData);
+            addDebugInfo(`✅ File inviato con successo!`);
+            return jsonData;
+          } catch (jsonError) {
+            console.error("❌ DEBUG: JSON parsing failed:", jsonError);
+            addDebugInfo(`❌ JSON parsing failed: ${jsonError.message}`);
+            throw jsonError;
+          }
         })
         .catch(error => {
           console.error("❌ DEBUG: ERRORE COMPLETO:", error);
