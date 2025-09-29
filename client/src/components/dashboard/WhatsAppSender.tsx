@@ -107,10 +107,11 @@ export default function WhatsAppSender() {
 
         addDebugInfo(`📤 Invio richiesta a ${data.phones[0]}`);
 
-        // Usa fetch nativo per FormData (apiRequest non supporta FormData correttamente)
-        return fetch('/api/whatsapp/send-file', {
+        // FETCH NATIVO - FORZATO (no caching)
+        addDebugInfo(`🔥 USANDO FETCH NATIVO: ${Date.now()}`);
+        return fetch('/api/whatsapp/send-file?' + Date.now(), {
           method: 'POST',
-          body: formData, // FormData direttamente nel body
+          body: formData,
         })
         .then(async response => {
           addDebugInfo(`📩 Risposta: ${response.status} ${response.statusText}`);
@@ -123,6 +124,10 @@ export default function WhatsAppSender() {
           
           addDebugInfo(`✅ File inviato con successo!`);
           return response.json();
+        })
+        .catch(error => {
+          addDebugInfo(`🚨 Errore fetch: ${error.name} - ${error.message}`);
+          throw error;
         });
       } else {
         const results = [];
