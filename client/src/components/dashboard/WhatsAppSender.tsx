@@ -86,13 +86,13 @@ export default function WhatsAppSender() {
     setDebugInfo(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${info}`]);
   };
 
-  // Mutazione per inviare file
+  // Mutazione per inviare file usando sistema CHUNK
   const sendFileMutation = useMutation({
     mutationFn: async (data: { phones: string[]; file: File; caption: string }) => {
-      console.log("🎯 DEBUG: MUTAZIONE ESEGUITA - START", data.phones);
-      addDebugInfo(`🎯 MUTAZIONE START: ${Date.now()}`);
-      console.log("📤 DEBUG: Inizio invio file a API", data.phones);
-      addDebugInfo(`🚀 Inizio invio file: ${data.file.name} (${(data.file.size/1024).toFixed(1)}KB)`);
+      console.log("🧩 DEBUG: CHUNK UPLOAD INIZIATO", data.phones);
+      addDebugInfo(`🧩 CHUNK UPLOAD START: ${Date.now()}`);
+      console.log("📤 DEBUG: Inizio chunk upload", data.phones);
+      addDebugInfo(`🚀 File: ${data.file.name} (${(data.file.size/1024).toFixed(1)}KB)`);
       
       if (data.phones.length === 1) {
         // Converti file in base64
@@ -100,7 +100,6 @@ export default function WhatsAppSender() {
           const reader = new FileReader();
           reader.onload = () => {
             if (typeof reader.result === 'string') {
-              // Rimuovi il prefisso data:mime/type;base64,
               const base64 = reader.result.split(',')[1];
               resolve(base64);
             } else {
@@ -111,85 +110,65 @@ export default function WhatsAppSender() {
           reader.readAsDataURL(data.file);
         });
 
-        const jsonBody = {
-          to: data.phones[0],
-          fileData: fileData,
-          fileName: data.file.name,
-          fileType: data.file.type,
-          caption: data.caption || ''
-        };
+        console.log(`🧩 Base64 generato: ${fileData.length} caratteri`);
+        addDebugInfo(`🧩 Base64 length: ${fileData.length} chars`);
 
-        console.log("🌟 DEBUG: Creazione JSON Body", {
-          to: data.phones[0],
-          fileName: data.file.name,
-          fileSize: data.file.size,
-          fileType: data.file.type,
-          hasCaption: !!data.caption,
-          base64Length: fileData.length
-        });
+        // Dividi il file in chunk da 50KB (circa 37KB di dati binari originali)
+        const CHUNK_SIZE = 50000; // 50KB di base64
+        const chunks = [];
+        for (let i = 0; i < fileData.length; i += CHUNK_SIZE) {
+          chunks.push(fileData.slice(i, i + CHUNK_SIZE));
+        }
 
-        addDebugInfo(`📤 Invio richiesta BYPASS a ${data.phones[0]}`);
-        addDebugInfo(`🌟 USANDO ENDPOINT BYPASS - JSON: ${Date.now()}`);
-        addDebugInfo(`🌐 Base64 Length: ${fileData.length} chars`);
-        
-        console.log("🌟 DEBUG: Prima del fetch BYPASS");
-        return fetch('/api/bypass-file-upload?' + Date.now(), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(jsonBody),
-        })
-        .then(async response => {
-          console.log("🎯 DEBUG: PROMISE THEN RAGGIUNTA!", response);
-          console.log("🎯 DEBUG: Response URL:", response.url);
-          console.log("🎯 DEBUG: Response Headers:", Object.fromEntries(response.headers.entries()));
-          addDebugInfo(`📩 Risposta da: ${response.url}`);
-          addDebugInfo(`📩 Status: ${response.status} ${response.statusText}`);
-          
+        const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const totalChunks = chunks.length;
+
+        console.log(`🧩 File diviso in ${totalChunks} chunk da max ${CHUNK_SIZE} caratteri`);
+        addDebugInfo(`🧩 ${totalChunks} chunk da inviare (${CHUNK_SIZE} chars max)`);
+
+        // Invia ogni chunk sequenzialmente
+        for (let i = 0; i < chunks.length; i++) {
+          console.log(`🧩 Invio chunk ${i + 1}/${totalChunks} (${chunks[i].length} chars)`);
+          addDebugInfo(`📤 Chunk ${i + 1}/${totalChunks}: ${chunks[i].length} chars`);
+
+          const chunkBody = {
+            fileId,
+            chunkIndex: i,
+            totalChunks,
+            chunkData: chunks[i],
+            fileName: data.file.name,
+            fileType: data.file.type,
+            to: data.phones[0],
+            caption: data.caption || ''
+          };
+
+          const response = await fetch('/api/chunk-file-upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(chunkBody),
+          });
+
           if (!response.ok) {
-            console.log("❌ DEBUG: Response not OK:", response);
             const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
-            addDebugInfo(`❌ Errore: ${errorData.error || 'Errore sconosciuto'}`);
-            throw new Error(errorData.error || 'Errore nell\'invio del file');
+            addDebugInfo(`❌ Chunk ${i + 1} fallito: ${errorData.error}`);
+            throw new Error(`Chunk ${i + 1} fallito: ${errorData.error || 'Errore sconosciuto'}`);
           }
-          
-          console.log("✅ DEBUG: Response OK, parsing JSON...");
-          // Clono la response per leggere il testo raw
-          const responseClone = response.clone();
-          const textResponse = await responseClone.text();
-          console.log("✅ DEBUG: Raw response text:", textResponse);
-          addDebugInfo(`📄 Risposta raw: ${textResponse.substring(0, 100)}...`);
-          
-          try {
-            const jsonData = await response.json();
-            console.log("✅ DEBUG: JSON parsed successfully:", jsonData);
-            addDebugInfo(`✅ File inviato con successo!`);
-            return jsonData;
-          } catch (jsonError: any) {
-            console.error("❌ DEBUG: JSON parsing failed:", jsonError);
-            addDebugInfo(`❌ JSON parsing failed: ${jsonError.message || 'Unknown JSON error'}`);
-            throw jsonError;
+
+          const chunkResult = await response.json();
+          console.log(`✅ Chunk ${i + 1} completato:`, chunkResult);
+          addDebugInfo(`✅ Chunk ${i + 1}: ${chunkResult.message}`);
+
+          // Se è l'ultimo chunk e il file è completo
+          if (chunkResult.complete) {
+            console.log("🎯 FILE ASSEMBLY COMPLETATO!", chunkResult);
+            addDebugInfo(`🎯 File riassemblato: ${chunkResult.totalSize} chars`);
+            return chunkResult;
           }
-        })
-        .catch(error => {
-          console.error("❌ DEBUG: ERRORE COMPLETO:", error);
-          console.error("❌ DEBUG: Tipo errore:", error.constructor.name);
-          console.error("❌ DEBUG: Stack:", error.stack);
-          
-          addDebugInfo(`🚨 ERRORE: ${error.name} - ${error.message}`);
-          addDebugInfo(`🔍 Tipo: ${error.constructor.name}`);
-          
-          // Errori specifici di rete
-          if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            addDebugInfo(`❌ ERRORE DI RETE - fetch fallito`);
-          }
-          if (error.message.includes('CORS')) {
-            addDebugInfo(`❌ ERRORE CORS - browser blocca richiesta`);
-          }
-          
-          throw error;
-        });
+        }
+
+        throw new Error("File assembly non completato - errore imprevisto");
       } else {
         const results = [];
         for (const phone of data.phones) {

@@ -2999,6 +2999,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SISTEMA UPLOAD A CHUNK - Memorizza chunk in memoria temporanea
+  const fileChunks = new Map<string, {
+    chunks: Map<number, string>,
+    totalChunks: number,
+    fileName: string,
+    fileType: string,
+    to: string,
+    caption?: string,
+    receivedChunks: number
+  }>();
+
+  // Endpoint per upload a chunk - aggira limiti nginx
+  app.post("/api/chunk-file-upload", async (req: Request, res: Response) => {
+    console.log("🧩 [CHUNK] ENDPOINT RAGGIUNTO!");
+    
+    try {
+      const { 
+        fileId, 
+        chunkIndex, 
+        totalChunks, 
+        chunkData, 
+        fileName, 
+        fileType, 
+        to, 
+        caption 
+      } = req.body;
+
+      if (!fileId || chunkIndex === undefined || !totalChunks || !chunkData || !fileName || !to) {
+        return res.status(400).json({ error: "Parametri chunk mancanti" });
+      }
+
+      console.log(`🧩 [CHUNK] Ricevuto chunk ${chunkIndex}/${totalChunks} per file ${fileId}`);
+
+      // Inizializza file se non esiste
+      if (!fileChunks.has(fileId)) {
+        fileChunks.set(fileId, {
+          chunks: new Map(),
+          totalChunks: parseInt(totalChunks),
+          fileName,
+          fileType,
+          to,
+          caption,
+          receivedChunks: 0
+        });
+      }
+
+      const fileInfo = fileChunks.get(fileId)!;
+      
+      // Salva il chunk
+      fileInfo.chunks.set(parseInt(chunkIndex), chunkData);
+      fileInfo.receivedChunks++;
+
+      console.log(`🧩 [CHUNK] File ${fileId}: ${fileInfo.receivedChunks}/${fileInfo.totalChunks} chunk ricevuti`);
+
+      // Se tutti i chunk sono arrivati, riassembla il file
+      if (fileInfo.receivedChunks === fileInfo.totalChunks) {
+        console.log("🎯 [CHUNK] TUTTI I CHUNK RICEVUTI! Riassemblaggio in corso...");
+        
+        // Riassembla i chunk in ordine
+        let completeFileData = '';
+        for (let i = 0; i < fileInfo.totalChunks; i++) {
+          const chunkData = fileInfo.chunks.get(i);
+          if (!chunkData) {
+            throw new Error(`Chunk ${i} mancante per il file ${fileId}`);
+          }
+          completeFileData += chunkData;
+        }
+
+        console.log(`🎯 [CHUNK] File riassemblato! Dimensione totale: ${completeFileData.length} caratteri`);
+
+        // Pulisci la memoria
+        fileChunks.delete(fileId);
+
+        // TEMP: Per ora restituisco solo successo senza inviare via UltraMsg
+        return res.json({
+          success: true,
+          message: "File chunk assembly completato!",
+          fileName: fileInfo.fileName,
+          fileType: fileInfo.fileType,
+          to: fileInfo.to,
+          totalSize: completeFileData.length,
+          chunksProcessed: fileInfo.totalChunks
+        });
+
+      } else {
+        // Chunk ricevuto ma non ancora completo
+        return res.json({
+          success: true,
+          message: `Chunk ${chunkIndex} ricevuto`,
+          chunksReceived: fileInfo.receivedChunks,
+          totalChunks: fileInfo.totalChunks,
+          complete: false
+        });
+      }
+
+    } catch (error: any) {
+      console.error("🧩 [CHUNK] Errore:", error);
+      res.status(500).json({ error: "Errore nell'upload chunk" });
+    }
+  });
+
   // Endpoint per inviare file tramite WhatsApp
   app.post("/api/whatsapp/send-file", upload.single('file'), async (req: Request, res: Response) => {
     console.log("🔥 [ULTRAMSG FILE] ENDPOINT RAGGIUNTO! Request headers:", JSON.stringify(req.headers, null, 2));
