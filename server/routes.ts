@@ -2965,6 +2965,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ENDPOINT BYPASS SENZA MULTER - ACCETTA FILE BASE64
+  app.post("/api/bypass-file-upload", async (req: Request, res: Response) => {
+    console.log("🌟🌟🌟 [BYPASS] ENDPOINT RAGGIUNTO - NESSUN MULTER! 🌟🌟🌟");
+    console.log("🌟 [BYPASS] Body keys:", Object.keys(req.body));
+    console.log("🌟 [BYPASS] to:", req.body.to);
+    console.log("🌟 [BYPASS] fileData length:", req.body.fileData ? req.body.fileData.length : 'MISSING');
+    
+    try {
+      const { to, fileData, fileName, fileType, caption } = req.body;
+      
+      if (!to) {
+        return res.status(400).json({ error: "Numero telefono mancante" });
+      }
+      
+      if (!fileData) {
+        return res.status(400).json({ error: "File data mancante" });
+      }
+      
+      // Per ora solo test - restituisco successo
+      res.json({
+        success: true,
+        message: "File BYPASS ricevuto con successo!",
+        fileName: fileName || "unknown",
+        fileType: fileType || "unknown", 
+        to: to,
+        dataLength: fileData.length
+      });
+      
+    } catch (error: any) {
+      console.error("🌟 [BYPASS] Errore:", error);
+      res.status(500).json({ error: "Errore nel bypass endpoint" });
+    }
+  });
+
   // Endpoint per inviare file tramite WhatsApp
   app.post("/api/whatsapp/send-file", upload.single('file'), async (req: Request, res: Response) => {
     console.log("🔥 [ULTRAMSG FILE] ENDPOINT RAGGIUNTO! Request headers:", JSON.stringify(req.headers, null, 2));

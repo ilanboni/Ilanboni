@@ -95,31 +95,50 @@ export default function WhatsAppSender() {
       addDebugInfo(`🚀 Inizio invio file: ${data.file.name} (${(data.file.size/1024).toFixed(1)}KB)`);
       
       if (data.phones.length === 1) {
-        const formData = new FormData();
-        formData.append('to', data.phones[0]);
-        formData.append('file', data.file);
-        if (data.caption) formData.append('caption', data.caption);
+        // Converti file in base64
+        const fileData = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === 'string') {
+              // Rimuovi il prefisso data:mime/type;base64,
+              const base64 = reader.result.split(',')[1];
+              resolve(base64);
+            } else {
+              reject(new Error('FileReader result non è stringa'));
+            }
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(data.file);
+        });
 
-        console.log("🌐 DEBUG: Creazione FormData", {
+        const jsonBody = {
+          to: data.phones[0],
+          fileData: fileData,
+          fileName: data.file.name,
+          fileType: data.file.type,
+          caption: data.caption || ''
+        };
+
+        console.log("🌟 DEBUG: Creazione JSON Body", {
           to: data.phones[0],
           fileName: data.file.name,
           fileSize: data.file.size,
-          hasCaption: !!data.caption
+          fileType: data.file.type,
+          hasCaption: !!data.caption,
+          base64Length: fileData.length
         });
 
-        console.log("🔥 DEBUG: Prima di addDebugInfo - riga 110");
-        addDebugInfo(`📤 Invio richiesta a ${data.phones[0]}`);
-        console.log("🔥 DEBUG: Dopo addDebugInfo - riga 110");
-
-        console.log("🔥 DEBUG: Prima di addDebugInfo - riga 113");
-        addDebugInfo(`🔥 USANDO FETCH NATIVO: ${Date.now()}`);
-        console.log("🔥 DEBUG: Dopo addDebugInfo - riga 113");
+        addDebugInfo(`📤 Invio richiesta BYPASS a ${data.phones[0]}`);
+        addDebugInfo(`🌟 USANDO ENDPOINT BYPASS - JSON: ${Date.now()}`);
+        addDebugInfo(`🌐 Base64 Length: ${fileData.length} chars`);
         
-        console.log("🔥 DEBUG: Prima del fetch");
-        addDebugInfo(`🌐 Usando URL relativo per Vite`);
-        return fetch('/api/emergency-file-direct?' + Date.now(), {
+        console.log("🌟 DEBUG: Prima del fetch BYPASS");
+        return fetch('/api/bypass-file-upload?' + Date.now(), {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(jsonBody),
         })
         .then(async response => {
           console.log("🎯 DEBUG: PROMISE THEN RAGGIUNTA!", response);
