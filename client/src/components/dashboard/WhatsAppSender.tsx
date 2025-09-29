@@ -18,6 +18,7 @@ export default function WhatsAppSender() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileCaption, setFileCaption] = useState("");
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -80,25 +81,64 @@ export default function WhatsAppSender() {
     },
   });
 
+  // Helper per aggiungere informazioni di debug
+  const addDebugInfo = (info: string) => {
+    setDebugInfo(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${info}`]);
+  };
+
   // Mutazione per inviare file
   const sendFileMutation = useMutation({
     mutationFn: async (data: { phones: string[]; file: File; caption: string }) => {
       console.log("📤 DEBUG: Inizio invio file a API", data.phones);
+      addDebugInfo(`🚀 Inizio invio file: ${data.file.name} (${(data.file.size/1024).toFixed(1)}KB)`);
+      
       if (data.phones.length === 1) {
         const formData = new FormData();
         formData.append('to', data.phones[0]);
         formData.append('file', data.file);
         if (data.caption) formData.append('caption', data.caption);
 
+        console.log("🌐 DEBUG: Creazione FormData", {
+          to: data.phones[0],
+          fileName: data.file.name,
+          fileSize: data.file.size,
+          hasCaption: !!data.caption
+        });
+
+        addDebugInfo(`📤 Invio richiesta a ${data.phones[0]}`);
+
         return fetch('/api/whatsapp/send-file', {
           method: 'POST',
           body: formData,
-        }).then(async response => {
+        })
+        .then(async response => {
+          console.log("🔄 DEBUG: Risposta ricevuta", {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            url: response.url
+          });
+          
+          addDebugInfo(`🔄 Risposta HTTP: ${response.status} ${response.statusText}`);
+          
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
+            console.error("❌ DEBUG: Errore response", errorData);
+            addDebugInfo(`❌ Errore: ${errorData.error || errorData.details || 'Errore sconosciuto'}`);
             throw new Error(errorData.error || errorData.details || 'Errore nell\'invio del file');
           }
+          
+          addDebugInfo(`✅ File inviato con successo`);
           return response.json();
+        })
+        .catch(error => {
+          console.error("🚨 DEBUG: Errore fetch", {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
+          addDebugInfo(`🚨 Errore fetch: ${error.name} - ${error.message}`);
+          throw error;
         });
       } else {
         const results = [];
@@ -426,6 +466,29 @@ export default function WhatsAppSender() {
             )}
           </div>
           
+          {/* Debug Info Panel */}
+          {debugInfo.length > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border">
+              <h5 className="text-xs font-semibold mb-2">Debug Info (ultimi 5):</h5>
+              <div className="space-y-1 text-xs font-mono">
+                {debugInfo.map((info, idx) => (
+                  <div key={idx} className="text-gray-600 dark:text-gray-400">
+                    {info}
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setDebugInfo([])}
+                className="mt-2 text-xs"
+              >
+                Pulisci Debug
+              </Button>
+            </div>
+          )}
+
           <Button 
             type="submit" 
             disabled={sendWhatsAppMutation.isPending || sendFileMutation.isPending}
