@@ -116,7 +116,9 @@ export default function WhatsAppSender() {
         console.log("🔥 DEBUG: Dopo addDebugInfo - riga 113");
         
         console.log("🔥 DEBUG: Prima del fetch");
-        return fetch('/api/whatsapp/test?' + Date.now(), {
+        const fullUrl = 'http://0.0.0.0:5000/api/whatsapp/test?' + Date.now();
+        console.log("🔥 DEBUG: URL COMPLETO:", fullUrl);
+        return fetch(fullUrl, {
           method: 'POST',
           body: formData,
         })
