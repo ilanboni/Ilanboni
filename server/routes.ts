@@ -2928,6 +2928,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEST ENDPOINT SUPER SEMPLICE
+  app.post("/api/test-simple", async (req: Request, res: Response) => {
+    console.log("🚀 [TEST SIMPLE] ENDPOINT RAGGIUNTO!");
+    res.json({ success: true, message: "Test endpoint funzionante!" });
+  });
+
   // Endpoint per inviare file tramite WhatsApp
   app.post("/api/whatsapp/send-file", upload.single('file'), async (req: Request, res: Response) => {
     console.log("🔥 [ULTRAMSG FILE] ENDPOINT RAGGIUNTO! Request headers:", JSON.stringify(req.headers, null, 2));

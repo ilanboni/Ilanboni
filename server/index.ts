@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { registerFileUpload } from "./fileUpload";
 import { setupVite, serveStatic, log } from "./vite";
 import { fetchRecentWhatsAppMessages } from "./lib/ultramsgApi";
 import diagnosticRouter from "./diagnostic-webhook";
@@ -160,6 +161,9 @@ async function pollWhatsAppMessages() {
 
 (async () => {
   const server = await registerRoutes(app);
+  
+  // Registra gli endpoint per il file upload
+  registerFileUpload(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
