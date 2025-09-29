@@ -18,8 +18,8 @@ export function registerFileUpload(app: Express) {
     res.json({ success: true, message: "File upload test endpoint funziona!" });
   });
 
-  // Endpoint per upload file WhatsApp
-  app.post("/api/whatsapp/send-file-simple", upload.single('file'), async (req: Request, res: Response) => {
+  // Endpoint per upload file WhatsApp - NOME UNICO!
+  app.post("/api/emergency-file-upload-xyz123", upload.single('file'), async (req: Request, res: Response) => {
     console.log("🔥 [FILE UPLOAD SIMPLE] ENDPOINT RAGGIUNTO!");
     console.log("🔥 [FILE] File presente:", !!req.file);
     console.log("🔥 [FILE] Body:", req.body);
