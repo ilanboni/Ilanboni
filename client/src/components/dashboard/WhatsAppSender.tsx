@@ -107,13 +107,22 @@ export default function WhatsAppSender() {
 
         addDebugInfo(`📤 Invio richiesta a ${data.phones[0]}`);
 
-        // Usa apiRequest per consistenza
-        return apiRequest("/api/whatsapp/send-file", {
-          method: "POST",
-          data: formData,
-          headers: {
-            // Non impostare Content-Type per FormData
+        // Usa fetch nativo per FormData (apiRequest non supporta FormData correttamente)
+        return fetch('/api/whatsapp/send-file', {
+          method: 'POST',
+          body: formData, // FormData direttamente nel body
+        })
+        .then(async response => {
+          addDebugInfo(`📩 Risposta: ${response.status} ${response.statusText}`);
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
+            addDebugInfo(`❌ Errore: ${errorData.error || 'Errore sconosciuto'}`);
+            throw new Error(errorData.error || 'Errore nell\'invio del file');
           }
+          
+          addDebugInfo(`✅ File inviato con successo!`);
+          return response.json();
         });
       } else {
         const results = [];
