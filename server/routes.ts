@@ -2852,6 +2852,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Endpoint per inviare file tramite WhatsApp
   app.post("/api/whatsapp/send-file", upload.single('file'), async (req: Request, res: Response) => {
+    console.log("🔥 [ULTRAMSG FILE] ENDPOINT RAGGIUNTO! Request headers:", JSON.stringify(req.headers, null, 2));
+    console.log("🔥 [ULTRAMSG FILE] Request body:", req.body);
+    console.log("🔥 [ULTRAMSG FILE] Request file:", req.file ? "FILE PRESENTE" : "NESSUN FILE");
     try {
       console.log("[ULTRAMSG FILE] Ricevuta richiesta di invio file:", {
         body: req.body,

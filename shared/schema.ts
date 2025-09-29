@@ -424,6 +424,8 @@ export type PropertyVisit = typeof propertyVisits.$inferSelect;
 export type InsertPropertyVisit = z.infer<typeof insertPropertyVisitSchema>;
 
 // Custom types for front-end usage
+export type ClientType = "buyer" | "seller";
+
 export type TaskWithClient = Task & {
   clientFirstName?: string | null;
   clientLastName?: string | null;

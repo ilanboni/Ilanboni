@@ -43,9 +43,12 @@ export class UltraMsgClient {
     try {
       console.log('[ULTRAMSG] Tentativo di invio file a:', phoneNumber, 'File:', fileName);
       
-      // Formatta il numero di telefono (rimuovi eventuali + iniziali)
-      const formattedPhone = phoneNumber.replace(/^\+/, '').replace('@c.us', '');
-      console.log('[ULTRAMSG] Numero formattato:', formattedPhone);
+      // Formatta il numero di telefono (rimuovi eventuali + iniziali e aggiungi @c.us se necessario)
+      let formattedPhone = phoneNumber.replace(/^\+/, '');
+      if (!formattedPhone.endsWith('@c.us')) {
+        formattedPhone += '@c.us';
+      }
+      console.log('[ULTRAMSG] Numero formattato per file upload:', formattedPhone);
 
       // Controllo modalità test - blocca l'invio se non autorizzato
       if (config.testMode) {
@@ -80,10 +83,19 @@ export class UltraMsgClient {
       const formData = new FormData();
       
       formData.append('to', formattedPhone);
-      formData.append('file', fileBuffer, {
-        filename: fileName,
-        contentType: fileExtension === 'pdf' ? 'application/pdf' : `image/${fileExtension}`
-      });
+      
+      // UltraMsg richiede parametri diversi per tipo di file
+      if (fileExtension === 'pdf') {
+        formData.append('document', fileBuffer, {
+          filename: fileName,
+          contentType: 'application/pdf'
+        });
+      } else {
+        formData.append('image', fileBuffer, {
+          filename: fileName,
+          contentType: `image/${fileExtension}`
+        });
+      }
       
       if (caption) {
         formData.append('caption', caption);
