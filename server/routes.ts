@@ -2868,37 +2868,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { clientId, caption } = req.body;
+      const { to, caption } = req.body;
 
-      if (!clientId) {
+      if (!to) {
         return res.status(400).json({ 
-          error: "ID cliente è obbligatorio" 
+          error: "Numero di telefono è obbligatorio" 
         });
       }
 
-      // Trova il cliente
-      const client = await storage.getClientById(parseInt(clientId));
+      // Trova il cliente per numero di telefono
+      const client = await storage.findClientByPhone(to);
       if (!client) {
-        return res.status(404).json({ 
-          error: "Cliente non trovato" 
-        });
-      }
-
-      if (!client.phone) {
-        return res.status(400).json({ 
-          error: "Cliente non ha un numero di telefono registrato" 
-        });
+        console.log("[ULTRAMSG FILE] Cliente non trovato per numero:", to, "- procedo comunque con l'invio");
       }
 
       try {
         // Ottieni il client UltraMsg
         const ultraMsgClient = getUltraMsgClient();
         
-        console.log("[ULTRAMSG FILE] Invio file:", req.file.originalname, "a cliente:", client.phone);
+        console.log("[ULTRAMSG FILE] Invio file:", req.file.originalname, "a numero:", to);
         
         // Invia il file tramite UltraMsg
         const ultraMsgResponse = await ultraMsgClient.sendFile(
-          client.phone,
+          to,
           req.file.buffer,
           req.file.originalname,
           caption
@@ -2908,21 +2900,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error(`Errore nell'invio del file: ${ultraMsgResponse.error || 'Unknown error'}`);
         }
 
-        // Salva una comunicazione nel database per tracciare l'invio del file
-        const communicationData = {
-          clientId: client.id,
-          type: 'whatsapp',
-          subject: `File WhatsApp: ${req.file.originalname}`,
-          content: `File inviato: ${req.file.originalname}${caption ? `\nDidascalia: ${caption}` : ''}`,
-          summary: `File ${req.file.originalname}`,
-          direction: 'outbound' as const,
-          needsFollowUp: false,
-          status: 'completed' as const,
-          propertyId: null,
-          responseToId: null
-        };
-        
-        const communication = await storage.createCommunication(communicationData);
+        // Salva una comunicazione nel database per tracciare l'invio del file (solo se esiste un cliente)
+        let communication = null;
+        if (client) {
+          const communicationData = {
+            clientId: client.id,
+            type: 'whatsapp',
+            subject: `File WhatsApp: ${req.file.originalname}`,
+            content: `File inviato: ${req.file.originalname}${caption ? `\nDidascalia: ${caption}` : ''}`,
+            summary: `File ${req.file.originalname}`,
+            direction: 'outbound' as const,
+            needsFollowUp: false,
+            status: 'completed' as const,
+            propertyId: null,
+            responseToId: null
+          };
+          
+          communication = await storage.createCommunication(communicationData);
+        }
         
         res.status(201).json({
           success: true,
