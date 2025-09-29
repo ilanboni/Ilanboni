@@ -294,7 +294,7 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
     form.reset();
     setIsSubmitting(false);
     setIsUploadingFile(false);
-    handleClose();
+    onClose();
   };
   
   // Modifichiamo onSubmit per utilizzare lo stato locale
