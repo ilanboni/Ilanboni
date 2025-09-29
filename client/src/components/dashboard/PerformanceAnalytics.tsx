@@ -54,7 +54,7 @@ export default function PerformanceAnalytics() {
     );
   }
 
-  const mockData = analytics || {
+  const defaultData = {
     messagesByType: [
       { type: 'Mail Merge', sent: 15, responses: 4, responseRate: 26.7 },
       { type: 'Manuali', sent: 8, responses: 3, responseRate: 37.5 },
@@ -77,6 +77,17 @@ export default function PerformanceAnalytics() {
     }
   };
 
+  const mockData = {
+    messagesByType: analytics?.messagesByType || defaultData.messagesByType,
+    weeklyTrends: analytics?.weeklyTrends || defaultData.weeklyTrends,
+    responseRates: {
+      overall: analytics?.responseRates?.overall ?? defaultData.responseRates.overall,
+      mailMerge: analytics?.responseRates?.mailMerge ?? defaultData.responseRates.mailMerge,
+      manual: analytics?.responseRates?.manual ?? defaultData.responseRates.manual,
+      followUp: analytics?.responseRates?.followUp ?? defaultData.responseRates.followUp
+    }
+  };
+
   const getResponseRateColor = (rate: number) => {
     if (rate >= 35) return "text-green-600 bg-green-100";
     if (rate >= 25) return "text-yellow-600 bg-yellow-100";
@@ -96,7 +107,7 @@ export default function PerformanceAnalytics() {
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">
-              {mockData.responseRates.overall.toFixed(1)}%
+              {(mockData.responseRates?.overall || 0).toFixed(1)}%
             </div>
             <div className="text-sm text-gray-600">Tasso Risposta Globale</div>
           </div>
@@ -163,7 +174,7 @@ export default function PerformanceAnalytics() {
             <Calendar className="h-4 w-4 mx-auto text-purple-500 mb-1" />
             <div className="text-xs text-gray-600">Media</div>
             <div className="text-sm font-semibold">
-              {(mockData.weeklyTrends.reduce((sum, day) => sum + day.messages, 0) / 7).toFixed(0)}
+              {(mockData.weeklyTrends?.reduce((sum, day) => sum + (day.messages || 0), 0) / 7 || 0).toFixed(0)}
             </div>
           </div>
         </div>
