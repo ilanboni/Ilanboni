@@ -3072,16 +3072,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Pulisci la memoria
         fileChunks.delete(fileId);
 
-        // TEMP: Per ora restituisco solo successo senza inviare via UltraMsg
-        return res.json({
-          success: true,
-          message: "File chunk assembly completato!",
-          fileName: fileInfo.fileName,
-          fileType: fileInfo.fileType,
-          to: fileInfo.to,
-          totalSize: completeFileData.length,
-          chunksProcessed: fileInfo.totalChunks
-        });
+        // 🚀 INTEGRAZIONE WHATSAPP - Converti base64 in Buffer e invia
+        try {
+          console.log(`📤 [CHUNK->WHATSAPP] Conversione base64 in Buffer...`);
+          const fileBuffer = Buffer.from(completeFileData, 'base64');
+          console.log(`📤 [CHUNK->WHATSAPP] Buffer creato: ${fileBuffer.length} bytes`);
+          
+          // Ottieni il client UltraMsg
+          const ultraMsgClient = getUltraMsgClient();
+          
+          console.log(`📤 [CHUNK->WHATSAPP] Invio file ${fileInfo.fileName} a ${fileInfo.to}...`);
+          
+          // Invia il file tramite UltraMsg
+          const ultraMsgResponse = await ultraMsgClient.sendFile(
+            fileInfo.to,
+            fileBuffer,
+            fileInfo.fileName,
+            fileInfo.caption
+          );
+          
+          console.log(`📤 [CHUNK->WHATSAPP] Risposta UltraMsg:`, ultraMsgResponse);
+          
+          // Salva la comunicazione nel database se il file è stato inviato con successo
+          if (ultraMsgResponse.sent) {
+            // Cerca il cliente
+            const client = await storage.getClientByPhone(fileInfo.to);
+            
+            if (client) {
+              const communication: InsertCommunication = {
+                clientId: client.id,
+                type: 'whatsapp',
+                direction: 'outbound',
+                subject: `File: ${fileInfo.fileName}`,
+                body: fileInfo.caption || `Inviato file ${fileInfo.fileName}`,
+                sentAt: new Date(),
+                status: 'sent',
+                externalId: ultraMsgResponse.id || undefined
+              };
+              
+              await storage.createCommunication(communication);
+              console.log(`📤 [CHUNK->WHATSAPP] Comunicazione salvata nel database per cliente ${client.id}`);
+            } else {
+              console.log(`📤 [CHUNK->WHATSAPP] Cliente non trovato per numero ${fileInfo.to}, comunicazione non salvata`);
+            }
+            
+            return res.json({
+              success: true,
+              message: "File inviato con successo su WhatsApp!",
+              fileName: fileInfo.fileName,
+              fileType: fileInfo.fileType,
+              to: fileInfo.to,
+              totalSize: completeFileData.length,
+              chunksProcessed: fileInfo.totalChunks,
+              whatsappMessageId: ultraMsgResponse.id
+            });
+          } else {
+            // Invio fallito
+            throw new Error(ultraMsgResponse.error || 'Errore sconosciuto nell\'invio WhatsApp');
+          }
+          
+        } catch (whatsappError: any) {
+          console.error(`📤 [CHUNK->WHATSAPP] ERRORE nell'invio WhatsApp:`, whatsappError);
+          return res.status(500).json({
+            success: false,
+            error: "Errore nell'invio del file su WhatsApp",
+            details: whatsappError.message
+          });
+        }
 
       } else {
         // Chunk ricevuto ma non ancora completo
