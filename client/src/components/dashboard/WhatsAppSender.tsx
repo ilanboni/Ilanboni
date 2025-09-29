@@ -122,16 +122,21 @@ export default function WhatsAppSender() {
           body: formData,
         })
         .then(async response => {
-          addDebugInfo(`📩 Risposta: ${response.status} ${response.statusText}`);
+          console.log("🎯 DEBUG: PROMISE THEN RAGGIUNTA!", response);
+          addDebugInfo(`📩 Risposta ricevuta: ${response.status} ${response.statusText}`);
           
           if (!response.ok) {
+            console.log("❌ DEBUG: Response not OK:", response);
             const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
             addDebugInfo(`❌ Errore: ${errorData.error || 'Errore sconosciuto'}`);
             throw new Error(errorData.error || 'Errore nell\'invio del file');
           }
           
+          console.log("✅ DEBUG: Response OK, parsing JSON...");
+          const jsonData = await response.json();
+          console.log("✅ DEBUG: JSON parsed successfully:", jsonData);
           addDebugInfo(`✅ File inviato con successo!`);
-          return response.json();
+          return jsonData;
         })
         .catch(error => {
           console.error("❌ DEBUG: ERRORE COMPLETO:", error);
