@@ -55,6 +55,23 @@ import { taskSyncScheduler } from "./services/taskSyncScheduler";
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
 
+// Configurazione multer per il file upload
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accetta solo PDF e immagini
+    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo di file non supportato. Sono supportati solo PDF, JPG, JPEG e PNG.'));
+    }
+  }
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Registra le route per il webhook forwarder
   const webhookForwarder = getWebhookForwarder();
@@ -2520,13 +2537,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("🚀 [ULTRAMSG TEST] Headers:", req.headers);
     console.log("🚀 [ULTRAMSG TEST] Content-Type:", req.get('content-type'));
     console.log("🚀 [ULTRAMSG TEST] Body keys:", Object.keys(req.body));
+    console.log("🚀 [ULTRAMSG TEST] File presente:", !!req.file);
+    console.log("🚀 [ULTRAMSG TEST] Multer Version Active: TRUE");
     return res.status(200).json({
       success: true,
-      message: "Test ricevuto con successo",
+      message: "Test ricevuto con successo - MULTER ATTIVO",
       timestamp: new Date().toISOString(),
       contentType: req.get('content-type'),
       bodyKeys: Object.keys(req.body),
-      body: req.body
+      body: req.body,
+      filePresent: !!req.file,
+      multerActive: true
     });
   });
 
@@ -2855,22 +2876,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Configurazione multer per il file upload
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-      fileSize: 10 * 1024 * 1024, // 10MB limit
-    },
-    fileFilter: (req, file, cb) => {
-      // Accetta solo PDF e immagini
-      const allowedMimes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-      if (allowedMimes.includes(file.mimetype)) {
-        cb(null, true);
-      } else {
-        cb(new Error('Tipo di file non supportato. Sono supportati solo PDF, JPG, JPEG e PNG.'));
-      }
-    }
-  });
 
   // ENDPOINT DI TEST SEMPLIFICATO PER IL FILE UPLOAD
   app.post("/api/whatsapp/send-file-test", upload.single('file'), async (req: Request, res: Response) => {
