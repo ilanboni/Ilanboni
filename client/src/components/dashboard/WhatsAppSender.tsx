@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, FileText, Image, Upload, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -14,6 +15,10 @@ export default function WhatsAppSender() {
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [isBroadcast, setIsBroadcast] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileCaption, setFileCaption] = useState("");
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const sendWhatsAppMutation = useMutation({
@@ -75,6 +80,134 @@ export default function WhatsAppSender() {
     },
   });
 
+  // Mutazione per inviare file
+  const sendFileMutation = useMutation({
+    mutationFn: async (data: { phones: string[]; file: File; caption: string }) => {
+      if (data.phones.length === 1) {
+        const formData = new FormData();
+        formData.append('to', data.phones[0]);
+        formData.append('file', data.file);
+        if (data.caption) formData.append('caption', data.caption);
+
+        return fetch('/api/whatsapp/send-file', {
+          method: 'POST',
+          body: formData,
+        }).then(response => {
+          if (!response.ok) throw new Error('Errore nell\'invio del file');
+          return response.json();
+        });
+      } else {
+        const results = [];
+        for (const phone of data.phones) {
+          try {
+            const formData = new FormData();
+            formData.append('to', phone);
+            formData.append('file', data.file);
+            if (data.caption) formData.append('caption', data.caption);
+
+            const response = await fetch('/api/whatsapp/send-file', {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (!response.ok) throw new Error('Errore nell\'invio del file');
+            const result = await response.json();
+            results.push({ phone, success: true, result });
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          } catch (error) {
+            results.push({ phone, success: false, error: (error as any)?.message || 'Errore sconosciuto' });
+          }
+        }
+        return results;
+      }
+    },
+    onSuccess: (data) => {
+      if (Array.isArray(data)) {
+        const successful = data.filter(r => r.success).length;
+        const failed = data.filter(r => !r.success).length;
+        
+        if (failed === 0) {
+          toast({
+            title: "File inviati",
+            description: `Tutti i ${successful} file sono stati inviati con successo`,
+          });
+        } else {
+          toast({
+            title: "Invio completato",
+            description: `${successful} file inviati con successo, ${failed} non riusciti`,
+            variant: failed > successful ? "destructive" : "default",
+          });
+        }
+      } else {
+        toast({
+          title: "File inviato",
+          description: "Il file è stato inviato con successo via WhatsApp",
+        });
+      }
+      setSelectedFile(null);
+      setFileCaption("");
+      setPhone("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error?.message || "Errore nell'invio del file",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Funzioni per gestire i file
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validazione tipo file
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Tipo file non supportato",
+        description: "Sono supportati solo file PDF, JPG e PNG",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validazione dimensione file (10MB max)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({
+        title: "File troppo grande",
+        description: "Il file deve essere più piccolo di 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    setFileCaption("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const openFileSelector = () => {
+    fileInputRef.current?.click();
+  };
+
+  const getFileIcon = (file: File) => {
+    if (file.type === 'application/pdf') {
+      return <FileText className="h-4 w-4" />;
+    } else if (file.type.startsWith('image/')) {
+      return <Image className="h-4 w-4" />;
+    }
+    return <FileText className="h-4 w-4" />;
+  };
+
   const normalizePhoneNumber = (phoneStr: string): string => {
     let normalized = phoneStr.replace(/\s+/g, "").replace(/[^0-9+]/g, "");
     if (normalized.startsWith("0")) {
@@ -92,10 +225,19 @@ export default function WhatsAppSender() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!phone.trim() || !message.trim()) {
+    if (!phone.trim()) {
       toast({
-        title: "Campi obbligatori",
-        description: "Inserisci sia il numero/i di telefono che il messaggio",
+        title: "Numero di telefono obbligatorio",
+        description: "Inserisci almeno un numero di telefono",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedFile && !message.trim()) {
+      toast({
+        title: "Contenuto obbligatorio",
+        description: "Inserisci un messaggio o seleziona un file da inviare",
         variant: "destructive",
       });
       return;
@@ -120,10 +262,20 @@ export default function WhatsAppSender() {
       phoneNumbers = [normalizePhoneNumber(phone)];
     }
 
-    sendWhatsAppMutation.mutate({
-      phones: phoneNumbers,
-      message: message.trim()
-    });
+    // Se c'è un file, invia il file
+    if (selectedFile) {
+      sendFileMutation.mutate({
+        phones: phoneNumbers,
+        file: selectedFile,
+        caption: fileCaption.trim()
+      });
+    } else {
+      // Altrimenti invia solo il messaggio
+      sendWhatsAppMutation.mutate({
+        phones: phoneNumbers,
+        message: message.trim()
+      });
+    }
   };
 
   return (
@@ -192,21 +344,98 @@ export default function WhatsAppSender() {
               className="mt-1"
             />
           </div>
+
+          <Separator className="my-4" />
+
+          {/* Sezione Upload File */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">Allega File (Opzionale)</h4>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,image/jpeg,image/jpg,image/png"
+              onChange={handleFileSelect}
+              className="hidden"
+              data-testid="file-input"
+            />
+
+            {!selectedFile ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openFileSelector}
+                className="w-full"
+                data-testid="select-file"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Seleziona File (PDF, JPG, PNG)
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                {/* Anteprima file selezionato */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    {getFileIcon(selectedFile)}
+                    <div>
+                      <p className="text-sm font-medium">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeSelectedFile}
+                    className="text-red-500 hover:text-red-700"
+                    data-testid="remove-file"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Campo didascalia */}
+                <div>
+                  <Label htmlFor="file-caption">Didascalia (Opzionale)</Label>
+                  <Input
+                    id="file-caption"
+                    type="text"
+                    placeholder="Aggiungi una didascalia al file..."
+                    value={fileCaption}
+                    onChange={(e) => setFileCaption(e.target.value)}
+                    className="mt-1"
+                    data-testid="file-caption"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           
           <Button 
             type="submit" 
-            disabled={sendWhatsAppMutation.isPending}
+            disabled={sendWhatsAppMutation.isPending || sendFileMutation.isPending}
             className="w-full"
           >
-            {sendWhatsAppMutation.isPending ? (
+            {(sendWhatsAppMutation.isPending || sendFileMutation.isPending) ? (
               <>
                 <i className="fas fa-spinner fa-spin mr-2"></i>
-                {isBroadcast ? "Invio broadcast..." : "Invio in corso..."}
+                {selectedFile ? "Invio file..." : (isBroadcast ? "Invio broadcast..." : "Invio in corso...")}
               </>
             ) : (
               <>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                {isBroadcast ? "Invia Broadcast" : "Invia Messaggio"}
+                {selectedFile ? (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    {isBroadcast ? "Invia File in Broadcast" : "Invia File"}
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    {isBroadcast ? "Invia Broadcast" : "Invia Messaggio"}
+                  </>
+                )}
               </>
             )}
           </Button>
