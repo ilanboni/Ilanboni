@@ -24,8 +24,8 @@ if (process.env.ENABLE_VIRTUAL_AGENT === undefined) {
 console.log(`🤖 Agente virtuale ${process.env.ENABLE_VIRTUAL_AGENT === 'true' ? 'ABILITATO' : 'DISABILITATO'}`);
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '50mb' })); // Aumentato limite per file base64
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 // Endpoint specifico per file OAuth (solo quando richiesto esplicitamente)
 app.get('/oauth-reauth', (req, res) => {
