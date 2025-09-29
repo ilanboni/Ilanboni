@@ -135,7 +135,21 @@ export default function WhatsAppSender() {
           return response.json();
         })
         .catch(error => {
-          addDebugInfo(`🚨 Errore fetch: ${error.name} - ${error.message}`);
+          console.error("❌ DEBUG: ERRORE COMPLETO:", error);
+          console.error("❌ DEBUG: Tipo errore:", error.constructor.name);
+          console.error("❌ DEBUG: Stack:", error.stack);
+          
+          addDebugInfo(`🚨 ERRORE: ${error.name} - ${error.message}`);
+          addDebugInfo(`🔍 Tipo: ${error.constructor.name}`);
+          
+          // Errori specifici di rete
+          if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            addDebugInfo(`❌ ERRORE DI RETE - fetch fallito`);
+          }
+          if (error.message.includes('CORS')) {
+            addDebugInfo(`❌ ERRORE CORS - browser blocca richiesta`);
+          }
+          
           throw error;
         });
       } else {
