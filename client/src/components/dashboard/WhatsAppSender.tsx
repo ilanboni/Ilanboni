@@ -111,7 +111,7 @@ export default function WhatsAppSender() {
 
         // FETCH NATIVO - FORZATO (no caching)
         addDebugInfo(`🔥 USANDO FETCH NATIVO: ${Date.now()}`);
-        return fetch('/api/whatsapp/file-debug?' + Date.now(), {
+        return fetch('/api/whatsapp/test?' + Date.now(), {
           method: 'POST',
           body: formData,
         })

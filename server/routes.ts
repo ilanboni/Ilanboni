@@ -2516,10 +2516,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Endpoint di test per verificare la ricezione delle richieste API
   app.post("/api/whatsapp/test", (req: Request, res: Response) => {
-    console.log("[ULTRAMSG TEST] Ricevuta richiesta di test:", req.body);
+    console.log("🚀 [ULTRAMSG TEST] Ricevuta richiesta di test:", req.body);
+    console.log("🚀 [ULTRAMSG TEST] Headers:", req.headers);
+    console.log("🚀 [ULTRAMSG TEST] Content-Type:", req.get('content-type'));
+    console.log("🚀 [ULTRAMSG TEST] Body keys:", Object.keys(req.body));
     return res.status(200).json({
       success: true,
       message: "Test ricevuto con successo",
+      timestamp: new Date().toISOString(),
+      contentType: req.get('content-type'),
+      bodyKeys: Object.keys(req.body),
       body: req.body
     });
   });
