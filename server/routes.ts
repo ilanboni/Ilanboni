@@ -2877,7 +2877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Trova il cliente per numero di telefono
-      const client = await storage.findClientByPhone(to);
+      const client = await storage.getClientByPhone(to);
       if (!client) {
         console.log("[ULTRAMSG FILE] Cliente non trovato per numero:", to, "- procedo comunque con l'invio");
       }

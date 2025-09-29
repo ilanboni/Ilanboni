@@ -409,9 +409,9 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept="application/pdf,image/jpeg,image/jpg,image/png"
                 onChange={handleFileSelect}
-                style={{ display: 'none' }}
+                className="hidden"
                 data-testid="file-input"
               />
               
