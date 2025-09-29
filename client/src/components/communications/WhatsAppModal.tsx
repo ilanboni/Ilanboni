@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -25,6 +25,9 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Paperclip, X, FileText, Image } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface WhatsAppModalProps {
   isOpen: boolean;
@@ -39,6 +42,7 @@ const formSchema = z.object({
   }).min(3, {
     message: "Il messaggio deve contenere almeno 3 caratteri",
   }),
+  caption: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -46,12 +50,18 @@ type FormData = z.infer<typeof formSchema>;
 export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Stato per il file selezionato
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
   
   // Form setup
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       message: "",
+      caption: "",
     },
   });
   
@@ -77,7 +87,7 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
       
       // Reset form and close modal
       form.reset();
-      onClose();
+      handleClose();
       
       // Invalidate communications queries to refresh the list
       queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
@@ -143,7 +153,7 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
       
       // Reset form e chiudi modale
       form.reset();
-      onClose();
+      handleClose();
       
       // Invalida le query per aggiornare la lista delle comunicazioni
       queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
@@ -163,6 +173,129 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
 
   // Stato locale per l'invio in corso
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Funzione per gestire la selezione del file
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Controlla il tipo di file
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Tipo di file non supportato",
+          description: "Sono supportati solo file PDF, JPG, JPEG e PNG",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Controlla la dimensione del file (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File troppo grande",
+          description: "Il file deve essere massimo 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
+
+  // Funzione per rimuovere il file selezionato
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Funzione per inviare il file
+  const sendFile = async (caption?: string) => {
+    if (!selectedFile || !client) {
+      toast({
+        title: "Errore",
+        description: "Nessun file selezionato o cliente mancante",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingFile(true);
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('clientId', client.id.toString());
+      if (caption) {
+        formData.append('caption', caption);
+      }
+
+      const response = await fetch('/api/whatsapp/send-file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Errore nell'invio del file");
+      }
+
+      const result = await response.json();
+      console.log("File inviato con successo:", result);
+
+      toast({
+        title: "File inviato",
+        description: `${selectedFile.name} è stato inviato con successo`,
+      });
+
+      // Reset file e form
+      removeSelectedFile();
+      form.reset();
+      handleClose();
+
+      // Invalida le query per aggiornare la lista delle comunicazioni
+      queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/clients/${client.id}/communications`] 
+      });
+
+    } catch (error: any) {
+      console.error("Errore nell'invio del file:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile inviare il file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  // Funzione per aprire il selettore file
+  const openFileSelector = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Funzione per ottenere l'icona del file
+  const getFileIcon = (file: File) => {
+    if (file.type === 'application/pdf') {
+      return <FileText className="h-4 w-4" />;
+    } else if (file.type.startsWith('image/')) {
+      return <Image className="h-4 w-4" />;
+    }
+    return <FileText className="h-4 w-4" />;
+  };
+
+  // Funzione per pulire lo stato quando si chiude la modal
+  const handleClose = () => {
+    removeSelectedFile();
+    form.reset();
+    setIsSubmitting(false);
+    setIsUploadingFile(false);
+    handleClose();
+  };
   
   // Modifichiamo onSubmit per utilizzare lo stato locale
   const onSubmitModified = async (data: FormData) => {
@@ -212,7 +345,7 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
       
       // Reset form e chiudi modale
       form.reset();
-      onClose();
+      handleClose();
       
       // Invalida le query per aggiornare la lista delle comunicazioni
       queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
@@ -234,7 +367,7 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Invia messaggio WhatsApp</DialogTitle>
@@ -266,12 +399,106 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
                 </FormItem>
               )}
             />
+
+            <Separator />
+
+            {/* Sezione Upload File */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-700">Allega File (Opzionale)</h4>
+              
+              {/* Input file nascosto */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                data-testid="file-input"
+              />
+              
+              {/* Mostra file selezionato o pulsante selezione */}
+              {selectedFile ? (
+                <div className="p-3 border rounded-lg bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getFileIcon(selectedFile)}
+                      <div>
+                        <p className="text-sm font-medium">{selectedFile.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removeSelectedFile}
+                      data-testid="remove-file"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Campo didascalia per il file */}
+                  <FormField
+                    control={form.control}
+                    name="caption"
+                    render={({ field }) => (
+                      <FormItem className="mt-3">
+                        <FormLabel>Didascalia (Opzionale)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Aggiungi una didascalia al file..."
+                            {...field}
+                            data-testid="file-caption"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Pulsante per inviare file */}
+                  <Button
+                    type="button"
+                    onClick={() => sendFile(form.getValues('caption'))}
+                    disabled={isUploadingFile || !client}
+                    className="w-full mt-3 bg-green-600 hover:bg-green-700"
+                    data-testid="send-file"
+                  >
+                    {isUploadingFile ? (
+                      <>
+                        <span className="animate-spin mr-2">⏳</span>
+                        Invio file in corso...
+                      </>
+                    ) : (
+                      <>
+                        <Paperclip className="h-4 w-4 mr-2" />
+                        Invia File
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={openFileSelector}
+                  className="w-full"
+                  data-testid="select-file"
+                >
+                  <Paperclip className="h-4 w-4 mr-2" />
+                  Seleziona File (PDF, JPG, PNG)
+                </Button>
+              )}
+            </div>
             
             <DialogFooter>
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={onClose}
+                onClick={handleClose}
               >
                 Annulla
               </Button>
