@@ -2886,9 +2886,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Ottieni il client UltraMsg
         const ultraMsgClient = getUltraMsgClient();
         
-        console.log("[ULTRAMSG FILE] Invio file:", req.file.originalname, "a numero:", to);
+        console.log("[ULTRAMSG FILE] 📎 Invio file:", req.file.originalname, "a numero:", to);
+        console.log("[ULTRAMSG FILE] 📏 File info:", { 
+          size: req.file.size, 
+          type: req.file.mimetype,
+          buffer: req.file.buffer ? `Buffer ${req.file.buffer.length} bytes` : "NO BUFFER" 
+        });
         
         // Invia il file tramite UltraMsg
+        console.log("[ULTRAMSG FILE] 🚀 Chiamata UltraMsg sendFile...");
         const ultraMsgResponse = await ultraMsgClient.sendFile(
           to,
           req.file.buffer,
@@ -2896,9 +2902,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           caption
         );
         
+        console.log("[ULTRAMSG FILE] 📨 Risposta UltraMsg:", ultraMsgResponse);
+        
         if (!ultraMsgResponse.sent) {
+          console.error("[ULTRAMSG FILE] ❌ Errore UltraMsg:", ultraMsgResponse.error);
           throw new Error(`Errore nell'invio del file: ${ultraMsgResponse.error || 'Unknown error'}`);
         }
+
+        console.log("[ULTRAMSG FILE] ✅ File inviato con successo tramite UltraMsg");
 
         // Salva una comunicazione nel database per tracciare l'invio del file (solo se esiste un cliente)
         let communication = null;

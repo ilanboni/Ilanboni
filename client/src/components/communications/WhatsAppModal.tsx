@@ -212,7 +212,10 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
 
   // Funzione per inviare il file
   const sendFile = async (caption?: string) => {
+    console.log("🚀 [FRONTEND FILE UPLOAD] Inizio sendFile(), selectedFile:", selectedFile?.name, "cliente:", client?.id);
+    
     if (!selectedFile || !client) {
+      console.error("❌ [FRONTEND FILE UPLOAD] Validazione fallita - selectedFile:", !!selectedFile, "client:", !!client);
       toast({
         title: "Errore",
         description: "Nessun file selezionato o cliente mancante",
@@ -221,8 +224,12 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
       return;
     }
 
+    console.log("✅ [FRONTEND FILE UPLOAD] Validazione OK - file:", selectedFile.name, "size:", selectedFile.size, "type:", selectedFile.type);
+    console.log("📞 [FRONTEND FILE UPLOAD] Cliente telefono:", client.phone);
+
     try {
       setIsUploadingFile(true);
+      console.log("⏳ [FRONTEND FILE UPLOAD] setIsUploadingFile(true) completato");
 
       const formData = new FormData();
       formData.append('file', selectedFile);
@@ -230,19 +237,30 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
       if (caption) {
         formData.append('caption', caption);
       }
+      
+      console.log("📦 [FRONTEND FILE UPLOAD] FormData creato:", {
+        file: selectedFile.name,
+        to: client.phone,
+        caption: caption || 'nessuna didascalia'
+      });
 
+      console.log("🌐 [FRONTEND FILE UPLOAD] Inizio fetch a /api/whatsapp/send-file...");
       const response = await fetch('/api/whatsapp/send-file', {
         method: 'POST',
         body: formData,
       });
+      
+      console.log("📡 [FRONTEND FILE UPLOAD] Fetch completato, response.ok:", response.ok, "status:", response.status);
 
       if (!response.ok) {
+        console.error("❌ [FRONTEND FILE UPLOAD] Response non OK, status:", response.status);
         const errorData = await response.json();
+        console.error("❌ [FRONTEND FILE UPLOAD] Error data dal server:", errorData);
         throw new Error(errorData.error || "Errore nell'invio del file");
       }
 
       const result = await response.json();
-      console.log("File inviato con successo:", result);
+      console.log("✅ [FRONTEND FILE UPLOAD] File inviato con successo:", result);
 
       toast({
         title: "File inviato",
@@ -261,13 +279,15 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
       });
 
     } catch (error: any) {
-      console.error("Errore nell'invio del file:", error);
+      console.error("❌ [FRONTEND FILE UPLOAD] Errore nell'invio del file:", error);
+      console.error("❌ [FRONTEND FILE UPLOAD] Stack trace:", error.stack);
       toast({
         title: "Errore",
-        description: error.message || "Impossibile inviare il file",
+        description: error.message || "Errore durante l'invio del file WhatsApp",
         variant: "destructive",
       });
     } finally {
+      console.log("🏁 [FRONTEND FILE UPLOAD] Finally block - setIsUploadingFile(false)");
       setIsUploadingFile(false);
     }
   };
