@@ -227,7 +227,7 @@ export function WhatsAppModal({ isOpen, onClose, client }: WhatsAppModalProps) {
 
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('clientId', client.id.toString());
+      formData.append('to', client.phone || '');
       if (caption) {
         formData.append('caption', caption);
       }
