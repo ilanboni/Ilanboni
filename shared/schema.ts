@@ -182,7 +182,7 @@ export const communications = pgTable("communications", {
   status: text("status").default("pending"), // pending, completed, no-response
   sentiment: text("sentiment"), // positive, negative, neutral - analisi del sentimento con AI
   sentimentScore: integer("sentiment_score"), // punteggio da 0 a 100
-  responseToId: integer("response_to_id").references(() => communications.id), // per tracciare le risposte
+  responseToId: integer("response_to_id"), // per tracciare le risposte - self-reference aggiunta dopo
   autoFollowUpSent: boolean("auto_follow_up_sent").default(false), // per sapere se è stato inviato un follow-up automatico
   managementStatus: text("management_status").default("to_manage"), // "to_manage", "managed", "client_created"
   needsResponse: boolean("needs_response").default(false), // per messaggi in entrata non risposti

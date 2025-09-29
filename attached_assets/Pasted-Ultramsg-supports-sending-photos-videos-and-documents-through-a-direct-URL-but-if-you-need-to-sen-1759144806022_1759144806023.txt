@@ -1,0 +1,129 @@
+Ultramsg supports sending photos, videos, and documents through a direct URL, but if you need to send documents from a local server, you must use and convert the files to base64 format and then send them. But the disadvantage of base64 is that the size is limited to a maximum of 10 million characters, about 6.5M.
+
+We have provided an alternative and better solution for this by uploading the file from the local server to a CDN at a free cost for Ultramsg clients.
+
+Route path : [POST] /media/upload
+
+required parameters :
+
+file: file name like /path/example.pdf.
+token: your instance token.
+Contents  hide 
+1 postman collection for making test uploading files
+2 example for uploading Documents using PHP
+3 example for uploading Documents using Python
+4 example for uploading Documents using c#
+5 example for uploading Documents using curl
+6 example for uploading Documents using NodeJs – Request lib
+7 example for uploading Documents using vb.net
+postman collection for making test uploading files
+you can import the postman collection from here.
+
+image
+example for uploading Documents using PHP
+<?php
+
+$curl = curl_init();
+curl_setopt_array($curl, array(
+  CURLOPT_URL => 'https://api.ultramsg.com/instance950/media/upload',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_ENCODING => '',
+  CURLOPT_MAXREDIRS => 10,
+  CURLOPT_TIMEOUT => 0,
+  CURLOPT_FOLLOWLOCATION => true,
+  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS => array('file' => new CURLFILE('sample.pdf'), 'token' => 'Yourtoken'),
+));
+
+$response = curl_exec($curl);
+curl_close($curl);
+echo $response;
+After sending the previous request, the file link will be returned to you for use in sending the WhatsApp API.
+
+example for uploading Documents using Python
+import requests
+
+url = "https://api.ultramsg.com/instance950/media/upload"
+
+payload={'token': 'Yourtoken'}
+files=[
+  ('file',('sample.pdf',open('/folder/sample.pdf','rb'),'application/pdf'))
+]
+headers = {}
+
+response = requests.request("POST", url, headers=headers, data=payload, files=files)
+
+print(response.text)
+example for uploading Documents using c#
+using System.Net;
+using System.Text;
+
+namespace FileUploadExample
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var token = "Yourtoken";
+            var instance = "instance950";
+
+            var filePath = "/folder/sample.pdf";
+            var url = "https://api.ultramsg.com/" + instance + "/media/upload/?token=" + token;
+
+            var client = new WebClient();
+
+            var response = client.UploadFile(url, "POST", filePath);
+            string responseInString = Encoding.UTF8.GetString(response);
+            Console.WriteLine(responseInString);
+
+        }
+    }
+}
+example for uploading Documents using curl
+curl --location --request POST 'https://api.ultramsg.com/instance950/media/upload' \
+--form 'file=@"/folder/sample.pdf"' \
+--form 'token="Yourtoken"'
+example for uploading Documents using NodeJs – Request lib
+var request = require('request');
+var fs = require('fs');
+var options = {
+  'method': 'POST',
+  'url': 'https://api.ultramsg.com/instance950/media/upload',
+  'headers': {
+  },
+  formData: {
+    'file': {
+      'value': fs.createReadStream('/folder/sample.pdf'),
+      'options': {
+        'filename': 'sample.pdf',
+        'contentType': null
+      }
+    },
+    'token': 'Yourtoken'
+  }
+};
+request(options, function (error, response) {
+  if (error) throw new Error(error);
+  console.log(response.body);
+});
+example for uploading Documents using vb.net
+Imports System.Net
+Imports System.Text
+
+Module Program
+    Sub Main(args As String())
+        Const token As String = "Yourtoken"
+        Const instance = "instance950"
+        Const filePath = "test.jpg"
+        const url = "https://api.ultramsg.com/" & instance & "/media/upload/?token=" & token
+        Dim client = New WebClient()
+        Dim response = client.UploadFile(url, "POST", filePath)
+        Dim documentUrl As String = Encoding.UTF8.GetString(response)
+        Console.WriteLine(documentUrl)
+    End Sub
+End Module
+CategoriesWhatsApp API
+TagsTutorials, upload media, WhatsApp API
+How to avoid Banned WhatsApp number?
+Delete sent WhatsApp messages after sending
