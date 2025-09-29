@@ -219,6 +219,13 @@ export async function fetchRecentWhatsAppMessages(): Promise<{
         
         console.log(`[ULTRAMSG] Analisi direzione: from=${normalizedFrom}, agentNumber=${agentNumber}, isFromMe=${isFromMe}`);
         
+        // Se il messaggio è dall'agente, non processarlo come messaggio di un cliente
+        if (isFromMe) {
+          console.log(`[ULTRAMSG] Messaggio dall'agente ignorato dopo analisi direzione`);
+          ignoredCount++;
+          continue;
+        }
+        
         // Normalizza i dati del messaggio per il processore di webhook
         const webhookData = {
           event_type: "message",
