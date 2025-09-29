@@ -533,7 +533,7 @@ export class UltraMsgClient {
             });
             
             client = updatedClient;
-            console.log(`[NAME-CORRELATION] ✅ Cliente ${client.id} aggiornato automaticamente: ${client.salutation} ${client.firstName} ${client.lastName}`);
+            console.log(`[NAME-CORRELATION] ✅ Cliente ${client!.id} aggiornato automaticamente: ${client!.salutation} ${client!.firstName} ${client!.lastName}`);
           } catch (updateError) {
             console.error("[NAME-CORRELATION] ❌ Errore nell'aggiornamento automatico del cliente:", updateError);
           }
@@ -569,15 +569,15 @@ export class UltraMsgClient {
       }
 
       // Trova l'ultima comunicazione in uscita per questo client per collegare questa risposta all'immobile
-      const clientCommunications = await storage.getCommunicationsByClientId(client.id);
+      const clientCommunications = await storage.getCommunicationsByClientId(client!.id);
       const lastOutboundComm = clientCommunications
-        .filter(comm => comm.direction === "outbound")
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        .filter((comm: any) => comm.direction === "outbound")
+        .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())[0];
       
       // Se non c'è comunicazione outbound, prova a dedurre l'immobile dal contenuto
       let deducedPropertyId: number | null = null;
       if (!lastOutboundComm?.propertyId) {
-        console.log(`[ULTRAMSG-CORRELATION] Nessuna comunicazione outbound trovata per cliente ${client.id}, deduco immobile dal contenuto`);
+        console.log(`[ULTRAMSG-CORRELATION] Nessuna comunicazione outbound trovata per cliente ${client!.id}, deduco immobile dal contenuto`);
         
         // Cerca riferimenti a indirizzi nel messaggio
         const addressPatterns = [
@@ -640,7 +640,7 @@ export class UltraMsgClient {
       
       // Prepara i dati per il database
       const communicationData: InsertCommunication = {
-        clientId: client.id,
+        clientId: client!.id,
         type: 'whatsapp',
         subject: `Messaggio WhatsApp da ${phone}`,
         content: messageContent,
@@ -660,7 +660,7 @@ export class UltraMsgClient {
       // Verifica se l'agente virtuale è abilitato
       if (process.env.ENABLE_VIRTUAL_AGENT === 'true') {
         try {
-          console.log(`[VIRTUAL-AGENT] Messaggio ricevuto da ${client.firstName} ${client.lastName}, attivazione elaborazione asincrona`);
+          console.log(`[VIRTUAL-AGENT] Messaggio ricevuto da ${client!.firstName} ${client!.lastName}, attivazione elaborazione asincrona`);
           
           // Utilizziamo un import() dinamico per evitare dipendenze circolari
           // La risposta viene gestita in modo asincrono per non bloccare la risposta al webhook
