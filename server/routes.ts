@@ -2934,6 +2934,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true, message: "Test endpoint funzionante!" });
   });
 
+  // EMERGENCY FILE UPLOAD ENDPOINT - SUPER SEMPLICE!
+  app.post("/api/emergency-file-direct", upload.single('file'), async (req: Request, res: Response) => {
+    console.log("🔥🔥🔥 [DIRECT-FILE-UPLOAD] ENDPOINT RAGGIUNTO FINALMENTE! 🔥🔥🔥");
+    console.log("🔥 [DIRECT] File presente:", !!req.file);
+    console.log("🔥 [DIRECT] Body to:", req.body.to);
+    console.log("🔥 [DIRECT] Body caption:", req.body.caption);
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Nessun file allegato" });
+      }
+      
+      if (!req.body.to) {
+        return res.status(400).json({ error: "Destinatario mancante" });
+      }
+      
+      // Semplice test senza UltraMsg per ora
+      res.json({
+        success: true,
+        message: "File DIRETTO inviato con successo!",
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        to: req.body.to
+      });
+      
+    } catch (error: any) {
+      console.error("[DIRECT FILE] Errore:", error);
+      res.status(500).json({ error: "Errore generico" });
+    }
+  });
+
   // Endpoint per inviare file tramite WhatsApp
   app.post("/api/whatsapp/send-file", upload.single('file'), async (req: Request, res: Response) => {
     console.log("🔥 [ULTRAMSG FILE] ENDPOINT RAGGIUNTO! Request headers:", JSON.stringify(req.headers, null, 2));

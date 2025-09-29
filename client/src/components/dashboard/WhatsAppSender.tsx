@@ -117,7 +117,7 @@ export default function WhatsAppSender() {
         
         console.log("🔥 DEBUG: Prima del fetch");
         addDebugInfo(`🌐 Usando URL relativo per Vite`);
-        return fetch('/api/emergency-file-upload-xyz123?' + Date.now(), {
+        return fetch('/api/emergency-file-direct?' + Date.now(), {
           method: 'POST',
           body: formData,
         })
