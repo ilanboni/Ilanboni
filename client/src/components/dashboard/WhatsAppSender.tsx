@@ -92,8 +92,11 @@ export default function WhatsAppSender() {
         return fetch('/api/whatsapp/send-file', {
           method: 'POST',
           body: formData,
-        }).then(response => {
-          if (!response.ok) throw new Error('Errore nell\'invio del file');
+        }).then(async response => {
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
+            throw new Error(errorData.error || errorData.details || 'Errore nell\'invio del file');
+          }
           return response.json();
         });
       } else {
@@ -110,7 +113,10 @@ export default function WhatsAppSender() {
               body: formData,
             });
 
-            if (!response.ok) throw new Error('Errore nell\'invio del file');
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
+              throw new Error(errorData.error || errorData.details || 'Errore nell\'invio del file');
+            }
             const result = await response.json();
             results.push({ phone, success: true, result });
             await new Promise(resolve => setTimeout(resolve, 1500));
