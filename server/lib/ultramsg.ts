@@ -519,7 +519,7 @@ export class UltraMsgClient {
       if (client && (client.firstName === 'Cliente' || client.salutation === 'Gentile Cliente')) {
         console.log("[NAME-CORRELATION] Cliente con nome generico trovato, verifica messaggi in arrivo per informazioni migliori");
         
-        const extractedInfo = this.extractNameFromMessage(messageContent);
+        const extractedInfo = this.extractNameFromMessage(incomingMessageContent);
         if (extractedInfo) {
           console.log(`[NAME-CORRELATION] ✅ Informazioni nome estratte dal messaggio: ${JSON.stringify(extractedInfo)}`);
           
