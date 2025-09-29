@@ -89,6 +89,8 @@ export default function WhatsAppSender() {
   // Mutazione per inviare file
   const sendFileMutation = useMutation({
     mutationFn: async (data: { phones: string[]; file: File; caption: string }) => {
+      console.log("🎯 DEBUG: MUTAZIONE ESEGUITA - START", data.phones);
+      addDebugInfo(`🎯 MUTAZIONE START: ${Date.now()}`);
       console.log("📤 DEBUG: Inizio invio file a API", data.phones);
       addDebugInfo(`🚀 Inizio invio file: ${data.file.name} (${(data.file.size/1024).toFixed(1)}KB)`);
       
