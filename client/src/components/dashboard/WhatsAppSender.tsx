@@ -107,10 +107,15 @@ export default function WhatsAppSender() {
           hasCaption: !!data.caption
         });
 
+        console.log("🔥 DEBUG: Prima di addDebugInfo - riga 110");
         addDebugInfo(`📤 Invio richiesta a ${data.phones[0]}`);
+        console.log("🔥 DEBUG: Dopo addDebugInfo - riga 110");
 
-        // FETCH NATIVO - FORZATO (no caching)
+        console.log("🔥 DEBUG: Prima di addDebugInfo - riga 113");
         addDebugInfo(`🔥 USANDO FETCH NATIVO: ${Date.now()}`);
+        console.log("🔥 DEBUG: Dopo addDebugInfo - riga 113");
+        
+        console.log("🔥 DEBUG: Prima del fetch");
         return fetch('/api/whatsapp/test?' + Date.now(), {
           method: 'POST',
           body: formData,
