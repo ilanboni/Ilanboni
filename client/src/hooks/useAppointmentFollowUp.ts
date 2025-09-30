@@ -4,23 +4,26 @@ import { useQuery } from "@tanstack/react-query";
 export function useAppointmentFollowUp() {
   const [showPopup, setShowPopup] = useState(false);
   
+  // TEMPORANEAMENTE DISABILITATO per risolvere problemi di caricamento
   // Verifica se ci sono appuntamenti che necessitano follow-up
   const { data: pendingAppointments = [] } = useQuery({
     queryKey: ['/api/appointment-confirmations/pending-follow-up'],
-    refetchInterval: 5 * 60 * 1000, // Controlla ogni 5 minuti
-    staleTime: 2 * 60 * 1000 // I dati sono considerati freschi per 2 minuti
+    enabled: false, // DISABILITATO TEMPORANEAMENTE
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000
   });
 
   // Mostra il popup se ci sono appuntamenti in sospeso
   useEffect(() => {
-    if (pendingAppointments.length > 0 && !showPopup) {
+    const appointments = pendingAppointments as any[];
+    if (appointments.length > 0 && !showPopup) {
       setShowPopup(true);
     }
-  }, [pendingAppointments.length, showPopup]);
+  }, [(pendingAppointments as any[]).length, showPopup]);
 
   return {
     showPopup,
     setShowPopup,
-    hasPendingAppointments: pendingAppointments.length > 0
+    hasPendingAppointments: (pendingAppointments as any[]).length > 0
   };
 }

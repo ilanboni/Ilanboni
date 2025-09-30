@@ -282,7 +282,8 @@ async function pollWhatsAppMessages() {
     });
     
     // Avvia il polling dei messaggi WhatsApp dopo l'avvio del server
-    startWhatsAppPolling();
+    // TEMPORANEAMENTE DISABILITATO per diagnosi problemi caricamento frontend
+    // startWhatsAppPolling();
     
     // Gmail polling temporaneamente disabilitato per diagnosi
     // startGmailPolling().catch(err => console.error('📧 ❌ Errore avvio Gmail polling:', err));
