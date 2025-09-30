@@ -117,12 +117,12 @@ export default function WhatsAppSender() {
     });
   };
 
-  // Mutazione per inviare file usando sistema CHUNK
+  // Mutazione per inviare file usando WebSocket (aggira devtools Replit)
   const sendFileMutation = useMutation({
     mutationFn: async (data: { phones: string[]; file: File; caption: string }) => {
-      console.log("🧩 DEBUG: CHUNK UPLOAD INIZIATO", data.phones);
-      addDebugInfo(`🧩 CHUNK UPLOAD START: ${Date.now()}`);
-      console.log("📤 DEBUG: Inizio chunk upload", data.phones);
+      console.log("🔌 DEBUG: WEBSOCKET UPLOAD INIZIATO", data.phones);
+      addDebugInfo(`🔌 WebSocket upload start: ${Date.now()}`);
+      console.log("📤 DEBUG: Inizio upload via WebSocket", data.phones);
       addDebugInfo(`🚀 File: ${data.file.name} (${(data.file.size/1024).toFixed(1)}KB)`);
       
       if (data.phones.length === 1) {
@@ -141,76 +141,124 @@ export default function WhatsAppSender() {
           reader.readAsDataURL(data.file);
         });
 
-        console.log(`🧩 Base64 generato: ${fileData.length} caratteri`);
-        addDebugInfo(`🧩 Base64 length: ${fileData.length} chars`);
+        console.log(`🔌 Base64 generato: ${fileData.length} caratteri`);
+        addDebugInfo(`📦 Base64: ${fileData.length} chars`);
 
-        // Dividi il file in chunk da 50KB (circa 37KB di dati binari originali)
-        const CHUNK_SIZE = 50000; // 50KB di base64
-        const chunks = [];
-        for (let i = 0; i < fileData.length; i += CHUNK_SIZE) {
-          chunks.push(fileData.slice(i, i + CHUNK_SIZE));
-        }
-
-        const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const totalChunks = chunks.length;
-
-        console.log(`🧩 File diviso in ${totalChunks} chunk da max ${CHUNK_SIZE} caratteri`);
-        addDebugInfo(`🧩 ${totalChunks} chunk da inviare (${CHUNK_SIZE} chars max)`);
-
-        // Invia ogni chunk sequenzialmente usando XMLHttpRequest nativo
-        for (let i = 0; i < chunks.length; i++) {
-          console.log(`🧩 Invio chunk ${i + 1}/${totalChunks} (${chunks[i].length} chars)`);
-          addDebugInfo(`📤 Chunk ${i + 1}/${totalChunks}: ${chunks[i].length} chars`);
-
-          const chunkBody = {
-            fileId,
-            chunkIndex: i,
-            totalChunks,
-            chunkData: chunks[i],
-            fileName: data.file.name,
-            fileType: data.file.type,
-            to: data.phones[0],
-            caption: data.caption || ''
+        // Invia via WebSocket
+        return new Promise((resolve, reject) => {
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const wsUrl = `${protocol}//${window.location.host}/ws-upload`;
+          console.log("🔌 Connessione a:", wsUrl);
+          addDebugInfo(`🔌 Connessione a ${wsUrl}...`);
+          
+          const ws = new WebSocket(wsUrl);
+          
+          ws.onopen = () => {
+            console.log("🔌 WebSocket connesso!");
+            addDebugInfo('✅ WebSocket connesso! Invio file...');
+            
+            ws.send(JSON.stringify({
+              type: 'file-upload',
+              fileName: data.file.name,
+              fileType: data.file.type,
+              fileSize: fileData.length,
+              fileData: fileData,
+              to: data.phones[0],
+              caption: data.caption || ''
+            }));
+            
+            addDebugInfo('📤 File inviato al server via WebSocket');
           };
-
-          try {
-            // Usa endpoint alternativo /x-upload per evitare intercettazione devtools Replit
-            const chunkResult = await nativeXHRPost('/x-upload', chunkBody);
-            console.log(`✅ Chunk ${i + 1} completato:`, chunkResult);
-            addDebugInfo(`✅ Chunk ${i + 1}: ${chunkResult.message}`);
-
-            // Se è l'ultimo chunk e il file è completo
-            if (chunkResult.complete) {
-              console.log("🎯 FILE ASSEMBLY COMPLETATO!", chunkResult);
-              addDebugInfo(`🎯 File riassemblato: ${chunkResult.totalSize} chars`);
-              return chunkResult;
+          
+          ws.onmessage = (event) => {
+            const response = JSON.parse(event.data);
+            console.log("🔌 Risposta WebSocket:", response);
+            
+            if (response.success) {
+              addDebugInfo('🎉 File inviato con successo!');
+              resolve(response);
+            } else {
+              addDebugInfo(`❌ Errore: ${response.error}`);
+              reject(new Error(response.error || 'Errore WebSocket sconosciuto'));
             }
-          } catch (error: any) {
-            addDebugInfo(`❌ Chunk ${i + 1} fallito: ${error.message}`);
-            throw new Error(`Chunk ${i + 1} fallito: ${error.message}`);
-          }
-        }
-
-        throw new Error("File assembly non completato - errore imprevisto");
+            
+            ws.close();
+          };
+          
+          ws.onerror = (error) => {
+            console.error("🔌 Errore WebSocket:", error);
+            addDebugInfo('❌ Errore connessione WebSocket');
+            reject(new Error('Errore connessione WebSocket'));
+          };
+          
+          ws.onclose = () => {
+            console.log("🔌 WebSocket chiuso");
+          };
+          
+          // Timeout dopo 60 secondi
+          setTimeout(() => {
+            if (ws.readyState !== WebSocket.CLOSED) {
+              ws.close();
+              reject(new Error('Timeout WebSocket'));
+            }
+          }, 60000);
+        });
       } else {
+        // Upload multipli - usa lo stesso WebSocket per tutti
         const results = [];
         for (const phone of data.phones) {
           try {
-            const formData = new FormData();
-            formData.append('to', phone);
-            formData.append('file', data.file);
-            if (data.caption) formData.append('caption', data.caption);
-
-            const response = await fetch('/api/whatsapp/send-file-test', {
-              method: 'POST',
-              body: formData,
+            const fileData = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                  const base64 = reader.result.split(',')[1];
+                  resolve(base64);
+                } else {
+                  reject(new Error('FileReader result non è stringa'));
+                }
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(data.file);
             });
-
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
-              throw new Error(errorData.error || errorData.details || 'Errore nell\'invio del file');
-            }
-            const result = await response.json();
+            
+            const result = await new Promise((resolve, reject) => {
+              const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+              const wsUrl = `${protocol}//${window.location.host}/ws-upload`;
+              const ws = new WebSocket(wsUrl);
+              
+              ws.onopen = () => {
+                ws.send(JSON.stringify({
+                  type: 'file-upload',
+                  fileName: data.file.name,
+                  fileType: data.file.type,
+                  fileSize: fileData.length,
+                  fileData: fileData,
+                  to: phone,
+                  caption: data.caption || ''
+                }));
+              };
+              
+              ws.onmessage = (event) => {
+                const response = JSON.parse(event.data);
+                if (response.success) {
+                  resolve(response);
+                } else {
+                  reject(new Error(response.error || 'Errore sconosciuto'));
+                }
+                ws.close();
+              };
+              
+              ws.onerror = () => reject(new Error('Errore connessione WebSocket'));
+              
+              setTimeout(() => {
+                if (ws.readyState !== WebSocket.CLOSED) {
+                  ws.close();
+                  reject(new Error('Timeout'));
+                }
+              }, 60000);
+            });
+            
             results.push({ phone, success: true, result });
             await new Promise(resolve => setTimeout(resolve, 1500));
           } catch (error) {

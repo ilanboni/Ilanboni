@@ -5,6 +5,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import { fetchRecentWhatsAppMessages } from "./lib/ultramsgApi";
 import diagnosticRouter from "./diagnostic-webhook";
 import { gmailService } from "./services/gmailService";
+import { WebSocketServer } from 'ws';
+import { IncomingMessage } from 'http';
 
 // Intervallo in millisecondi per il polling dei messaggi WhatsApp
 const WHATSAPP_POLLING_INTERVAL = 15000; // 15 secondi (aumentata frequenza per test)
@@ -188,6 +190,96 @@ async function pollWhatsAppMessages() {
   const port = 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+    
+    // Setup WebSocket server per file upload (aggira intercettazione devtools Replit)
+    const wss = new WebSocketServer({ server, path: '/ws-upload' });
+    log('🔌 WebSocket server avviato su /ws-upload');
+    
+    wss.on('connection', (ws, req: IncomingMessage) => {
+      console.log('🔌 [WS] Nuova connessione WebSocket da:', req.socket.remoteAddress);
+      
+      ws.on('message', async (rawData) => {
+        try {
+          const message = JSON.parse(rawData.toString());
+          console.log('🔌 [WS] Messaggio ricevuto:', message.type);
+          
+          if (message.type === 'file-upload') {
+            console.log('🔌 [WS] Upload file:', message.fileName, message.fileSize, 'bytes');
+            
+            // Importa le dipendenze necessarie
+            const { storage } = await import('./storage');
+            const { getUltraMsgClient } = await import('./lib/ultramsg');
+            
+            const ultraMsgClient = getUltraMsgClient();
+            
+            try {
+              // Converti base64 in Buffer
+              const fileBuffer = Buffer.from(message.fileData, 'base64');
+              console.log('🔌 [WS] Buffer creato:', fileBuffer.length, 'bytes');
+              
+              // Invia il file tramite UltraMsg
+              const ultraMsgResponse = await ultraMsgClient.sendFile(
+                message.to,
+                fileBuffer,
+                message.fileName,
+                message.caption
+              );
+              
+              console.log('🔌 [WS] Risposta UltraMsg:', ultraMsgResponse);
+              
+              // Salva la comunicazione nel database
+              if (ultraMsgResponse.sent) {
+                const client = await storage.getClientByPhone(message.to);
+                
+                if (client) {
+                  const communication = {
+                    clientId: client.id,
+                    type: 'whatsapp' as const,
+                    direction: 'outbound' as const,
+                    subject: `File: ${message.fileName}`,
+                    body: message.caption || `Inviato file ${message.fileName}`,
+                    sentAt: new Date(),
+                    status: 'sent',
+                    externalId: ultraMsgResponse.id || undefined
+                  };
+                  
+                  await storage.createCommunication(communication);
+                  console.log('🔌 [WS] Comunicazione salvata per cliente', client.id);
+                }
+                
+                ws.send(JSON.stringify({
+                  success: true,
+                  message: 'File inviato con successo!',
+                  whatsappMessageId: ultraMsgResponse.id
+                }));
+              } else {
+                throw new Error(ultraMsgResponse.error || 'Errore sconosciuto nell\'invio WhatsApp');
+              }
+            } catch (error: any) {
+              console.error('🔌 [WS] Errore invio file:', error);
+              ws.send(JSON.stringify({
+                success: false,
+                error: error.message
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('🔌 [WS] Errore parsing messaggio:', error);
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'Errore parsing messaggio'
+          }));
+        }
+      });
+      
+      ws.on('close', () => {
+        console.log('🔌 [WS] Connessione chiusa');
+      });
+      
+      ws.on('error', (error) => {
+        console.error('🔌 [WS] Errore WebSocket:', error);
+      });
+    });
     
     // Avvia il polling dei messaggi WhatsApp dopo l'avvio del server
     startWhatsAppPolling();
