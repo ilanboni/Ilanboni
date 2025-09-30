@@ -106,7 +106,7 @@ class TaskSyncScheduler {
 // Istanza singleton dello scheduler
 export const taskSyncScheduler = new TaskSyncScheduler({
   intervalMinutes: 5, // Sincronizzazione ogni 5 minuti
-  enabled: true
+  enabled: false // TEMPORANEAMENTE DISABILITATO per debug file upload
 });
 
 // Avvia automaticamente lo scheduler quando il modulo viene importato
