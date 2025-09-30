@@ -3011,7 +3011,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }>();
 
   // Endpoint per upload a chunk - aggira limiti nginx
-  app.post("/api/chunk-file-upload", async (req: Request, res: Response) => {
+  // DOPPIO ENDPOINT: uno per bypass dei devtools Replit
+  const handleChunkUpload = async (req: Request, res: Response) => {
     console.log("🚨 [CHUNK] === INIZIO ASSOLUTO ENDPOINT ===");
     console.log("🚨 [CHUNK] Headers:", JSON.stringify(req.headers, null, 2));
     console.log("🚨 [CHUNK] Body keys:", Object.keys(req.body || {}));
@@ -3158,7 +3159,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("🧩 [CHUNK] Errore:", error);
       res.status(500).json({ error: "Errore nell'upload chunk" });
     }
-  });
+  };
+  
+  // Registra entrambi gli endpoint per aggirare i devtools Replit
+  app.post("/api/chunk-file-upload", handleChunkUpload);
+  app.post("/x-upload", handleChunkUpload); // Path alternativo senza /api/ per evitare intercettazione
 
   // Endpoint per inviare file tramite WhatsApp
   app.post("/api/whatsapp/send-file", upload.single('file'), async (req: Request, res: Response) => {

@@ -174,7 +174,8 @@ export default function WhatsAppSender() {
           };
 
           try {
-            const chunkResult = await nativeXHRPost('/api/chunk-file-upload', chunkBody);
+            // Usa endpoint alternativo /x-upload per evitare intercettazione devtools Replit
+            const chunkResult = await nativeXHRPost('/x-upload', chunkBody);
             console.log(`✅ Chunk ${i + 1} completato:`, chunkResult);
             addDebugInfo(`✅ Chunk ${i + 1}: ${chunkResult.message}`);
 
