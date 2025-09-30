@@ -284,8 +284,8 @@ async function pollWhatsAppMessages() {
     // Avvia il polling dei messaggi WhatsApp dopo l'avvio del server
     startWhatsAppPolling();
     
-    // Avvia il polling delle email Gmail dopo l'avvio del server
-    void startGmailPolling().catch(err => console.error('📧 ❌ Errore avvio Gmail polling:', err));
+    // Gmail polling temporaneamente disabilitato per diagnosi
+    // startGmailPolling().catch(err => console.error('📧 ❌ Errore avvio Gmail polling:', err));
     
     // Avvia lo scheduler per i follow-up automatici (verifica ogni ora = 60 minuti)
     startFollowUpScheduler(60);
