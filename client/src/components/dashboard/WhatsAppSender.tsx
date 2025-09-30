@@ -86,6 +86,37 @@ export default function WhatsAppSender() {
     setDebugInfo(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${info}`]);
   };
 
+  // XMLHttpRequest nativo per aggirare l'intercettazione fetch di Replit devtools
+  const nativeXHRPost = (url: string, body: any): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (e) {
+            reject(new Error('Risposta non valida dal server'));
+          }
+        } else {
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            reject(new Error(errorData.error || 'Errore sconosciuto'));
+          } catch (e) {
+            reject(new Error(`Errore HTTP ${xhr.status}`));
+          }
+        }
+      };
+      
+      xhr.onerror = () => reject(new Error('Errore di rete'));
+      xhr.ontimeout = () => reject(new Error('Timeout'));
+      
+      xhr.send(JSON.stringify(body));
+    });
+  };
+
   // Mutazione per inviare file usando sistema CHUNK
   const sendFileMutation = useMutation({
     mutationFn: async (data: { phones: string[]; file: File; caption: string }) => {
@@ -126,7 +157,7 @@ export default function WhatsAppSender() {
         console.log(`🧩 File diviso in ${totalChunks} chunk da max ${CHUNK_SIZE} caratteri`);
         addDebugInfo(`🧩 ${totalChunks} chunk da inviare (${CHUNK_SIZE} chars max)`);
 
-        // Invia ogni chunk sequenzialmente
+        // Invia ogni chunk sequenzialmente usando XMLHttpRequest nativo
         for (let i = 0; i < chunks.length; i++) {
           console.log(`🧩 Invio chunk ${i + 1}/${totalChunks} (${chunks[i].length} chars)`);
           addDebugInfo(`📤 Chunk ${i + 1}/${totalChunks}: ${chunks[i].length} chars`);
@@ -142,29 +173,20 @@ export default function WhatsAppSender() {
             caption: data.caption || ''
           };
 
-          const response = await fetch('/api/chunk-file-upload', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(chunkBody),
-          });
+          try {
+            const chunkResult = await nativeXHRPost('/api/chunk-file-upload', chunkBody);
+            console.log(`✅ Chunk ${i + 1} completato:`, chunkResult);
+            addDebugInfo(`✅ Chunk ${i + 1}: ${chunkResult.message}`);
 
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
-            addDebugInfo(`❌ Chunk ${i + 1} fallito: ${errorData.error}`);
-            throw new Error(`Chunk ${i + 1} fallito: ${errorData.error || 'Errore sconosciuto'}`);
-          }
-
-          const chunkResult = await response.json();
-          console.log(`✅ Chunk ${i + 1} completato:`, chunkResult);
-          addDebugInfo(`✅ Chunk ${i + 1}: ${chunkResult.message}`);
-
-          // Se è l'ultimo chunk e il file è completo
-          if (chunkResult.complete) {
-            console.log("🎯 FILE ASSEMBLY COMPLETATO!", chunkResult);
-            addDebugInfo(`🎯 File riassemblato: ${chunkResult.totalSize} chars`);
-            return chunkResult;
+            // Se è l'ultimo chunk e il file è completo
+            if (chunkResult.complete) {
+              console.log("🎯 FILE ASSEMBLY COMPLETATO!", chunkResult);
+              addDebugInfo(`🎯 File riassemblato: ${chunkResult.totalSize} chars`);
+              return chunkResult;
+            }
+          } catch (error: any) {
+            addDebugInfo(`❌ Chunk ${i + 1} fallito: ${error.message}`);
+            throw new Error(`Chunk ${i + 1} fallito: ${error.message}`);
           }
         }
 
