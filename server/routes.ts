@@ -3012,6 +3012,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Endpoint per upload a chunk - aggira limiti nginx
   app.post("/api/chunk-file-upload", async (req: Request, res: Response) => {
+    console.log("🚨 [CHUNK] === INIZIO ASSOLUTO ENDPOINT ===");
+    console.log("🚨 [CHUNK] Headers:", JSON.stringify(req.headers, null, 2));
+    console.log("🚨 [CHUNK] Body keys:", Object.keys(req.body || {}));
     console.log("🧩 [CHUNK] ENDPOINT RAGGIUNTO!");
     
     try {
