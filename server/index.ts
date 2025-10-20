@@ -191,6 +191,10 @@ async function pollWhatsAppMessages() {
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
     
+    // TEMPORANEAMENTE DISABILITATO: WebSocket server per upload file
+    // Causa conflitto con WebSocket HMR di Vite che impedisce caricamento app
+    // TODO: Trovare soluzione per far coesistere i due WebSocket
+    /*
     // Setup WebSocket server DOPO listen (quando il server HTTP è attivo)
     const wss = new WebSocketServer({ server, path: '/ws-upload' });
     log('🔌 WebSocket server configurato su /ws-upload');
@@ -280,6 +284,7 @@ async function pollWhatsAppMessages() {
         console.error('🔌 [WS] Errore WebSocket:', error);
       });
     });
+    */
     
     // Avvia il polling dei messaggi WhatsApp dopo l'avvio del server
     // TEMPORANEAMENTE DISABILITATO per diagnosi problemi caricamento frontend
