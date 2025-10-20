@@ -1,5 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
-import { useEffect } from "react";
+import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -87,18 +86,6 @@ function Router() {
 
 function AppWithProviders() {
   const { showPopup, setShowPopup } = useAppointmentFollowUp();
-  const [location, setLocation] = useLocation();
-
-  // Forza il redirect alla Dashboard all'apertura dell'app
-  useEffect(() => {
-    const firstLoad = sessionStorage.getItem('appFirstLoad');
-    if (!firstLoad) {
-      sessionStorage.setItem('appFirstLoad', 'true');
-      if (location !== '/') {
-        setLocation('/');
-      }
-    }
-  }, [location, setLocation]);
 
   return (
     <>
