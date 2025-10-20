@@ -106,35 +106,32 @@ export async function createTasksFromMatches(
       }
 
       // INVIO REALE solo se abilitato E numero è quello di test
+      const messageText = 
+        `Ciao ${C.firstName}, ho trovato un immobile in linea con la tua ricerca:\n\n` +
+        `${propertyTitle}\n` +
+        `${propertyPrice}${propertySize ? ' - ' + propertySize : ''}${propertyFloor ? ' - ' + propertyFloor : ''}\n\n` +
+        `${propertyUrl ? 'Link: ' + propertyUrl : ''}`;
+
       if (canSend && phone === testPhone) {
         console.log(`[TaskEngine] 📤 Invio WhatsApp REALE a ${testPhone} per property=${P.id}`);
         
         try {
-          // Invia messaggio WhatsApp reale
-          const messageText = 
-            `Ciao ${C.firstName}, ho trovato un immobile in linea con la tua ricerca:\n\n` +
-            `${propertyTitle}\n` +
-            `${propertyPrice}${propertySize ? ' - ' + propertySize : ''}${propertyFloor ? ' - ' + propertyFloor : ''}\n\n` +
-            `${propertyUrl ? 'Link: ' + propertyUrl : ''}`;
-
           await sendWhatsAppMessage(phone, messageText);
-          
-          // Logga l'interazione
-          await deps.logInteraction({
-            channel: 'whatsapp',
-            clientId: C.id,
-            propertyId: P.id,
-            payloadJson: { message: messageText, sent: true }
-          });
-
           console.log(`[TaskEngine] ✅ WhatsApp inviato con successo`);
         } catch (error) {
           console.error(`[TaskEngine] ❌ Errore invio WhatsApp:`, error);
-          // Continua comunque a creare il task
         }
       } else {
         console.log(`[TaskEngine] 📝 Task WhatsApp creato (invio NON attivo o numero diverso da test)`);
       }
+      
+      // Logga SEMPRE l'interazione (anche se non invia) per anti-duplicazione
+      await deps.logInteraction({
+        channel: 'whatsapp',
+        clientId: C.id,
+        propertyId: P.id,
+        payloadJson: { message: messageText, sent: canSend && phone === testPhone, taskCreated: true }
+      });
     } else if (P.isMultiagency) {
       // CASO 2: Pluricondiviso → CALL_OWNER
       type = 'CALL_OWNER';
@@ -153,6 +150,14 @@ export async function createTasksFromMatches(
         console.log(`[TaskEngine] Skip CALL_OWNER property=${P.id} client=${C.id} - duplicato entro ${win} giorni`);
         continue;
       }
+      
+      // Logga interaction per anti-duplicazione
+      await deps.logInteraction({
+        channel: 'call_owner',
+        clientId: C.id,
+        propertyId: P.id,
+        payloadJson: { action, taskCreated: true }
+      });
     } else {
       // CASO 3: Immobile esterno → CALL_AGENCY
       type = 'CALL_AGENCY';
@@ -175,6 +180,14 @@ export async function createTasksFromMatches(
         console.log(`[TaskEngine] Skip CALL_AGENCY property=${P.id} client=${C.id} - duplicato entro ${win} giorni`);
         continue;
       }
+      
+      // Logga interaction per anti-duplicazione
+      await deps.logInteraction({
+        channel: 'call_agency',
+        clientId: C.id,
+        propertyId: P.id,
+        payloadJson: { action, taskCreated: true }
+      });
     }
 
     // Crea il task
