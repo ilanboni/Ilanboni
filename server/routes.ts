@@ -52,6 +52,9 @@ import whatsappRemindersRouter from "./routes/whatsappReminders";
 import { manualWebhookHandler } from "./routes/manualWebhook";
 import { backfillInboundTasks, createInboundTask } from "./services/inboundTaskManager";
 import { taskSyncScheduler } from "./services/taskSyncScheduler";
+import { authBearer } from "./middleware/auth";
+import { createTasksFromMatches, getDefaultDeps } from "./lib/taskEngine";
+import { isPropertyMatchingBuyerCriteria, calculatePropertyMatchPercentage } from "./lib/matchingLogic";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -8310,6 +8313,167 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     } catch (error) {
       console.error(`[POST /api/tasks/${req.params.id}/create-client]`, error);
       res.status(500).json({ error: 'Failed to create client from task' });
+    }
+  });
+
+  // ============================================================================
+  // ENDPOINTS AGENTE VIRTUALE
+  // ============================================================================
+
+  /**
+   * POST /api/run/match
+   * Esegue matching automatico tra immobili e clienti acquirenti
+   * Crea task intelligenti (WhatsApp/Chiamate) con anti-duplicazione
+   * Protetto da autenticazione Bearer
+   */
+  app.post('/api/run/match', authBearer, async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/run/match] Avvio matching automatico...');
+
+      // Recupera tutti i clienti acquirenti con preferenze
+      const allClients = await db
+        .select()
+        .from(clients)
+        .leftJoin(buyers, eq(clients.id, buyers.clientId))
+        .where(eq(clients.type, 'buyer'));
+
+      // Recupera tutti gli immobili disponibili
+      const allProperties = await db
+        .select()
+        .from(properties)
+        .where(eq(properties.status, 'available'));
+
+      console.log(`[Match] ${allClients.length} clienti acquirenti, ${allProperties.length} immobili disponibili`);
+
+      // Esegui matching per tutti i clienti
+      const matches = [];
+      for (const clientRow of allClients) {
+        const client = { ...clientRow.clients, buyer: clientRow.buyers };
+        
+        if (!client.buyer) {
+          console.log(`[Match] Skip cliente ${client.id} - nessun profilo buyer`);
+          continue;
+        }
+
+        for (const property of allProperties) {
+          const isMatch = isPropertyMatchingBuyerCriteria(property, client.buyer);
+          
+          if (isMatch) {
+            const score = calculatePropertyMatchPercentage(property, client.buyer);
+            matches.push({ property, client, score });
+          }
+        }
+      }
+
+      console.log(`[Match] Trovati ${matches.length} match totali`);
+
+      // Crea task da match usando il taskEngine
+      const deps = getDefaultDeps();
+      const tasksCreated = await createTasksFromMatches(matches, deps);
+
+      res.json({ 
+        ok: true, 
+        matchesFound: matches.length,
+        tasksCreated,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('[POST /api/run/match] Errore:', error);
+      res.status(500).json({ 
+        ok: false, 
+        error: 'Errore durante il matching',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/run/scan
+   * Scan portali per trovare pluricondivisi (STUB)
+   * Protetto da autenticazione Bearer
+   */
+  app.post('/api/run/scan', authBearer, async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/run/scan] Avvio scan portali (STUB)...');
+
+      // STUB: Per ora ritorna solo un messaggio
+      // In futuro qui andrà il codice per:
+      // 1. Scraping HTML/JSON-LD dai portali (immobiliare.it, idealista.it, etc.)
+      // 2. Dedup con pHash delle foto + prezzo/mq/piano/indirizzo
+      // 3. Set is_multiagency (cluster > 1)
+      // 4. Set exclusivity_hint (un solo portale per >= N giorni o testo "esclusiva")
+      // 5. Salva/aggiorna DB
+
+      const scanCity = process.env.SCAN_CITY || 'Milano';
+      const maxPages = Number(process.env.SCAN_MAX_PAGES || 3);
+
+      console.log(`[Scan] Configurazione: città=${scanCity}, maxPages=${maxPages}`);
+      console.log('[Scan] STUB: funzionalità non ancora implementata');
+
+      res.json({ 
+        ok: true, 
+        message: 'Scan completato (STUB)',
+        config: { scanCity, maxPages },
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('[POST /api/run/scan] Errore:', error);
+      res.status(500).json({ 
+        ok: false, 
+        error: 'Errore durante lo scan',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * GET /api/tasks/today
+   * Ritorna i task creati oggi dall'agente virtuale
+   * Protetto da autenticazione Bearer
+   */
+  app.get('/api/tasks/today', authBearer, async (req: Request, res: Response) => {
+    try {
+      console.log('[GET /api/tasks/today] Recupero task di oggi...');
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      const todayTasks = await db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            gte(tasks.createdAt, new Date(today)),
+            inArray(tasks.type, ['WHATSAPP_SEND', 'CALL_OWNER', 'CALL_AGENCY'])
+          )
+        )
+        .orderBy(desc(tasks.createdAt));
+
+      console.log(`[Tasks Today] Trovati ${todayTasks.length} task`);
+
+      // Raggruppa per tipo
+      const byType = {
+        WHATSAPP_SEND: todayTasks.filter(t => t.type === 'WHATSAPP_SEND').length,
+        CALL_OWNER: todayTasks.filter(t => t.type === 'CALL_OWNER').length,
+        CALL_AGENCY: todayTasks.filter(t => t.type === 'CALL_AGENCY').length
+      };
+
+      res.json({ 
+        ok: true,
+        date: today,
+        total: todayTasks.length,
+        byType,
+        tasks: todayTasks
+      });
+
+    } catch (error) {
+      console.error('[GET /api/tasks/today] Errore:', error);
+      res.status(500).json({ 
+        ok: false, 
+        error: 'Errore durante il recupero task',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
