@@ -85,6 +85,11 @@ export const properties = pgTable("properties", {
   ownerPhone: text("owner_phone"), // telefono del proprietario  
   ownerEmail: text("owner_email"), // email del proprietario
   location: jsonb("location"), // lat/lng
+  // Campi per agente virtuale
+  floor: text("floor"), // piano dell'appartamento
+  portal: text("portal"), // portale di provenienza (immobiliare.it, idealista.it, etc.)
+  isMultiagency: boolean("is_multiagency").default(false), // se è pluricondiviso (presente su più portali)
+  exclusivityHint: boolean("exclusivity_hint").default(false), // se è probabilmente in esclusiva (un solo portale, testo "esclusiva")
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
@@ -136,21 +141,24 @@ export const appointments = pgTable("appointments", {
 // Tasks and alerts
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  type: text("type").notNull(), // followUp, noResponse, birthday, generic_call, client_conversation, etc.
+  type: text("type").notNull(), // followUp, noResponse, birthday, WHATSAPP_SEND, CALL_OWNER, CALL_AGENCY, etc.
   title: text("title").notNull(),
   description: text("description"),
   clientId: integer("client_id").references(() => clients.id),
   propertyId: integer("property_id").references(() => properties.id),
   sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
   dueDate: date("due_date").notNull(),
-  status: text("status").default("pending"), // pending, completed, cancelled
+  status: text("status").default("pending"), // pending, completed, cancelled, open, done, skip
   assignedTo: integer("assigned_to").references(() => users.id),
   // Campi aggiuntivi per chiamate generiche
   contactName: text("contact_name"), // Nome contatto per chiamate generiche
   contactPhone: text("contact_phone"), // Telefono contatto
   contactEmail: text("contact_email"), // Email contatto  
   propertyInterest: text("property_interest"), // Tipo immobile di interesse
-  notes: text("notes"), // Note libere
+  // Campi per agente virtuale
+  action: text("action"), // descrizione azione (es. "Invia scheda immobile su WhatsApp")
+  target: text("target"), // destinatario/target (es. numero WhatsApp, "PROPRIETARIO", "AGENZIA")
+  notes: text("notes"), // Note libere (può contenere link wa.me, istruzioni, etc.)
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -198,6 +206,17 @@ export const communicationProperties = pgTable("communication_properties", {
   propertyId: integer("property_id").notNull().references(() => properties.id),
   relevance: integer("relevance").default(1), // 1-5 scale di rilevanza
   createdAt: timestamp("created_at").defaultNow()
+});
+
+// Interazioni agente virtuale - per anti-duplicazione
+export const interactions = pgTable("interactions", {
+  id: serial("id").primaryKey(),
+  channel: text("channel").notNull(), // whatsapp, call_owner, call_agency
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
+  payloadJson: jsonb("payload_json"), // dati aggiuntivi in formato JSON
+  createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
 // Analytics for market insights
@@ -297,6 +316,8 @@ export const insertCommunicationSchema = createInsertSchema(communications)
 export const insertConversationThreadSchema = createInsertSchema(conversationThreads)
   .omit({ id: true, createdAt: true, lastActivityAt: true });
 export const insertCommunicationPropertySchema = createInsertSchema(communicationProperties)
+  .omit({ id: true, createdAt: true });
+export const insertInteractionSchema = createInsertSchema(interactions)
   .omit({ id: true, createdAt: true });
 export const insertMarketInsightSchema = createInsertSchema(marketInsights).omit({ id: true, createdAt: true });
 export const insertPropertyVisitSchema = createInsertSchema(propertyVisits).omit({ id: true, createdAt: true, updatedAt: true });
@@ -410,6 +431,9 @@ export type InsertConversationThread = z.infer<typeof insertConversationThreadSc
 
 export type CommunicationProperty = typeof communicationProperties.$inferSelect;
 export type InsertCommunicationProperty = z.infer<typeof insertCommunicationPropertySchema>;
+
+export type Interaction = typeof interactions.$inferSelect;
+export type InsertInteraction = z.infer<typeof insertInteractionSchema>;
 
 export type MarketInsight = typeof marketInsights.$inferSelect;
 export type InsertMarketInsight = z.infer<typeof insertMarketInsightSchema>;
