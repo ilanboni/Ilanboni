@@ -1,0 +1,63 @@
+task engine (ts, snippet)
+tS
+口 Copia
+// server/lib/taskEngine.ts
+type TaskType = 'WHATSAPP_SEND' | 'CALL_OWNER' | 'CALL_AGENCY' ;
+export async function createTasksFromMatches (
+matches: Array<{
+property: Property; client: Client; score: number }>,
+deps: {
+upsertTask: (t: Task) => Promise<void>;
+existsRecentInteraction: (a:{clientId:string;propertyId:string;channel:string;da logInteraction: (i:
+Interaction) => Promise<void>;
+env: ‹ MATCH_SCORE_THRESHOLD: number; ANTI_DUP_WINDOW_DAYS:number; WHATSAPP_SEND_
+const th = deps. env.MATCH_SCORE_THRESHOLD ?? 70;
+const win = deps.env.ANTI_DUP_WINDOW_DAYS ?? 30;
+const
+canSend
+=!!deps.env.WHATSAPP_
+_SEND_ENABLED;
+const testPhone = (deps.env.TEST_WHATSAPP_PHONE || '').replace(/\s+/g,'');
+for (const & property: P, client: C, score } of matches) ‹
+if (score < th) continue;
+let type: TaskType, action = '', target = ''
+, notes = '';
+const phone = (C.whatsapp || '').replace(/\+/g, '').replace(/\s+/g,'');
+type
+action = 'Invia scheda immobile
+su WhatsApp';
+const msg = encodeURIComponent ('Ciao ${C.name}, ho trovato un
+immobile in line
+${P.title} - ${P.address}
+€${P. price_eur} - ${P.size_mq}
+mg - Piano
+${P.floor}
+Link:
+${P.url}');
+target = C.whatsapp;
+notes = 'https://wa.me/${phone}?text=${msg}*;
+const dup = await deps.existsRecentInteraction({clientId:C.id,propertyId:P.id,
+if (dup) continue;
+if (canSend && phone === testPhone) {
+await deps. logInteraction({channel:'whatsapp',client_id:C.id,property_id:P.i
+}
+3 else if (P.is_multiagency) {
+type = 'CALL_OWNER';
+action =
+'Cerca numero proprietario e chiamalo';
+target = 'PROPRIETARIO' ;
+notes = 'Di': ho un cliente interessato (${C.name}). Link: ${P.url}';
+const dup = await deps.existsRecentInteraction({clientId:C.id,propertyId:P.id,
+if (dup) continue;
+｝ else｛
+type
+'CALL_AGENCY' ;
+action = "Chiama l'agenzia e chiedi se collaborano";
+target = P.portal || 'AGENZIA';
+notes = 'Cliente ${C.name}. Chiedi collaborazione. Link: ${P.url}'
++ (P.exclus
+const dup = await deps.existsRecentInteraction({clientId:C.id,propertyId:P.id,
+if (dup) continue;
+await deps.upsertTask({
+'S{P.id}:${C.id}:${type}:${new Date().toISOString().slice(0,7)}', // idemp type, client_id:C.id, property_id:P.id, action, target, notes, status: 'open',
+});
