@@ -19,6 +19,9 @@ import { SharedPropertySimpleForm } from "@/components/properties/SharedProperty
 import { apiRequest } from "@/lib/queryClient";
 import SharedPropertyTasks from "@/components/properties/SharedPropertyTasks";
 import SharedPropertyMatchingBuyers from "@/components/properties/SharedPropertyMatchingBuyers";
+import PropertyInterestedClients from "@/components/properties/PropertyInterestedClients";
+import PropertyPipeline from "@/components/properties/PropertyPipeline";
+import PropertyInteractionsHistory from "@/components/properties/PropertyInteractionsHistory";
 
 function getStageColor(stage: string) {
   switch (stage) {
@@ -678,12 +681,21 @@ export default function SharedPropertyDetailsPage() {
         <div>
           {/* Schede per le diverse funzionalità */}
           <Tabs defaultValue="matching" className="w-full mb-6">
-            <TabsList className="mb-4 grid grid-cols-2 w-full">
+            <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 w-full gap-2">
               <TabsTrigger value="matching">
                 Potenziali interessati
               </TabsTrigger>
               <TabsTrigger value="tasks">
                 Attività
+              </TabsTrigger>
+              <TabsTrigger value="interested-clients">
+                Clienti Interessati
+              </TabsTrigger>
+              <TabsTrigger value="pipeline">
+                Pipeline
+              </TabsTrigger>
+              <TabsTrigger value="interactions">
+                Cronologia Azioni
               </TabsTrigger>
             </TabsList>
             
@@ -696,6 +708,18 @@ export default function SharedPropertyDetailsPage() {
             
             <TabsContent value="tasks">
               <SharedPropertyTasks sharedPropertyId={property.id} />
+            </TabsContent>
+
+            <TabsContent value="interested-clients">
+              <PropertyInterestedClients propertyId={property.id} />
+            </TabsContent>
+
+            <TabsContent value="pipeline">
+              <PropertyPipeline propertyId={property.id} />
+            </TabsContent>
+
+            <TabsContent value="interactions">
+              <PropertyInteractionsHistory propertyId={property.id} days={30} />
             </TabsContent>
           </Tabs>
         </div>
