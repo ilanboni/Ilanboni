@@ -179,18 +179,10 @@ export async function findPropertyClusters(properties: Property[]): Promise<Prop
   
   const result: PropertyCluster[] = [];
   
+  // Aggiungi cluster per proprietà duplicate (2+ immobili)
   for (const [_, props] of Array.from(clusters.entries())) {
     const clusterSize = props.length;
     const isMultiagency = clusterSize > 1;
-    
-    let exclusivityHint = false;
-    if (clusterSize === 1) {
-      const prop = props[0];
-      const hasExclusivityKeyword = 
-        (prop.description?.toLowerCase().includes('esclusiva') || false) ||
-        (prop.description?.toLowerCase().includes('esclusività') || false);
-      exclusivityHint = hasExclusivityKeyword;
-    }
     
     let totalScore = 0;
     const allReasons: string[] = [];
@@ -209,10 +201,32 @@ export async function findPropertyClusters(properties: Property[]): Promise<Prop
       properties: props,
       clusterSize,
       isMultiagency,
-      exclusivityHint,
+      exclusivityHint: false, // I duplicati non sono mai esclusivi
       matchScore: avgScore,
       matchReasons: Array.from(new Set(allReasons))
     });
+  }
+  
+  // Controlla immobili singoli per exclusivityHint
+  const clusterPropertyIds = new Set(Array.from(clusters.values()).flat().map(p => p.id));
+  const singleProperties = properties.filter(p => !clusterPropertyIds.has(p.id));
+  
+  for (const prop of singleProperties) {
+    const hasExclusivityKeyword = 
+      (prop.description?.toLowerCase().includes('esclusiva') || false) ||
+      (prop.description?.toLowerCase().includes('esclusività') || false);
+    
+    if (hasExclusivityKeyword) {
+      console.log(`[PropertyDedup] Immobile #${prop.id} ha keyword esclusività`);
+      result.push({
+        properties: [prop],
+        clusterSize: 1,
+        isMultiagency: false,
+        exclusivityHint: true,
+        matchScore: 0,
+        matchReasons: ['Parola chiave "esclusiva" trovata nella descrizione']
+      });
+    }
   }
   
   return result;
