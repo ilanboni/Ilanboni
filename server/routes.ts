@@ -8759,31 +8759,92 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
 
   /**
    * POST /api/run/scan
-   * Scan portali per trovare pluricondivisi (STUB)
+   * Analizza gli immobili nel database per trovare duplicati (pluricondivisi)
+   * utilizzando fuzzy matching su indirizzo, prezzo, mq, piano, camere
    * Protetto da autenticazione Bearer
    */
   app.post('/api/run/scan', authBearer, async (req: Request, res: Response) => {
     try {
-      console.log('[POST /api/run/scan] Avvio scan portali (STUB)...');
+      console.log('[POST /api/run/scan] Avvio analisi deduplicazione immobili...');
 
-      // STUB: Per ora ritorna solo un messaggio
-      // In futuro qui andrà il codice per:
-      // 1. Scraping HTML/JSON-LD dai portali (immobiliare.it, idealista.it, etc.)
-      // 2. Dedup con pHash delle foto + prezzo/mq/piano/indirizzo
-      // 3. Set is_multiagency (cluster > 1)
-      // 4. Set exclusivity_hint (un solo portale per >= N giorni o testo "esclusiva")
-      // 5. Salva/aggiorna DB
+      // Importa il servizio di deduplicazione
+      const { deduplicateProperties } = await import('./services/propertyDeduplicationService');
 
-      const scanCity = process.env.SCAN_CITY || 'Milano';
-      const maxPages = Number(process.env.SCAN_MAX_PAGES || 3);
+      // Recupera tutti gli immobili disponibili dal database
+      const allProperties = await db
+        .select()
+        .from(properties);
 
-      console.log(`[Scan] Configurazione: città=${scanCity}, maxPages=${maxPages}`);
-      console.log('[Scan] STUB: funzionalità non ancora implementata');
+      console.log(`[Scan] ${allProperties.length} immobili totali nel database`);
+
+      // Esegue la deduplicazione
+      const result = await deduplicateProperties(allProperties);
+
+      console.log(`[Scan] Deduplicazione completata: ${result.clustersFound} cluster trovati`);
+
+      // Aggiorna i flag isMultiagency e exclusivityHint nel database
+      let propertiesUpdated = 0;
+
+      for (const cluster of result.clusters) {
+        for (const property of cluster.properties) {
+          await db
+            .update(properties)
+            .set({
+              isMultiagency: cluster.isMultiagency,
+              exclusivityHint: cluster.exclusivityHint,
+              updatedAt: new Date()
+            })
+            .where(eq(properties.id, property.id));
+
+          propertiesUpdated++;
+          
+          console.log(
+            `[Scan] Aggiornato immobile #${property.id}: ` +
+            `isMultiagency=${cluster.isMultiagency}, ` +
+            `exclusivityHint=${cluster.exclusivityHint}, ` +
+            `clusterSize=${cluster.clusterSize}, ` +
+            `matchScore=${cluster.matchScore.toFixed(0)}%`
+          );
+        }
+      }
+
+      // Resetta i flag per gli immobili che non sono in nessun cluster
+      const clusterPropertyIds = result.clusters.flatMap(c => c.properties.map(p => p.id));
+      const nonClusteredProperties = allProperties.filter(p => !clusterPropertyIds.includes(p.id));
+
+      for (const property of nonClusteredProperties) {
+        // Solo se i flag sono già impostati, li resettiamo
+        if (property.isMultiagency || property.exclusivityHint) {
+          await db
+            .update(properties)
+            .set({
+              isMultiagency: false,
+              exclusivityHint: false,
+              updatedAt: new Date()
+            })
+            .where(eq(properties.id, property.id));
+
+          propertiesUpdated++;
+          console.log(`[Scan] Resettato immobile #${property.id}: nessun cluster trovato`);
+        }
+      }
 
       res.json({ 
         ok: true, 
-        message: 'Scan completato (STUB)',
-        config: { scanCity, maxPages },
+        totalProperties: result.totalProperties,
+        clustersFound: result.clustersFound,
+        multiagencyProperties: result.multiagencyProperties,
+        exclusiveProperties: result.exclusiveProperties,
+        propertiesUpdated,
+        clusters: result.clusters.map(c => ({
+          clusterSize: c.clusterSize,
+          isMultiagency: c.isMultiagency,
+          exclusivityHint: c.exclusivityHint,
+          matchScore: Math.round(c.matchScore),
+          matchReasons: c.matchReasons,
+          propertyIds: c.properties.map(p => p.id),
+          addresses: c.properties.map(p => p.address)
+        })),
         timestamp: new Date().toISOString()
       });
 
