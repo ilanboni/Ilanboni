@@ -1,0 +1,104 @@
+🧩 Prompt per il team Replit
+
+Voglio aggiornare il mio gestionale per collegare il sistema di matching automatico immobili-clienti con la visualizzazione diretta dei risultati nelle schede clienti e nelle schede immobili pluricondivisi.
+
+Al momento il sistema ha già:
+
+l’algoritmo di matching in server/lib/matchingLogic.ts
+
+le pagine /clients/[id]/search e /properties/shared/[id]
+
+le tabelle properties, clients, tasks, interactions
+
+gli endpoint /api/run/scan e /api/run/match che generano i task giornalieri (già configurati con GitHub Actions)
+
+Ora serve far vedere i risultati e i task generati direttamente nel gestionale, così:
+
+🔹 Scheda Cliente (/clients/[id])
+
+Aggiungere:
+
+Box “Matching di oggi”
+mostra tutti i match generati da /api/run/match per quel cliente (ultimo giorno).
+
+dati richiesti: property_id, title, address, price_eur, score, type (WHATSAPP_SEND / CALL_OWNER / CALL_AGENCY), url
+
+endpoint da creare:
+GET /api/clients/:id/matches?since=today
+
+Box “Task aperti”
+lista dei task ancora status=open legati a quel cliente.
+
+endpoint:
+GET /api/clients/:id/tasks?status=open
+
+Box “Cronologia invii”
+storico interactions per quel cliente (ultimi 30 giorni).
+
+endpoint:
+GET /api/clients/:id/interactions?since=30d
+
+🔹 Scheda Immobile Pluricondiviso (/properties/shared/[id])
+
+Aggiungere:
+
+Box “Clienti interessati”
+mostra i clienti con punteggio >= soglia e tipo di task associato.
+
+endpoint:
+GET /api/properties/:id/matches?since=today
+
+Box “Task aperti su questo immobile”
+elenco dei task status=open per quell’immobile.
+
+endpoint:
+GET /api/properties/:id/tasks?status=open
+
+Box “Cronologia azioni”
+elenco di interactions legate all’immobile (ultimi 30 giorni).
+
+endpoint:
+GET /api/properties/:id/interactions?since=30d
+
+Pipeline visiva di avanzamento
+mostra la fase del processo (INDIRIZZO_TROVATO → PROPRIETARIO_IDENTIFICATO → CONTATTO_REPERITO → CONTATTATO → ESITO)
+
+endpoint:
+GET /api/properties/:id/pipeline
+
+🔹 Regole operative
+
+Tutti gli endpoint leggono le tabelle già esistenti (tasks, interactions, properties, clients)
+
+Lato frontend usare React/Next (già presente nel gestionale) con componenti nuovi:
+
+ClientMatchesToday
+
+ClientOpenTasks
+
+PropertyInterestedClients
+
+PropertyPipeline
+
+I match sono filtrati solo per la data (since=today) o ultimi 30 giorni per le interazioni.
+
+I task mostrano link WhatsApp (campo notes) o portale.
+
+🔹 Obiettivo finale
+
+Quando il cron giornaliero GitHub Actions lancia /api/run/match:
+
+i task e le interazioni vengono scritti nel DB
+
+il giorno dopo, entrando in una scheda cliente o pluricondiviso, vedo subito i nuovi match, i task aperti e lo storico invii
+
+👉 Richiesta per Replit
+Chiedo di:
+
+confermare come il gestionale attuale gestisce già /clients/[id] e /properties/shared/[id]
+
+spiegare come è costruito il backend API (framework e struttura file)
+
+indicare dove conviene aggiungere i nuovi endpoint elencati sopra
+
+dirmi se serve un adapter o mapping diverso per leggere tasks e interactions dal DB

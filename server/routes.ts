@@ -20,6 +20,7 @@ import {
   communications,
   propertySent,
   tasks,
+  interactions,
   appointmentConfirmations,
   calendarEvents,
   appointments,
@@ -2230,6 +2231,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/preferences]`, error);
       res.status(500).json({ error: "Errore durante il recupero delle preferenze di ricerca" });
+    }
+  });
+  
+  // Recupera i match di oggi per un cliente
+  app.get("/api/clients/:id/matches", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const since = req.query.since as string || 'today';
+      let startDate: Date;
+      
+      if (since === 'today') {
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+      } else if (since.endsWith('d')) {
+        const days = parseInt(since.replace('d', ''));
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+      } else {
+        return res.status(400).json({ error: "Parametro 'since' non valido. Usa 'today' o 'Nd' (es. '7d')" });
+      }
+      
+      // Recupera i task creati dal matching per questo cliente
+      const tasksFromDb = await db.select().from(tasks).where(
+        and(
+          eq(tasks.clientId, clientId),
+          gte(tasks.createdAt, startDate),
+          or(
+            eq(tasks.type, 'WHATSAPP_SEND'),
+            eq(tasks.type, 'CALL_OWNER'),
+            eq(tasks.type, 'CALL_AGENCY')
+          )
+        )
+      ).orderBy(desc(tasks.createdAt));
+      
+      // Arricchisci con i dati degli immobili
+      const matches = await Promise.all(tasksFromDb.map(async (task) => {
+        if (!task.propertyId) return null;
+        
+        const [property] = await db.select().from(properties).where(eq(properties.id, task.propertyId)).limit(1);
+        
+        if (!property) return null;
+        
+        // Calcola lo score se disponibile nel payload
+        let score = 100;
+        
+        return {
+          taskId: task.id,
+          propertyId: property.id,
+          title: task.title,
+          address: property.address,
+          priceEur: property.priceEur,
+          score,
+          type: task.type,
+          url: property.externalLink || property.immobiliareItId ? `https://www.immobiliare.it/annunci/${property.immobiliareItId}/` : null,
+          status: task.status,
+          createdAt: task.createdAt
+        };
+      }));
+      
+      res.json(matches.filter(m => m !== null));
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/matches]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei match" });
+    }
+  });
+  
+  // Recupera le interactions per un cliente
+  app.get("/api/clients/:id/interactions", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const since = req.query.since as string || '30d';
+      let startDate: Date;
+      
+      if (since === 'today') {
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+      } else if (since.endsWith('d')) {
+        const days = parseInt(since.replace('d', ''));
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+      } else {
+        return res.status(400).json({ error: "Parametro 'since' non valido. Usa 'today' o 'Nd' (es. '30d')" });
+      }
+      
+      // Recupera le interactions dal database
+      const interactionsFromDb = await db.select().from(interactions).where(
+        and(
+          eq(interactions.clientId, clientId),
+          gte(interactions.createdAt, startDate)
+        )
+      ).orderBy(desc(interactions.createdAt));
+      
+      // Arricchisci con i dati degli immobili
+      const enrichedInteractions = await Promise.all(interactionsFromDb.map(async (interaction) => {
+        let propertyInfo = null;
+        
+        if (interaction.propertyId) {
+          const [property] = await db.select().from(properties).where(eq(properties.id, interaction.propertyId)).limit(1);
+          if (property) {
+            propertyInfo = {
+              id: property.id,
+              address: property.address,
+              priceEur: property.priceEur
+            };
+          }
+        }
+        
+        return {
+          id: interaction.id,
+          channel: interaction.channel,
+          property: propertyInfo,
+          payload: interaction.payloadJson,
+          createdAt: interaction.createdAt
+        };
+      }));
+      
+      res.json(enrichedInteractions);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/interactions]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle interazioni" });
     }
   });
   
