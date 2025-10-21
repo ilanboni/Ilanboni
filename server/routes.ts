@@ -8784,8 +8784,75 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
 
       // Aggiorna i flag isMultiagency e exclusivityHint nel database
       let propertiesUpdated = 0;
+      let sharedPropertiesCreated = 0;
 
       for (const cluster of result.clusters) {
+        // Per cluster multiagency (2+ immobili duplicati), crea una scheda in shared_properties
+        if (cluster.isMultiagency && cluster.properties.length >= 2) {
+          const firstProperty = cluster.properties[0];
+          
+          // Prepara i link alle agenzie (usa externalLink se disponibile)
+          const agencyLinks = cluster.properties
+            .map(p => p.externalLink)
+            .filter(link => link && link.trim() !== '')
+            .slice(0, 3); // Max 3 agenzie
+          
+          // Estrai nomi agenzie dai link (es. immobiliare.it, idealista.it)
+          const agencyNames = agencyLinks.map(link => {
+            if (!link) return '';
+            try {
+              const url = new URL(link);
+              const hostname = url.hostname.replace('www.', '');
+              // Prendi il nome principale (es. "immobiliare" da "immobiliare.it")
+              const name = hostname.split('.')[0];
+              return name.charAt(0).toUpperCase() + name.slice(1);
+            } catch {
+              return 'Portale';
+            }
+          });
+          
+          // Verifica se esiste già una shared property per questo cluster
+          const existingShared = await db
+            .select()
+            .from(sharedProperties)
+            .where(eq(sharedProperties.propertyId, firstProperty.id));
+          
+          if (existingShared.length === 0) {
+            // Crea nuova scheda proprietà condivisa
+            await db.insert(sharedProperties).values({
+              propertyId: firstProperty.id,
+              address: firstProperty.address,
+              city: firstProperty.city || 'Milano',
+              size: firstProperty.size,
+              price: firstProperty.price,
+              type: firstProperty.type,
+              floor: firstProperty.floor || null,
+              location: firstProperty.location,
+              agency1Link: agencyLinks[0] || null,
+              agency2Link: agencyLinks[1] || null,
+              agency3Link: agencyLinks[2] || null,
+              agency1Name: agencyNames[0] || null,
+              agency2Name: agencyNames[1] || null,
+              agency3Name: agencyNames[2] || null,
+              rating: 4, // Alto perché è pluricondiviso
+              stage: 'result',
+              stageResult: 'multiagency',
+              isAcquired: false,
+              matchBuyers: true, // Abilita matching con compratori
+              ownerName: firstProperty.ownerName || null,
+              ownerPhone: firstProperty.ownerPhone || null,
+              ownerEmail: firstProperty.ownerEmail || null,
+              ownerNotes: `Immobile pluricondiviso rilevato automaticamente. Match score: ${cluster.matchScore.toFixed(0)}%. Motivi: ${cluster.matchReasons.join(', ')}`
+            });
+            
+            sharedPropertiesCreated++;
+            console.log(`[Scan] ✅ Creata scheda proprietà condivisa per cluster: ${firstProperty.address} (${cluster.properties.length} immobili duplicati)`);
+          } else {
+            console.log(`[Scan] ⏭️ Scheda proprietà condivisa già esistente per: ${firstProperty.address}`);
+          }
+        }
+        
+        // Aggiorna i flag per tutti gli immobili nel cluster
         for (const property of cluster.properties) {
           await db
             .update(properties)
@@ -8836,6 +8903,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
         multiagencyProperties: result.multiagencyProperties,
         exclusiveProperties: result.exclusiveProperties,
         propertiesUpdated,
+        sharedPropertiesCreated,
         clusters: result.clusters.map(c => ({
           clusterSize: c.clusterSize,
           isMultiagency: c.isMultiagency,
