@@ -2142,6 +2142,246 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Recupera i match di oggi per un immobile
+  app.get("/api/properties/:id/matches", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const since = req.query.since as string || 'today';
+      let startDate: Date;
+      
+      if (since === 'today') {
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+      } else if (since.endsWith('d')) {
+        const days = parseInt(since.replace('d', ''));
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+      } else {
+        return res.status(400).json({ error: "Parametro 'since' non valido. Usa 'today' o 'Nd' (es. '7d')" });
+      }
+      
+      // Recupera i task creati dal matching per questo immobile
+      const tasksFromDb = await db.select().from(tasks).where(
+        and(
+          eq(tasks.propertyId, propertyId),
+          gte(tasks.createdAt, startDate),
+          or(
+            eq(tasks.type, 'WHATSAPP_SEND'),
+            eq(tasks.type, 'CALL_OWNER'),
+            eq(tasks.type, 'CALL_AGENCY')
+          )
+        )
+      ).orderBy(desc(tasks.createdAt));
+      
+      // Arricchisci con i dati dei clienti
+      const matches = await Promise.all(tasksFromDb.map(async (task) => {
+        if (!task.clientId) return null;
+        
+        const [client] = await db.select().from(clients).where(eq(clients.id, task.clientId)).limit(1);
+        
+        if (!client) return null;
+        
+        // Ottieni preferenze buyer se disponibili
+        let buyer = null;
+        if (client.type === 'buyer') {
+          const [buyerData] = await db.select().from(buyers).where(eq(buyers.clientId, client.id)).limit(1);
+          buyer = buyerData || null;
+        }
+        
+        return {
+          taskId: task.id,
+          clientId: client.id,
+          clientName: `${client.firstName} ${client.lastName}`,
+          clientPhone: client.phone,
+          clientEmail: client.email,
+          score: 100,
+          type: task.type,
+          maxPrice: buyer?.maxPrice || null,
+          urgency: buyer?.urgency || null,
+          status: task.status,
+          createdAt: task.createdAt
+        };
+      }));
+      
+      res.json(matches.filter(m => m !== null));
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}/matches]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei match" });
+    }
+  });
+  
+  // Recupera le interactions per un immobile
+  app.get("/api/properties/:id/interactions", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      const since = req.query.since as string || '30d';
+      let startDate: Date;
+      
+      if (since === 'today') {
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+      } else if (since.endsWith('d')) {
+        const days = parseInt(since.replace('d', ''));
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+      } else {
+        return res.status(400).json({ error: "Parametro 'since' non valido. Usa 'today' o 'Nd' (es. '30d')" });
+      }
+      
+      // Recupera le interactions dal database
+      const interactionsFromDb = await db.select().from(interactions).where(
+        and(
+          eq(interactions.propertyId, propertyId),
+          gte(interactions.createdAt, startDate)
+        )
+      ).orderBy(desc(interactions.createdAt));
+      
+      // Arricchisci con i dati dei clienti
+      const enrichedInteractions = await Promise.all(interactionsFromDb.map(async (interaction) => {
+        let clientInfo = null;
+        
+        if (interaction.clientId) {
+          const [client] = await db.select().from(clients).where(eq(clients.id, interaction.clientId)).limit(1);
+          if (client) {
+            clientInfo = {
+              id: client.id,
+              name: `${client.firstName} ${client.lastName}`,
+              phone: client.phone
+            };
+          }
+        }
+        
+        return {
+          id: interaction.id,
+          channel: interaction.channel,
+          client: clientInfo,
+          payload: interaction.payloadJson,
+          createdAt: interaction.createdAt
+        };
+      }));
+      
+      res.json(enrichedInteractions);
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}/interactions]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle interazioni" });
+    }
+  });
+  
+  // Recupera la pipeline per un immobile pluricondiviso
+  app.get("/api/properties/:id/pipeline", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      // Recupera l'immobile
+      const [property] = await db.select().from(properties).where(eq(properties.id, propertyId)).limit(1);
+      
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      // Determina la fase attuale in base ai dati disponibili
+      let currentStage = 'address_found';
+      const stages = [];
+      
+      // Fase 1: Indirizzo trovato (sempre presente se l'immobile esiste)
+      stages.push({
+        stage: 'address_found',
+        label: 'Indirizzo trovato',
+        completed: true,
+        date: property.createdAt
+      });
+      
+      // Fase 2: Proprietario identificato
+      const hasOwner = property.ownerName || property.ownerPhone || property.ownerEmail;
+      stages.push({
+        stage: 'owner_found',
+        label: 'Proprietario identificato',
+        completed: !!hasOwner,
+        date: hasOwner ? property.updatedAt : null
+      });
+      
+      if (hasOwner) {
+        currentStage = 'owner_found';
+      }
+      
+      // Fase 3: Contatto proprietario reperito
+      const hasContact = property.ownerPhone || property.ownerEmail;
+      stages.push({
+        stage: 'owner_contact_found',
+        label: 'Contatto reperito',
+        completed: !!hasContact,
+        date: hasContact ? property.updatedAt : null
+      });
+      
+      if (hasContact) {
+        currentStage = 'owner_contact_found';
+      }
+      
+      // Fase 4: Proprietario contattato
+      const contactedTasks = await db.select().from(tasks).where(
+        and(
+          eq(tasks.propertyId, propertyId),
+          or(
+            eq(tasks.type, 'CALL_OWNER'),
+            eq(tasks.type, 'CALL_AGENCY')
+          ),
+          eq(tasks.status, 'completed')
+        )
+      ).limit(1);
+      
+      stages.push({
+        stage: 'owner_contacted',
+        label: 'Contattato',
+        completed: contactedTasks.length > 0,
+        date: contactedTasks.length > 0 ? contactedTasks[0].updatedAt : null
+      });
+      
+      if (contactedTasks.length > 0) {
+        currentStage = 'owner_contacted';
+      }
+      
+      // Fase 5: Esito (se c'è un task completato con esito)
+      const resultTasks = await db.select().from(tasks).where(
+        and(
+          eq(tasks.propertyId, propertyId),
+          eq(tasks.status, 'completed'),
+          isNotNull(tasks.notes)
+        )
+      ).limit(1);
+      
+      stages.push({
+        stage: 'result',
+        label: 'Esito',
+        completed: resultTasks.length > 0,
+        date: resultTasks.length > 0 ? resultTasks[0].updatedAt : null
+      });
+      
+      if (resultTasks.length > 0) {
+        currentStage = 'result';
+      }
+      
+      res.json({
+        propertyId,
+        currentStage,
+        stages
+      });
+    } catch (error) {
+      console.error(`[GET /api/properties/${req.params.id}/pipeline]`, error);
+      res.status(500).json({ error: "Errore durante il recupero della pipeline" });
+    }
+  });
+  
   // Endpoint per ottenere le attività di una proprietà condivisa
   app.get("/api/shared-properties/:id/tasks", async (req: Request, res: Response) => {
     try {
