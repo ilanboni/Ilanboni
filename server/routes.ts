@@ -8927,6 +8927,89 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   });
 
   /**
+   * POST /api/scan-external-portals
+   * Cerca immobili su portali esterni in base alle preferenze dei clienti compratori
+   * Protetto da autenticazione Bearer
+   */
+  app.post('/api/scan-external-portals', authBearer, async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/scan-external-portals] Avvio ricerca su portali esterni...');
+
+      // Recupera tutti i compratori con le loro preferenze
+      const buyersData = await db
+        .select({
+          buyerId: buyers.id,
+          clientId: buyers.clientId,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          searchArea: buyers.searchArea,
+          minSize: buyers.minSize,
+          maxPrice: buyers.maxPrice,
+          urgency: buyers.urgency
+        })
+        .from(buyers)
+        .innerJoin(clients, eq(buyers.clientId, clients.id))
+        .where(eq(clients.type, 'buyer'));
+
+      console.log(`[Portals] Trovati ${buyersData.length} compratori`);
+
+      // Limita a primi 2 per proof-of-concept
+      const limitedBuyers = buyersData.slice(0, 2);
+      console.log(`[Portals] Test con primi ${limitedBuyers.length} compratori`);
+
+      let totalImported = 0;
+      const buyerResults = [];
+
+      for (const buyer of limitedBuyers) {
+        try {
+          // Estrai zona dalla searchArea
+          const searchArea = buyer.searchArea as any;
+          const zona = searchArea?.address || 'Milano';
+          
+          console.log(`[Portals] Ricerca per ${buyer.firstName} ${buyer.lastName}: ${zona}, max €${buyer.maxPrice}, min ${buyer.minSize}mq`);
+
+          // Costruisci URL di ricerca immobiliare.it
+          // Esempio: https://www.immobiliare.it/vendita-appartamenti/milano/zona/?prezzoMassimo=500000&superficieMinima=80
+          const cityName = 'milano'; // TODO: estrarre dalla zona
+          const searchUrl = `https://www.immobiliare.it/vendita-appartamenti/${cityName}/`;
+          
+          buyerResults.push({
+            buyer: `${buyer.firstName} ${buyer.lastName}`,
+            zona,
+            imported: 0,
+            error: 'Implementazione in corso - proof of concept'
+          });
+
+        } catch (buyerError) {
+          console.error(`[Portals] Errore ricerca per buyer ${buyer.clientId}:`, buyerError);
+          buyerResults.push({
+            buyer: `${buyer.firstName} ${buyer.lastName}`,
+            error: buyerError instanceof Error ? buyerError.message : 'Unknown error'
+          });
+        }
+      }
+
+      res.json({
+        ok: true,
+        totalBuyers: buyersData.length,
+        processedBuyers: limitedBuyers.length,
+        totalImported,
+        results: buyerResults,
+        message: 'Proof of concept - funzionalità in sviluppo',
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('[POST /api/scan-external-portals] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante la ricerca sui portali',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
    * GET /api/tasks/today
    * Ritorna i task creati oggi dall'agente virtuale
    * Protetto da autenticazione Bearer
