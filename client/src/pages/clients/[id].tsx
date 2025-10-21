@@ -36,6 +36,8 @@ import { useToast } from "@/hooks/use-toast";
 import PreferenceDetails from "@/components/clients/PreferenceDetails";
 import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
 import PropertyAssociationModal from "@/components/clients/PropertyAssociationModal";
+import ClientMatchesToday from "@/components/clients/ClientMatchesToday";
+import ClientInteractionsHistory from "@/components/clients/ClientInteractionsHistory";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -607,7 +609,7 @@ export default function ClientDetailPage() {
         </div>
         
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
+          <TabsList className="w-full grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-10">
             <TabsTrigger value="overview">Panoramica</TabsTrigger>
             <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
             <TabsTrigger value="appointments">Appuntamenti</TabsTrigger>
@@ -621,6 +623,8 @@ export default function ClientDetailPage() {
               </>
             )}
             <TabsTrigger value="sent-properties">Immobili inviati</TabsTrigger>
+            <TabsTrigger value="matches-today">Match Oggi</TabsTrigger>
+            <TabsTrigger value="interactions-history">Cronologia Invii</TabsTrigger>
           </TabsList>
           
           {/* Overview Tab */}
@@ -1887,6 +1891,16 @@ export default function ClientDetailPage() {
           {/* Immobili Inviati Tab */}
           <TabsContent value="sent-properties" className="space-y-6 mt-6">
             <SentPropertiesHistory clientId={id} />
+          </TabsContent>
+
+          {/* Matches Today Tab */}
+          <TabsContent value="matches-today" className="space-y-6 mt-6">
+            <ClientMatchesToday clientId={id} />
+          </TabsContent>
+
+          {/* Interactions History Tab */}
+          <TabsContent value="interactions-history" className="space-y-6 mt-6">
+            <ClientInteractionsHistory clientId={id} days={30} />
           </TabsContent>
         </Tabs>
       </div>
