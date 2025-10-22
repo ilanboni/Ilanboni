@@ -26,6 +26,18 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url")
 });
 
+// Contacts (generic contacts: owners, agencies, etc.)
+export const contacts = pgTable("contacts", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // "client", "owner", "agency"
+  name: text("name").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // Clients (base)
 export const clients = pgTable("clients", {
   id: serial("id").primaryKey(),
@@ -61,6 +73,16 @@ export const sellers = pgTable("sellers", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").notNull().references(() => clients.id),
   propertyId: integer("property_id"),
+});
+
+// Matches (property-client matching results)
+export const matches = pgTable("matches", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
+  score: integer("score").notNull(), // match score 0-100
+  createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
 // Properties
@@ -147,6 +169,8 @@ export const tasks = pgTable("tasks", {
   clientId: integer("client_id").references(() => clients.id),
   propertyId: integer("property_id").references(() => properties.id),
   sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
+  contactId: integer("contact_id").references(() => contacts.id),
+  priority: integer("priority").default(50), // 0-100 scale for task prioritization
   dueDate: date("due_date").notNull(),
   status: text("status").default("pending"), // pending, completed, cancelled, open, done, skip
   assignedTo: integer("assigned_to").references(() => users.id),
@@ -211,10 +235,14 @@ export const communicationProperties = pgTable("communication_properties", {
 // Interazioni agente virtuale - per anti-duplicazione
 export const interactions = pgTable("interactions", {
   id: serial("id").primaryKey(),
-  channel: text("channel").notNull(), // whatsapp, call_owner, call_agency
-  clientId: integer("client_id").notNull().references(() => clients.id),
+  channel: text("channel").notNull(), // whatsapp, call, email, meeting
+  direction: text("direction").notNull(), // out, in
+  clientId: integer("client_id").references(() => clients.id),
   propertyId: integer("property_id").references(() => properties.id),
   sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
+  contactId: integer("contact_id").references(() => contacts.id),
+  text: text("text"), // message content or notes
+  outcome: text("outcome"), // positive, negative, neutral, no_response
   payloadJson: jsonb("payload_json"), // dati aggiuntivi in formato JSON
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
@@ -255,6 +283,8 @@ export const propertyVisits = pgTable("property_visits", {
 
 // Create insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
+export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertMatchSchema = createInsertSchema(matches).omit({ id: true, createdAt: true });
 // Redefine client schema manually per avere maggiore controllo
 export const insertClientSchema = z.object({
   type: z.string(),
@@ -402,6 +432,9 @@ export const insertImmobiliareEmailSchema = createInsertSchema(immobiliareEmails
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
+export type Contact = typeof contacts.$inferSelect;
+export type InsertContact = z.infer<typeof insertContactSchema>;
+
 export type Client = typeof clients.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 
@@ -410,6 +443,9 @@ export type InsertBuyer = z.infer<typeof insertBuyerSchema>;
 
 export type Seller = typeof sellers.$inferSelect;
 export type InsertSeller = z.infer<typeof insertSellerSchema>;
+
+export type Match = typeof matches.$inferSelect;
+export type InsertMatch = z.infer<typeof insertMatchSchema>;
 
 export type Property = typeof properties.$inferSelect;
 export type InsertProperty = z.infer<typeof insertPropertySchema>;
