@@ -236,7 +236,7 @@ export const communicationProperties = pgTable("communication_properties", {
 export const interactions = pgTable("interactions", {
   id: serial("id").primaryKey(),
   channel: text("channel").notNull(), // whatsapp, call, email, meeting
-  direction: text("direction").notNull(), // out, in
+  direction: text("direction"), // out, in (nullable for backwards compatibility)
   clientId: integer("client_id").references(() => clients.id),
   propertyId: integer("property_id").references(() => properties.id),
   sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),

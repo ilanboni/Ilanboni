@@ -13,6 +13,8 @@ import {
   insertSellerSchema,
   insertPropertySentSchema,
   insertAppointmentConfirmationSchema,
+  insertContactSchema,
+  insertMatchSchema,
   clients,
   buyers,
   properties,
@@ -26,9 +28,13 @@ import {
   appointments,
   mailMergeMessages,
   propertyVisits,
+  contacts,
+  matches,
   type PropertySent,
   type AppointmentConfirmation,
-  type PropertyVisit
+  type PropertyVisit,
+  type Contact,
+  type Match
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like, isNotNull, ne, isNull } from "drizzle-orm";
@@ -257,6 +263,352 @@ export async function registerRoutes(app: Express): Promise<Server> {
       message: "Server Express funzionante correttamente" 
     });
   });
+
+  // ===== NEW SECRETARY CRM/CMS API =====
+
+  // GET /api/today - Dashboard: task prioritari del giorno
+  app.get("/api/today", async (req: Request, res: Response) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Query task aperti con priorità alta (priority >= 70) o scadenza oggi
+      const todayTasks = await db.select()
+        .from(tasks)
+        .where(
+          and(
+            ne(tasks.status, 'done'),
+            ne(tasks.status, 'skip'),
+            or(
+              gte(tasks.priority, 70),
+              eq(tasks.dueDate, today)
+            )
+          )
+        )
+        .orderBy(desc(tasks.priority), asc(tasks.dueDate))
+        .limit(20);
+
+      // Arricchisci i task con dati cliente/immobile
+      const enrichedTasks = await Promise.all(
+        todayTasks.map(async (task) => {
+          let client = null;
+          let property = null;
+          let sharedProperty = null;
+          let contact = null;
+
+          if (task.clientId) {
+            const clientResult = await db.select().from(clients).where(eq(clients.id, task.clientId)).limit(1);
+            client = clientResult[0] || null;
+          }
+
+          if (task.propertyId) {
+            const propertyResult = await db.select().from(properties).where(eq(properties.id, task.propertyId)).limit(1);
+            property = propertyResult[0] || null;
+          }
+
+          if (task.sharedPropertyId) {
+            const sharedResult = await db.select().from(sharedProperties).where(eq(sharedProperties.id, task.sharedPropertyId)).limit(1);
+            sharedProperty = sharedResult[0] || null;
+          }
+
+          if (task.contactId) {
+            const contactResult = await db.select().from(contacts).where(eq(contacts.id, task.contactId)).limit(1);
+            contact = contactResult[0] || null;
+          }
+
+          return {
+            ...task,
+            client,
+            property,
+            sharedProperty,
+            contact
+          };
+        })
+      );
+
+      res.json({
+        tasks: enrichedTasks,
+        count: enrichedTasks.length,
+        date: today
+      });
+    } catch (error) {
+      console.error("[GET /api/today]", error);
+      res.status(500).json({ error: "Errore durante il recupero dei task" });
+    }
+  });
+
+  // GET /api/outreach/today - Coda contatti outreach
+  app.get("/api/outreach/today", async (req: Request, res: Response) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Query task tipo WHATSAPP_SEND, CALL_OWNER, CALL_AGENCY non completati
+      const outreachTasks = await db.select()
+        .from(tasks)
+        .where(
+          and(
+            ne(tasks.status, 'done'),
+            ne(tasks.status, 'skip'),
+            or(
+              eq(tasks.type, 'WHATSAPP_SEND'),
+              eq(tasks.type, 'CALL_OWNER'),
+              eq(tasks.type, 'CALL_AGENCY')
+            )
+          )
+        )
+        .orderBy(desc(tasks.priority), asc(tasks.createdAt))
+        .limit(50);
+
+      // Arricchisci i task
+      const enrichedTasks = await Promise.all(
+        outreachTasks.map(async (task) => {
+          let client = null;
+          let property = null;
+          let sharedProperty = null;
+          let contact = null;
+
+          if (task.clientId) {
+            const clientResult = await db.select().from(clients).where(eq(clients.id, task.clientId)).limit(1);
+            client = clientResult[0] || null;
+          }
+
+          if (task.propertyId) {
+            const propertyResult = await db.select().from(properties).where(eq(properties.id, task.propertyId)).limit(1);
+            property = propertyResult[0] || null;
+          }
+
+          if (task.sharedPropertyId) {
+            const sharedResult = await db.select().from(sharedProperties).where(eq(sharedProperties.id, task.sharedPropertyId)).limit(1);
+            sharedProperty = sharedResult[0] || null;
+          }
+
+          if (task.contactId) {
+            const contactResult = await db.select().from(contacts).where(eq(contacts.id, task.contactId)).limit(1);
+            contact = contactResult[0] || null;
+          }
+
+          return {
+            ...task,
+            client,
+            property,
+            sharedProperty,
+            contact
+          };
+        })
+      );
+
+      res.json({
+        tasks: enrichedTasks,
+        count: enrichedTasks.length,
+        date: today
+      });
+    } catch (error) {
+      console.error("[GET /api/outreach/today]", error);
+      res.status(500).json({ error: "Errore durante il recupero della coda outreach" });
+    }
+  });
+
+  // POST /api/tasks - Crea nuovo task
+  app.post("/api/tasks", async (req: Request, res: Response) => {
+    try {
+      const taskData = req.body;
+
+      // Validazione base
+      if (!taskData.type || !taskData.title || !taskData.dueDate) {
+        return res.status(400).json({ error: "Campi obbligatori mancanti: type, title, dueDate" });
+      }
+
+      const [newTask] = await db.insert(tasks).values({
+        type: taskData.type,
+        title: taskData.title,
+        description: taskData.description || null,
+        clientId: taskData.clientId || null,
+        propertyId: taskData.propertyId || null,
+        sharedPropertyId: taskData.sharedPropertyId || null,
+        contactId: taskData.contactId || null,
+        priority: taskData.priority || 50,
+        dueDate: taskData.dueDate,
+        status: taskData.status || 'pending',
+        contactName: taskData.contactName || null,
+        contactPhone: taskData.contactPhone || null,
+        contactEmail: taskData.contactEmail || null,
+        action: taskData.action || null,
+        target: taskData.target || null,
+        notes: taskData.notes || null
+      }).returning();
+
+      res.status(201).json(newTask);
+    } catch (error) {
+      console.error("[POST /api/tasks]", error);
+      res.status(500).json({ error: "Errore durante la creazione del task" });
+    }
+  });
+
+  // PATCH /api/tasks/:id/complete - Completa task
+  app.patch("/api/tasks/:id/complete", async (req: Request, res: Response) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ error: "ID task non valido" });
+      }
+
+      const [updatedTask] = await db.update(tasks)
+        .set({ status: 'done' })
+        .where(eq(tasks.id, taskId))
+        .returning();
+
+      if (!updatedTask) {
+        return res.status(404).json({ error: "Task non trovato" });
+      }
+
+      res.json(updatedTask);
+    } catch (error) {
+      console.error(`[PATCH /api/tasks/${req.params.id}/complete]`, error);
+      res.status(500).json({ error: "Errore durante il completamento del task" });
+    }
+  });
+
+  // PATCH /api/tasks/:id/skip - Salta task
+  app.patch("/api/tasks/:id/skip", async (req: Request, res: Response) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ error: "ID task non valido" });
+      }
+
+      const [updatedTask] = await db.update(tasks)
+        .set({ status: 'skip' })
+        .where(eq(tasks.id, taskId))
+        .returning();
+
+      if (!updatedTask) {
+        return res.status(404).json({ error: "Task non trovato" });
+      }
+
+      res.json(updatedTask);
+    } catch (error) {
+      console.error(`[PATCH /api/tasks/${req.params.id}/skip]`, error);
+      res.status(500).json({ error: "Errore durante lo skip del task" });
+    }
+  });
+
+  // POST /api/interactions - Crea interazione con anti-duplicazione 30 giorni
+  app.post("/api/interactions", async (req: Request, res: Response) => {
+    try {
+      const interactionData = req.body;
+
+      // Validazione base
+      if (!interactionData.channel || !interactionData.direction) {
+        return res.status(400).json({ error: "Campi obbligatori mancanti: channel, direction" });
+      }
+
+      // Anti-duplicazione: verifica se esiste interazione simile negli ultimi 30 giorni
+      const antiDupWindowDays = parseInt(process.env.ANTI_DUP_WINDOW_DAYS || '30');
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - antiDupWindowDays);
+
+      let duplicateConditions = [
+        gte(interactions.createdAt, cutoffDate),
+        eq(interactions.channel, interactionData.channel),
+        eq(interactions.direction, interactionData.direction)
+      ];
+
+      if (interactionData.clientId) {
+        duplicateConditions.push(eq(interactions.clientId, interactionData.clientId));
+      }
+
+      if (interactionData.propertyId) {
+        duplicateConditions.push(eq(interactions.propertyId, interactionData.propertyId));
+      }
+
+      if (interactionData.sharedPropertyId) {
+        duplicateConditions.push(eq(interactions.sharedPropertyId, interactionData.sharedPropertyId));
+      }
+
+      const existingInteraction = await db.select()
+        .from(interactions)
+        .where(and(...duplicateConditions))
+        .limit(1);
+
+      if (existingInteraction.length > 0) {
+        return res.status(409).json({ 
+          error: "Interazione duplicata",
+          message: `Interazione simile già esistente negli ultimi ${antiDupWindowDays} giorni`,
+          existingInteraction: existingInteraction[0]
+        });
+      }
+
+      // Crea nuova interazione
+      const [newInteraction] = await db.insert(interactions).values({
+        channel: interactionData.channel,
+        direction: interactionData.direction,
+        clientId: interactionData.clientId || null,
+        propertyId: interactionData.propertyId || null,
+        sharedPropertyId: interactionData.sharedPropertyId || null,
+        contactId: interactionData.contactId || null,
+        text: interactionData.text || null,
+        outcome: interactionData.outcome || null,
+        payloadJson: interactionData.payloadJson || null
+      }).returning();
+
+      res.status(201).json(newInteraction);
+    } catch (error) {
+      console.error("[POST /api/interactions]", error);
+      res.status(500).json({ error: "Errore durante la creazione dell'interazione" });
+    }
+  });
+
+  // POST /api/import-links - Batch import URL immobili
+  app.post("/api/import-links", async (req: Request, res: Response) => {
+    try {
+      const { urls } = req.body;
+
+      if (!urls || !Array.isArray(urls) || urls.length === 0) {
+        return res.status(400).json({ error: "Array 'urls' obbligatorio e non vuoto" });
+      }
+
+      const results = {
+        success: [],
+        failed: [],
+        duplicates: []
+      };
+
+      // Processa ogni URL (utilizzerà web scraping esistente)
+      for (const url of urls) {
+        try {
+          // Verifica se esiste già immobile con questo external link
+          const existingProperty = await db.select()
+            .from(properties)
+            .where(eq(properties.externalLink, url))
+            .limit(1);
+
+          if (existingProperty.length > 0) {
+            results.duplicates.push({ url, reason: "URL già presente nel database" });
+            continue;
+          }
+
+          // TODO: Qui andrebbe chiamato il servizio di web scraping
+          // Per ora creiamo un placeholder che sarà completato
+          results.success.push({ url, message: "URL accodato per import (da implementare scraping)" });
+
+        } catch (error) {
+          results.failed.push({ url, error: error.message });
+        }
+      }
+
+      res.json({
+        total: urls.length,
+        success: results.success.length,
+        failed: results.failed.length,
+        duplicates: results.duplicates.length,
+        results
+      });
+    } catch (error) {
+      console.error("[POST /api/import-links]", error);
+      res.status(500).json({ error: "Errore durante l'import batch degli URL" });
+    }
+  });
+
+  // ===== END NEW SECRETARY CRM/CMS API =====
 
   // API per la gestione delle comunicazioni
 
