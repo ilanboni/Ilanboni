@@ -1,0 +1,179 @@
+Richiesta: CRM+CMS “operativo” con segretaria, dentro il gestionale esistente
+Obiettivo
+
+Aggiungere, senza rompere nulla:
+
+Dashboard Oggi (task prioritari, appuntamenti, nuovi match)
+
+Outreach/Segretaria (coda contatti: privati/multi/mono con bozza messaggi)
+
+Storico conversazioni (interactions) e follow-up
+
+Gestione task (crea/chiudi/skip, priorità e cap giornaliero)
+
+Import manuale link (batch) → dedup → match
+
+Requisiti di sicurezza
+
+Nessun invio reale (WhatsApp/email) salvo numero test in TEST_WHATSAPP_PHONE
+
+Header Authorization: Bearer ${REPLIT_API_TOKEN} su tutti i POST/PUT
+
+Anti-duplicato: non creare task se esiste interaction < 30 giorni su stessa coppia (client_id, property_id, channel)
+
+Modello dati (Drizzle) — se non già presenti, aggiungere/estendere
+
+contacts: id, type{client,owner,agency}, name, phone, email, notes
+
+client_requests: id, client_id, price_min,max, size_min,max, area_geom, rating
+
+properties: id, title, address, price_eur, size_mq, floor, url, portal, is_managed_by_us, is_multiagency, exclusivity_hint, status, source
+
+matches: id, client_id, property_id, score, created_at
+
+tasks: id, type{'WHATSAPP_SEND','CALL_OWNER','CALL_AGENCY','EMAIL_AGENCY','FOLLOWUP'}, client_id?, property_id?, contact_id?, priority, due_at, status{'open','done','skip'}, notes, created_at
+
+interactions: id, channel{'whatsapp','call','email','meeting'}, direction{'out','in'}, client_id?, property_id?, contact_id?, text, outcome, payload_json, created_at
+
+appointments: id, title, when_at, place, with_contact_id?, property_id?, status
+
+Backend (Express) — nuove route
+1) Dashboard e Segretaria
+
+GET /api/today → JSON:
+
+tasks_open_top15 (ordinati per priority desc, max 15)
+
+appointments_today
+
+new_matches_today (conteggio + esempi)
+
+GET /api/outreach/today?type=privati|multi|mono
+→ restituisce coda task suggeriti per oggi (vedi logica “priorità” sotto)
+
+2) Task & Interactions
+
+POST /api/tasks → crea task (idempotenza: chiave sha1(client|property|type|yyyy-mm) )
+
+POST /api/tasks/:id/complete → chiude task (status done)
+
+POST /api/tasks/:id/skip → mette skip
+
+POST /api/interactions → salva ogni contatto/risposta (body: channel, direction, text, outcome, refs)
+
+GET /api/clients/:id/{matches,tasks,interactions} (già parzialmente fatto: mantenere formato stabile)
+
+GET /api/properties/:id/{matches,tasks,interactions,pipeline} (già fatto per shared: riusare)
+
+3) Import manuale link (batch)
+
+POST /api/import-links (Body: { urls: string[] })
+
+per ogni URL (Immobiliare/Idealista/Casa): fetch HTML/JSON-LD → estrai: title, price_eur, size_mq, floor, address, url, portal, photos? → upsert su properties (source='manual')
+
+al termine: ritorna { imported: n }
+
+non inviare nulla. Solo salva.
+
+Dopo import: gli scheduler o l’utente chiamano:
+
+POST /api/run/scan (dedup + tag is_multiagency, exclusivity_hint)
+
+POST /api/run/match (matching + creazione task A/B/C)
+
+Logica “Segretaria”
+Generazione coda (server side, usata da /api/outreach/today)
+
+Per ogni immobile nuovo/aggiornato:
+
+Privato → crea bozza task:
+
+type: WHATSAPP_SEND o CALL_OWNER
+
+notes: link wa.me + bozza messaggio
+
+Multi-agenzia → CALL_OWNER (note: “cerca intestatario; proponi incarico esclusivo”)
+
+Mono-agenzia → EMAIL_AGENCY (note: bozza collaborazione; se exclusivity_hint true, aggiungi “[Possibile esclusiva]”)
+
+Priorità (numero 0–100):
+priority = w1*rating_cliente + w2*novità_annuncio + w3*owner_type_boost + w4*score_match_max
+Default: w1=0.4, w2=0.2, w3=0.2, w4=0.2.
+Cap giornaliero UI: max 15 task.
+
+Anti-dup: prima di proporre un task, verifica interactions negli ultimi 30 giorni su stessa terna (client_id?, property_id, channel) → se esiste, non proporre.
+
+Quiet hours: nessun invio automatico. WhatsApp reale solo se
+WHATSAPP_SEND_ENABLED=true e client.whatsapp == TEST_WHATSAPP_PHONE.
+
+Messaggi standard (template)
+
+Privato
+Buongiorno, sono Ilan (Cavour Immobiliare). Ho 1–2 clienti in linea per {zona}/{mq}/{budget}. Le va un confronto rapido? Grazie.
+
+Multi (acquisizione)
+Buongiorno, seguo acquirenti su {zona}. Ho visto {immobile} pubblicato da più agenzie. Mi presento e porto clienti qualificati. Possiamo sentirci?
+
+Mono (collaborazione)
+Buongiorno, per {immobile} ho un cliente allineato ({mq}/{budget}). Valutate collaborazione? Posso inviarvi la scheda in riservata.
+
+Salvate in templates con segnaposto. Prevedere “tone profile” per cliente (istituzionale|caldo|diretto|tecnico) che modula saluto/chiusura e lunghezza.
+
+Frontend (React) — nuove pagine/box
+1) /dashboard
+
+Task prioritari (top 15) con pulsanti: “Invia bozza” (apre link wa.me), “Completa”, “Skip”
+
+Appuntamenti oggi
+
+Nuovi match oggi (conteggio + 3 esempi)
+
+2) /outreach
+
+Tab: Privati / Multi / Mono
+
+Lista consigli con bozza messaggio visibile, link wa.me, bottone “Copia”
+
+Filtri: zona, budget, nuovo (<10gg), exclusivity_hint
+
+3) Integrazioni esistenti
+
+Scheda Cliente: tab “Match Oggi”, “Task aperti”, “Cronologia invii” (già aggiunti)
+
+Shared Property: “Clienti interessati”, “Pipeline”, “Cronologia azioni” (già aggiunti)
+
+Scheduler (già attivo con GitHub Actions)
+
+ore 07:05: POST /api/run/scan → POST /api/run/match
+
+UI mostra i risultati su /dashboard e /outreach
+
+Vincoli e Flag
+
+TEST_WHATSAPP_PHONE="393407992052"
+
+WHATSAPP_SEND_ENABLED=false
+
+MATCH_SCORE_THRESHOLD=70
+
+ANTI_DUP_WINDOW_DAYS=30
+
+Criteri di accettazione (check)
+
+Dashboard mostra max 15 task prioritari con azioni rapide
+
+/api/outreach/today filtra correttamente e rispetta anti-dup 30gg
+
+Import links funziona con batch di URL e non duplica record
+
+Nessun invio reale salvo numero test; tutti i messaggi sono bozze con link wa.me
+
+In schede Cliente/Shared vedo match, task e cronologia aggiornati
+
+Se servono nomi precisi dei file:
+
+backend: server/routes/crm.ts, server/routes/outreach.ts, integrazione in server/routes.ts
+
+frontend: client/src/pages/dashboard.tsx, client/src/pages/outreach.tsx, componenti riusando lo stile già presente
+
+Nota: non toccate l’algoritmo di matching in server/lib/matchingLogic.ts. Usatelo com’è; il “task engine” vive sopra.
