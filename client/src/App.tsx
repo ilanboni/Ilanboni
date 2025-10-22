@@ -41,11 +41,15 @@ import CalendarPage from "@/pages/calendar";
 import GoogleOAuthPage from "@/pages/google-oauth";
 import EmailProcessorPage from "@/pages/email-processor";
 import MailMergePage from "@/pages/mail-merge/index";
+import SecretaryDashboard from "@/pages/secretary/dashboard";
+import SecretaryOutreach from "@/pages/secretary/outreach";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/secretary/dashboard" component={SecretaryDashboard} />
+      <Route path="/secretary/outreach" component={SecretaryOutreach} />
       <Route path="/clients" component={ClientsPage} />
       <Route path="/clients/duplicates" component={ClientDuplicatesPage} />
       <Route path="/clients/new" component={ClientsByTypePage} />

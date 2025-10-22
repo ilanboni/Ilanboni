@@ -608,6 +608,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/secretary/generate-tasks - Genera task outreach automatici
+  app.post("/api/secretary/generate-tasks", async (req: Request, res: Response) => {
+    try {
+      const { generateOutreachTasks } = await import("./services/secretaryPriorityService");
+      const tasksCreated = await generateOutreachTasks();
+
+      res.json({
+        success: true,
+        tasksCreated: tasksCreated.length,
+        tasks: tasksCreated
+      });
+    } catch (error) {
+      console.error("[POST /api/secretary/generate-tasks]", error);
+      res.status(500).json({ error: "Errore durante la generazione dei task" });
+    }
+  });
+
+  // GET /api/templates - Ottieni tutti i template messaggi
+  app.get("/api/templates", async (req: Request, res: Response) => {
+    try {
+      const { whatsappTemplates, phoneScripts, emailTemplates } = await import("./services/messageTemplates");
+      
+      res.json({
+        whatsapp: whatsappTemplates,
+        phone: phoneScripts,
+        email: emailTemplates
+      });
+    } catch (error) {
+      console.error("[GET /api/templates]", error);
+      res.status(500).json({ error: "Errore durante il recupero dei template" });
+    }
+  });
+
+  // POST /api/templates/generate - Genera messaggio da template per shared property
+  app.post("/api/templates/generate", async (req: Request, res: Response) => {
+    try {
+      const { sharedPropertyId, channel, tone, agentInfo } = req.body;
+
+      if (!sharedPropertyId || !channel || !agentInfo) {
+        return res.status(400).json({ 
+          error: "Campi obbligatori: sharedPropertyId, channel, agentInfo" 
+        });
+      }
+
+      // Ottieni shared property
+      const sp = await db.select()
+        .from(sharedProperties)
+        .where(eq(sharedProperties.id, sharedPropertyId))
+        .limit(1);
+
+      if (sp.length === 0) {
+        return res.status(404).json({ error: "Shared property non trovata" });
+      }
+
+      const { generateMessageForSharedProperty } = await import("./services/messageTemplates");
+      
+      const message = generateMessageForSharedProperty(
+        sp[0],
+        channel,
+        tone || 'neutral',
+        agentInfo
+      );
+
+      if (!message) {
+        return res.status(404).json({ error: "Template non trovato per i parametri specificati" });
+      }
+
+      res.json({
+        message,
+        sharedProperty: sp[0],
+        channel,
+        tone: tone || 'neutral'
+      });
+    } catch (error) {
+      console.error("[POST /api/templates/generate]", error);
+      res.status(500).json({ error: "Errore durante la generazione del messaggio" });
+    }
+  });
+
   // ===== END NEW SECRETARY CRM/CMS API =====
 
   // API per la gestione delle comunicazioni
