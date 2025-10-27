@@ -15,6 +15,7 @@ import {
   insertAppointmentConfirmationSchema,
   insertContactSchema,
   insertMatchSchema,
+  insertClientRequestSchema,
   clients,
   buyers,
   properties,
@@ -30,11 +31,13 @@ import {
   propertyVisits,
   contacts,
   matches,
+  clientRequests,
   type PropertySent,
   type AppointmentConfirmation,
   type PropertyVisit,
   type Contact,
-  type Match
+  type Match,
+  type ClientRequest
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like, isNotNull, ne, isNull } from "drizzle-orm";
@@ -62,6 +65,7 @@ import { taskSyncScheduler } from "./services/taskSyncScheduler";
 import { authBearer } from "./middleware/auth";
 import { createTasksFromMatches, getDefaultDeps } from "./lib/taskEngine";
 import { isPropertyMatchingBuyerCriteria, calculatePropertyMatchPercentage } from "./lib/matchingLogic";
+import { nlToFilters, type PropertyFilters } from "./services/nlProcessingService";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -3344,6 +3348,246 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[POST /api/clients/${req.params.id}/associate-property]`, error);
       res.status(500).json({ error: "Errore durante l'associazione dell'immobile" });
+    }
+  });
+
+  // Natural Language Request Processing - Client property request from NL text
+  app.post("/api/clients/:id/nl-request", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const { text } = req.body;
+
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        return res.status(400).json({ error: "Testo richiesta mancante" });
+      }
+
+      console.log(`[NL-REQUEST] Processing request for client ${clientId}: "${text}"`);
+
+      // Check if client exists
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+
+      // Parse NL text to structured filters using OpenAI
+      const filters: PropertyFilters = await nlToFilters(text);
+
+      // Save request to database
+      const [clientRequest] = await db.insert(clientRequests).values({
+        clientId,
+        sourceText: text.trim(),
+        filters: filters as any
+      }).returning();
+
+      console.log(`[NL-REQUEST] Saved request ${clientRequest.id} with filters:`, filters);
+
+      // Trigger property matching for this client
+      // This will create match records in the database
+      try {
+        const matchedProperties = await storage.matchPropertiesForBuyer(clientId);
+        console.log(`[NL-REQUEST] Found ${matchedProperties.length} matching properties`);
+      } catch (matchError) {
+        console.error(`[NL-REQUEST] Error matching properties:`, matchError);
+        // Non-blocking error, continue
+      }
+
+      res.json({
+        success: true,
+        clientId,
+        requestId: clientRequest.id,
+        filters,
+        sourceText: text.trim()
+      });
+
+    } catch (error) {
+      console.error(`[POST /api/clients/${req.params.id}/nl-request]`, error);
+      res.status(500).json({ error: "Errore durante l'elaborazione della richiesta" });
+    }
+  });
+
+  // Import properties from Casafari API data
+  app.post("/api/import-casafari", async (req: Request, res: Response) => {
+    try {
+      const { items } = req.body;
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "Items array mancante o vuoto" });
+      }
+
+      console.log(`[CASAFARI-IMPORT] Importing ${items.length} properties`);
+
+      const imported = [];
+      const skipped = [];
+
+      for (const item of items) {
+        try {
+          // Check if property already exists by external link or address
+          const existingByLink = item.url ? await db.query.properties.findFirst({
+            where: eq(properties.externalLink, item.url)
+          }) : null;
+
+          if (existingByLink) {
+            skipped.push({ reason: 'duplicate_url', url: item.url });
+            continue;
+          }
+
+          // Create property from Casafari data
+          const propertyData = {
+            address: item.address || "Indirizzo da definire",
+            city: "Milano", // Default to Milano
+            size: item.size_mq || 0,
+            price: item.price_eur || 0,
+            type: item.title?.toLowerCase().includes('appartamento') ? 'apartment' : 'other',
+            bedrooms: null,
+            bathrooms: null,
+            description: item.title || "",
+            status: "available",
+            isShared: false,
+            isOwned: false,
+            externalLink: item.url || null,
+            portal: item.portal || "casafari",
+            floor: item.floor || null,
+            isMultiagency: item.is_multiagency || false,
+            exclusivityHint: item.owner_type === 'private',
+            ownerPhone: item.contact_phone || null,
+            ownerEmail: item.contact_email || null
+          };
+
+          const [newProperty] = await db.insert(properties).values(propertyData).returning();
+          imported.push(newProperty);
+          console.log(`[CASAFARI-IMPORT] Imported property ${newProperty.id}: ${newProperty.address}`);
+
+        } catch (itemError) {
+          console.error(`[CASAFARI-IMPORT] Error importing item:`, itemError);
+          skipped.push({ reason: 'error', error: String(itemError) });
+        }
+      }
+
+      res.json({
+        success: true,
+        imported: imported.length,
+        skipped: skipped.length,
+        details: { imported, skipped }
+      });
+
+    } catch (error) {
+      console.error(`[POST /api/import-casafari]`, error);
+      res.status(500).json({ error: "Errore durante l'import da Casafari" });
+    }
+  });
+
+  // Manual Casafari Alerts pull - fetch from Casafari API and import
+  app.post("/api/manual/casafari/pull", async (req: Request, res: Response) => {
+    try {
+      const casafariToken = process.env.CASAFARI_API_TOKEN;
+
+      if (!casafariToken) {
+        return res.status(400).json({ 
+          error: "CASAFARI_API_TOKEN non configurato",
+          message: "Configura la chiave API di Casafari nei secrets" 
+        });
+      }
+
+      console.log(`[CASAFARI-PULL] Fetching alerts from Casafari API`);
+
+      // Fetch alerts from Casafari
+      const alertsResponse = await axios.get('https://api.casafari.com/v2/alerts', {
+        headers: { Authorization: `Bearer ${casafariToken}` }
+      });
+
+      const alerts = alertsResponse.data?.data || [];
+      console.log(`[CASAFARI-PULL] Found ${alerts.length} alerts`);
+
+      let totalImported = 0;
+      const alertResults = [];
+
+      for (const alert of alerts) {
+        const alertId = alert?.id;
+        if (!alertId) continue;
+
+        try {
+          // Fetch results for this alert
+          const resultsUrl = `https://api.casafari.com/v2/alerts/${alertId}/results?limit=100&offset=0`;
+          const resultsResponse = await axios.get(resultsUrl, {
+            headers: { Authorization: `Bearer ${casafariToken}` }
+          });
+
+          const results = resultsResponse.data?.data || [];
+          
+          if (results.length === 0) {
+            alertResults.push({ alertId, imported: 0, message: 'no_results' });
+            continue;
+          }
+
+          // Transform Casafari results to our format
+          const items = results.map((r: any) => {
+            const attr = r?.attributes || {};
+            const dupCount = Number(attr.duplicate_count ?? attr.cluster_size ?? 1);
+            return {
+              listing_id: r?.id ?? "",
+              title: attr.title ?? "",
+              price_eur: attr.price ?? null,
+              size_mq: attr.size ?? null,
+              address: attr.address ?? attr.location_label ?? "",
+              floor: attr.floor ?? "",
+              url: attr.url ?? "",
+              portal: attr.portal_name ?? attr.source ?? "casafari",
+              owner_type: attr.is_private_owner ? "private" : "agency",
+              duplicate_count: Number.isFinite(dupCount) ? dupCount : 1,
+              contact_phone: attr.contact_phone ?? "",
+              contact_email: attr.contact_email ?? "",
+              images: Array.isArray(attr.images) ? attr.images : [],
+              is_multiagency: (Number.isFinite(dupCount) ? dupCount : 1) >= 2
+            };
+          });
+
+          // Import using our import endpoint logic
+          const importResponse = await axios.post(
+            `http://localhost:${process.env.PORT || 5000}/api/import-casafari`,
+            { items },
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+
+          const imported = importResponse.data?.imported || 0;
+          totalImported += imported;
+          alertResults.push({ alertId, imported, results: results.length });
+
+          console.log(`[CASAFARI-PULL] Alert ${alertId}: imported ${imported}/${results.length}`);
+
+        } catch (alertError) {
+          console.error(`[CASAFARI-PULL] Error processing alert ${alertId}:`, alertError);
+          alertResults.push({ alertId, error: String(alertError) });
+        }
+      }
+
+      // Trigger matching after import
+      if (totalImported > 0) {
+        try {
+          console.log(`[CASAFARI-PULL] Triggering property matching`);
+          await axios.post(
+            `http://localhost:${process.env.PORT || 5000}/api/run/match`,
+            {},
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+        } catch (matchError) {
+          console.error(`[CASAFARI-PULL] Error triggering match:`, matchError);
+        }
+      }
+
+      res.json({
+        success: true,
+        alerts: alerts.length,
+        totalImported,
+        results: alertResults
+      });
+
+    } catch (error) {
+      console.error(`[POST /api/manual/casafari/pull]`, error);
+      res.status(500).json({ error: "Errore durante il pull da Casafari" });
     }
   });
 
