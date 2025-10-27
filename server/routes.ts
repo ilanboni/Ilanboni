@@ -9433,6 +9433,58 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   });
 
   /**
+   * GET /api/deduplication/results
+   * Restituisce i risultati dell'ultima scansione di deduplicazione
+   * Lista proprietà multi-agency con informazioni su portali/agenzie e numero duplicati
+   */
+  app.get('/api/deduplication/results', async (req: Request, res: Response) => {
+    try {
+      // Recupera tutte le proprietà multi-agency
+      const multiAgencyProperties = await db
+        .select()
+        .from(properties)
+        .where(eq(properties.isMultiagency, true));
+      
+      // Raggruppa per indirizzo per contare i duplicati
+      const addressGroups = new Map<string, typeof multiAgencyProperties>();
+      
+      multiAgencyProperties.forEach(prop => {
+        const normalized = prop.address.toLowerCase().trim();
+        if (!addressGroups.has(normalized)) {
+          addressGroups.set(normalized, []);
+        }
+        addressGroups.get(normalized)!.push(prop);
+      });
+      
+      // Crea risultati con dettagli
+      const results = Array.from(addressGroups.values()).map(group => {
+        const first = group[0];
+        const portals = group.map(p => p.portal).filter((p): p is string => p !== null && p !== undefined);
+        
+        return {
+          id: first.id,
+          address: first.address,
+          city: first.city,
+          size: first.size,
+          price: first.price,
+          agencies: portals,
+          isMultiagency: true,
+          duplicateCount: group.length
+        };
+      });
+      
+      // Ordina per numero di duplicati (maggiore prima)
+      results.sort((a, b) => b.duplicateCount - a.duplicateCount);
+      
+      res.json(results);
+      
+    } catch (error) {
+      console.error('[GET /api/deduplication/results] Errore:', error);
+      res.status(500).json({ error: 'Errore nel recupero dei risultati' });
+    }
+  });
+
+  /**
    * POST /api/run/scan
    * Analizza gli immobili nel database per trovare duplicati (pluricondivisi)
    * utilizzando fuzzy matching su indirizzo, prezzo, mq, piano, camere

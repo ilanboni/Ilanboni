@@ -3,11 +3,22 @@ import { db } from '../db';
 import { properties, sharedProperties } from '../../shared/schema';
 import { and, eq, sql } from 'drizzle-orm';
 
+// Flag globale per prevenire esecuzioni concorrenti
+let isScanRunning = false;
+
 /**
  * Esegue la scansione e deduplicazione di tutte le proprietà
  * @returns Risultato della scansione
  */
 export async function runDeduplicationScan() {
+  // Previeni esecuzioni concorrenti
+  if (isScanRunning) {
+    console.log('[DEDUP-SCHEDULER] ⏭️ Scansione già in corso, skip');
+    throw new Error('Scansione già in corso');
+  }
+  
+  isScanRunning = true;
+  
   try {
     console.log('[DEDUP-SCHEDULER] 🔍 Avvio scansione deduplicazione automatica...');
     
@@ -111,6 +122,8 @@ export async function runDeduplicationScan() {
   } catch (error) {
     console.error('[DEDUP-SCHEDULER] ❌ Errore durante la scansione:', error);
     throw error;
+  } finally {
+    isScanRunning = false;
   }
 }
 

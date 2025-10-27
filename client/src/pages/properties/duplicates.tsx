@@ -47,37 +47,27 @@ export default function PropertyDuplicatesPage() {
 
   // Query per ottenere proprietà multi-agency
   const { data: multiAgencyProperties, isLoading } = useQuery<PropertyCluster[]>({
-    queryKey: ['/api/properties/multi-agency'],
-    // Per ora usiamo i dati da shared-properties come placeholder
-    queryFn: async () => {
-      const response = await fetch('/api/analytics/shared-properties-ranking');
-      if (!response.ok) throw new Error('Errore nel caricamento');
-      const data = await response.json();
-      return data.map((p: any) => ({
-        id: p.id,
-        address: p.address,
-        city: p.city,
-        size: p.size,
-        price: p.price,
-        agencies: ['Agenzia 1', 'Agenzia 2'], // TODO: recuperare agenzie reali
-        isMultiagency: true,
-        duplicateCount: 2
-      }));
-    }
+    queryKey: ['/api/deduplication/results']
   });
 
   // Mutation per scansione manuale
   const scanMutation = useMutation({
     mutationFn: async () => {
+      const token = import.meta.env.VITE_REPLIT_API_TOKEN;
+      if (!token) {
+        throw new Error('Token di autenticazione non configurato');
+      }
+      
       const response = await fetch('/api/run/scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SCAN_AUTH_TOKEN || 'local-dev-token'}`
+          'Authorization': `Bearer ${token}`
         }
       });
       if (!response.ok) {
-        throw new Error('Errore durante la scansione');
+        const error = await response.json().catch(() => ({ message: 'Errore sconosciuto' }));
+        throw new Error(error.message || 'Errore durante la scansione');
       }
       return response.json() as Promise<ScanResult>;
     },
@@ -91,7 +81,7 @@ export default function PropertyDuplicatesPage() {
         description: `Trovati ${data.clustersFound} cluster di duplicati. ${data.multiagencyProperties} proprietà multi-agency identificate.`
       });
       // Invalida cache per aggiornare lista
-      queryClient.invalidateQueries({ queryKey: ['/api/properties/multi-agency'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/deduplication/results'] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/shared-properties-ranking'] });
     },
     onError: (error: any) => {
