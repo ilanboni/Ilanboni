@@ -85,6 +85,16 @@ export const matches = pgTable("matches", {
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
+// Client requests (natural language property requests from clients)
+export const clientRequests = pgTable("client_requests", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  sourceText: text("source_text").notNull(), // original NL text from client
+  filters: jsonb("filters").notNull(), // structured filters from ChatGPT
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // Properties
 export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
@@ -285,6 +295,7 @@ export const propertyVisits = pgTable("property_visits", {
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertMatchSchema = createInsertSchema(matches).omit({ id: true, createdAt: true });
+export const insertClientRequestSchema = createInsertSchema(clientRequests).omit({ id: true, createdAt: true, updatedAt: true });
 // Redefine client schema manually per avere maggiore controllo
 export const insertClientSchema = z.object({
   type: z.string(),
@@ -446,6 +457,9 @@ export type InsertSeller = z.infer<typeof insertSellerSchema>;
 
 export type Match = typeof matches.$inferSelect;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
+
+export type ClientRequest = typeof clientRequests.$inferSelect;
+export type InsertClientRequest = z.infer<typeof insertClientRequestSchema>;
 
 export type Property = typeof properties.$inferSelect;
 export type InsertProperty = z.infer<typeof insertPropertySchema>;
