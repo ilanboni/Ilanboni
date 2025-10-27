@@ -16,6 +16,8 @@ const GMAIL_POLLING_INTERVAL = 60000; // 1 minuto
 
 // Importa lo scheduler per i follow-up automatici
 import { startFollowUpScheduler } from "./services/followUpScheduler";
+// Importa lo scheduler per la deduplicazione automatica
+import { deduplicationScheduler } from "./services/deduplicationScheduler";
 
 // Configura l'agente virtuale (impostazione di default, può essere cambiato tramite API)
 if (process.env.ENABLE_VIRTUAL_AGENT === undefined) {
@@ -295,5 +297,8 @@ async function pollWhatsAppMessages() {
     
     // Avvia lo scheduler per i follow-up automatici (verifica ogni ora = 60 minuti)
     startFollowUpScheduler(60);
+    
+    // Avvia lo scheduler per la deduplicazione automatica (verifica ogni 7 giorni)
+    deduplicationScheduler.start();
   });
 })();
