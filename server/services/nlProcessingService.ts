@@ -80,8 +80,7 @@ Regole:
 Testo richiesta cliente:
 ${text}`
         }
-      ],
-      temperature: 0.3
+      ]
     });
 
     const content = response.choices[0]?.message?.content;
