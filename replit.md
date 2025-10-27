@@ -34,7 +34,7 @@ The application features a modern full-stack architecture.
 - **sharp-phash**: Image hashing for deduplication
 - **string-similarity**: Fuzzy matching for property deduplication
 - **UltraMsg**: WhatsApp messaging integration
-- **OpenAI**: AI features and response generation
+- **OpenAI SDK + Replit AI Integrations**: AI features using GPT-5 for natural language processing of client property requests (no personal API key required, billed to Replit credits via AI_INTEGRATIONS_OPENAI_BASE_URL and AI_INTEGRATIONS_OPENAI_API_KEY)
 - **Nominatim**: Geocoding services
 ## Changelog
 - October 27, 2025. Sistema Natural Language Processing per richieste immobiliari completato - Implementato sistema completo di elaborazione richieste clienti in linguaggio naturale con ChatGPT: esteso schema database con tabella client_requests (clientId, sourceText, filters jsonb), creato servizio nlProcessingService.ts con OpenAI GPT-4o-mini per parsing NL→filtri strutturati (deal_type, property_type, budget_max, size_min, rooms, bathrooms, floor_min, zones, condition, features), implementati 3 endpoint API (POST /api/clients/:id/nl-request per NL→filtri→salva→match, POST /api/import-casafari per import array proprietà Casafari, POST /api/manual/casafari/pull per fetch automatico da Casafari Alerts API), sistema include graceful degradation con filtri default se OpenAI fallisce, integrazione completa con sistema matching esistente, workflow testato con richiesta "bilocale/trilocale 2 bagni piano ≥3 balcone ascensore 80mq €500k Isola/Porta Romana", sistema operativo al 100% e pronto per uso con API key OpenAI valida o integrazione Replit AI
