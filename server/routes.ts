@@ -9751,7 +9751,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           id: properties.id,
           address: properties.address,
           externalLink: properties.externalLink,
-          listingId: properties.listingId
+          immobiliareItId: properties.immobiliareItId
         })
         .from(properties);
       
@@ -9761,7 +9761,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
         .filter((url): url is string => url !== null && url !== undefined && url.trim() !== '');
       
       const listing_ids = allProperties
-        .map(p => p.listingId)
+        .map(p => p.immobiliareItId)
         .filter((id): id is string => id !== null && id !== undefined && id.trim() !== '');
       
       const addresses = allProperties
