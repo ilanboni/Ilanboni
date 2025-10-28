@@ -9737,6 +9737,58 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   });
 
   /**
+   * GET /api/portfolio/index-lite
+   * Restituisce un indice leggero del portafoglio esistente per evitare import duplicati
+   * Usato dallo script Casafari per filtrare annunci già nel database
+   */
+  app.get('/api/portfolio/index-lite', async (req: Request, res: Response) => {
+    try {
+      console.log('[GET /api/portfolio/index-lite] Generazione indice portafoglio...');
+      
+      // Recupera tutti gli immobili esistenti
+      const allProperties = await db
+        .select({
+          id: properties.id,
+          address: properties.address,
+          externalLink: properties.externalLink,
+          listingId: properties.listingId
+        })
+        .from(properties);
+      
+      // Estrai URLs, listing IDs e indirizzi
+      const urls = allProperties
+        .map(p => p.externalLink)
+        .filter((url): url is string => url !== null && url !== undefined && url.trim() !== '');
+      
+      const listing_ids = allProperties
+        .map(p => p.listingId)
+        .filter((id): id is string => id !== null && id !== undefined && id.trim() !== '');
+      
+      const addresses = allProperties
+        .map(p => p.address)
+        .filter((addr): addr is string => addr !== null && addr !== undefined && addr.trim() !== '');
+      
+      console.log(`[Portfolio Index] ${allProperties.length} proprietà, ${urls.length} URLs, ${listing_ids.length} listing IDs, ${addresses.length} indirizzi`);
+      
+      res.json({
+        urls,
+        listing_ids,
+        addresses,
+        total_properties: allProperties.length
+      });
+      
+    } catch (error) {
+      console.error('[GET /api/portfolio/index-lite] Errore:', error);
+      res.status(500).json({ 
+        error: 'Errore nel recupero indice portafoglio',
+        urls: [],
+        listing_ids: [],
+        addresses: []
+      });
+    }
+  });
+
+  /**
    * GET /api/tasks/today
    * Ritorna i task creati oggi dall'agente virtuale
    * Protetto da autenticazione Bearer

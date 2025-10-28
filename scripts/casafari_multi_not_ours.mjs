@@ -1,0 +1,253 @@
+// Uso: node casafari_multi_not_ours.mjs
+// Importa SOLO pluricondivisi (duplicate_count≥2) pubblicati da AGENZIE,
+// NON già nel tuo portafoglio, ENTRO un raggio (default 5 km) dal centro (default Duomo).
+// Poi chiama /api/run/match per creare task di acquisizione nel tuo gestionale.
+
+const BASE = "https://api.casafari.com/v2";
+const ALERTS_URL = `${BASE}/alerts`;
+const ALERT_RESULTS_URL = (id) => `${BASE}/alerts/${id}/results`;
+
+const CASAFARI_TOKEN = (process.env.CASAFARI_API_TOKEN || "").trim();
+const REPLIT_BASE = (process.env.REPLIT_BASE_URL || "").replace(/\/$/, "");
+const REPLIT_TOKEN = (process.env.REPLIT_API_TOKEN || "").trim();
+const OUR_AGENCY_NAMES = (process.env.OUR_AGENCY_NAMES || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const CENTER_LAT = Number(process.env.CENTER_LAT || 45.4642); // Duomo
+const CENTER_LON = Number(process.env.CENTER_LON || 9.1900);
+const RADIUS_KM  = Number(process.env.RADIUS_KM  || 5);
+
+const PORTFOLIO_INDEX_ENDPOINT = (process.env.PORTFOLIO_INDEX_ENDPOINT || "/api/portfolio/index-lite").trim();
+
+if (!CASAFARI_TOKEN || !REPLIT_BASE || !REPLIT_TOKEN) {
+  console.error("Config mancante. Setta i Secrets: CASAFARI_API_TOKEN, REPLIT_BASE_URL, REPLIT_API_TOKEN, OUR_AGENCY_NAMES");
+  process.exit(1);
+}
+
+const authHeader = { Authorization: `Bearer ${CASAFARI_TOKEN}` };
+const replitHeaders = { Authorization: `Bearer ${REPLIT_TOKEN}`, "Content-Type": "application/json" };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const norm = (s) =>
+  (s || "")
+    .toString()
+    .normalize("NFKD")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  if ([lat1, lon1, lat2, lon2].some((v) => !Number.isFinite(v))) return Infinity;
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.asin(Math.sqrt(a));
+  return R * c;
+}
+
+// prova a leggere lat/lon da vari campi possibili
+function pickLatLon(attr = {}) {
+  // casi tipici nelle API: { latitude, longitude } oppure nested in location.{lat,lng}
+  const lat =
+    Number(attr.latitude) ??
+    Number(attr.lat) ??
+    Number(attr?.location?.lat) ??
+    Number(attr?.geo?.lat);
+  const lon =
+    Number(attr.longitude) ??
+    Number(attr.lon) ??
+    Number(attr.lng) ??
+    Number(attr?.location?.lng) ??
+    Number(attr?.geo?.lng);
+  return { lat: Number(lat), lon: Number(lon) };
+}
+
+function isOursAgencyNameHit(attr = {}) {
+  const candidates = []
+    .concat(attr?.agency_name || [])
+    .concat(attr?.portal_name || [])
+    .concat(attr?.source || [])
+    .concat(attr?.broker_name || [])
+    .concat(attr?.agencies || [])
+    .concat(attr?.listing_agents || []); // oggetti con .name
+
+  const flat = candidates.flatMap((v) => {
+    if (!v) return [];
+    if (typeof v === "string") return [v];
+    if (typeof v?.name === "string") return [v.name];
+    return [];
+  });
+
+  const hay = flat.map(norm);
+  const needles = OUR_AGENCY_NAMES.map(norm);
+  return needles.some((n) => hay.some((h) => h.includes(n)));
+}
+
+function mapProperty(item) {
+  const a = item?.attributes || {};
+  const dup = Number(a.duplicate_count ?? a.cluster_size ?? 1);
+  const ownerType = a.is_private_owner ? "private" : "agency";
+  const { lat, lon } = pickLatLon(a);
+  return {
+    raw: a, // per filtri interni
+    listing_id: item?.id ?? "",
+    title: a.title ?? "",
+    price_eur: a.price ?? null,
+    size_mq: a.size ?? null,
+    address: a.address ?? a.location_label ?? "",
+    floor: a.floor ?? "",
+    url: a.url ?? "",
+    portal: a.portal_name ?? a.source ?? "",
+    owner_type: ownerType,
+    duplicate_count: Number.isFinite(dup) ? dup : 1,
+    contact_phone: a.contact_phone ?? "",
+    contact_email: a.contact_email ?? "",
+    images: Array.isArray(a.images) ? a.images : [],
+    latitude: Number.isFinite(lat) ? lat : null,
+    longitude: Number.isFinite(lon) ? lon : null,
+    distance_km: Number.isFinite(lat) && Number.isFinite(lon) ? haversineKm(CENTER_LAT, CENTER_LON, lat, lon) : Infinity,
+    source: "casafari-api",
+    is_multiagency: (Number.isFinite(dup) ? dup : 1) >= 2,
+  };
+}
+
+async function httpJson(url, opts = {}) {
+  const r = await fetch(url, opts);
+  if (r.status === 204) return null;
+  if (!r.ok) throw new Error(`${opts.method || "GET"} ${url} → ${r.status} ${await r.text().catch(() => "")}`);
+  return r.json();
+}
+
+async function listAlerts() {
+  const j = await httpJson(ALERTS_URL, { headers: authHeader });
+  return j?.data ?? [];
+}
+
+async function fetchResults(alertId, limit = 100, offset = 0) {
+  const url = `${ALERT_RESULTS_URL(alertId)}?limit=${limit}&offset=${offset}`;
+  const j = await httpJson(url, { headers: authHeader });
+  return j?.data ?? [];
+}
+
+async function fetchPortfolioIndex() {
+  try {
+    const j = await httpJson(`${REPLIT_BASE}${PORTFOLIO_INDEX_ENDPOINT}`, { headers: replitHeaders });
+    const urls = new Set((j?.urls || []).map((u) => norm(u)));
+    const ids = new Set((j?.listing_ids || []).map(norm));
+    const addrs = new Set((j?.addresses || []).map(norm));
+    return { urls, ids, addrs, ok: true };
+  } catch (e) {
+    console.warn("⚠️  Indice portafoglio non disponibile (userò solo filtro nome agenzia).", String(e.message || e));
+    return { urls: new Set(), ids: new Set(), addrs: new Set(), ok: false };
+  }
+}
+
+function dropIfInPortfolio(items, portfolio) {
+  if (!portfolio?.ok) return items;
+  return items.filter((p) => {
+    if (p.listing_id && portfolio.ids.has(norm(p.listing_id))) return false;
+    if (p.url && portfolio.urls.has(norm(p.url))) return false;
+    if (p.address && portfolio.addrs.has(norm(p.address))) return false;
+    return true;
+  });
+}
+
+async function sendBatchToReplit(items) {
+  if (!items.length) return 0;
+  const url = `${REPLIT_BASE}/api/import-casafari`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: replitHeaders,
+    body: JSON.stringify({ items }),
+  });
+  if (!r.ok) throw new Error(`Import ${r.status}: ${await r.text()}`);
+  return items.length;
+}
+
+async function triggerMatch() {
+  const url = `${REPLIT_BASE}/api/run/match`;
+  const r = await fetch(url, { method: "POST", headers: replitHeaders });
+  if (!r.ok) throw new Error(`Match ${r.status}: ${await r.text()}`);
+}
+
+async function main() {
+  console.log(`🔗 Casafari Alerts → multi-agenzia NON nostri entro ${RADIUS_KM}km dal centro`);
+  const portfolio = await fetchPortfolioIndex();
+  const alerts = await listAlerts();
+  console.log(`📋 Alert trovati: ${alerts.length}`);
+
+  let totRead = 0;
+  let totKept = 0;
+
+  for (const a of alerts) {
+    const id = a?.id;
+    const name = a?.name || id;
+    if (!id) continue;
+
+    console.log(`\n🔎 Alert: ${name} (${id})`);
+    const res = await fetchResults(id, 100, 0);
+    totRead += res.length;
+    if (!res.length) {
+      console.log("  Nessun risultato.");
+      continue;
+    }
+
+    let mapped = res.map(mapProperty);
+
+    // 1) solo pluricondivisi + agenzie
+    mapped = mapped.filter((p) => p.is_multiagency && p.owner_type === "agency");
+
+    // 2) entro raggio (richiede coordinate; se mancano → scarta)
+    mapped = mapped.filter((p) => Number.isFinite(p.distance_km) && p.distance_km <= RADIUS_KM);
+
+    // 3) escludi nostri alias agenzia
+    mapped = mapped.filter((p) => !isOursAgencyNameHit(p.raw));
+
+    // 4) escludi se già nel portafoglio (se indice disponibile)
+    mapped = dropIfInPortfolio(mapped, portfolio);
+
+    if (!mapped.length) {
+      console.log("  Nessun candidato dopo i filtri (multi, entro raggio, non nostri).");
+      continue;
+    }
+
+    // invia a blocchi
+    for (let i = 0; i < mapped.length; i += 50) {
+      const slice = mapped.slice(i, i + 50);
+      const sent = await sendBatchToReplit(slice);
+      totKept += sent;
+      console.log(
+        `  ✅ Importati ${sent} (batch ${i / 50 + 1}) — esempi: ${slice
+          .slice(0, 2)
+          .map((s) => (s.url || s.title))
+          .join(" | ")}`
+      );
+      await sleep(400);
+    }
+    await sleep(600);
+  }
+
+  console.log(`\n📦 Letture: ${totRead} | Import utili (multi, non nostri, entro ${RADIUS_KM}km): ${totKept}`);
+
+  if (totKept > 0) {
+    console.log("⚙️  Avvio matching / task engine…");
+    await triggerMatch();
+    console.log("✅ Match eseguito.");
+  } else {
+    console.log("ℹ️ Nessun nuovo candidato. Salto il match.");
+  }
+
+  console.log("🏁 Fine.");
+}
+
+main().catch((e) => {
+  console.error("❌ Errore:", e?.message || e);
+  process.exit(1);
+});
