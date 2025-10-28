@@ -9837,5 +9837,105 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  /**
+   * GET /api/admin/ingestion/status
+   * Ritorna lo stato del service di ingestion multi-portale
+   * Protetto da autenticazione Bearer
+   */
+  app.get('/api/admin/ingestion/status', authBearer, async (req: Request, res: Response) => {
+    try {
+      const { ingestionService } = await import('./services/portalIngestionService');
+      const status = await ingestionService.getStatus();
+      
+      res.json({
+        ok: true,
+        ...status
+      });
+    } catch (error) {
+      console.error('[GET /api/admin/ingestion/status] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore nel recupero stato ingestion',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/admin/ingestion/run
+   * Esegue l'ingestion manuale da tutti i portali configurati
+   * Protetto da autenticazione Bearer
+   */
+  app.post('/api/admin/ingestion/run', authBearer, async (req: Request, res: Response) => {
+    try {
+      const { ingestionService } = await import('./services/portalIngestionService');
+      const criteria = req.body.criteria || {
+        city: 'milano',
+        minPrice: 300000,
+        maxPrice: 3000000,
+        minSize: 60
+      };
+
+      console.log('[POST /api/admin/ingestion/run] Avvio ingestion con criteri:', criteria);
+
+      const results = await ingestionService.importFromAllPortals(criteria);
+      
+      const totalImported = results.reduce((sum, r) => sum + r.imported, 0);
+      const totalFailed = results.reduce((sum, r) => sum + r.failed, 0);
+
+      console.log(`[Ingestion] Completata: ${totalImported} importati, ${totalFailed} falliti`);
+
+      res.json({
+        ok: true,
+        totalImported,
+        totalFailed,
+        results
+      });
+    } catch (error) {
+      console.error('[POST /api/admin/ingestion/run] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante ingestion',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/admin/ingestion/portal/:portalId
+   * Esegue l'ingestion manuale da un portale specifico
+   * Protetto da autenticazione Bearer
+   */
+  app.post('/api/admin/ingestion/portal/:portalId', authBearer, async (req: Request, res: Response) => {
+    try {
+      const { portalId } = req.params;
+      const { ingestionService } = await import('./services/portalIngestionService');
+      const criteria = req.body.criteria || {
+        city: 'milano',
+        minPrice: 300000,
+        maxPrice: 3000000,
+        minSize: 60
+      };
+
+      console.log(`[POST /api/admin/ingestion/portal/${portalId}] Avvio ingestion con criteri:`, criteria);
+
+      const result = await ingestionService.importFromPortal(portalId, criteria);
+
+      console.log(`[Ingestion ${portalId}] Completata: ${result.imported} importati, ${result.failed} falliti`);
+
+      res.json({
+        ok: true,
+        ...result
+      });
+    } catch (error) {
+      console.error(`[POST /api/admin/ingestion/portal/${req.params.portalId}] Errore:`, error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante ingestion',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   return httpServer;
 }

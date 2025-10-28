@@ -122,6 +122,12 @@ export const properties = pgTable("properties", {
   portal: text("portal"), // portale di provenienza (immobiliare.it, idealista.it, etc.)
   isMultiagency: boolean("is_multiagency").default(false), // se è pluricondiviso (presente su più portali)
   exclusivityHint: boolean("exclusivity_hint").default(false), // se è probabilmente in esclusiva (un solo portale, testo "esclusiva")
+  // Campi per ingestion tracking
+  externalId: text("external_id"), // ID dell'annuncio sul portale esterno
+  source: text("source"), // fonte import: "casafari", "scraper-immobiliare", "scraper-idealista", "manual"
+  firstSeenAt: timestamp("first_seen_at"), // prima volta che l'annuncio è stato visto
+  lastSeenAt: timestamp("last_seen_at"), // ultimo aggiornamento
+  url: text("url"), // URL completo dell'annuncio
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });

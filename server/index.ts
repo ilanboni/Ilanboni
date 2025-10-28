@@ -18,6 +18,12 @@ const GMAIL_POLLING_INTERVAL = 60000; // 1 minuto
 import { startFollowUpScheduler } from "./services/followUpScheduler";
 // Importa lo scheduler per la deduplicazione automatica
 import { deduplicationScheduler } from "./services/deduplicationScheduler";
+// Importa il service per l'ingestion multi-portale
+import { ingestionService } from "./services/portalIngestionService";
+import { IdealistaAdapter } from "./services/adapters/idealistaAdapter";
+import { ImmobiliarePlaywrightAdapter } from "./services/adapters/immobiliarePlaywrightAdapter";
+// Importa lo scheduler per l'ingestion automatica
+import { ingestionScheduler } from "./services/ingestionScheduler";
 
 // Configura l'agente virtuale (impostazione di default, può essere cambiato tramite API)
 if (process.env.ENABLE_VIRTUAL_AGENT === undefined) {
@@ -295,10 +301,19 @@ async function pollWhatsAppMessages() {
     // Gmail polling temporaneamente disabilitato per diagnosi
     // startGmailPolling().catch(err => console.error('📧 ❌ Errore avvio Gmail polling:', err));
     
+    // Registra gli adapter per l'ingestion multi-portale
+    ingestionService.registerAdapter(new IdealistaAdapter());
+    ingestionService.registerAdapter(new ImmobiliarePlaywrightAdapter());
+    console.log('[INGESTION] Adapters registered successfully (Playwright-based)');
+    
     // Avvia lo scheduler per i follow-up automatici (verifica ogni ora = 60 minuti)
     startFollowUpScheduler(60);
     
     // Avvia lo scheduler per la deduplicazione automatica (verifica ogni 7 giorni)
     deduplicationScheduler.start();
+    
+    // Avvia lo scheduler per l'ingestion automatica (verifica ogni giorno)
+    ingestionScheduler.start();
+    console.log('[INGESTION] Scheduler avviato con successo');
   });
 })();
