@@ -77,6 +77,7 @@ export default function Sidebar({ className }: SidebarProps) {
           Analisi e Strumenti
         </div>
         
+        <SidebarLink to="/reports/acquisitions" icon="fas fa-file-contract">Report Acquisizione</SidebarLink>
         <SidebarLink to="/assistente" icon="fas fa-robot">Assistente Virtuale</SidebarLink>
         <SidebarLink to="/mail-merge" icon="fas fa-mail-bulk">Mail Merge Proprietari</SidebarLink>
         <SidebarLink to="/email-processor" icon="fas fa-envelope-open-text">Email Immobiliare.it</SidebarLink>
