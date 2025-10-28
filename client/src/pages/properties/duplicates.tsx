@@ -53,10 +53,16 @@ export default function PropertyDuplicatesPage() {
   // Mutation per scansione manuale
   const scanMutation = useMutation({
     mutationFn: async () => {
+      const token = import.meta.env.VITE_REPLIT_API_TOKEN;
+      if (!token) {
+        throw new Error('Token di autenticazione non configurato');
+      }
+      
       const response = await fetch('/api/run/scan', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
       if (!response.ok) {

@@ -9488,9 +9488,9 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
    * POST /api/run/scan
    * Analizza gli immobili nel database per trovare duplicati (pluricondivisi)
    * utilizzando fuzzy matching su indirizzo, prezzo, mq, piano, camere
-   * TEMPORANEO: autenticazione disabilitata per test da iPad
+   * Protetto da autenticazione Bearer
    */
-  app.post('/api/run/scan', async (req: Request, res: Response) => {
+  app.post('/api/run/scan', authBearer, async (req: Request, res: Response) => {
     try {
       console.log('[POST /api/run/scan] Avvio analisi deduplicazione immobili...');
 
