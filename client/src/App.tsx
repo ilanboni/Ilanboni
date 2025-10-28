@@ -44,11 +44,13 @@ import MailMergePage from "@/pages/mail-merge/index";
 import SecretaryDashboard from "@/pages/secretary/dashboard";
 import SecretaryOutreach from "@/pages/secretary/outreach";
 import PropertyDuplicatesPage from "@/pages/properties/duplicates";
+import AcquisitionsReportsPage from "@/pages/reports/acquisitions";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/reports/acquisitions" component={AcquisitionsReportsPage} />
       <Route path="/secretary/dashboard" component={SecretaryDashboard} />
       <Route path="/secretary/outreach" component={SecretaryOutreach} />
       <Route path="/clients" component={ClientsPage} />

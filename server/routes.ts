@@ -9937,5 +9937,202 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  /**
+   * GET /api/reports/high-priority-matches
+   * Ritorna richieste con rating 4-5 e immobili in target (evidenziando pluricondivisi)
+   */
+  app.get('/api/reports/high-priority-matches', async (req: Request, res: Response) => {
+    try {
+      console.log('[GET /api/reports/high-priority-matches] Avvio ricerca richieste top...');
+
+      // Trova tutti i buyers con rating >= 4
+      const highPriorityBuyers = await db
+        .select({
+          buyerId: buyers.id,
+          clientId: buyers.clientId,
+          rating: buyers.rating,
+          minSize: buyers.minSize,
+          maxPrice: buyers.maxPrice,
+          searchNotes: buyers.searchNotes,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          phone: clients.phone,
+          email: clients.email
+        })
+        .from(buyers)
+        .innerJoin(clients, eq(buyers.clientId, clients.id))
+        .where(gte(buyers.rating, 4))
+        .orderBy(desc(buyers.rating));
+
+      console.log(`[Reports] Trovati ${highPriorityBuyers.length} buyers con rating >= 4`);
+
+      // Per ogni buyer, trova gli immobili in target
+      const results = await Promise.all(
+        highPriorityBuyers.map(async (buyer) => {
+          // Query immobili compatibili
+          const matchingProps = await db
+            .select()
+            .from(properties)
+            .where(
+              and(
+                eq(properties.status, 'available'),
+                buyer.minSize ? gte(properties.size, buyer.minSize) : undefined,
+                buyer.maxPrice ? lte(properties.price, buyer.maxPrice) : undefined
+              )
+            );
+
+          // Separa pluricondivisi da mono-agenzia
+          const multiagency = matchingProps.filter(p => p.isMultiagency);
+          const regular = matchingProps.filter(p => !p.isMultiagency);
+
+          return {
+            buyer: {
+              id: buyer.buyerId,
+              clientId: buyer.clientId,
+              name: `${buyer.firstName} ${buyer.lastName}`,
+              phone: buyer.phone,
+              email: buyer.email,
+              rating: buyer.rating,
+              minSize: buyer.minSize,
+              maxPrice: buyer.maxPrice,
+              searchNotes: buyer.searchNotes
+            },
+            properties: {
+              total: matchingProps.length,
+              multiagency: multiagency.length,
+              regular: regular.length,
+              multiagencyList: multiagency,
+              regularList: regular
+            }
+          };
+        })
+      );
+
+      // Filtra solo buyers con almeno 1 match
+      const withMatches = results.filter(r => r.properties.total > 0);
+
+      console.log(`[Reports] ${withMatches.length} buyers hanno match disponibili`);
+
+      res.json({
+        ok: true,
+        total: withMatches.length,
+        buyers: withMatches
+      });
+
+    } catch (error) {
+      console.error('[GET /api/reports/high-priority-matches] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante generazione report',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * GET /api/reports/multiagency-properties
+   * Ritorna tutti gli immobili pluricondivisi (anche privato+agenzia) di Milano
+   */
+  app.get('/api/reports/multiagency-properties', async (req: Request, res: Response) => {
+    try {
+      console.log('[GET /api/reports/multiagency-properties] Recupero pluricondivisi Milano...');
+
+      // Query 1: Properties con isMultiagency = true
+      const multiagencyProps = await db
+        .select()
+        .from(properties)
+        .where(
+          and(
+            eq(properties.isMultiagency, true),
+            eq(properties.city, 'milano')
+          )
+        )
+        .orderBy(desc(properties.price));
+
+      // Query 2: Tutte le sharedProperties
+      const sharedProps = await db
+        .select()
+        .from(sharedProperties)
+        .where(eq(sharedProperties.city, 'milano'))
+        .orderBy(desc(sharedProperties.rating));
+
+      console.log(`[Reports] Trovati ${multiagencyProps.length} properties multiagency + ${sharedProps.length} shared properties`);
+
+      res.json({
+        ok: true,
+        regularProperties: {
+          count: multiagencyProps.length,
+          list: multiagencyProps
+        },
+        sharedProperties: {
+          count: sharedProps.length,
+          list: sharedProps
+        },
+        total: multiagencyProps.length + sharedProps.length
+      });
+
+    } catch (error) {
+      console.error('[GET /api/reports/multiagency-properties] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante generazione report',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * GET /api/reports/private-properties
+   * Ritorna immobili di privati con contatto diretto per WhatsApp automatico
+   */
+  app.get('/api/reports/private-properties', async (req: Request, res: Response) => {
+    try {
+      console.log('[GET /api/reports/private-properties] Recupero immobili privati...');
+
+      // Properties con ownerPhone O ownerEmail
+      const privateProps = await db
+        .select()
+        .from(properties)
+        .where(
+          and(
+            eq(properties.status, 'available'),
+            or(
+              isNotNull(properties.ownerPhone),
+              isNotNull(properties.ownerEmail)
+            )
+          )
+        )
+        .orderBy(desc(properties.createdAt));
+
+      // Separa per tipo di contatto disponibile
+      const withPhone = privateProps.filter(p => p.ownerPhone);
+      const withEmail = privateProps.filter(p => p.ownerEmail && !p.ownerPhone);
+
+      console.log(`[Reports] Trovati ${privateProps.length} immobili privati (${withPhone.length} con tel, ${withEmail.length} solo email)`);
+
+      res.json({
+        ok: true,
+        total: privateProps.length,
+        withPhone: {
+          count: withPhone.length,
+          list: withPhone
+        },
+        withEmailOnly: {
+          count: withEmail.length,
+          list: withEmail
+        },
+        allProperties: privateProps
+      });
+
+    } catch (error) {
+      console.error('[GET /api/reports/private-properties] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante generazione report',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   return httpServer;
 }
