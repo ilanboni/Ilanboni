@@ -1,9 +1,17 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Users, 
   Building2, 
@@ -14,7 +22,9 @@ import {
   Maximize2,
   Star,
   MessageSquare,
-  TrendingUp
+  TrendingUp,
+  Eye,
+  ExternalLink
 } from "lucide-react";
 
 interface Buyer {
@@ -71,12 +81,24 @@ interface HighPriorityData {
   buyers: BuyerWithMatches[];
 }
 
+interface PropertyCluster {
+  address: string;
+  city: string;
+  normalizedAddress: string;
+  count: number;
+  properties: Property[];
+  avgPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  avgSize: number;
+}
+
 interface MultiagencyData {
   ok: boolean;
   total: number;
-  regularProperties: {
+  clusters: {
     count: number;
-    list: Property[];
+    list: PropertyCluster[];
   };
   sharedProperties: {
     count: number;
@@ -180,6 +202,142 @@ function BuyerMatchCard({ buyerData }: { buyerData: BuyerWithMatches }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ClusterCard({ cluster }: { cluster: PropertyCluster }) {
+  const [showDialog, setShowDialog] = useState(false);
+
+  return (
+    <>
+      <Card 
+        className="hover:shadow-lg transition-shadow cursor-pointer"
+        onClick={() => setShowDialog(true)}
+        data-testid={`cluster-card-${cluster.normalizedAddress}`}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-orange-100 text-orange-700">
+                  {cluster.count} Agenzie
+                </Badge>
+                <Badge variant="outline">Pluricondiviso</Badge>
+              </div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                {cluster.address}
+              </CardTitle>
+              <CardDescription>{cluster.city}</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4 mb-4 text-sm">
+            <div className="flex items-center gap-1">
+              <Euro className="h-4 w-4 text-green-600" />
+              <span className="font-semibold">€{cluster.avgPrice.toLocaleString()}</span>
+              <span className="text-gray-500 text-xs">media</span>
+            </div>
+            {cluster.avgSize && (
+              <div className="flex items-center gap-1">
+                <Maximize2 className="h-4 w-4 text-blue-600" />
+                <span>{cluster.avgSize}mq</span>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t pt-3">
+            <p className="text-sm text-gray-600 mb-2">
+              Range prezzo: €{cluster.minPrice.toLocaleString()} - €{cluster.maxPrice.toLocaleString()}
+            </p>
+            <Button 
+              className="w-full"
+              data-testid={`button-view-cluster-${cluster.normalizedAddress}`}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Vedi {cluster.count} Annunci
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              {cluster.address} - {cluster.count} Annunci
+            </DialogTitle>
+            <DialogDescription>
+              Immobile pluricondiviso presente su {cluster.count} agenzie/portali
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 mt-4">
+            {cluster.properties.map((prop, idx) => (
+              <Card key={prop.id} className="border-l-4 border-l-orange-500">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline">Annuncio #{idx + 1}</Badge>
+                        {prop.portal && (
+                          <Badge className="bg-blue-100 text-blue-700">{prop.portal}</Badge>
+                        )}
+                      </div>
+                      <CardTitle className="text-base">
+                        €{prop.price.toLocaleString()} - {prop.size}mq
+                      </CardTitle>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    {prop.type && (
+                      <div>
+                        <span className="font-medium">Tipo:</span> {prop.type}
+                      </div>
+                    )}
+                    {prop.description && (
+                      <div>
+                        <span className="font-medium">Descrizione:</span>
+                        <p className="text-gray-600 mt-1 line-clamp-2">{prop.description}</p>
+                      </div>
+                    )}
+                    {prop.url && (
+                      <div className="pt-2">
+                        <a 
+                          href={prop.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Vedi annuncio originale
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <Button 
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.location.href = `/properties/${prop.id}`;
+                      }}
+                      data-testid={`button-view-property-${prop.id}`}
+                    >
+                      Dettagli Completi
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -366,14 +524,14 @@ export default function AcquisitionsReportsPage() {
                 </div>
               ) : multiagencyData && multiagencyData.total > 0 ? (
                 <div className="space-y-6">
-                  {multiagencyData.regularProperties.count > 0 && (
+                  {multiagencyData.clusters.count > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold mb-4">
-                        Proprietà Multi-Agency ({multiagencyData.regularProperties.count})
+                        Immobili Pluricondivisi ({multiagencyData.clusters.count} cluster)
                       </h3>
                       <div className="grid gap-4 md:grid-cols-2">
-                        {multiagencyData.regularProperties.list.map((prop) => (
-                          <PropertyCard key={prop.id} property={prop} />
+                        {multiagencyData.clusters.list.map((cluster) => (
+                          <ClusterCard key={cluster.normalizedAddress} cluster={cluster} />
                         ))}
                       </div>
                     </div>

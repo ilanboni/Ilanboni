@@ -10031,44 +10031,110 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
 
   /**
    * GET /api/reports/multiagency-properties
-   * Ritorna tutti gli immobili pluricondivisi (anche privato+agenzia) di Milano
+   * Ritorna tutti gli immobili pluricondivisi raggruppati per indirizzo
    */
   app.get('/api/reports/multiagency-properties', async (req: Request, res: Response) => {
     try {
       console.log('[GET /api/reports/multiagency-properties] Recupero pluricondivisi Milano...');
 
-      // Query 1: Properties con isMultiagency = true
+      // Query properties con flag isMultiagency (solo Milano - case-insensitive)
       const multiagencyProps = await db
         .select()
         .from(properties)
         .where(
           and(
             eq(properties.isMultiagency, true),
-            eq(properties.city, 'milano')
+            eq(properties.status, 'available'),
+            sql`LOWER(${properties.city}) = LOWER('Milano')`
           )
         )
         .orderBy(desc(properties.price));
 
-      // Query 2: Tutte le sharedProperties
+      // Funzione per normalizzare gli indirizzi (gestisce varianti comuni)
+      const normalizeAddress = (addr: string) => {
+        if (!addr) return '';
+        
+        return addr
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+          .replace(/\s+/g, ' ') // Multiple spaces → single space
+          .replace(/[,\.]/g, '') // Remove commas and periods
+          .replace(/\b(via|v\.?|v\.le|vle)\b/gi, 'via') // Standardize via variants
+          .replace(/\b(viale|vle|v\.?le)\b/gi, 'viale') // Standardize viale variants
+          .replace(/\b(corso|c\.?so|cso)\b/gi, 'corso') // Standardize corso variants
+          .replace(/\b(piazza|p\.?za|pza)\b/gi, 'piazza') // Standardize piazza variants
+          .replace(/\bmilano\b/gi, '') // Remove city name
+          .replace(/\s+/g, ' ') // Clean up double spaces again
+          .trim();
+      };
+
+      // Raggruppa per indirizzo normalizzato (escludi indirizzi vuoti/invalidi)
+      const addressGroups = new Map<string, typeof multiagencyProps>();
+      
+      multiagencyProps.forEach(prop => {
+        // Skip properties without valid address
+        if (!prop.address || prop.address.trim().length === 0) {
+          console.warn(`[Reports] Skipping property #${prop.id} - missing address`);
+          return;
+        }
+        
+        const normalized = normalizeAddress(prop.address);
+        
+        // Skip if normalization resulted in empty string
+        if (!normalized || normalized.length === 0) {
+          console.warn(`[Reports] Skipping property #${prop.id} - invalid normalized address: "${prop.address}"`);
+          return;
+        }
+        
+        if (!addressGroups.has(normalized)) {
+          addressGroups.set(normalized, []);
+        }
+        addressGroups.get(normalized)!.push(prop);
+      });
+
+      // Crea clusters con 2+ properties
+      const multiagencyClusters = Array.from(addressGroups.entries())
+        .filter(([_, props]) => props.length >= 2)
+        .map(([normalizedAddr, props]) => {
+          // Calcola medie reali per size e price
+          const validSizes = props.filter(p => p.size && p.size > 0);
+          const avgSize = validSizes.length > 0
+            ? Math.round(validSizes.reduce((sum, p) => sum + p.size!, 0) / validSizes.length)
+            : props[0].size;
+
+          return {
+            address: props[0].address,
+            city: props[0].city,
+            normalizedAddress: normalizedAddr,
+            count: props.length,
+            properties: props,
+            avgPrice: Math.round(props.reduce((sum, p) => sum + p.price, 0) / props.length),
+            minPrice: Math.min(...props.map(p => p.price)),
+            maxPrice: Math.max(...props.map(p => p.price)),
+            avgSize
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Query sharedProperties (case-sensitive: Milano non milano)
       const sharedProps = await db
         .select()
         .from(sharedProperties)
-        .where(eq(sharedProperties.city, 'milano'))
-        .orderBy(desc(sharedProperties.rating));
+        .where(eq(sharedProperties.city, 'Milano'));
 
-      console.log(`[Reports] Trovati ${multiagencyProps.length} properties multiagency + ${sharedProps.length} shared properties`);
+      console.log(`[Reports] Trovati ${multiagencyClusters.length} cluster multi-agency, ${sharedProps.length} shared properties`);
 
       res.json({
         ok: true,
-        regularProperties: {
-          count: multiagencyProps.length,
-          list: multiagencyProps
+        clusters: {
+          count: multiagencyClusters.length,
+          list: multiagencyClusters
         },
         sharedProperties: {
           count: sharedProps.length,
           list: sharedProps
         },
-        total: multiagencyProps.length + sharedProps.length
+        total: multiagencyClusters.length + sharedProps.length
       });
 
     } catch (error) {
