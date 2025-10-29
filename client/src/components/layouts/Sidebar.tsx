@@ -64,6 +64,7 @@ export default function Sidebar({ className }: SidebarProps) {
         
         <SidebarLink to="/" icon="fas fa-tachometer-alt">Dashboard</SidebarLink>
         <SidebarLink to="/clients" icon="fas fa-users">Clienti</SidebarLink>
+        <SidebarLink to="/clients/nl-request" icon="fas fa-wand-magic-sparkles">Nuova Richiesta AI</SidebarLink>
         <SidebarLink to="/properties" icon="fas fa-building">Immobili</SidebarLink>
         <SidebarLink to="/properties/duplicates" icon="fas fa-copy">Duplicati Multi-Agency</SidebarLink>
         <SidebarLink to="/properties/shared" icon="fas fa-exchange-alt">Proprietà Condivise</SidebarLink>

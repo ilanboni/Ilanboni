@@ -45,6 +45,7 @@ import SecretaryDashboard from "@/pages/secretary/dashboard";
 import SecretaryOutreach from "@/pages/secretary/outreach";
 import PropertyDuplicatesPage from "@/pages/properties/duplicates";
 import AcquisitionsReportsPage from "@/pages/reports/acquisitions";
+import NaturalLanguageRequestPage from "@/pages/clients/nl-request";
 
 function Router() {
   return (
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/secretary/outreach" component={SecretaryOutreach} />
       <Route path="/clients" component={ClientsPage} />
       <Route path="/clients/duplicates" component={ClientDuplicatesPage} />
+      <Route path="/clients/nl-request" component={NaturalLanguageRequestPage} />
       <Route path="/clients/new" component={ClientsByTypePage} />
       <Route path="/clients/direct-new" component={DirectNewClientPage} />
       <Route path="/clients/edit/:id" component={ClientsByTypePage} />
