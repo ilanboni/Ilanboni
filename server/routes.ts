@@ -3387,20 +3387,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Trigger property matching for this client
       // This will create match records in the database
+      let matchedProperties: any[] = [];
       try {
-        const matchedProperties = await storage.matchPropertiesForBuyer(clientId);
+        matchedProperties = await storage.matchPropertiesForBuyer(clientId);
         console.log(`[NL-REQUEST] Found ${matchedProperties.length} matching properties`);
       } catch (matchError) {
         console.error(`[NL-REQUEST] Error matching properties:`, matchError);
-        // Non-blocking error, continue
+        // Non-blocking error, continue with empty array
       }
 
       res.json({
-        success: true,
+        ok: true,
+        message: `Richiesta elaborata. Trovati ${matchedProperties.length} immobili compatibili.`,
         clientId,
         requestId: clientRequest.id,
         filters,
-        sourceText: text.trim()
+        sourceText: text.trim(),
+        matchingProperties: matchedProperties
       });
 
     } catch (error) {

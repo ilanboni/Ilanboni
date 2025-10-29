@@ -281,14 +281,14 @@ export default function NaturalLanguageRequestPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Immobili Compatibili ({result.matchingProperties.length})
+                  Immobili Compatibili ({result.matchingProperties?.length || 0})
                 </CardTitle>
                 <CardDescription>
                   Immobili che corrispondono ai criteri richiesti
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {result.matchingProperties.length === 0 ? (
+                {!result.matchingProperties || result.matchingProperties.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <Home className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Nessun immobile trovato con questi criteri</p>
