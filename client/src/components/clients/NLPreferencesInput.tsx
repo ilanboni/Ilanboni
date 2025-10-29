@@ -52,15 +52,15 @@ export default function NLPreferencesInput({ clientId }: NLPreferencesInputProps
 
       // Build query params from extracted filters
       const params = new URLSearchParams();
-      if (data.filters.budget_max) params.set('maxPrice', data.filters.budget_max.toString());
-      if (data.filters.size_min) params.set('minSize', data.filters.size_min.toString());
-      if (data.filters.property_type) params.set('propertyType', data.filters.property_type);
+      if (data.filters.budgetMax) params.set('maxPrice', data.filters.budgetMax.toString());
+      if (data.filters.sizeMin) params.set('minSize', data.filters.sizeMin.toString());
+      if (data.filters.propertyType) params.set('propertyType', data.filters.propertyType);
       if (data.filters.rooms) params.set('rooms', data.filters.rooms.toString());
       if (data.filters.bathrooms) params.set('bathrooms', data.filters.bathrooms.toString());
       if (data.filters.zones && data.filters.zones.length > 0) {
         params.set('zones', JSON.stringify(data.filters.zones));
       }
-      if (data.filters.features && data.filters.features.length > 0) {
+      if (data.filters.features) {
         params.set('features', JSON.stringify(data.filters.features));
       }
       
