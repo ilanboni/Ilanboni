@@ -106,13 +106,12 @@ function dropIfInPortfolio(items, p){
 
 // Heuristic cluster inside same batch (if API count missing)
 function markMultiByHeuristic(items){
-  // key: normalized address + floor + price±5% + mq±8%
+  // key: normalized address + price±5% + mq±8% (piano può variare)
   const buckets = new Map();
   for (const it of items){
     const addr = norm(it.address);
-    const fl = norm(it.floor||"");
     const price = it.price_eur||0, size = it.size_mq||0;
-    const key = `${addr}|${fl}|${Math.round(price/ (price?price*0.05:1))}|${Math.round(size/(size?size*0.08:1))}`;
+    const key = `${addr}|${Math.round(price/ (price?price*0.05:1))}|${Math.round(size/(size?size*0.08:1))}`;
     if(!buckets.has(key)) buckets.set(key,[]);
     buckets.get(key).push(it);
   }
