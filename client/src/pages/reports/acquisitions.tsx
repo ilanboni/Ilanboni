@@ -50,6 +50,10 @@ interface Property {
   ownerName?: string | null;
   ownerPhone?: string | null;
   ownerEmail?: string | null;
+  portal?: string | null;
+  description?: string | null;
+  url?: string | null;
+  externalLink?: string | null;
 }
 
 interface SharedProperty {
@@ -61,6 +65,7 @@ interface SharedProperty {
   type: string | null;
   ownerName: string | null;
   ownerPhone: string | null;
+  ownerEmail: string | null;
   rating: number;
 }
 
@@ -415,7 +420,7 @@ function PropertyCard({ property, showContact = false }: { property: Property | 
           {showContact && property.ownerPhone && (
             <Button 
               className="flex-1 bg-green-600 hover:bg-green-700"
-              onClick={() => window.open(`https://wa.me/${property.ownerPhone.replace(/\D/g, '')}`, '_blank')}
+              onClick={() => window.open(`https://wa.me/${property.ownerPhone?.replace(/\D/g, '')}`, '_blank')}
               data-testid={`button-whatsapp-${property.id}`}
             >
               <MessageSquare className="h-4 w-4 mr-2" />
@@ -522,33 +527,11 @@ export default function AcquisitionsReportsPage() {
                     <Skeleton key={i} className="h-48 w-full" />
                   ))}
                 </div>
-              ) : multiagencyData && multiagencyData.total > 0 ? (
-                <div className="space-y-6">
-                  {multiagencyData.clusters.count > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">
-                        Immobili Pluricondivisi ({multiagencyData.clusters.count} cluster)
-                      </h3>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {multiagencyData.clusters.list.map((cluster) => (
-                          <ClusterCard key={cluster.normalizedAddress} cluster={cluster} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {multiagencyData.sharedProperties.count > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">
-                        Shared Properties ({multiagencyData.sharedProperties.count})
-                      </h3>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {multiagencyData.sharedProperties.list.map((prop) => (
-                          <PropertyCard key={prop.id} property={prop} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              ) : multiagencyData && multiagencyData.clusters.count > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {multiagencyData.clusters.list.map((cluster) => (
+                    <ClusterCard key={cluster.normalizedAddress} cluster={cluster} />
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-500">
