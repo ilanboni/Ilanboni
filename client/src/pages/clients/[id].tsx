@@ -38,6 +38,7 @@ import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
 import PropertyAssociationModal from "@/components/clients/PropertyAssociationModal";
 import ClientMatchesToday from "@/components/clients/ClientMatchesToday";
 import ClientInteractionsHistory from "@/components/clients/ClientInteractionsHistory";
+import NLPreferencesInput from "@/components/clients/NLPreferencesInput";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -1341,6 +1342,10 @@ export default function ClientDetailPage() {
           {/* Immobili Compatibili Tab */}
           {/* Preferenze Tab */}
           <TabsContent value="preferences" className="space-y-6 mt-6">
+            {client?.type === 'buyer' && (
+              <NLPreferencesInput clientId={id} />
+            )}
+            
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>

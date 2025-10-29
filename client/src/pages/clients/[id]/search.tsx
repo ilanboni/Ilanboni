@@ -106,16 +106,33 @@ export default function ClientPropertySearchPage() {
   // Recupera l'ID del cliente dalla URL
   const clientId = parseInt(params.id);
   
+  // Read URL query params for AI-assisted pre-fill
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialMaxPrice = parseInt(urlParams.get('maxPrice') || '1000000');
+  const initialMinSize = parseInt(urlParams.get('minSize') || '30');
+  const initialPropertyType = urlParams.get('propertyType') || 'all';
+  const aiAssisted = urlParams.get('ai_assisted') === 'true';
+  
   // Stati per i filtri di ricerca
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000000]);
-  const [sizeRange, setSizeRange] = useState<[number, number]>([30, 300]);
-  const [propertyType, setPropertyType] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, initialMaxPrice]);
+  const [sizeRange, setSizeRange] = useState<[number, number]>([initialMinSize, 300]);
+  const [propertyType, setPropertyType] = useState<string>(initialPropertyType);
   const [searchQuery, setSearchQuery] = useState("");
   
   // Stato per il poligono di ricerca
   const [searchArea, setSearchArea] = useState<[number, number][]>([]);
   const [mapCenter, setMapCenter] = useState<[number, number]>([45.4642, 9.1900]); // Milano
   const mapRef = useRef(null);
+  
+  // Show toast if AI-assisted
+  useEffect(() => {
+    if (aiAssisted) {
+      toast({
+        title: "✨ Criteri precompilati dall'AI",
+        description: "I campi sono stati popolati automaticamente. Puoi modificarli prima di salvare.",
+      });
+    }
+  }, [aiAssisted, toast]);
   
   // Fetch client details
   const { data: client, isLoading: isLoadingClient } = useQuery({
