@@ -137,7 +137,7 @@ async function triggerMatch(){
 }
 
 async function main(){
-  console.log(`🔗 Casafari → multi NON nostri entro ${RADIUS_KM}km (fallback su "Milano")`);
+  console.log(`🔗 Casafari → multi NON nostri entro ${RADIUS_KM}km (fallback su “Milano”)`);
   const portfolio = await fetchPortfolioIndex();
   const alerts = await listAlerts();
   console.log(`📋 Alert: ${alerts.length}`);
