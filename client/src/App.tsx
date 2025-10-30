@@ -46,11 +46,13 @@ import SecretaryOutreach from "@/pages/secretary/outreach";
 import PropertyDuplicatesPage from "@/pages/properties/duplicates";
 import AcquisitionsReportsPage from "@/pages/reports/acquisitions";
 import NaturalLanguageRequestPage from "@/pages/clients/nl-request";
+import ApifyAutomationPage from "@/pages/apify/automation";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/apify/automation" component={ApifyAutomationPage} />
       <Route path="/reports/acquisitions" component={AcquisitionsReportsPage} />
       <Route path="/secretary/dashboard" component={SecretaryDashboard} />
       <Route path="/secretary/outreach" component={SecretaryOutreach} />

@@ -3520,6 +3520,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==============================================
+  // APIFY AUTOMATED SCRAPING ENDPOINTS
+  // ==============================================
+  
+  // Test Apify connection
+  app.get("/api/apify/test", async (req: Request, res: Response) => {
+    try {
+      const { getApifyService } = await import('./services/apifyService');
+      const apifyService = getApifyService();
+      const isConnected = await apifyService.testConnection();
+      
+      res.json({
+        success: isConnected,
+        message: isConnected ? 'Apify connected successfully' : 'Apify connection failed'
+      });
+    } catch (error) {
+      console.error('[GET /api/apify/test]', error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
+  // Manual trigger: Scrape all Milano with Apify
+  app.post("/api/apify/scrape-milano", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/apify/scrape-milano] Starting automated Milano scrape...');
+      
+      const { getApifyService } = await import('./services/apifyService');
+      const { ingestionService } = await import('./services/portalIngestionService');
+      
+      const apifyService = getApifyService();
+      
+      // Scrape all Milano
+      const listings = await apifyService.scrapeAllMilano();
+      console.log(`[APIFY-SCRAPE] Retrieved ${listings.length} listings from Apify`);
+      
+      // Import each listing
+      let imported = 0;
+      let updated = 0;
+      let failed = 0;
+      const errors: string[] = [];
+      
+      for (const listing of listings) {
+        try {
+          // Use the ingestionService to import
+          await ingestionService['importListing']('immobiliare-apify', listing);
+          imported++;
+        } catch (error) {
+          failed++;
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          errors.push(`${listing.externalId}: ${errorMsg}`);
+          console.error(`[APIFY-SCRAPE] Failed to import ${listing.externalId}:`, error);
+        }
+      }
+      
+      console.log(`[APIFY-SCRAPE] Import completed: ${imported} imported, ${failed} failed`);
+      
+      // Trigger deduplication scan
+      if (imported > 0) {
+        try {
+          console.log('[APIFY-SCRAPE] Triggering deduplication scan...');
+          const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
+          await runDeduplicationScan();
+          console.log('[APIFY-SCRAPE] Deduplication completed');
+        } catch (dedupError) {
+          console.error('[APIFY-SCRAPE] Deduplication failed:', dedupError);
+        }
+      }
+      
+      res.json({
+        success: true,
+        totalFetched: listings.length,
+        imported,
+        updated,
+        failed,
+        errors: errors.slice(0, 10) // First 10 errors
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/apify/scrape-milano]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Scraping failed' 
+      });
+    }
+  });
+
   // Manual Casafari Alerts pull - fetch from Casafari API and import
   app.post("/api/manual/casafari/pull", async (req: Request, res: Response) => {
     try {
@@ -10242,3 +10330,4 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
 
   return httpServer;
 }
+
