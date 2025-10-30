@@ -12,7 +12,7 @@ export interface ApifyScraperConfig {
 
 export class ApifyService {
   private client: ApifyClient;
-  private actorId = 'memo23/immobiliare-scraper'; // More reliable actor
+  private actorId = 'azzouzana/immobiliare-it-listing-page-scraper-by-search-url';
 
   constructor(apiToken: string) {
     this.client = new ApifyClient({ token: apiToken });
@@ -25,9 +25,8 @@ export class ApifyService {
   async scrapeImmobiliare(config: ApifyScraperConfig): Promise<PropertyListing[]> {
     console.log(`[APIFY] Starting scrape with ${config.searchUrls.length} URLs`);
     
-    // memo23/immobiliare-scraper uses different input format
     const input = {
-      startUrls: config.searchUrls.map(url => ({ url })),
+      startUrls: config.searchUrls,
       maxItems: config.maxItems || 1000,
       proxyConfiguration: config.proxyConfiguration || {
         useApifyProxy: true,
@@ -64,17 +63,23 @@ export class ApifyService {
 
   /**
    * Scrapes all properties in Milano (complete automation)
+   * Uses geographic center (Duomo: 45.464, 9.190) with specific zones
    */
   async scrapeAllMilano(): Promise<PropertyListing[]> {
     console.log('[APIFY] 🔍 Starting complete Milano scrape...');
     
-    // Multiple search URLs to cover all Milano
+    // Multiple search URLs with Milano-specific zones (Centro Storico, Porta Venezia, etc.)
     const searchUrls = [
-      'https://www.immobiliare.it/vendita-case/milano/',
-      'https://www.immobiliare.it/vendita-appartamenti/milano/',
-      'https://www.immobiliare.it/vendita-case/milano/?prezzoMassimo=500000',
-      'https://www.immobiliare.it/vendita-case/milano/?prezzoMinimo=500000&prezzoMassimo=1000000',
-      'https://www.immobiliare.it/vendita-case/milano/?prezzoMinimo=1000000'
+      // Centro Storico (Duomo area - id: 10100)
+      'https://www.immobiliare.it/vendita-case/milano/centro-storico-10100/',
+      // Porta Venezia / Indipendenza
+      'https://www.immobiliare.it/vendita-case/milano/porta-venezia-10101/',
+      // Brera
+      'https://www.immobiliare.it/vendita-case/milano/brera-10102/',
+      // Porta Romana / Cadore
+      'https://www.immobiliare.it/vendita-case/milano/porta-romana-10109/',
+      // Generic Milano fallback
+      'https://www.immobiliare.it/vendita-case/milano/'
     ];
 
     return this.scrapeImmobiliare({
@@ -102,7 +107,7 @@ export class ApifyService {
   }
 
   /**
-   * Transform Apify raw data (memo23/immobiliare-scraper format) to our PropertyListing format
+   * Transform Apify raw data (azzouzana format) to our PropertyListing format
    * Filters: Only Milano properties within 5km from Duomo (45.464, 9.190)
    */
   private transformApifyResults(items: any[]): PropertyListing[] {
@@ -110,76 +115,91 @@ export class ApifyService {
     const DUOMO_LON = 9.190;
     const MAX_DISTANCE_KM = 5;
 
+    console.log(`[APIFY] Processing ${items.length} raw items from Apify...`);
+
     return items
       .filter(item => {
-        if (!item || !item.url) return false;
+        if (!item || !item.directLink || !item.properties?.[0]) {
+          console.log(`[APIFY] Filtered out: missing required fields`);
+          return false;
+        }
         
-        // Filter 1: Must be Milano (check city/comune field)
-        const city = item.c_nome?.toLowerCase() || item.comune_nome?.toLowerCase() || '';
-        if (!city.includes('milan')) {
-          console.log(`[APIFY] Filtered out: ${item.i || item.url} (city: ${item.c_nome || item.comune_nome || 'unknown'})`);
+        const location = item.properties[0].location;
+        if (!location) {
+          console.log(`[APIFY] Filtered out: no location data`);
+          return false;
+        }
+
+        // Filter 1: Must be Milano
+        const city = location.city?.toLowerCase() || '';
+        if (city !== 'milano') {
+          console.log(`[APIFY] ❌ ${location.address} - Wrong city: ${location.city}`);
           return false;
         }
 
         // Filter 2: Must have valid coordinates
-        const lat = item.lat || item.latitude;
-        const lon = item.lng || item.longitude;
+        const lat = location.latitude;
+        const lon = location.longitude;
         if (!lat || !lon) {
-          console.log(`[APIFY] Filtered out: ${item.i || item.url} (no coordinates)`);
+          console.log(`[APIFY] ❌ ${location.address} - No coordinates`);
           return false;
         }
 
         // Filter 3: Must be within 5km from Duomo
         const distance = this.calculateDistance(DUOMO_LAT, DUOMO_LON, lat, lon);
         if (distance > MAX_DISTANCE_KM) {
-          console.log(`[APIFY] Filtered out: ${item.i || item.url} (${distance.toFixed(2)}km from Duomo)`);
+          console.log(`[APIFY] ❌ ${location.address} - Too far: ${distance.toFixed(2)}km`);
           return false;
         }
 
-        console.log(`[APIFY] ✓ Accepted: ${item.i || item.url} (${distance.toFixed(2)}km from Duomo)`);
+        console.log(`[APIFY] ✅ ${location.address} - Distance: ${distance.toFixed(2)}km`);
         return true;
       })
       .map(item => {
-        // Extract external ID
+        const prop = item.properties[0];
+        const location = prop.location || {};
+        
         const externalId = String(item.id || Date.now());
+        const floor = prop.floor?.abbreviation || prop.floor?.floorOnlyValue;
 
-        // Determine property type
         let type = 'apartment';
-        const catName = (item.cat_nome || '').toLowerCase();
-        if (catName.includes('villa')) type = 'villa';
-        else if (catName.includes('attico') || catName.includes('penthouse')) type = 'penthouse';
-        else if (catName.includes('loft')) type = 'loft';
+        const typologyName = item.typology?.name?.toLowerCase() || '';
+        if (typologyName.includes('villa')) type = 'villa';
+        else if (typologyName.includes('attico')) type = 'penthouse';
+        else if (typologyName.includes('loft')) type = 'loft';
 
-        // Extract agency name
-        const agencyName = item.ag_nome || item.agency_name || 'Unknown';
+        const agencyName = item.advertiser?.agency?.displayName || 
+                          item.advertiser?.supervisor?.displayName || 
+                          'Unknown';
 
-        // Build address from available fields
-        const address = item.i || item.ind || item.address || 'Indirizzo non disponibile';
-        const city = item.c_nome || item.comune_nome || 'Milano';
+        const surfaceStr = prop.surface || '';
+        const sizeMatch = surfaceStr.match(/(\d+)/);
+        const size = sizeMatch ? parseFloat(sizeMatch[1]) : 0;
 
-        // Extract image URLs
-        const imageUrls: string[] = [];
-        if (item.imgs && Array.isArray(item.imgs)) {
-          imageUrls.push(...item.imgs.slice(0, 10));
-        } else if (item.img) {
-          imageUrls.push(item.img);
-        }
+        const photos = prop.multimedia?.photos || [];
+        const imageUrls = photos
+          .map((p: any) => p.urls?.large || p.urls?.medium || p.urls?.small)
+          .filter((url: string) => url)
+          .slice(0, 10);
+
+        const address = location.address || 'Indirizzo non disponibile';
+        const city = location.city || 'Milano';
 
         return {
           externalId,
-          title: item.code || item.title || 'Untitled',
+          title: item.title || prop.caption || 'Untitled',
           address,
           city,
-          price: item.p || item.price || 0,
-          size: item.mq || 0,
-          bedrooms: item.lc || item.rooms,
-          bathrooms: item.ba || item.bathrooms,
-          floor: item.piano || item.floor,
+          price: item.price?.value || 0,
+          size,
+          bedrooms: prop.bedRoomsNumber ? parseInt(prop.bedRoomsNumber) : undefined,
+          bathrooms: prop.bathrooms ? parseInt(prop.bathrooms) : undefined,
+          floor,
           type,
-          description: item.desc || item.description || item.code || '',
-          url: item.url,
+          description: prop.caption || item.title || '',
+          url: item.directLink,
           imageUrls,
-          ownerType: item.ag_nome ? 'agency' : 'private',
+          ownerType: item.advertiser?.agency ? 'agency' : 'private',
           agencyName
         } as PropertyListing;
       });
