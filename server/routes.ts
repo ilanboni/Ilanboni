@@ -3351,6 +3351,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Natural Language Processing (standalone) - Extract filters from NL text without saving
+  app.post("/api/nl-process", async (req: Request, res: Response) => {
+    try {
+      const { text } = req.body;
+
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        return res.status(400).json({ error: "Testo richiesta mancante" });
+      }
+
+      console.log(`[NL-PROCESS] Processing standalone request: "${text.substring(0, 100)}..."`);
+
+      // Parse NL text to structured filters using AI
+      const filters: PropertyFilters = await nlToFilters(text);
+
+      console.log(`[NL-PROCESS] Extracted filters:`, filters);
+
+      res.json({
+        ok: true,
+        filters,
+        sourceText: text.trim()
+      });
+
+    } catch (error) {
+      console.error(`[POST /api/nl-process]`, error);
+      res.status(500).json({ error: "Errore durante l'elaborazione della richiesta NL" });
+    }
+  });
+
   // Natural Language Request Processing - Client property request from NL text
   app.post("/api/clients/:id/nl-request", async (req: Request, res: Response) => {
     try {

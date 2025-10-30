@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SimpleAreaSelector } from "@/components/maps/SimpleAreaSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import NLPreferencesInput from "@/components/clients/NLPreferencesInput";
+import { Badge } from "@/components/ui/badge";
 import axios from "axios";
 
 export default function DirectNewClient() {
@@ -28,13 +30,50 @@ export default function DirectNewClient() {
     maxPrice: "250000",
     urgency: "3",
     rating: "3",
-    searchNotes: "Note di ricerca test"
+    searchNotes: "Note di ricerca test",
+    // Campi AI-extracted preferences
+    propertyType: "",
+    rooms: "",
+    bathrooms: "",
+    zones: [] as string[],
+    features: {
+      elevator: false,
+      balconyOrTerrace: false,
+      parking: false,
+      garden: false
+    }
   });
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
     setFormData(prev => ({ ...prev, [name]: newValue }));
+  };
+
+  // Callback per quando l'AI estrae i filtri
+  const handleAIFiltersExtracted = (filters: any) => {
+    console.log("[DirectNewClient] AI filters extracted:", filters);
+    
+    setFormData(prev => ({
+      ...prev,
+      maxPrice: filters.budgetMax ? String(filters.budgetMax) : prev.maxPrice,
+      minSize: filters.sizeMin ? String(filters.sizeMin) : prev.minSize,
+      propertyType: filters.propertyType || prev.propertyType,
+      rooms: filters.rooms ? String(filters.rooms) : prev.rooms,
+      bathrooms: filters.bathrooms ? String(filters.bathrooms) : prev.bathrooms,
+      zones: filters.zones || prev.zones,
+      features: {
+        elevator: filters.features?.elevator || prev.features.elevator,
+        balconyOrTerrace: filters.features?.balconyOrTerrace || prev.features.balconyOrTerrace,
+        parking: filters.features?.parking || prev.features.parking,
+        garden: filters.features?.garden || prev.features.garden
+      }
+    }));
+
+    toast({
+      title: "Campi precompilati",
+      description: "I criteri sono stati estratti dall'AI e i campi sono stati aggiornati.",
+    });
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,7 +89,7 @@ export default function DirectNewClient() {
       });
       
       // Prepara i dati del cliente in modo minimalista per evitare problemi di validazione
-      const clientData = {
+      const clientData: any = {
         type: clientType,
         salutation: formData.salutation || "caro",
         firstName: formData.firstName || "Nome",
@@ -62,22 +101,33 @@ export default function DirectNewClient() {
         notes: formData.notes || "",
       };
       
-      // Aggiungi i dati specifici per buyer/seller in modo minimalista
+      // Aggiungi i dati specifici per buyer/seller con tutti i dati AI-extracted
       if (clientType === 'buyer') {
         clientData.buyer = {
-          // Campi minimi per un buyer
-          minSize: 0,
-          maxPrice: 0
+          minSize: formData.minSize ? parseInt(formData.minSize) : 0,
+          maxPrice: formData.maxPrice ? parseInt(formData.maxPrice) : 0,
+          propertyType: formData.propertyType || null,
+          rooms: formData.rooms ? parseInt(formData.rooms) : null,
+          bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
+          zones: formData.zones.length > 0 ? formData.zones : null,
+          elevator: formData.features.elevator || false,
+          balconyOrTerrace: formData.features.balconyOrTerrace || false,
+          parking: formData.features.parking || false,
+          garden: formData.features.garden || false,
+          urgency: formData.urgency ? parseInt(formData.urgency) : 3,
+          rating: formData.rating ? parseInt(formData.rating) : 3,
+          searchNotes: formData.searchNotes || "",
+          searchArea: searchArea
         };
       } else {
         clientData.seller = {
-          // Campi minimi per un seller
           propertyAddress: "",
           propertyNotes: ""
         };
       }
       
-      console.log("Dati cliente minimali:", clientData);
+      console.log("[DirectNewClient] Dati cliente con preferenze AI:", clientData);
+      console.log("[DirectNewClient] Form state completo:", formData);
       
       // Invio diretto con axios - senza attendere la risposta per debug
       axios.post('/api/clients', clientData)
@@ -273,6 +323,31 @@ export default function DirectNewClient() {
               
               {clientType === 'buyer' && (
                 <TabsContent value="preferenze">
+                  {/* Componente AI per estrazione automatica preferenze */}
+                  <div className="mb-6">
+                    <NLPreferencesInput
+                      standaloneMode={true}
+                      onFiltersExtracted={handleAIFiltersExtracted}
+                    />
+                  </div>
+
+                  {/* Mostra criteri estratti se presenti */}
+                  {(formData.zones.length > 0 || formData.propertyType || formData.rooms || formData.bathrooms) && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded">
+                      <h3 className="font-semibold mb-2 text-green-800">Criteri estratti dall'AI:</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.propertyType && <Badge variant="secondary">Tipo: {formData.propertyType}</Badge>}
+                        {formData.rooms && <Badge variant="secondary">Locali: {formData.rooms}</Badge>}
+                        {formData.bathrooms && <Badge variant="secondary">Bagni: {formData.bathrooms}</Badge>}
+                        {formData.zones.map(zone => <Badge key={zone} variant="secondary">📍 {zone}</Badge>)}
+                        {formData.features.elevator && <Badge variant="secondary">✅ Ascensore</Badge>}
+                        {formData.features.balconyOrTerrace && <Badge variant="secondary">✅ Balcone/Terrazzo</Badge>}
+                        {formData.features.parking && <Badge variant="secondary">✅ Parcheggio</Badge>}
+                        {formData.features.garden && <Badge variant="secondary">✅ Giardino</Badge>}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block mb-2">Dimensione Min (mq)</label>

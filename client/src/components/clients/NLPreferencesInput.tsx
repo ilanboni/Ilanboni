@@ -9,10 +9,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { Sparkles, ArrowRight, Loader2 } from "lucide-react";
 
 interface NLPreferencesInputProps {
-  clientId: number;
+  clientId?: number;
+  onFiltersExtracted?: (filters: any) => void;
+  standaloneMode?: boolean;
 }
 
-export default function NLPreferencesInput({ clientId }: NLPreferencesInputProps) {
+export default function NLPreferencesInput({ clientId, onFiltersExtracted, standaloneMode = false }: NLPreferencesInputProps) {
   const [nlText, setNlText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [, navigate] = useLocation();
@@ -31,43 +33,80 @@ export default function NLPreferencesInput({ clientId }: NLPreferencesInputProps
     setIsProcessing(true);
 
     try {
-      const response = await apiRequest(
-        `/api/clients/${clientId}/nl-request`,
-        {
-          method: "POST",
-          data: { text: nlText },
+      let filters;
+
+      if (standaloneMode) {
+        // Modalità standalone: chiama direttamente il servizio NL senza salvare
+        const response = await fetch('/api/nl-process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: nlText }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Errore durante l\'elaborazione NL');
         }
-      );
 
-      const data = await response.json();
+        const data = await response.json();
+        filters = data.filters;
 
-      if (!data.ok) {
-        throw new Error(data.error || "Errore durante l'elaborazione");
+        toast({
+          title: "✅ Criteri estratti!",
+          description: "I campi del form sono stati precompilati con i criteri AI.",
+        });
+
+        // Chiama la callback con i filtri estratti
+        if (onFiltersExtracted) {
+          onFiltersExtracted(filters);
+        }
+
+        setIsProcessing(false);
+      } else {
+        // Modalità normale: usa l'endpoint con clientId
+        if (!clientId) {
+          throw new Error('ClientId richiesto per questa modalità');
+        }
+
+        const response = await apiRequest(
+          `/api/clients/${clientId}/nl-request`,
+          {
+            method: "POST",
+            data: { text: nlText },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!data.ok) {
+          throw new Error(data.error || "Errore durante l'elaborazione");
+        }
+
+        filters = data.filters;
+
+        toast({
+          title: "✅ Richiesta elaborata!",
+          description: "I criteri sono stati estratti. Verrai reindirizzato alla pagina di modifica.",
+        });
+
+        // Build query params from extracted filters
+        const params = new URLSearchParams();
+        if (filters.budgetMax) params.set('maxPrice', filters.budgetMax.toString());
+        if (filters.sizeMin) params.set('minSize', filters.sizeMin.toString());
+        if (filters.propertyType) params.set('propertyType', filters.propertyType);
+        if (filters.rooms) params.set('rooms', filters.rooms.toString());
+        if (filters.bathrooms) params.set('bathrooms', filters.bathrooms.toString());
+        if (filters.zones && filters.zones.length > 0) {
+          params.set('zones', JSON.stringify(filters.zones));
+        }
+        if (filters.features) {
+          params.set('features', JSON.stringify(filters.features));
+        }
+        
+        // Navigate to search page with pre-filled params
+        setTimeout(() => {
+          navigate(`/clients/${clientId}/search?${params.toString()}&ai_assisted=true`);
+        }, 1000);
       }
-
-      toast({
-        title: "✅ Richiesta elaborata!",
-        description: "I criteri sono stati estratti. Verrai reindirizzato alla pagina di modifica.",
-      });
-
-      // Build query params from extracted filters
-      const params = new URLSearchParams();
-      if (data.filters.budgetMax) params.set('maxPrice', data.filters.budgetMax.toString());
-      if (data.filters.sizeMin) params.set('minSize', data.filters.sizeMin.toString());
-      if (data.filters.propertyType) params.set('propertyType', data.filters.propertyType);
-      if (data.filters.rooms) params.set('rooms', data.filters.rooms.toString());
-      if (data.filters.bathrooms) params.set('bathrooms', data.filters.bathrooms.toString());
-      if (data.filters.zones && data.filters.zones.length > 0) {
-        params.set('zones', JSON.stringify(data.filters.zones));
-      }
-      if (data.filters.features) {
-        params.set('features', JSON.stringify(data.filters.features));
-      }
-      
-      // Navigate to search page with pre-filled params
-      setTimeout(() => {
-        navigate(`/clients/${clientId}/search?${params.toString()}&ai_assisted=true`);
-      }, 1000);
 
     } catch (error: any) {
       console.error("Error processing NL request:", error);

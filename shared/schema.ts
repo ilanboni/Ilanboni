@@ -65,7 +65,16 @@ export const buyers = pgTable("buyers", {
   maxPrice: integer("max_price"),
   urgency: integer("urgency").default(1), // 1-5 scale
   rating: integer("rating").default(3), // 1-5 scale
-  searchNotes: text("search_notes")
+  searchNotes: text("search_notes"),
+  // AI-extracted preferences
+  propertyType: text("property_type"), // apartment, house, office, other
+  rooms: integer("rooms"),
+  bathrooms: integer("bathrooms"),
+  zones: jsonb("zones"), // Array of zone names
+  elevator: boolean("elevator").default(false),
+  balconyOrTerrace: boolean("balcony_or_terrace").default(false),
+  parking: boolean("parking").default(false),
+  garden: boolean("garden").default(false)
 });
 
 // Sellers (extends clients)
