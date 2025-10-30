@@ -44,6 +44,12 @@ export class ApifyService {
       const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
       console.log(`[APIFY] Fetched ${items.length} items from dataset`);
 
+      // Debug: Log first item structure
+      if (items.length > 0) {
+        console.log('[APIFY] Sample item structure:', JSON.stringify(items[0], null, 2));
+        console.log('[APIFY] Sample item keys:', Object.keys(items[0]));
+      }
+
       // Transform Apify results to PropertyListing format
       const listings = this.transformApifyResults(items);
       console.log(`[APIFY] Transformed ${listings.length} listings`);
