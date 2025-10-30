@@ -38,7 +38,7 @@ export default function Dashboard() {
           <p className="mt-1 text-sm text-gray-600">Panoramica delle attività e delle statistiche</p>
         </div>
         <div className="mt-4 md:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-          <Link href="/clients/new">
+          <Link href="/clients/direct-new">
             <Button>
               <i className="fas fa-plus mr-2"></i>
               Nuovo Cliente

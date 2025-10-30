@@ -172,7 +172,7 @@ export default function ClientsPage() {
           : "Inizia aggiungendo un nuovo cliente."}
       </p>
       <div className="mt-6">
-        <Button onClick={() => navigate("/clients/new")}>
+        <Button onClick={() => navigate("/clients/direct-new")}>
           <Plus className="mr-2 h-4 w-4" />
           Aggiungi Cliente
         </Button>
@@ -200,7 +200,7 @@ export default function ClientsPage() {
             <Filter className="mr-2 h-4 w-4" />
             Gestisci Duplicati
           </Button>
-          <Button onClick={() => navigate("/clients/new")}>
+          <Button onClick={() => navigate("/clients/direct-new")}>
             <Plus className="mr-2 h-4 w-4" />
             Nuovo Cliente
           </Button>

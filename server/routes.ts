@@ -3071,7 +3071,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               maxPrice: req.body.buyer.maxPrice || null,
               urgency: req.body.buyer.urgency || 3,
               rating: req.body.buyer.rating || 3,
-              searchNotes: req.body.buyer.searchNotes || null
+              searchNotes: req.body.buyer.searchNotes || null,
+              // AI-extracted fields
+              propertyType: req.body.buyer.propertyType || null,
+              rooms: req.body.buyer.rooms || null,
+              bathrooms: req.body.buyer.bathrooms || null,
+              zones: req.body.buyer.zones || null,
+              elevator: req.body.buyer.elevator || false,
+              balconyOrTerrace: req.body.buyer.balconyOrTerrace || false,
+              parking: req.body.buyer.parking || false,
+              garden: req.body.buyer.garden || false
             };
             
             console.log("[POST /api/clients] Dati buyer elaborati:", JSON.stringify(buyerData, null, 2));

@@ -37,17 +37,17 @@ export default function NLPreferencesInput({ clientId, onFiltersExtracted, stand
 
       if (standaloneMode) {
         // Modalità standalone: chiama direttamente il servizio NL senza salvare
-        const response = await fetch('/api/nl-process', {
+        const response = await apiRequest('/api/nl-process', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: nlText }),
+          data: { text: nlText },
         });
 
-        if (!response.ok) {
-          throw new Error('Errore durante l\'elaborazione NL');
+        const data = await response.json();
+
+        if (!data.ok) {
+          throw new Error(data.error || 'Errore durante l\'elaborazione NL');
         }
 
-        const data = await response.json();
         filters = data.filters;
 
         toast({
