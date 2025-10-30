@@ -3544,64 +3544,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Manual trigger: Scrape all Milano with Apify
+  // Manual trigger: Scrape all Milano with Playwright (replaces broken Apify)
   app.post("/api/apify/scrape-milano", async (req: Request, res: Response) => {
     try {
-      console.log('[POST /api/apify/scrape-milano] Starting automated Milano scrape...');
+      console.log('[POST /api/scrape-milano] 🚀 Starting Milano scrape with Playwright...');
       
-      const { getApifyService } = await import('./services/apifyService');
-      const { ingestionService } = await import('./services/portalIngestionService');
+      const { milanoScrapingService } = await import('./services/milanoScrapingService');
       
-      const apifyService = getApifyService();
+      // Scrape all Milano zones using Playwright
+      const result = await milanoScrapingService.scrapeAllMilano();
       
-      // Scrape all Milano
-      const listings = await apifyService.scrapeAllMilano();
-      console.log(`[APIFY-SCRAPE] Retrieved ${listings.length} listings from Apify`);
-      
-      // Import each listing
-      let imported = 0;
-      let updated = 0;
-      let failed = 0;
-      const errors: string[] = [];
-      
-      for (const listing of listings) {
-        try {
-          // Use the ingestionService to import
-          await ingestionService['importListing']('immobiliare-apify', listing);
-          imported++;
-        } catch (error) {
-          failed++;
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          errors.push(`${listing.externalId}: ${errorMsg}`);
-          console.error(`[APIFY-SCRAPE] Failed to import ${listing.externalId}:`, error);
-        }
-      }
-      
-      console.log(`[APIFY-SCRAPE] Import completed: ${imported} imported, ${failed} failed`);
+      console.log(`[MILANO-SCRAPE] Completed: ${result.imported} imported, ${result.failed} failed`);
       
       // Trigger deduplication scan
-      if (imported > 0) {
+      if (result.imported > 0) {
         try {
-          console.log('[APIFY-SCRAPE] Triggering deduplication scan...');
+          console.log('[MILANO-SCRAPE] Triggering deduplication scan...');
           const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
           await runDeduplicationScan();
-          console.log('[APIFY-SCRAPE] Deduplication completed');
+          console.log('[MILANO-SCRAPE] Deduplication completed');
         } catch (dedupError) {
-          console.error('[APIFY-SCRAPE] Deduplication failed:', dedupError);
+          console.error('[MILANO-SCRAPE] Deduplication failed:', dedupError);
         }
       }
       
       res.json({
         success: true,
-        totalFetched: listings.length,
-        imported,
-        updated,
-        failed,
-        errors: errors.slice(0, 10) // First 10 errors
+        totalFetched: result.totalFetched,
+        imported: result.imported,
+        updated: result.updated,
+        failed: result.failed,
+        errors: result.errors
       });
       
     } catch (error) {
-      console.error('[POST /api/apify/scrape-milano]', error);
+      console.error('[POST /api/scrape-milano]', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : 'Scraping failed' 
       });

@@ -84,85 +84,54 @@ export default function ApifyAutomation() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Automazione Apify</h1>
+        <h1 className="text-3xl font-bold mb-2">Automazione Scraping Milano</h1>
         <p className="text-muted-foreground">
-          Sistema automatizzato di acquisizione immobili da Immobiliare.it
+          Sistema automatizzato di acquisizione immobili da Immobiliare.it usando Playwright (solo Milano, entro 5 km dal Duomo)
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 mb-6">
-        {/* Connection Test Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5" />
-              Test Connessione
-            </CardTitle>
-            <CardDescription>
-              Verifica la configurazione di Apify
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              onClick={testConnection} 
-              disabled={testing}
-              className="w-full"
-              data-testid="button-test-connection"
-            >
-              {testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {testing ? 'Testing...' : 'Test Connessione'}
-            </Button>
-            
-            {testResult && (
-              <div className={`p-3 rounded-md ${testResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                <div className="flex items-center gap-2">
-                  {testResult.success ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-5 w-5 text-red-600" />
-                  )}
-                  <span className={`font-medium ${testResult.success ? 'text-green-900' : 'text-red-900'}`}>
-                    {testResult.message || testResult.error}
-                  </span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Automated Scraping Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Scraping Automatico
-            </CardTitle>
-            <CardDescription>
-              Importa tutti gli immobili di Milano
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>• 📍 Solo Milano (raggio 5 km dal Duomo)</p>
-              <p>• 🔍 Ricerca multipla su Immobiliare.it</p>
-              <p>• 📥 Import automatico proprietà</p>
-              <p>• 🔄 Deduplicazione multi-agency</p>
-              <p>• 🏢 Identificazione pluricondivisi</p>
+      {/* Scraping Card */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Scraping Automatico Milano
+          </CardTitle>
+          <CardDescription>
+            Importa immobili da Immobiliare.it usando Playwright (solo Milano, entro 5 km dal Duomo)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>• 📍 Solo Milano (raggio 5 km dal Duomo)</p>
+            <p>• 🔍 Ricerca multipla: 8 zone di Milano</p>
+            <p>• 📥 Import automatico con Playwright</p>
+            <p>• 🔄 Deduplicazione multi-agency</p>
+            <p>• 🏢 Identificazione proprietà pluricondivise</p>
+            <p>• 🆓 Completamente gratuito (no costi API)</p>
+          </div>
+          
+          <Button 
+            onClick={startScraping} 
+            disabled={scraping}
+            className="w-full"
+            variant="default"
+            size="lg"
+            data-testid="button-start-scraping"
+          >
+            {scraping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {scraping ? 'Scraping in corso...' : 'Avvia Scraping Milano'}
+          </Button>
+          
+          {scraping && (
+            <div className="p-3 rounded-md bg-blue-50 border border-blue-200">
+              <p className="text-sm text-blue-900">
+                ⏳ Scraping in corso... Questo processo può richiedere 5-10 minuti per scansionare tutte le zone di Milano.
+              </p>
             </div>
-            
-            <Button 
-              onClick={startScraping} 
-              disabled={scraping}
-              className="w-full"
-              variant="default"
-              data-testid="button-start-scraping"
-            >
-              {scraping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {scraping ? 'Scraping in corso...' : 'Avvia Scraping Milano'}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Results Card */}
       {scrapeResult && (
@@ -237,15 +206,15 @@ export default function ApifyAutomation() {
           <div className="space-y-3 text-sm">
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">1</Badge>
-              <p><strong>Scraping Multi-URL:</strong> Ricerca segmentata su 5 URL Immobiliare.it (max 2000 per URL). <strong className="text-blue-600">Filtro geografico: solo Milano entro 5 km dal Duomo</strong></p>
+              <p><strong>Scraping Multi-Zona:</strong> Ricerca automatica su 8 zone centrali di Milano usando Playwright. <strong className="text-blue-600">Filtro geografico: solo Milano entro 5 km dal Duomo</strong></p>
             </div>
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">2</Badge>
-              <p><strong>Proxy Residenziali:</strong> Apify usa proxy RESIDENTIAL per bypassare protezioni anti-bot</p>
+              <p><strong>Browser Reale:</strong> Playwright usa un browser vero (Chromium) per bypassare protezioni anti-bot</p>
             </div>
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">3</Badge>
-              <p><strong>Import Automatico:</strong> Ogni immobile validato viene importato nel database con status="available"</p>
+              <p><strong>Import Automatico:</strong> Ogni immobile viene importato nel database con status="available"</p>
             </div>
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">4</Badge>
@@ -253,13 +222,13 @@ export default function ApifyAutomation() {
             </div>
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">5</Badge>
-              <p><strong>Report:</strong> Risultati visibili in "Report → Acquisizione Automatica"</p>
+              <p><strong>Report:</strong> Risultati visibili in "Proprietà → Proprietà Pluricondivise"</p>
             </div>
           </div>
           
-          <div className="mt-4 p-3 rounded-lg bg-purple-50 border border-purple-200">
-            <p className="text-sm text-purple-900">
-              <strong>💡 Costo:</strong> ~€1 per 1000 annunci. Piano gratuito Apify include $5/mese (≈5000 annunci/mese).
+          <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200">
+            <p className="text-sm text-green-900">
+              <strong>✅ Vantaggi:</strong> Sistema completamente gratuito, nessun costo API. Il sistema Playwright è incluso in Replit.
             </p>
           </div>
         </CardContent>
