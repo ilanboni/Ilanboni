@@ -1,0 +1,360 @@
+#
+Advertiser
+advertiser
+Contract
+contract
+Data Type
+dataType
+Direct Link
+directLink
+Has Main Property
+hasMainProperty
+ID
+id
+Is Mosaic
+isMosaic
+Is New
+isNew
+Is Project Like
+isProjectLike
+Luxury
+luxury
+Price
+price
+Properties
+properties
+Title
+title
+Type
+type
+Typology
+typology
+Uuid
+uuid
+Visibility
+visibility
+1
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/123693615		
+123693615
+4 fields
+1 item
+Bilocale via Nazionale Appia 195, Casagiove
+ad
+2 fields
+86b15204-1f3f-5199-9b8f-87fbb62dc39a
+premium
+2
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/123495133		
+123495133
+4 fields
+1 item
+Bilocale via Nazionale Appia 31, Casagiove
+ad
+2 fields
+4231f747-6ecb-5a7d-a06e-b54f3fc0df98
+premium
+3
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/122464072		
+122464072
+4 fields
+1 item
+Mansarda via Monza 2, Casagiove
+ad
+2 fields
+a6360b8f-4604-535b-bce6-238aae0d92ec
+premium
+4
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/122828074		
+122828074
+4 fields
+1 item
+Bilocale via Nazionale Appia, Casagiove
+ad
+2 fields
+ea360f56-a1ce-5b0b-8740-8789ad4a0a75
+premium
+5
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/119292415		
+119292415
+4 fields
+1 item
+Appartamento via De Angelis 1, Casagiove
+ad
+2 fields
+ca23a018-822c-55b0-a6db-a70d04e57c1b
+premium
+6
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/119294627		
+119294627
+4 fields
+1 item
+Appartamento via Venezia 16, Casagiove
+ad
+2 fields
+667daa81-4a5d-5966-b9a3-4dfd61dd11f1
+premium
+7
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/118722121		
+118722121
+4 fields
+1 item
+Bilocale via quartiere Nuovo 83, Casagiove
+ad
+2 fields
+eb7021b4-632b-524c-aaad-fabfa494a62c
+premium
+8
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/123418261		
+123418261
+4 fields
+1 item
+Appartamento via Nazionale Appia, Casagiove
+ad
+2 fields
+b5627407-ddd5-50d4-a8e3-2795180fad80
+premium
+9
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/103793738		
+103793738
+4 fields
+1 item
+Trilocale via Regalone 36, Casagiove
+ad
+2 fields
+2521e30c-c9d5-58b2-bb91-e27e86d3c0b6
+premium
+10
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/117210165		
+117210165
+4 fields
+1 item
+Appartamento via Milano, Casagiove
+ad
+2 fields
+10ef58c6-6bad-5e6b-b75b-046faa967755
+premium
+11
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/122449016		
+122449016
+4 fields
+1 item
+Trilocale via Firenze 7, Casagiove
+ad
+2 fields
+c09d1c7c-466a-583a-8721-abec15ec311f
+premium
+12
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/124219607		
+124219607
+4 fields
+1 item
+Monolocale via quartiere Nuovo 67, Casagiove
+ad
+2 fields
+862e201e-ca25-5caf-8612-fbd8f5887fd9
+premium
+13
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/120240468		
+120240468
+4 fields
+1 item
+Terratetto unifamiliare viale trieste 28, Casagiove
+ad
+2 fields
+4e114841-4b26-565f-8112-2e4af0c48246
+premium
+14
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/124224193		
+124224193
+4 fields
+1 item
+Bilocale via quartiere Nuovo 67, Casagiove
+ad
+2 fields
+bf5a816b-8213-5b6b-a22e-232e3dd2852f
+premium
+15
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/120624202		
+120624202
+4 fields
+1 item
+Trilocale via Napoli 46, Casagiove
+ad
+2 fields
+38be11e1-e2f1-5555-ab8c-644b0024b3d5
+premium
+16
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/116438595		
+116438595
+4 fields
+1 item
+Terratetto unifamiliare via Nazionale Appia 25, Casagiove
+ad
+2 fields
+7dc1d71d-28b1-5837-818f-8702041cc37f
+premium
+17
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/123599477		
+123599477
+4 fields
+1 item
+Quadrilocale via Agrigento 10, Casagiove
+ad
+2 fields
+92589c78-4195-51d3-b0f1-4624a896b9ca
+premium
+18
+2 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/123567377		
+123567377
+4 fields
+1 item
+Villa unifamiliare via Pavia, Casagiove
+ad
+2 fields
+87d7651e-c539-5b9a-8388-79b5b585bc55
+premium
+19
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/123415021		
+123415021
+4 fields
+1 item
+Bilocale via Torino 15, Casagiove
+ad
+2 fields
+861a1b9f-5351-5cc5-8b6f-d21651e3f73b
+premium
+20
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/121195202		
+121195202
+4 fields
+1 item
+Trilocale via Torino 15, Casagiove
+ad
+2 fields
+e21a0bf0-d49c-5cd6-8deb-8acef70ddd87
+premium
+21
+2 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/123673217		
+123673217
+4 fields
+1 item
+Palazzo - Edificio via Firenze, Casagiove
+ad
+2 fields
+08c691a6-2418-57f1-b110-1b3b9bdb5e6d
+premium
+22
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/124109371		
+124109371
+4 fields
+1 item
+Quadrilocale da ristrutturare, primo piano, Casagiove
+ad
+2 fields
+5d27dddf-e163-5a00-b563-def6b88cc209
+premium
+23
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/99557070		
+99557070
+3 fields
+1 item
+Palazzo - Edificio via Nazionale Appia 265, Casagiove
+ad
+2 fields
+d0ee1862-f20d-5492-9374-14fa630f6e97
+premium
+24
+2 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/119220255		
+119220255
+5 fields
+1 item
+Appartamento via Torino 15, Casagiove
+ad
+2 fields
+58ac2b30-6479-5a87-a867-cafa9cd2a248
+premium
+25
+3 fields
+sale
+list-real-estate
+https://www.immobiliare.it/annunci/122949130		
+122949130
+4 fields
+1 item
+Villa unifamiliare via Pavia 15, Casagiove
+ad
+2 fields
+16dafd7f-9ef3-5452-97f5-3aff250652c8
+premium

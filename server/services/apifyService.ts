@@ -91,45 +91,60 @@ export class ApifyService {
    */
   private transformApifyResults(items: any[]): PropertyListing[] {
     return items
-      .filter(item => item && item.url) // Filter invalid items
+      .filter(item => item && item.directLink && item.properties?.[0]) // Filter invalid items
       .map(item => {
-        // Extract external ID from URL
-        const urlMatch = item.url?.match(/\/(\d+)\//);
-        const externalId = urlMatch ? urlMatch[1] : String(Date.now());
+        const prop = item.properties[0]; // Main property data
+        const location = prop.location || {};
+        
+        // Extract external ID
+        const externalId = String(item.id || Date.now());
 
         // Extract floor number
-        let floor: string | undefined;
-        if (item.floor) {
-          floor = String(item.floor);
-        } else if (item.description?.toLowerCase().includes('piano')) {
-          const floorMatch = item.description.match(/piano\s+(\d+)/i);
-          floor = floorMatch ? floorMatch[1] : undefined;
-        }
+        const floor = prop.floor?.abbreviation || prop.floor?.floorOnlyValue;
 
         // Determine property type
         let type = 'apartment';
-        if (item.title?.toLowerCase().includes('villa')) type = 'villa';
-        else if (item.title?.toLowerCase().includes('attico')) type = 'penthouse';
-        else if (item.title?.toLowerCase().includes('loft')) type = 'loft';
+        const typologyName = item.typology?.name?.toLowerCase() || '';
+        if (typologyName.includes('villa')) type = 'villa';
+        else if (typologyName.includes('attico')) type = 'penthouse';
+        else if (typologyName.includes('loft')) type = 'loft';
 
-        // Extract agency name from contact info
-        const agencyName = item.agency || item.advertiser || 'Unknown';
+        // Extract agency name
+        const agencyName = item.advertiser?.agency?.displayName || 
+                          item.advertiser?.supervisor?.displayName || 
+                          'Unknown';
+
+        // Parse surface (e.g., "40 m²" -> 40)
+        const surfaceStr = prop.surface || '';
+        const sizeMatch = surfaceStr.match(/(\d+)/);
+        const size = sizeMatch ? parseFloat(sizeMatch[1]) : 0;
+
+        // Extract image URLs
+        const photos = prop.multimedia?.photos || [];
+        const imageUrls = photos
+          .map((p: any) => p.urls?.large || p.urls?.medium || p.urls?.small)
+          .filter((url: string) => url)
+          .slice(0, 10);
+
+        // Build address
+        const address = location.address || 'Indirizzo non disponibile';
+        const city = location.city || 'Milano';
 
         return {
           externalId,
-          title: item.title || 'Untitled',
-          address: item.address || item.location || 'Milano',
-          city: 'Milano',
-          price: parseFloat(item.price) || 0,
-          size: parseFloat(item.surface) || parseFloat(item.size) || 0,
-          bedrooms: parseInt(item.rooms) || parseInt(item.bedrooms) || undefined,
-          bathrooms: parseInt(item.bathrooms) || undefined,
+          title: item.title || prop.caption || 'Untitled',
+          address,
+          city,
+          price: item.price?.value || 0,
+          size,
+          bedrooms: prop.bedRoomsNumber ? parseInt(prop.bedRoomsNumber) : undefined,
+          bathrooms: prop.bathrooms ? parseInt(prop.bathrooms) : undefined,
           floor,
           type,
-          description: item.description || item.title || '',
-          url: item.url,
-          imageUrls: Array.isArray(item.images) ? item.images.slice(0, 10) : [],
-          ownerType: item.isPrivate ? 'private' : 'agency',
+          description: prop.caption || item.title || '',
+          url: item.directLink,
+          imageUrls,
+          ownerType: item.advertiser?.agency ? 'agency' : 'private',
           agencyName
         } as PropertyListing;
       });
