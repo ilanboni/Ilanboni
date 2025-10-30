@@ -32,6 +32,13 @@ export async function runDeduplicationScan() {
     
     console.log(`[DEDUP-SCHEDULER] ${allProperties.length} proprietà totali nel database`);
     
+    // CRITICAL DIAGNOSTIC: Warn if no properties found (likely status field not set during import)
+    if (allProperties.length === 0) {
+      console.warn(`[DEDUP-SCHEDULER] ⚠️ NESSUNA proprietà trovata con status='available'!`);
+      console.warn(`[DEDUP-SCHEDULER] ⚠️ Verifica che PortalIngestionService e /api/import-casafari impostino status='available' durante l'import`);
+      console.warn(`[DEDUP-SCHEDULER] ⚠️ Esegui: UPDATE properties SET status='available' WHERE status IS NULL;`);
+    }
+    
     // Esegue la deduplicazione
     const result = await deduplicateProperties(allProperties);
     

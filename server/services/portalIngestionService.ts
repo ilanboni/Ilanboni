@@ -217,7 +217,8 @@ export class PortalIngestionService {
         firstSeenAt: now,
         lastSeenAt: now,
         isOwned: false,
-        isShared: false
+        isShared: false,
+        status: 'available' // CRITICAL FIX: Include in deduplication scan
       });
       
       console.log(`[INGESTION] Imported new property: ${listing.externalId}`);
