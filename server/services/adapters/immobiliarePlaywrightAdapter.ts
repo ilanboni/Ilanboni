@@ -133,15 +133,45 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
     const listings: PropertyListing[] = [];
 
     try {
-      await page.waitForSelector('li.in-realEstateResults__item, article.in-card', {
-        timeout: 10000
-      }).catch(() => {
-        console.log('[IMMOBILIARE-PW] No listings found on page');
-      });
+      // Wait for page to load
+      await page.waitForTimeout(3000);
 
-      const items = await page.$$('li.in-realEstateResults__item, article.in-card');
-      
-      console.log(`[IMMOBILIARE-PW] Found ${items.length} item elements`);
+      // Take screenshot for debugging
+      const screenshotPath = `/tmp/immobiliare-debug-${Date.now()}.png`;
+      await page.screenshot({ path: screenshotPath, fullPage: false });
+      console.log(`[IMMOBILIARE-PW] Screenshot saved: ${screenshotPath}`);
+
+      // Try multiple selectors (Immobiliare.it may have changed structure)
+      const selectors = [
+        'li.in-realEstateResults__item',
+        'article.in-card',
+        'div.in-searchList__item',
+        'li.in-card',
+        'div.nd-card',
+        '[data-testid="search-result-card"]',
+        'div.search-results-list li',
+        'li.nd-list__item'
+      ];
+
+      let items: any[] = [];
+      for (const selector of selectors) {
+        items = await page.$$(selector);
+        if (items.length > 0) {
+          console.log(`[IMMOBILIARE-PW] Found ${items.length} items with selector: ${selector}`);
+          break;
+        }
+      }
+
+      if (items.length === 0) {
+        console.log('[IMMOBILIARE-PW] No listings found with any selector. Checking page content...');
+        const html = await page.content();
+        console.log(`[IMMOBILIARE-PW] Page HTML length: ${html.length} chars`);
+        // Log first few class names for debugging
+        const classes = await page.$$eval('[class]', els => 
+          els.slice(0, 20).map(el => el.className).filter(c => c && c.includes('list') || c.includes('card') || c.includes('result'))
+        );
+        console.log(`[IMMOBILIARE-PW] Found classes: ${JSON.stringify(classes.slice(0, 10))}`);
+      }
 
       for (const item of items.slice(0, 20)) {
         try {
@@ -162,48 +192,127 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
 
   private async extractListingFromElement(page: Page, element: any): Promise<PropertyListing | null> {
     try {
-      const idAttr = await element.getAttribute('data-id');
-      const externalId = idAttr || String(Date.now());
+      // New Immobiliare.it 2025 structure uses different selectors
+      const idAttr = await element.getAttribute('data-id') || await element.getAttribute('id');
+      const externalId = idAttr || String(Date.now() + Math.random());
 
-      const linkEl = await element.$('a[href*="/annunci/"]');
-      const href = linkEl ? await linkEl.getAttribute('href') : null;
+      // Try multiple link selectors
+      const linkSelectors = ['a[href*="/annunci/"]', 'a.nd-card__link', 'a.nd-mediaObject', 'a[title]'];
+      let href: string | null = null;
+      for (const selector of linkSelectors) {
+        const linkEl = await element.$(selector);
+        if (linkEl) {
+          href = await linkEl.getAttribute('href');
+          if (href) break;
+        }
+      }
       const url = href?.startsWith('http') ? href : (href ? IMMOBILIARE_BASE_URL + href : '');
 
-      const titleEl = await element.$('.in-realEstateListCard__title, .in-card__title');
-      const title = titleEl ? await titleEl.textContent() : 'Appartamento';
+      // Try multiple title selectors
+      const titleSelectors = [
+        '.in-realEstateListCard__title',
+        '.in-card__title',
+        '.nd-card__title',
+        'h2.nd-text',
+        'a[title]'
+      ];
+      let title = '';
+      for (const selector of titleSelectors) {
+        const titleEl = await element.$(selector);
+        if (titleEl) {
+          title = await titleEl.textContent() || '';
+          if (title) break;
+        }
+      }
+      // Fallback to link title attribute
+      if (!title && href) {
+        for (const selector of linkSelectors) {
+          const linkEl = await element.$(selector);
+          if (linkEl) {
+            title = await linkEl.getAttribute('title') || '';
+            if (title) break;
+          }
+        }
+      }
 
-      const addressEl = await element.$('.in-realEstateListCard__location, .in-card__location');
-      const addressText = addressEl ? await addressEl.textContent() : '';
-      const address = addressText?.trim() || '';
+      // Try multiple address selectors
+      const addressSelectors = [
+        '.in-realEstateListCard__location',
+        '.in-card__location',
+        '.nd-card__location',
+        '.nd-text--secondary'
+      ];
+      let address = '';
+      for (const selector of addressSelectors) {
+        const addressEl = await element.$(selector);
+        if (addressEl) {
+          address = await addressEl.textContent() || '';
+          if (address) break;
+        }
+      }
 
-      const priceEl = await element.$('.in-realEstateListCard__price, .in-card__price');
-      const priceText = priceEl ? await priceEl.textContent() : '0';
+      // Try multiple price selectors and fallbacks
+      const priceSelectors = [
+        '.in-realEstateListCard__price',
+        '.in-card__price',
+        '.nd-card__price',
+        '.nd-text--size-l',
+        '[class*="price"]',
+        '[class*="Price"]',
+        'strong',
+        'span[class*="text"]'
+      ];
+      let priceText = '';
+      for (const selector of priceSelectors) {
+        const priceEls = await element.$$(selector);
+        for (const priceEl of priceEls) {
+          const text = await priceEl.textContent() || '';
+          // Look for text with € symbol
+          if (text.includes('€') || /\d{1,3}[.,]\d{3}/.test(text)) {
+            priceText = text;
+            break;
+          }
+        }
+        if (priceText) break;
+      }
+      
+      // Final fallback: search entire element text for price pattern
+      if (!priceText) {
+        const fullText = await element.textContent() || '';
+        const priceMatch = fullText.match(/€\s*([\d.,]+)/);
+        if (priceMatch) {
+          priceText = priceMatch[1];
+        }
+      }
+      
       const price = parseInt(priceText.replace(/[^\d]/g, '')) || 0;
 
-      const featuresText = await element.textContent();
-      const sizeMatch = featuresText?.match(/(\d+)\s*m²/);
+      // Extract features from full text
+      const featuresText = await element.textContent() || '';
+      const sizeMatch = featuresText.match(/(\d+)\s*m²/);
       const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
 
-      const roomsMatch = featuresText?.match(/(\d+)\s*local/i);
+      const roomsMatch = featuresText.match(/(\d+)\s*local/i);
       const bedrooms = roomsMatch ? parseInt(roomsMatch[1]) : undefined;
 
-      const bathroomsMatch = featuresText?.match(/(\d+)\s*bagn/i);
+      const bathroomsMatch = featuresText.match(/(\d+)\s*bagn/i);
       const bathrooms = bathroomsMatch ? parseInt(bathroomsMatch[1]) : undefined;
 
-      const floorMatch = featuresText?.match(/Piano\s+(\d+|T|S)/i);
+      const floorMatch = featuresText.match(/Piano\s+(\d+|T|S)/i);
       const floor = floorMatch ? floorMatch[1] : undefined;
 
       const cityMatch = address.match(/,\s*([^,]+)$/);
       const city = cityMatch?.[1]?.trim() || 'Milano';
 
-      if (!externalId || !url || size === 0) {
+      if (!url || !title || size === 0 || price === 0) {
+        console.log(`[IMMOBILIARE-PW] Skipping invalid listing - URL:${!!url} Title:${!!title} Size:${size} Price:${price}`);
         return null;
       }
 
       return {
         externalId,
-        title: title?.trim() || 'Appartamento',
-        address,
+        title: title.trim(),
+        address: address.trim() || 'Milano',
         city,
         price,
         size,
@@ -212,7 +321,7 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
         floor,
         type: 'apartment',
         url,
-        description: title?.trim(),
+        description: title.trim(),
         ownerType: 'agency'
       };
     } catch (error) {
