@@ -143,10 +143,11 @@ export default function ApifyAutomation() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>• Ricerca multipla su Immobiliare.it</p>
-              <p>• Import automatico proprietà</p>
-              <p>• Deduplicazione multi-agency</p>
-              <p>• Identificazione pluricondivisi</p>
+              <p>• 📍 Solo Milano (raggio 5 km dal Duomo)</p>
+              <p>• 🔍 Ricerca multipla su Immobiliare.it</p>
+              <p>• 📥 Import automatico proprietà</p>
+              <p>• 🔄 Deduplicazione multi-agency</p>
+              <p>• 🏢 Identificazione pluricondivisi</p>
             </div>
             
             <Button 
@@ -236,7 +237,7 @@ export default function ApifyAutomation() {
           <div className="space-y-3 text-sm">
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">1</Badge>
-              <p><strong>Scraping Multi-URL:</strong> Ricerca segmentata su 5 URL Immobiliare.it per coprire tutti gli immobili di Milano (max 2000 per URL)</p>
+              <p><strong>Scraping Multi-URL:</strong> Ricerca segmentata su 5 URL Immobiliare.it (max 2000 per URL). <strong className="text-blue-600">Filtro geografico: solo Milano entro 5 km dal Duomo</strong></p>
             </div>
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">2</Badge>
@@ -244,7 +245,7 @@ export default function ApifyAutomation() {
             </div>
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">3</Badge>
-              <p><strong>Import Automatico:</strong> Ogni immobili viene importato nel database con status="available"</p>
+              <p><strong>Import Automatico:</strong> Ogni immobile validato viene importato nel database con status="available"</p>
             </div>
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">4</Badge>

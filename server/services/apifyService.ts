@@ -87,11 +87,60 @@ export class ApifyService {
   }
 
   /**
+   * Calculate distance between two points in kilometers using Haversine formula
+   */
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  /**
    * Transform Apify raw data to our PropertyListing format
+   * Filters: Only Milano properties within 5km from Duomo (45.464, 9.190)
    */
   private transformApifyResults(items: any[]): PropertyListing[] {
+    const DUOMO_LAT = 45.464;
+    const DUOMO_LON = 9.190;
+    const MAX_DISTANCE_KM = 5;
+
     return items
-      .filter(item => item && item.directLink && item.properties?.[0]) // Filter invalid items
+      .filter(item => {
+        if (!item || !item.directLink || !item.properties?.[0]) return false;
+        
+        const location = item.properties[0].location;
+        if (!location) return false;
+
+        // Filter 1: Must be Milano
+        const city = location.city?.toLowerCase() || '';
+        if (city !== 'milano') {
+          console.log(`[APIFY] Filtered out: ${location.address} (city: ${location.city})`);
+          return false;
+        }
+
+        // Filter 2: Must have valid coordinates
+        const lat = location.latitude;
+        const lon = location.longitude;
+        if (!lat || !lon) {
+          console.log(`[APIFY] Filtered out: ${location.address} (no coordinates)`);
+          return false;
+        }
+
+        // Filter 3: Must be within 5km from Duomo
+        const distance = this.calculateDistance(DUOMO_LAT, DUOMO_LON, lat, lon);
+        if (distance > MAX_DISTANCE_KM) {
+          console.log(`[APIFY] Filtered out: ${location.address} (${distance.toFixed(2)}km from Duomo)`);
+          return false;
+        }
+
+        console.log(`[APIFY] ✓ Accepted: ${location.address} (${distance.toFixed(2)}km from Duomo)`);
+        return true;
+      })
       .map(item => {
         const prop = item.properties[0]; // Main property data
         const location = prop.location || {};
