@@ -778,6 +778,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Importa conversazioni WhatsApp da file export
+  app.post("/api/clients/:id/communications/import", upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "Nessun file caricato" });
+      }
+
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+
+      const { WhatsAppImportParser } = await import('./services/whatsappImportParser');
+      const parser = new WhatsAppImportParser();
+      
+      const fileContent = req.file.buffer.toString('utf-8');
+      const isJSON = req.file.originalname.toLowerCase().endsWith('.json');
+      
+      const parseResult = isJSON 
+        ? parser.parseJSON(fileContent)
+        : parser.parse(fileContent, client.name);
+
+      if (parseResult.messages.length === 0) {
+        return res.status(400).json({ 
+          error: "Nessun messaggio valido trovato nel file",
+          details: parseResult.errors.slice(0, 5)
+        });
+      }
+
+      let imported = 0;
+      let skipped = 0;
+      const importErrors: string[] = [];
+
+      for (const msg of parseResult.messages) {
+        try {
+          const externalId = `whatsapp_import_${clientId}_${msg.timestamp.getTime()}`;
+          
+          const existingComm = await db
+            .select()
+            .from(communications)
+            .where(eq(communications.externalId, externalId))
+            .limit(1);
+
+          if (existingComm.length > 0) {
+            skipped++;
+            continue;
+          }
+
+          await storage.createCommunication({
+            clientId,
+            type: 'whatsapp',
+            subject: `WhatsApp - ${msg.sender}`,
+            content: msg.content,
+            direction: msg.direction,
+            createdAt: msg.timestamp,
+            externalId,
+            status: 'completed'
+          });
+
+          imported++;
+        } catch (error) {
+          importErrors.push(`Errore importando messaggio: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        imported,
+        skipped,
+        totalParsed: parseResult.messages.length,
+        totalLines: parseResult.totalLines,
+        parseErrors: parseResult.errors.slice(0, 10),
+        importErrors: importErrors.slice(0, 10)
+      });
+
+    } catch (error) {
+      console.error(`[POST /api/clients/${req.params.id}/communications/import]`, error);
+      res.status(500).json({ 
+        error: "Errore durante l'importazione delle conversazioni",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Ottieni comunicazioni per una proprietà specifica
   app.get("/api/properties/:id/communications", async (req: Request, res: Response) => {
     try {
