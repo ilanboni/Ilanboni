@@ -54,6 +54,15 @@ function calculatePropertySimilarity(prop1: Property, prop2: Property): { score:
   let totalScore = 0;
   let maxScore = 0;
   
+  const isDebugPair = (prop1.id === 185 && prop2.id === 186) || (prop1.id === 186 && prop2.id === 185);
+  if (isDebugPair) {
+    console.log(`[DEBUG] Confronto #${prop1.id} vs #${prop2.id}`);
+    console.log(`[DEBUG] Address: "${prop1.address}" vs "${prop2.address}"`);
+    console.log(`[DEBUG] Price: ${prop1.price} vs ${prop2.price}`);
+    console.log(`[DEBUG] Size: ${prop1.size} vs ${prop2.size}`);
+    console.log(`[DEBUG] Coordinates: (${prop1.latitude},${prop1.longitude}) vs (${prop2.latitude},${prop2.longitude})`);
+  }
+  
   // Geographic fuzzy matching (500m tolerance) - PREFERRED method
   if (prop1.latitude && prop1.longitude && prop2.latitude && prop2.longitude) {
     maxScore += 40;
@@ -78,10 +87,17 @@ function calculatePropertySimilarity(prop1: Property, prop2: Property): { score:
     const addr2 = normalizeAddress(prop2.address);
     const addressScore = stringSimilarity.compareTwoStrings(addr1, addr2);
     
+    if (isDebugPair) {
+      console.log(`[DEBUG] Normalized: "${addr1}" vs "${addr2}"`);
+      console.log(`[DEBUG] Address similarity: ${(addressScore * 100).toFixed(1)}%`);
+      console.log(`[DEBUG] Threshold: ${(FUZZY_MATCH_THRESHOLD * 100).toFixed(0)}%`);
+    }
+    
     if (addressScore > FUZZY_MATCH_THRESHOLD) {
       const points = addressScore * 40;
       totalScore += points;
       reasons.push(`Indirizzo simile (${(addressScore * 100).toFixed(0)}%)`);
+      if (isDebugPair) console.log(`[DEBUG] Address points added: ${points}`);
     }
   }
   
@@ -130,6 +146,12 @@ function calculatePropertySimilarity(prop1: Property, prop2: Property): { score:
   }
   
   const finalScore = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+  
+  if (isDebugPair) {
+    console.log(`[DEBUG] Final: totalScore=${totalScore}, maxScore=${maxScore}, finalScore=${finalScore.toFixed(1)}%`);
+    console.log(`[DEBUG] Match threshold: 70%`);
+    console.log(`[DEBUG] Is match: ${finalScore >= 70}`);
+  }
   
   return { score: finalScore, reasons };
 }
