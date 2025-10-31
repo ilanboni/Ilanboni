@@ -92,7 +92,17 @@ export class MilanoScrapingService {
       'navigli',
       'isola',
       'porta-garibaldi',
-      'sempione'
+      'sempione',
+      'bovisa',
+      'citta-studi',
+      'loreto',
+      'buenos-aires',
+      'washington',
+      'magenta',
+      'sarpi',
+      'centrale',
+      'lambrate',
+      'bicocca'
     ];
 
     let totalFetched = 0;
