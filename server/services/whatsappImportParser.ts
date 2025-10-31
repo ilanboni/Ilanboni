@@ -14,7 +14,7 @@ export interface ParseResult {
   parsedLines: number;
 }
 
-const ITALIAN_MONTHS = {
+const ITALIAN_MONTHS: Record<string, number> = {
   'gen': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'mag': 4, 'giu': 5,
   'lug': 6, 'ago': 7, 'set': 8, 'ott': 9, 'nov': 10, 'dic': 11
 };
@@ -108,9 +108,10 @@ export class WhatsAppImportParser {
   }
 
   private parseTimestamp(match: RegExpMatchArray): Date {
-    if (match.length >= 8 && ITALIAN_MONTHS[match[2].toLowerCase()]) {
+    const monthLower = match[2].toLowerCase();
+    if (match.length >= 8 && ITALIAN_MONTHS[monthLower] !== undefined) {
       const day = parseInt(match[1]);
-      const month = ITALIAN_MONTHS[match[2].toLowerCase()];
+      const month = ITALIAN_MONTHS[monthLower];
       const year = parseInt(match[3]);
       const hour = parseInt(match[4]);
       const minute = parseInt(match[5]);

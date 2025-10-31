@@ -124,7 +124,7 @@ export function WhatsAppImportDialog({ clientId, onSuccess }: WhatsAppImportDial
                 <Input
                   id="whatsapp-file"
                   type="file"
-                  accept=".txt,.json"
+                  accept=".txt,text/plain,.json,application/json"
                   onChange={handleFileChange}
                   disabled={isUploading}
                   data-testid="input-file-whatsapp"
