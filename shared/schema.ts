@@ -60,7 +60,9 @@ export const clients = pgTable("clients", {
 export const buyers = pgTable("buyers", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").notNull().references(() => clients.id),
-  searchArea: jsonb("search_area"), // GeoJSON polygon
+  searchArea: jsonb("search_area"), // GeoJSON FeatureCollection with zone polygons/circles
+  searchAreaStatus: text("search_area_status"), // 'pending', 'success', 'partial', 'failed'
+  searchAreaUpdatedAt: timestamp("search_area_updated_at"),
   minSize: integer("min_size"), // in square meters
   maxPrice: integer("max_price"),
   urgency: integer("urgency").default(1), // 1-5 scale
@@ -152,6 +154,20 @@ export const geocodeCache = pgTable("geocode_cache", {
   latitude: text("latitude"),
   longitude: text("longitude"),
   status: text("status").notNull(), // success, failed, pending
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Zone geocode cache (for Milano neighborhoods/zones)
+export const zoneGeocodeCache = pgTable("zone_geocode_cache", {
+  id: serial("id").primaryKey(),
+  zoneName: text("zone_name").notNull().unique(), // "Pagano, Milano, Italy" normalized
+  city: text("city").notNull().default("Milano"), // city name
+  latitude: text("latitude"), // centroid latitude
+  longitude: text("longitude"), // centroid longitude
+  boundaryGeoJSON: jsonb("boundary_geojson"), // Polygon boundary if available from Nominatim
+  status: text("status").notNull(), // 'success', 'failed', 'pending'
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()

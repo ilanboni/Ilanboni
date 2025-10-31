@@ -66,6 +66,7 @@ import { authBearer } from "./middleware/auth";
 import { createTasksFromMatches, getDefaultDeps } from "./lib/taskEngine";
 import { isPropertyMatchingBuyerCriteria, calculatePropertyMatchPercentage } from "./lib/matchingLogic";
 import { nlToFilters, type PropertyFilters } from "./services/nlProcessingService";
+import { searchAreaGeocodingService } from "./services/searchAreaGeocodingService";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -3175,6 +3176,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log("[POST /api/clients] Dati buyer elaborati:", JSON.stringify(buyerData, null, 2));
             const buyer = await storage.createBuyer(buyerData);
             console.log("[POST /api/clients] Buyer creato con successo:", buyer);
+            
+            // Geocodifica automatica delle zone in background
+            if (buyer && Array.isArray(buyerData.zones) && buyerData.zones.length > 0) {
+              console.log(`[POST /api/clients] Avvio geocodifica automatica per ${buyerData.zones.length} zone`);
+              searchAreaGeocodingService.updateBuyerSearchArea(buyer.id, buyerData.zones)
+                .catch(err => console.error(`[POST /api/clients] Errore geocodifica background:`, err));
+            }
           } catch (buyerError) {
             console.error("[POST /api/clients] Errore creazione buyer:", buyerError);
             // Non blocchiamo la creazione del cliente se fallisce la creazione del buyer
@@ -3258,7 +3266,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     Number(req.body.buyer.urgency) : 3,
             rating: req.body.buyer.rating !== undefined ? 
                    Number(req.body.buyer.rating) : 3,
-            searchNotes: req.body.buyer.searchNotes || null
+            searchNotes: req.body.buyer.searchNotes || null,
+            zones: req.body.buyer.zones || null,
+            propertyType: req.body.buyer.propertyType || null,
+            rooms: req.body.buyer.rooms || null,
+            bathrooms: req.body.buyer.bathrooms || null,
+            elevator: req.body.buyer.elevator || false,
+            balconyOrTerrace: req.body.buyer.balconyOrTerrace || false,
+            parking: req.body.buyer.parking || false,
+            garden: req.body.buyer.garden || false
           };
           
           // Log dettagliato dei valori processati
@@ -3272,6 +3288,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const updatedBuyer = await storage.updateBuyer(existingBuyer.id, buyerData);
             console.log(`[PATCH /api/clients/${clientId}] Buyer aggiornato con successo. ID: ${existingBuyer.id}`);
             console.log(`[PATCH /api/clients/${clientId}] Dati buyer aggiornati:`, JSON.stringify(updatedBuyer, null, 2));
+            
+            // Geocodifica automatica se ci sono nuove zone
+            if (Array.isArray(buyerData.zones) && buyerData.zones.length > 0) {
+              console.log(`[PATCH /api/clients/${clientId}] Avvio geocodifica automatica per ${buyerData.zones.length} zone`);
+              searchAreaGeocodingService.updateBuyerSearchArea(existingBuyer.id, buyerData.zones)
+                .catch(err => console.error(`[PATCH /api/clients/${clientId}] Errore geocodifica background:`, err));
+            }
           } else {
             // Crea un nuovo buyer
             const buyerInsertData = {
@@ -3281,6 +3304,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const newBuyer = await storage.createBuyer(buyerInsertData);
             console.log(`[PATCH /api/clients/${clientId}] Nuovo buyer creato con successo. ID: ${newBuyer.id}`);
             console.log(`[PATCH /api/clients/${clientId}] Dati nuovo buyer:`, JSON.stringify(newBuyer, null, 2));
+            
+            // Geocodifica automatica se ci sono zone
+            if (Array.isArray(buyerData.zones) && buyerData.zones.length > 0) {
+              console.log(`[PATCH /api/clients/${clientId}] Avvio geocodifica automatica per ${buyerData.zones.length} zone`);
+              searchAreaGeocodingService.updateBuyerSearchArea(newBuyer.id, buyerData.zones)
+                .catch(err => console.error(`[PATCH /api/clients/${clientId}] Errore geocodifica background:`, err));
+            }
           }
         } catch (buyerError) {
           console.error(`[PATCH /api/clients/${clientId}] Error updating buyer preferences:`, buyerError);
@@ -3535,6 +3565,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[POST /api/clients/${req.params.id}/nl-request]`, error);
       res.status(500).json({ error: "Errore durante l'elaborazione della richiesta" });
+    }
+  });
+
+  // Manual trigger: Geocode search area zones for a buyer
+  app.post("/api/clients/:id/search-area/geocode", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+
+      console.log(`[GEOCODE-SEARCH-AREA] Manual trigger for client ${clientId}`);
+
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+
+      if (client.type !== 'buyer') {
+        return res.status(400).json({ error: "Il cliente deve essere un acquirente" });
+      }
+
+      const buyer = await storage.getBuyerByClientId(clientId);
+      if (!buyer) {
+        return res.status(404).json({ error: "Dati acquirente non trovati" });
+      }
+
+      const zones = buyer.zones as string[] | null;
+      if (!zones || !Array.isArray(zones) || zones.length === 0) {
+        return res.status(400).json({ 
+          error: "Nessuna zona configurata per questo acquirente",
+          zones: buyer.zones
+        });
+      }
+
+      console.log(`[GEOCODE-SEARCH-AREA] Starting geocoding for ${zones.length} zones:`, zones);
+
+      searchAreaGeocodingService.updateBuyerSearchArea(buyer.id, zones)
+        .catch(err => console.error(`[GEOCODE-SEARCH-AREA] Background error:`, err));
+
+      res.status(202).json({
+        ok: true,
+        message: `Geocodifica avviata per ${zones.length} zone. Il processo continuerà in background.`,
+        buyerId: buyer.id,
+        zones: zones
+      });
+
+    } catch (error) {
+      console.error(`[POST /api/clients/${req.params.id}/search-area/geocode]`, error);
+      res.status(500).json({ error: "Errore durante l'avvio della geocodifica" });
     }
   });
 
