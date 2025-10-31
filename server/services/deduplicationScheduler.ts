@@ -58,19 +58,29 @@ export async function runDeduplicationScan() {
           .map(p => p.portal)
           .filter((name): name is string => name !== null && name !== undefined);
         
-        // Verifica se esiste già una scheda per questo indirizzo
-        const existing = await db
+        // Normalizza l'indirizzo per il confronto (rimuove virgole, punti, spazi multipli)
+        const normalizedAddress = firstProperty.address
+          .toLowerCase()
+          .replace(/[,.]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        // Verifica se esiste già una scheda per questo indirizzo (usando normalizzazione fuzzy)
+        const allSharedProps = await db
           .select()
           .from(sharedProperties)
-          .where(
-            and(
-              eq(sharedProperties.address, firstProperty.address),
-              eq(sharedProperties.isAcquired, false)
-            )
-          )
-          .limit(1);
+          .where(eq(sharedProperties.isAcquired, false));
         
-        if (existing.length === 0) {
+        const existing = allSharedProps.find(sp => {
+          const spNormalized = sp.address
+            .toLowerCase()
+            .replace(/[,.]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+          return spNormalized === normalizedAddress;
+        });
+        
+        if (!existing) {
           // Crea nuova scheda proprietà condivisa
           await db.insert(sharedProperties).values({
             address: firstProperty.address,
@@ -79,9 +89,7 @@ export async function runDeduplicationScan() {
             type: firstProperty.type,
             price: firstProperty.price,
             floor: firstProperty.floor || null,
-            agency1Name: portals[0] || null,
-            agency2Name: portals[1] || null,
-            agency3Name: portals[2] || null,
+            agencies: portals, // JSONB array con tutte le agenzie
             rating: 4,
             stage: 'result',
             stageResult: 'multiagency',
@@ -93,6 +101,20 @@ export async function runDeduplicationScan() {
           
           sharedPropertiesCreated++;
           console.log(`[DEDUP-SCHEDULER] ✅ Creata scheda proprietà condivisa per: ${firstProperty.address}`);
+        } else {
+          // Aggiorna scheda esistente con nuove agenzie (se ce ne sono)
+          const existingAgencies = Array.isArray(existing.agencies) ? existing.agencies : [];
+          const newAgencies = portals.filter(p => !existingAgencies.includes(p));
+          
+          if (newAgencies.length > 0) {
+            const updatedAgencies = [...existingAgencies, ...newAgencies];
+            await db
+              .update(sharedProperties)
+              .set({ agencies: updatedAgencies })
+              .where(eq(sharedProperties.id, existing.id));
+            
+            console.log(`[DEDUP-SCHEDULER] 🔄 Aggiornate agenzie per: ${existing.address} (+${newAgencies.length})`);
+          }
         }
         
         // Aggiorna isShared per ogni proprietà nel cluster
