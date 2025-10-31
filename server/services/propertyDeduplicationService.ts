@@ -28,7 +28,7 @@ export interface DeduplicationResult {
   clusters: PropertyCluster[];
 }
 
-const FUZZY_MATCH_THRESHOLD = 0.75;
+const FUZZY_MATCH_THRESHOLD = 0.65; // Lowered from 0.75 to catch more similar addresses
 const IMAGE_SIMILARITY_THRESHOLD = 5;
 
 /**
