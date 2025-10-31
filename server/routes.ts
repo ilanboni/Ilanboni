@@ -67,6 +67,7 @@ import { createTasksFromMatches, getDefaultDeps } from "./lib/taskEngine";
 import { isPropertyMatchingBuyerCriteria, calculatePropertyMatchPercentage } from "./lib/matchingLogic";
 import { nlToFilters, type PropertyFilters } from "./services/nlProcessingService";
 import { searchAreaGeocodingService } from "./services/searchAreaGeocodingService";
+import { clientPropertyScrapingService } from "./services/clientPropertyScrapingService";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -1812,6 +1813,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/matching-shared-properties]`, error);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà condivise compatibili" });
+    }
+  });
+
+  // Endpoint per scraping on-demand di immobili compatibili (solo clienti rating 5)
+  app.get("/api/clients/:id/scraped-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+
+      console.log(`[SCRAPED-PROPERTIES] Request for client ${clientId}`);
+
+      const scrapedProperties = await clientPropertyScrapingService.scrapePropertiesForClient(clientId);
+
+      console.log(`[SCRAPED-PROPERTIES] Returning ${scrapedProperties.length} properties for client ${clientId}`);
+      res.json(scrapedProperties);
+    } catch (error: any) {
+      console.error(`[GET /api/clients/${req.params.id}/scraped-properties]`, error);
+      
+      if (error.message?.includes('not a buyer')) {
+        return res.status(400).json({ error: "Il cliente non è un compratore" });
+      }
+      
+      if (error.message?.includes('not found')) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+
+      res.status(500).json({ error: "Errore durante lo scraping degli immobili" });
     }
   });
   
