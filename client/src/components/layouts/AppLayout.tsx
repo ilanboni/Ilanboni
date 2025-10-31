@@ -35,7 +35,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <Header onMenuClick={toggleMobileMenu} />
         
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-4 md:p-6 pb-20 md:pb-6">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
