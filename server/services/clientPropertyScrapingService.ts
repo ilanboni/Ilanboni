@@ -64,30 +64,34 @@ export class ClientPropertyScrapingService {
 
       console.log(`[CLIENT-SCRAPING] Searching zone: ${zone || 'Milano (generic)'}`, criteria);
 
-      // Scrape from Idealista
-      try {
-        const idealistaResults = await this.idealistaAdapter.search(criteria);
-        const enrichedIdealista = idealistaResults.map(r => ({
+      // Scrape from both portals in parallel
+      const results = await Promise.allSettled([
+        this.idealistaAdapter.search(criteria),
+        this.immobiliareAdapter.search(criteria)
+      ]);
+
+      // Process Idealista results
+      if (results[0].status === 'fulfilled') {
+        const enrichedIdealista = results[0].value.map(r => ({
           ...r,
           portalSource: 'Idealista'
         }));
         allResults.push(...enrichedIdealista);
-        console.log(`[CLIENT-SCRAPING] Idealista: found ${idealistaResults.length} properties for zone ${zone || 'Milano'}`);
-      } catch (error) {
-        console.error(`[CLIENT-SCRAPING] Idealista scraping failed for zone ${zone}:`, error);
+        console.log(`[CLIENT-SCRAPING] Idealista: found ${results[0].value.length} properties for zone ${zone || 'Milano'}`);
+      } else {
+        console.error(`[CLIENT-SCRAPING] Idealista scraping failed for zone ${zone}:`, results[0].reason);
       }
 
-      // Scrape from Immobiliare.it
-      try {
-        const immobiliareResults = await this.immobiliareAdapter.search(criteria);
-        const enrichedImmobiliare = immobiliareResults.map(r => ({
+      // Process Immobiliare results
+      if (results[1].status === 'fulfilled') {
+        const enrichedImmobiliare = results[1].value.map(r => ({
           ...r,
           portalSource: 'Immobiliare.it'
         }));
         allResults.push(...enrichedImmobiliare);
-        console.log(`[CLIENT-SCRAPING] Immobiliare.it: found ${immobiliareResults.length} properties for zone ${zone || 'Milano'}`);
-      } catch (error) {
-        console.error(`[CLIENT-SCRAPING] Immobiliare.it scraping failed for zone ${zone}:`, error);
+        console.log(`[CLIENT-SCRAPING] Immobiliare.it: found ${results[1].value.length} properties for zone ${zone || 'Milano'}`);
+      } else {
+        console.error(`[CLIENT-SCRAPING] Immobiliare.it scraping failed for zone ${zone}:`, results[1].reason);
       }
     }
 
@@ -107,7 +111,13 @@ export class ClientPropertyScrapingService {
     const unique: ScrapedPropertyResult[] = [];
 
     for (const result of results) {
-      const key = `${result.portalSource}:${result.externalId}`;
+      // Use normalized address as dedup key to identify same property across portals
+      const normalizedAddress = this.normalizeAddress(result.address || '');
+      // Only use address if it's not empty, otherwise fall back to portal+ID
+      const key = normalizedAddress.length > 0 
+        ? normalizedAddress 
+        : `${result.portalSource}:${result.externalId}`;
+      
       if (!seen.has(key)) {
         seen.add(key);
         unique.push(result);
@@ -115,6 +125,14 @@ export class ClientPropertyScrapingService {
     }
 
     return unique;
+  }
+
+  private normalizeAddress(address: string): string {
+    return address
+      .toLowerCase()
+      .replace(/[.,]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private filterExternalAgencies(results: ScrapedPropertyResult[]): ScrapedPropertyResult[] {

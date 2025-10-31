@@ -11,13 +11,15 @@ export class IdealistaAdapter implements PortalAdapter {
   private lastRequestTime = 0;
 
   async search(criteria: SearchCriteria): Promise<PropertyListing[]> {
-    const searchUrl = this.buildSearchUrl(criteria);
-    console.log(`[IDEALISTA] Searching: ${searchUrl}`);
+    const { baseUrl, params } = this.buildSearchUrlAndParams(criteria);
+    const fullUrl = params ? `${baseUrl}?${new URLSearchParams(params as any).toString()}` : baseUrl;
+    console.log(`[IDEALISTA] Searching: ${fullUrl}`);
 
     await this.respectRateLimit();
 
     try {
-      const response = await axios.get(searchUrl, {
+      const response = await axios.get(baseUrl, {
+        params,
         headers: {
           'User-Agent': USER_AGENT,
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -68,7 +70,7 @@ export class IdealistaAdapter implements PortalAdapter {
     }
   }
 
-  private buildSearchUrl(criteria: SearchCriteria): string {
+  private buildSearchUrlAndParams(criteria: SearchCriteria): { baseUrl: string; params?: Record<string, string> } {
     const parts: string[] = [IDEALISTA_BASE_URL];
     
     parts.push('vendita-case');
@@ -81,31 +83,27 @@ export class IdealistaAdapter implements PortalAdapter {
       parts.push(criteria.zone.toLowerCase().replace(/\s+/g, '-'));
     }
 
-    let url = parts.join('/') + '/';
+    const baseUrl = parts.join('/') + '/';
     
-    const params: string[] = [];
+    const params: Record<string, string> = {};
     
     if (criteria.minPrice) {
-      params.push(`prezzoMinimo=${criteria.minPrice}`);
+      params.prezzoMinimo = criteria.minPrice.toString();
     }
     if (criteria.maxPrice) {
-      params.push(`prezzoMassimo=${criteria.maxPrice}`);
+      params.prezzoMassimo = criteria.maxPrice.toString();
     }
     if (criteria.minSize) {
-      params.push(`superficieMinima=${criteria.minSize}`);
+      params.superficieMinima = criteria.minSize.toString();
     }
     if (criteria.maxSize) {
-      params.push(`superficieMassima=${criteria.maxSize}`);
+      params.superficieMassima = criteria.maxSize.toString();
     }
     if (criteria.bedrooms) {
-      params.push(`camere=${criteria.bedrooms}`);
+      params.camere = criteria.bedrooms.toString();
     }
 
-    if (params.length > 0) {
-      url += '?' + params.join('&');
-    }
-
-    return url;
+    return { baseUrl, params: Object.keys(params).length > 0 ? params : undefined };
   }
 
   private parseSearchResults(html: string): PropertyListing[] {
