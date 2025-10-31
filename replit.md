@@ -13,6 +13,14 @@ This project is a comprehensive real estate management system designed to stream
   - Transaction-safe acquisition with duplicate match protection
   - Geographic filter removed: system now covers entire Milano commune without distance restrictions
 
+- **Fixed Multi-Agency Duplicate Cards Issue**: Resolved critical bug where same property appeared as multiple cards
+  - Root cause: deduplicationScheduler was not normalizing addresses before duplicate checking
+  - Minor address variations (commas, spaces) created separate cards for same property
+  - Solution: implemented address normalization (remove punctuation, normalize spaces) before duplicate detection
+  - Database cleanup: eliminated 11 duplicate cards, consolidated agencies into unique arrays
+  - Result: each property now appears as ONE card with all agencies consolidated
+  - Verified: Via Monte Rosa, Via Dante, Via Torino now show as single cards with multiple agencies
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
