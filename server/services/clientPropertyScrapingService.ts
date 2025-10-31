@@ -111,12 +111,8 @@ export class ClientPropertyScrapingService {
     const unique: ScrapedPropertyResult[] = [];
 
     for (const result of results) {
-      // Use normalized address as dedup key to identify same property across portals
-      const normalizedAddress = this.normalizeAddress(result.address || '');
-      // Only use address if it's not empty, otherwise fall back to portal+ID
-      const key = normalizedAddress.length > 0 
-        ? normalizedAddress 
-        : `${result.portalSource}:${result.externalId}`;
+      // Use portal:ID as dedup key - ensures each portal's results are kept separately
+      const key = `${result.portalSource}:${result.externalId}`;
       
       if (!seen.has(key)) {
         seen.add(key);
@@ -124,15 +120,8 @@ export class ClientPropertyScrapingService {
       }
     }
 
+    console.log(`[DEDUP] Processed ${results.length} results, found ${unique.length} unique (by portal:ID)`);
     return unique;
-  }
-
-  private normalizeAddress(address: string): string {
-    return address
-      .toLowerCase()
-      .replace(/[.,]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
   }
 
   private filterExternalAgencies(results: ScrapedPropertyResult[]): ScrapedPropertyResult[] {
