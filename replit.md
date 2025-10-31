@@ -4,6 +4,16 @@
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
 ## Recent Changes (October 31, 2025)
+- **Automatic Zone Geocoding System**: Implemented full automation for buyer search area visualization
+  - Zones extracted by AI are now automatically geolocated using Nominatim API with polygon boundaries when available
+  - New `searchAreaGeocodingService` handles background geocoding with cache and 1.1s rate limiting
+  - Database schema extended: `zoneGeocodeCache` table for Milano zones, `searchAreaStatus`/`searchAreaUpdatedAt` fields on buyers
+  - GeoJSON FeatureCollection format stores Polygon boundaries (when available) or Point centroids with configurable radius
+  - Automatic trigger on buyer POST/PATCH when zones present, non-blocking background processing
+  - Manual endpoint: POST /api/clients/:id/search-area/geocode for re-triggering geocoding
+  - Edge case handled: clearing zones (empty array) now resets search_area data
+  - Successfully tested with Aliprandi client: 9 zones geocoded with polygon boundaries for Brera, Tiziano, and points for other zones
+
 - **Multi-Agency Property Acquisition Workflow**: Transformed duplicates page into complete acquisition management system with card-based interface
   - Each shared property shown as expandable card with tabs: Details, Agencies, Pipeline, Activities, Interested Clients
   - Pipeline visualization with 5 stages: address_found → owner_found → owner_contact_found → owner_contacted → result (acquired/rejected/pending)
