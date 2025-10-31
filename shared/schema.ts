@@ -177,6 +177,7 @@ export const sharedProperties = pgTable("shared_properties", {
   agency2Link: text("agency2_link"),
   agency3Name: text("agency3_name"),
   agency3Link: text("agency3_link"),
+  agencies: jsonb("agencies"), // Array of {name: string, link: string, sourcePropertyId?: number} - supporto dinamico per N agenzie
   rating: integer("rating").default(3), // 1-5 scale of importance/quality
   stage: text("stage").default("address_found"), // address_found, owner_found, owner_contact_found, owner_contacted, result
   stageResult: text("stage_result"), // acquired, rejected, pending
