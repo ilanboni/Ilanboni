@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
+import { WhatsAppImportDialog } from "@/components/communications/WhatsAppImportDialog";
 import { useToast } from "@/hooks/use-toast";
 import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
 import SimpleSearchAreaMap from "@/components/clients/SimpleSearchAreaMap";
@@ -621,16 +622,24 @@ export default function ClientDetailPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle>Comunicazioni</CardTitle>
-                <Button 
-                  variant="default"
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href={`/communications/new?clientId=${id}`}>
-                    <i className="fas fa-plus"></i>
-                    <span>Nuova Comunicazione</span>
-                  </Link>
-                </Button>
+                <div className="flex gap-2">
+                  <WhatsAppImportDialog 
+                    clientId={id} 
+                    onSuccess={() => {
+                      queryClient.invalidateQueries({ queryKey: [`/api/clients/${id}/communications`] });
+                    }}
+                  />
+                  <Button 
+                    variant="default"
+                    className="gap-2"
+                    asChild
+                  >
+                    <Link href={`/communications/new?clientId=${id}`}>
+                      <i className="fas fa-plus"></i>
+                      <span>Nuova Comunicazione</span>
+                    </Link>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {isCommunicationsLoading ? (
