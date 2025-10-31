@@ -114,22 +114,22 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Fetch matching shared properties - TEMPORANEAMENTE DISABILITATO
-  const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
-    queryKey: [`/api/clients/${id}/matching-shared-properties`],
-    enabled: false, // Disabilitato temporaneamente
-    staleTime: Infinity,
+  // Fetch scraped properties for rating 5 clients
+  const { data: scrapedProperties, isLoading: isScrapedPropertiesLoading, refetch: refetchScrapedProperties } = useQuery({
+    queryKey: [`/api/clients/${id}/scraped-properties`],
+    enabled: !isNaN(id) && client?.type === "buyer" && (client as any)?.rating === 5,
+    staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
     queryFn: async () => {
-      const response = await fetch(`/api/clients/${id}/matching-shared-properties`);
+      const response = await fetch(`/api/clients/${id}/scraped-properties`);
       if (!response.ok) {
         if (response.status === 400) {
           return [];
         }
-        throw new Error('Errore nel caricamento delle proprietà condivise compatibili');
+        throw new Error('Errore nel caricamento degli immobili scrapati');
       }
       return response.json();
     }
@@ -1077,32 +1077,63 @@ export default function ClientDetailPage() {
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle>Possibili Immobili</CardTitle>
-                  <CardDescription>Proprietà condivise che potrebbero interessare il cliente</CardDescription>
+                  <CardDescription>
+                    {(client as any)?.rating === 5 
+                      ? "Immobili da altre agenzie trovati tramite scraping (Rating 5)" 
+                      : "Disponibile solo per clienti con rating 5"
+                    }
+                  </CardDescription>
                 </div>
+                {(client as any)?.rating === 5 && (
+                  <Button 
+                    onClick={() => refetchScrapedProperties()} 
+                    disabled={isScrapedPropertiesLoading}
+                    data-testid="button-refresh-scraped-properties"
+                  >
+                    {isScrapedPropertiesLoading ? (
+                      <><i className="fas fa-spinner animate-spin mr-2"></i>Ricerca...</>
+                    ) : (
+                      <><i className="fas fa-sync mr-2"></i>Aggiorna</>
+                    )}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
-                {isMatchingSharedPropertiesLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-                  </div>
-                ) : !matchingSharedProperties || matchingSharedProperties.length === 0 ? (
+                {(client as any)?.rating !== 5 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
-                      <i className="fas fa-building"></i>
+                      <i className="fas fa-star-half-alt"></i>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Nessuna proprietà condivisa</h3>
+                    <h3 className="text-lg font-medium mb-2">Rating non sufficiente</h3>
                     <p>
-                      Non ci sono proprietà condivise compatibili con le preferenze del cliente.
+                      Questa funzionalità è disponibile solo per clienti con rating 5.<br />
+                      Rating attuale: {(client as any)?.rating || 'N/A'}
+                    </p>
+                  </div>
+                ) : isScrapedPropertiesLoading ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+                    <p className="text-gray-500">Ricerca immobili in corso...</p>
+                  </div>
+                ) : !scrapedProperties || scrapedProperties.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-5xl mb-4">
+                      <i className="fas fa-search"></i>
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">Nessun immobile trovato</h3>
+                    <p>
+                      Non sono stati trovati immobili compatibili da altre agenzie.<br />
+                      Clicca "Aggiorna" per fare una nuova ricerca.
                     </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {matchingSharedProperties.map((property) => (
-                      <Card key={property.id} className="overflow-hidden">
+                    {scrapedProperties.map((property, idx) => (
+                      <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className="overflow-hidden" data-testid={`card-property-${idx}`}>
                         <div className="aspect-video relative bg-gray-100">
-                          {property.images && property.images.length > 0 ? (
+                          {property.imageUrls && property.imageUrls.length > 0 ? (
                             <img 
-                              src={property.images[0]} 
+                              src={property.imageUrls[0]} 
                               alt={property.title} 
                               className="w-full h-full object-cover" 
                             />
@@ -1111,35 +1142,30 @@ export default function ClientDetailPage() {
                               <i className="fas fa-building text-4xl"></i>
                             </div>
                           )}
-                          <div className="absolute top-2 right-2">
+                          <div className="absolute top-2 right-2 flex gap-2">
+                            <Badge className="bg-blue-600/90 text-white">
+                              {property.portalSource}
+                            </Badge>
                             <Badge className="bg-primary-900/80 text-white">
                               € {property.price?.toLocaleString() || "N/D"}
                             </Badge>
                           </div>
                         </div>
                         <CardContent className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-semibold text-lg line-clamp-1">
-                                <Link href={`/properties/shared/${property.id}`} className="hover:text-primary-600">
-                                  {property.title}
-                                </Link>
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg line-clamp-1" data-testid={`text-title-${idx}`}>
+                                {property.title}
                               </h3>
-                              <p className="text-sm text-gray-600 line-clamp-1">{property.address}</p>
+                              <p className="text-sm text-gray-600 line-clamp-1" data-testid={`text-address-${idx}`}>
+                                {property.address}
+                              </p>
+                              {property.agencyName && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  <i className="fas fa-building mr-1"></i>{property.agencyName}
+                                </p>
+                              )}
                             </div>
-                            <Badge variant="outline" className={
-                              property.stage === "identified" ? "border-blue-400 text-blue-600" :
-                              property.stage === "contacted" ? "border-amber-400 text-amber-600" :
-                              property.stage === "visited" ? "border-green-400 text-green-600" :
-                              property.stage === "negotiating" ? "border-purple-400 text-purple-600" :
-                              "border-gray-400 text-gray-600"
-                            }>
-                              {property.stage === "identified" ? "Identificato" :
-                               property.stage === "contacted" ? "Contattato" :
-                               property.stage === "visited" ? "Visitato" :
-                               property.stage === "negotiating" ? "In Trattativa" :
-                               property.stage}
-                            </Badge>
                           </div>
                           
                           <div className="flex justify-between mt-3 text-sm">
@@ -1160,27 +1186,23 @@ export default function ClientDetailPage() {
                             </div>
                           </div>
                           
-                          <div className="mt-4 flex justify-between">
+                          {property.description && (
+                            <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                              {property.description}
+                            </p>
+                          )}
+                          
+                          <div className="mt-4 flex gap-2">
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="text-xs"
+                              className="text-xs flex-1"
                               asChild
+                              data-testid={`button-view-external-${idx}`}
                             >
-                              <Link href={`/properties/shared/${property.id}`}>
-                                <i className="fas fa-info-circle mr-1"></i> Dettagli
-                              </Link>
-                            </Button>
-                            
-                            <Button 
-                              variant="default" 
-                              size="sm" 
-                              className="text-xs"
-                              asChild
-                            >
-                              <Link href={`/communications/whatsapp?clientId=${id}&sharedPropertyId=${property.id}`}>
-                                <i className="fab fa-whatsapp mr-1"></i> Invia
-                              </Link>
+                              <a href={property.url} target="_blank" rel="noopener noreferrer">
+                                <i className="fas fa-external-link-alt mr-1"></i> Vedi annuncio
+                              </a>
                             </Button>
                           </div>
                         </CardContent>
