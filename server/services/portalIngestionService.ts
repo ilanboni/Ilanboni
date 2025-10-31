@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { properties } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import { geocodingService } from "./geocodingService";
 
 export interface PropertyListing {
   externalId: string;
@@ -152,7 +153,7 @@ export class PortalIngestionService {
     try {
       const results: IngestionResult[] = [];
 
-      for (const adapter of this.adapters.values()) {
+      for (const adapter of Array.from(this.adapters.values())) {
         const isAvailable = await adapter.isAvailable().catch(() => false);
         if (!isAvailable) {
           console.log(`[INGESTION] Skipping ${adapter.name} - not available`);
@@ -200,7 +201,7 @@ export class PortalIngestionService {
       
       console.log(`[INGESTION] Updated existing property: ${listing.externalId}`);
     } else {
-      await db.insert(properties).values({
+      const inserted = await db.insert(properties).values({
         address: listing.address,
         city: listing.city,
         size: listing.size,
@@ -218,10 +219,34 @@ export class PortalIngestionService {
         lastSeenAt: now,
         isOwned: false,
         isShared: false,
-        status: 'available' // CRITICAL FIX: Include in deduplication scan
-      });
+        status: 'available', // CRITICAL FIX: Include in deduplication scan
+        geocodeStatus: 'pending'
+      }).returning();
       
       console.log(`[INGESTION] Imported new property: ${listing.externalId}`);
+      
+      // Geocode in background (non-blocking with rate limiting)
+      if (inserted[0]) {
+        geocodingService.geocodeAddress(listing.address, listing.city)
+          .then(coords => {
+            if (coords) {
+              db.update(properties)
+                .set({
+                  latitude: coords.lat,
+                  longitude: coords.lng,
+                  geocodeStatus: 'success'
+                })
+                .where(eq(properties.id, inserted[0].id))
+                .catch(err => console.error('[INGESTION] Geocode update failed:', err));
+            } else {
+              db.update(properties)
+                .set({ geocodeStatus: 'failed' })
+                .where(eq(properties.id, inserted[0].id))
+                .catch(err => console.error('[INGESTION] Geocode status update failed:', err));
+            }
+          })
+          .catch(err => console.error('[INGESTION] Geocode failed:', err));
+      }
     }
   }
 

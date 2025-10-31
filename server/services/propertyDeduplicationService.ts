@@ -7,6 +7,7 @@
 
 import { Property } from '@shared/schema';
 import { calculateImageHashes, clusterSimilarImages, ImageHash } from './imageHashService';
+import { geocodingService } from './geocodingService';
 // @ts-ignore - deprecated but functional
 import stringSimilarity from 'string-similarity';
 
@@ -46,13 +47,32 @@ function normalizeAddress(address: string): string {
 
 /**
  * Calcola score di similarità tra due immobili basato su prezzo, mq, piano, indirizzo
+ * Con supporto per fuzzy matching geografico (tolleranza 500m)
  */
 function calculatePropertySimilarity(prop1: Property, prop2: Property): { score: number; reasons: string[] } {
   const reasons: string[] = [];
   let totalScore = 0;
   let maxScore = 0;
   
-  if (prop1.address && prop2.address) {
+  // Geographic fuzzy matching (500m tolerance) - PREFERRED method
+  if (prop1.latitude && prop1.longitude && prop2.latitude && prop2.longitude) {
+    maxScore += 40;
+    const distance = geocodingService.calculateDistance(
+      prop1.latitude, 
+      prop1.longitude, 
+      prop2.latitude, 
+      prop2.longitude
+    );
+    
+    // 500m tolerance for same property
+    if (distance <= 500) {
+      const points = Math.max(0, 40 * (1 - distance / 500)); // Full points at 0m, 0 points at 500m
+      totalScore += points;
+      reasons.push(`Distanza geografica: ${Math.round(distance)}m`);
+    }
+  } 
+  // Fallback to string-based address matching if no coordinates
+  else if (prop1.address && prop2.address) {
     maxScore += 40;
     const addr1 = normalizeAddress(prop1.address);
     const addr2 = normalizeAddress(prop2.address);

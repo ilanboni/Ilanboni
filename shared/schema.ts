@@ -109,7 +109,7 @@ export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
   address: text("address").notNull(),
   city: text("city").notNull(),
-  size: integer("size").notNull(), // in square meters
+  size: integer("size"), // in square meters (optional - not all listings provide it)
   price: integer("price").notNull(), // in EUR
   type: text("type").notNull(), // apartment, house, villa, etc.
   bedrooms: integer("bedrooms"),
@@ -123,6 +123,10 @@ export const properties = pgTable("properties", {
   externalLink: text("external_link"), // link to listing on website
   immobiliareItId: text("immobiliare_it_id"), // ID annuncio immobiliare.it per associazione automatica email
   ownerName: text("owner_name"), // nome del proprietario
+  // Geocoding for fuzzy address matching
+  latitude: text("latitude"), // stored as text for precision
+  longitude: text("longitude"),
+  geocodeStatus: text("geocode_status").default("pending"), // pending, success, failed
   ownerPhone: text("owner_phone"), // telefono del proprietario  
   ownerEmail: text("owner_email"), // email del proprietario
   location: jsonb("location"), // lat/lng
@@ -137,6 +141,18 @@ export const properties = pgTable("properties", {
   firstSeenAt: timestamp("first_seen_at"), // prima volta che l'annuncio è stato visto
   lastSeenAt: timestamp("last_seen_at"), // ultimo aggiornamento
   url: text("url"), // URL completo dell'annuncio
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Geocode cache (reduce Nominatim API calls)
+export const geocodeCache = pgTable("geocode_cache", {
+  id: serial("id").primaryKey(),
+  normalizedAddress: text("normalized_address").notNull().unique(), // "via milano 10, milano" normalized
+  latitude: text("latitude"),
+  longitude: text("longitude"),
+  status: text("status").notNull(), // success, failed, pending
+  errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });

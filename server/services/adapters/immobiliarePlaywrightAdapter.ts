@@ -18,13 +18,22 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
     await this.respectRateLimit();
 
     let page: Page | null = null;
+    let browserCreated = false;
     try {
-      if (!this.browser) {
-        this.browser = await chromium.launch({
-          headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+      // Always create a fresh browser for each search to avoid "browser closed" errors
+      if (this.browser) {
+        try {
+          await this.browser.close();
+        } catch (e) {
+          // Ignore close errors
+        }
       }
+      
+      this.browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      browserCreated = true;
 
       page = await this.browser.newPage({
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -54,7 +63,11 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
       return [];
     } finally {
       if (page) {
-        await page.close();
+        await page.close().catch(() => {});
+      }
+      if (browserCreated && this.browser) {
+        await this.browser.close().catch(() => {});
+        this.browser = null;
       }
     }
   }
@@ -304,7 +317,9 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
       const cityMatch = address.match(/,\s*([^,]+)$/);
       const city = cityMatch?.[1]?.trim() || 'Milano';
 
-      if (!url || !title || size === 0 || price === 0) {
+      // Relaxed validation: only require URL, title, and price
+      // Size is optional as many listings don't provide it
+      if (!url || !title || price === 0) {
         console.log(`[IMMOBILIARE-PW] Skipping invalid listing - URL:${!!url} Title:${!!title} Size:${size} Price:${price}`);
         return null;
       }
@@ -315,7 +330,7 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
         address: address.trim() || 'Milano',
         city,
         price,
-        size,
+        size: size || undefined,
         bedrooms,
         bathrooms,
         floor,
