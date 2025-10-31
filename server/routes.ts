@@ -3585,6 +3585,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual trigger: Scrape single Milano zone with Playwright
+  app.post("/api/apify/scrape-zone", async (req: Request, res: Response) => {
+    try {
+      const { zone } = req.body;
+      
+      if (!zone) {
+        return res.status(400).json({ 
+          error: "Zone parameter required",
+          message: "Provide zone name in request body" 
+        });
+      }
+      
+      console.log(`[POST /api/scrape-zone] 🚀 Starting ${zone} scrape with Playwright...`);
+      
+      const { milanoScrapingService } = await import('./services/milanoScrapingService');
+      
+      // Scrape single zone using Playwright
+      const result = await milanoScrapingService.scrapeZone(zone);
+      
+      console.log(`[ZONE-SCRAPE] Completed: ${result.imported} imported, ${result.failed} failed`);
+      
+      // Trigger deduplication scan
+      if (result.imported > 0) {
+        try {
+          console.log('[ZONE-SCRAPE] Triggering deduplication scan...');
+          const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
+          await runDeduplicationScan();
+          console.log('[ZONE-SCRAPE] Deduplication completed');
+        } catch (dedupError) {
+          console.error('[ZONE-SCRAPE] Deduplication failed:', dedupError);
+        }
+      }
+      
+      res.json({
+        success: true,
+        zone,
+        totalFetched: result.totalFetched,
+        imported: result.imported,
+        updated: result.updated,
+        failed: result.failed,
+        errors: result.errors
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/scrape-zone]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Scraping failed' 
+      });
+    }
+  });
+
   // Manual Casafari Alerts pull - fetch from Casafari API and import
   app.post("/api/manual/casafari/pull", async (req: Request, res: Response) => {
     try {
