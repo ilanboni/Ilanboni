@@ -3,6 +3,16 @@
 ## Overview
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
+## Recent Changes (October 31, 2025)
+- **Multi-Agency Property Acquisition Workflow**: Transformed duplicates page into complete acquisition management system with card-based interface
+  - Each shared property shown as expandable card with tabs: Details, Agencies, Pipeline, Activities, Interested Clients
+  - Pipeline visualization with 5 stages: address_found → owner_found → owner_contact_found → owner_contacted → result (acquired/rejected/pending)
+  - Automatic buyer matching on acquisition: when property acquired, system creates match records for all compatible buyers
+  - Activity tracking: tasks can be created/linked to specific shared properties
+  - JSONB `agencies` field in schema allows tracking unlimited number of agencies per property
+  - Transaction-safe acquisition with duplicate match protection
+  - Geographic filter removed: system now covers entire Milano commune without distance restrictions
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 

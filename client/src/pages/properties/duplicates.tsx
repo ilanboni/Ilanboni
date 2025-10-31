@@ -18,6 +18,7 @@ import {
 import { Helmet } from "react-helmet";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { SharedPropertyCard } from "@/components/properties/SharedPropertyCard";
 
 interface ScanResult {
   ok: boolean;
@@ -41,13 +42,38 @@ interface PropertyCluster {
   duplicateCount: number;
 }
 
+interface SharedProperty {
+  id: number;
+  address: string;
+  city?: string | null;
+  size?: number | null;
+  price?: number | null;
+  type?: string | null;
+  floor?: string | null;
+  rating?: number | null;
+  stage?: string | null;
+  stageResult?: string | null;
+  isAcquired?: boolean | null;
+  ownerName?: string | null;
+  ownerPhone?: string | null;
+  ownerEmail?: string | null;
+  ownerNotes?: string | null;
+  agencies?: any[] | null;
+  agency1Name?: string | null;
+  agency1Link?: string | null;
+  agency2Name?: string | null;
+  agency2Link?: string | null;
+  agency3Name?: string | null;
+  agency3Link?: string | null;
+}
+
 export default function PropertyDuplicatesPage() {
   const { toast } = useToast();
   const [lastScanResult, setLastScanResult] = useState<ScanResult | null>(null);
 
-  // Query per ottenere proprietà multi-agency
-  const { data: multiAgencyProperties, isLoading } = useQuery<PropertyCluster[]>({
-    queryKey: ['/api/deduplication/results']
+  // Query per ottenere shared properties (proprietà multi-agency dal DB)
+  const { data: sharedProperties, isLoading } = useQuery<SharedProperty[]>({
+    queryKey: ['/api/shared-properties']
   });
 
   // Mutation per scansione manuale
@@ -82,6 +108,7 @@ export default function PropertyDuplicatesPage() {
       });
       // Invalida cache per aggiornare lista
       queryClient.invalidateQueries({ queryKey: ['/api/deduplication/results'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
       queryClient.invalidateQueries({ queryKey: ['/api/analytics/shared-properties-ranking'] });
     },
     onError: (error: any) => {
@@ -95,6 +122,47 @@ export default function PropertyDuplicatesPage() {
 
   const handleScan = () => {
     scanMutation.mutate();
+  };
+
+  // Handler per cambio stage
+  const handleStageChange = async (propertyId: number, newStage: string) => {
+    try {
+      await apiRequest(`/api/shared-properties/${propertyId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ stage: newStage })
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
+      toast({
+        title: "✅ Stage aggiornato",
+        description: "Lo stage della proprietà è stato aggiornato con successo"
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Errore",
+        description: "Impossibile aggiornare lo stage",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handler per acquisizione
+  const handleAcquire = async (propertyId: number) => {
+    try {
+      await apiRequest(`/api/shared-properties/${propertyId}/acquire`, {
+        method: 'POST'
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
+      toast({
+        title: "🎉 Immobile Acquisito!",
+        description: "L'immobile è stato acquisito e il matching con i clienti è stato avviato"
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Errore",
+        description: "Impossibile acquisire l'immobile",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -210,66 +278,23 @@ export default function PropertyDuplicatesPage() {
           <CardContent>
             {isLoading ? (
               <LoadingSkeleton />
-            ) : multiAgencyProperties && multiAgencyProperties.length > 0 ? (
+            ) : sharedProperties && sharedProperties.length > 0 ? (
               <div className="space-y-3">
-                {multiAgencyProperties.map((property) => (
-                  <div
+                {sharedProperties.map((property) => (
+                  <SharedPropertyCard
                     key={property.id}
-                    className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                    data-testid={`property-duplicate-${property.id}`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-medium text-gray-900">
-                          {property.address}
-                        </h3>
-                        <p className="text-sm text-gray-600">{property.city}</p>
-                      </div>
-                      <Badge variant="default" className="bg-orange-100 text-orange-800">
-                        <Users className="h-3 w-3 mr-1" />
-                        Multi-Agency
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div>
-                        <span className="text-gray-500">Superficie:</span>
-                        <span className="ml-1 font-medium">{property.size} m²</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Prezzo:</span>
-                        <span className="ml-1 font-medium">
-                          {property.price.toLocaleString('it-IT')} €
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Duplicati:</span>
-                        <span className="ml-1 font-medium">{property.duplicateCount}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Agenzie:</span>
-                        <span className="ml-1 font-medium">{property.agencies.length}</span>
-                      </div>
-                    </div>
-
-                    {property.agencies.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {property.agencies.map((agency, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {agency}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    property={property}
+                    onStageChange={handleStageChange}
+                    onAcquire={handleAcquire}
+                  />
                 ))}
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
                 <Building2 className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                <p className="font-medium">Nessun duplicato trovato</p>
+                <p className="font-medium">Nessuna proprietà multi-agency trovata</p>
                 <p className="text-sm mt-1">
-                  Clicca "Scansiona Ora" per avviare l'analisi di deduplicazione
+                  Clicca "Scansiona Ora" per avviare l'analisi di deduplicazione e creare schede automaticamente
                 </p>
               </div>
             )}

@@ -2124,6 +2124,7 @@ export class DatabaseStorage implements IStorage {
         isAcquired: true, 
         stage: "result", 
         stageResult: "acquired",
+        matchBuyers: true,
         updatedAt: new Date()
       })
       .where(eq(sharedProperties.id, id));
@@ -2141,7 +2142,42 @@ export class DatabaseStorage implements IStorage {
       location: sharedProperty.location
     };
     
-    await this.createProperty(propertyData);
+    const newProperty = await this.createProperty(propertyData);
+    
+    // Trigger automatic matching with interested buyers
+    console.log(`[acquireSharedProperty] Avvio matching automatico per proprietà ${id}`);
+    const matchingBuyers = await this.getMatchingBuyersForSharedProperty(id);
+    
+    // Create match records for each matching buyer (con protezione duplicati)
+    for (const buyer of matchingBuyers) {
+      try {
+        // Verifica se esiste già un match per evitare duplicati
+        const existingMatch = await db.select()
+          .from(matches)
+          .where(and(
+            eq(matches.clientId, buyer.id),
+            eq(matches.sharedPropertyId, id)
+          ))
+          .limit(1);
+
+        if (existingMatch.length === 0) {
+          await db.insert(matches).values({
+            clientId: buyer.id,
+            sharedPropertyId: id,
+            propertyId: newProperty.id,
+            score: 85, // Default match score
+            createdAt: new Date()
+          });
+          console.log(`[acquireSharedProperty] Match creato per cliente ${buyer.id} (${buyer.firstName} ${buyer.lastName})`);
+        } else {
+          console.log(`[acquireSharedProperty] Match già esistente per cliente ${buyer.id}, skip`);
+        }
+      } catch (error) {
+        console.error(`[acquireSharedProperty] Errore creazione match per cliente ${buyer.id}:`, error);
+      }
+    }
+    
+    console.log(`[acquireSharedProperty] Matching completato: ${matchingBuyers.length} clienti interessati`);
     return true;
   }
 
