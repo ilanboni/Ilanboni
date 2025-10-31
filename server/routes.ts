@@ -3585,6 +3585,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual trigger: Scrape FULL Milano city (no zones, no distance filters)
+  app.post("/api/apify/scrape-full-city", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/scrape-full-city] 🚀 Starting FULL Milano city scrape...');
+      
+      const { milanoScrapingService } = await import('./services/milanoScrapingService');
+      
+      // Scrape entire Milano city in one search
+      const result = await milanoScrapingService.scrapeFullCity();
+      
+      console.log(`[FULL-CITY-SCRAPE] Completed: ${result.imported} imported, ${result.failed} failed`);
+      
+      // Trigger deduplication scan
+      if (result.imported > 0) {
+        try {
+          console.log('[FULL-CITY-SCRAPE] Triggering deduplication scan...');
+          const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
+          await runDeduplicationScan();
+          console.log('[FULL-CITY-SCRAPE] Deduplication completed');
+        } catch (dedupError) {
+          console.error('[FULL-CITY-SCRAPE] Deduplication failed:', dedupError);
+        }
+      }
+      
+      res.json({
+        success: true,
+        method: 'full-city',
+        totalFetched: result.totalFetched,
+        imported: result.imported,
+        updated: result.updated,
+        failed: result.failed,
+        errors: result.errors
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/scrape-full-city]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Scraping failed' 
+      });
+    }
+  });
+
   // Manual trigger: Scrape single Milano zone with Playwright
   app.post("/api/apify/scrape-zone", async (req: Request, res: Response) => {
     try {

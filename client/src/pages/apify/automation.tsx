@@ -3,12 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Zap, Database, CheckCircle2, AlertCircle, Download } from 'lucide-react';
+import { Loader2, Zap, Database, CheckCircle2, AlertCircle, Download, MapPin } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
 export default function ApifyAutomation() {
   const [testing, setTesting] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const [scrapingFullCity, setScrapingFullCity] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [scrapeResult, setScrapeResult] = useState<any>(null);
   const { toast } = useToast();
@@ -46,12 +47,47 @@ export default function ApifyAutomation() {
     }
   };
 
+  const startScrapingFullCity = async () => {
+    setScrapingFullCity(true);
+    setScrapeResult(null);
+    
+    toast({
+      title: '🚀 Scraping COMPLETO avviato',
+      description: 'Acquisizione COMPLETA di Milano senza limiti geografici...'
+    });
+    
+    try {
+      const data = await apiRequest('/api/apify/scrape-full-city', {
+        method: 'POST'
+      });
+      
+      setScrapeResult(data);
+      
+      toast({
+        title: '✅ Scraping completato',
+        description: `${data.imported} immobili importati su ${data.totalFetched} totali`
+      });
+    } catch (error) {
+      toast({
+        title: '❌ Errore scraping',
+        description: error instanceof Error ? error.message : 'Errore sconosciuto',
+        variant: 'destructive'
+      });
+      setScrapeResult({ 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    } finally {
+      setScrapingFullCity(false);
+    }
+  };
+
   const startScraping = async () => {
     setScraping(true);
     setScrapeResult(null);
     
     toast({
-      title: '🚀 Scraping avviato',
+      title: '🚀 Scraping zone-based avviato',
       description: 'Questo processo potrebbe richiedere diversi minuti...'
     });
     
@@ -86,47 +122,88 @@ export default function ApifyAutomation() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Automazione Scraping Milano</h1>
         <p className="text-muted-foreground">
-          Sistema automatizzato di acquisizione immobili da Immobiliare.it usando Playwright (solo Milano, entro 5 km dal Duomo)
+          Sistema automatizzato di acquisizione immobili da Immobiliare.it usando Playwright - TUTTA Milano senza limiti geografici
         </p>
       </div>
 
-      {/* Scraping Card */}
+      {/* Full City Scraping Card */}
+      <Card className="mb-6 border-green-200 bg-green-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-green-600" />
+            <span className="text-green-900">Scraping COMPLETO Milano</span>
+            <Badge variant="default" className="ml-2 bg-green-600">CONSIGLIATO</Badge>
+          </CardTitle>
+          <CardDescription className="text-green-800">
+            Acquisizione COMPLETA di tutta Milano - senza filtri geografici, massima copertura
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2 text-sm">
+            <p className="text-green-900"><strong>✅ NESSUN FILTRO GEOGRAFICO</strong> - tutto il comune di Milano incluso periferie (Bovisa, Bicocca, etc.)</p>
+            <p className="text-muted-foreground">• 🏙️ Ricerca unica su tutta la città</p>
+            <p className="text-muted-foreground">• 📥 Import automatico con Playwright</p>
+            <p className="text-muted-foreground">• 🔄 Deduplicazione multi-agency automatica</p>
+            <p className="text-muted-foreground">• 🏢 Identificazione proprietà pluricondivise</p>
+            <p className="text-muted-foreground">• 🆓 Completamente gratuito (no costi API)</p>
+          </div>
+          
+          <Button 
+            onClick={startScrapingFullCity} 
+            disabled={scrapingFullCity}
+            className="w-full bg-green-600 hover:bg-green-700"
+            size="lg"
+            data-testid="button-start-full-scraping"
+          >
+            {scrapingFullCity && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {scrapingFullCity ? 'Scraping COMPLETO in corso...' : '🚀 Avvia Scraping COMPLETO Milano'}
+          </Button>
+          
+          {scrapingFullCity && (
+            <div className="p-3 rounded-md bg-green-100 border border-green-300">
+              <p className="text-sm text-green-900">
+                ⏳ Scraping COMPLETO in corso... Acquisizione di TUTTA Milano senza limiti geografici.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Zone-based Scraping Card (Legacy) */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            Scraping Automatico Milano
+            Scraping Zone-Based (Metodo Legacy)
           </CardTitle>
           <CardDescription>
-            Importa immobili da Immobiliare.it usando Playwright (solo Milano, entro 5 km dal Duomo)
+            Ricerca per zone specifiche - utile per test o aree mirate
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2 text-sm text-muted-foreground">
-            <p>• 📍 Solo Milano (raggio 5 km dal Duomo)</p>
-            <p>• 🔍 Ricerca multipla: 8 zone di Milano</p>
+            <p>• 🔍 Ricerca multipla: 30 zone di Milano</p>
             <p>• 📥 Import automatico con Playwright</p>
             <p>• 🔄 Deduplicazione multi-agency</p>
-            <p>• 🏢 Identificazione proprietà pluricondivise</p>
-            <p>• 🆓 Completamente gratuito (no costi API)</p>
+            <p>• ⚠️ Potrebbe mancare qualche annuncio rispetto a full-city</p>
           </div>
           
           <Button 
             onClick={startScraping} 
             disabled={scraping}
             className="w-full"
-            variant="default"
+            variant="outline"
             size="lg"
-            data-testid="button-start-scraping"
+            data-testid="button-start-zone-scraping"
           >
             {scraping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {scraping ? 'Scraping in corso...' : 'Avvia Scraping Milano'}
+            {scraping ? 'Scraping zone in corso...' : 'Avvia Scraping Zone-Based'}
           </Button>
           
           {scraping && (
             <div className="p-3 rounded-md bg-blue-50 border border-blue-200">
               <p className="text-sm text-blue-900">
-                ⏳ Scraping in corso... Questo processo può richiedere 5-10 minuti per scansionare tutte le zone di Milano.
+                ⏳ Scraping in corso... Questo processo può richiedere 10-20 minuti per scansionare tutte le 30 zone.
               </p>
             </div>
           )}
@@ -206,7 +283,7 @@ export default function ApifyAutomation() {
           <div className="space-y-3 text-sm">
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">1</Badge>
-              <p><strong>Scraping Multi-Zona:</strong> Ricerca automatica su 8 zone centrali di Milano usando Playwright. <strong className="text-blue-600">Filtro geografico: solo Milano entro 5 km dal Duomo</strong></p>
+              <p><strong>Scraping COMPLETO Milano:</strong> Ricerca automatica su TUTTA la città usando Playwright. <strong className="text-green-600">✅ NESSUN FILTRO GEOGRAFICO</strong> - include Bovisa, Bicocca, Lambrate, tutte le periferie</p>
             </div>
             <div className="flex gap-3">
               <Badge variant="outline" className="h-6">2</Badge>
