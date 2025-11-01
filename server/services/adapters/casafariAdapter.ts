@@ -42,21 +42,41 @@ export class CasafariAdapter implements PortalAdapter {
       // Create or get existing feed for this search
       const feedId = await this.getOrCreateFeed(criteria);
       
-      // Get results from feed
-      const data: Data = await client.getFeed(feedId, {
-        limit: 100,
-        offset: 0,
-        order_by: 'alert_id'
-      });
+      // Paginate through all results
+      const allListings: PropertyListing[] = [];
+      let offset = 0;
+      const batchSize = 100;
+      let hasMore = true;
 
-      console.log(`[CASAFARI] Found ${data.count} total listings (${data.results.length} in this batch)`);
+      while (hasMore) {
+        const data: Data = await client.getFeed(feedId, {
+          limit: batchSize,
+          offset,
+          order_by: 'alert_id'
+        });
 
-      // Transform Casafari results to our PropertyListing format
-      const listings: PropertyListing[] = data.results
-        .filter(r => r.operations.includes('sale')) // Only sale listings
-        .map(result => this.transformResult(result));
+        console.log(`[CASAFARI] Batch ${offset / batchSize + 1}: ${data.results.length} listings (${data.count} total available)`);
 
-      return listings;
+        // Transform Casafari results to our PropertyListing format
+        const batchListings: PropertyListing[] = data.results
+          .filter(r => r.operations.includes('sale')) // Only sale listings
+          .map(result => this.transformResult(result));
+
+        allListings.push(...batchListings);
+
+        // Check if we need to fetch more
+        hasMore = data.results.length === batchSize && allListings.length < data.count;
+        offset += batchSize;
+
+        // Safety limit: max 500 results per zone to avoid excessive API calls
+        if (allListings.length >= 500) {
+          console.log(`[CASAFARI] Reached safety limit of 500 results for this zone`);
+          break;
+        }
+      }
+
+      console.log(`[CASAFARI] Total fetched: ${allListings.length} listings`);
+      return allListings;
     } catch (error) {
       console.error('[CASAFARI] Search failed:', error);
       return [];
@@ -69,8 +89,30 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   async cleanup(): Promise<void> {
-    // Clean up any temporary feeds if needed
-    this.feedCache.clear();
+    // Delete all feeds created by this adapter to prevent accumulation
+    try {
+      const client = await this.getClient();
+      
+      // Get all feed IDs from cache
+      const feedIds = Array.from(this.feedCache.values());
+      
+      console.log(`[CASAFARI] Cleaning up ${feedIds.length} temporary feeds`);
+      
+      // Delete each feed
+      for (const feedId of feedIds) {
+        try {
+          await client.deleteFeed(feedId);
+          console.log(`[CASAFARI] Deleted feed #${feedId}`);
+        } catch (error) {
+          console.warn(`[CASAFARI] Failed to delete feed #${feedId}:`, error);
+        }
+      }
+      
+      this.feedCache.clear();
+    } catch (error) {
+      console.error('[CASAFARI] Cleanup failed:', error);
+      this.feedCache.clear();
+    }
   }
 
   async isAvailable(): Promise<boolean> {
@@ -90,12 +132,18 @@ export class CasafariAdapter implements PortalAdapter {
     
     // Check if we already have a feed for this search
     if (this.feedCache.has(cacheKey)) {
+      console.log(`[CASAFARI] Reusing cached feed for ${criteria.zone || criteria.city}`);
       return this.feedCache.get(cacheKey)!;
     }
 
+    // NOTE: Casafari API limitation - custom_locations not supported in current SDK version
+    // The API returns 400 errors when trying to use geographic filters
+    // This means we get results from all of Italy, not just specific Milano zones
+    // Future improvement: investigate Casafari location_ids or upgrade to newer API version
+    
     // Create new feed
     const feedPayload: FeedPayload = {
-      name: `Auto-search ${criteria.city} ${criteria.zone || ''} ${Date.now()}`,
+      name: `Auto: ${criteria.city} ${criteria.zone || ''} (${criteria.propertyType || 'any'})`,
       filter: {
         operation: 'sale',
         types: [criteria.propertyType === 'house' ? 'house' : 'apartment'],
@@ -103,12 +151,12 @@ export class CasafariAdapter implements PortalAdapter {
         ...(criteria.minPrice && { price_from: criteria.minPrice }),
         ...(criteria.minSize && { total_area_from: criteria.minSize }),
         ...(criteria.maxSize && { total_area_to: criteria.maxSize }),
-        ...(criteria.bedrooms && { bedrooms_from: criteria.bedrooms }),
-        // Note: Casafari needs location_ids or custom_locations
-        // For now we'll search all of Milano - in production you'd need to map zone names to location IDs
+        ...(criteria.bedrooms && { bedrooms_from: criteria.bedrooms })
+        // Geographic filtering not available - searches all of Italy
       }
     };
 
+    console.log(`[CASAFARI] Creating feed for ${criteria.zone || criteria.city} (no geographic filter available)`);
     const feed = await client.createFeed(feedPayload);
     console.log(`[CASAFARI] Created feed #${feed.id}: ${feed.name}`);
 

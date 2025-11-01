@@ -4,6 +4,19 @@
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
 ## Recent Changes (November 1, 2025)
+- **Casafari API Integration**: Implemented professional B2B real estate data aggregator for Italian market
+  - Replaced failed Playwright/Apify scraping approaches (blocked by anti-bot systems on Idealista/Immobiliare.it)
+  - Installed `casafari` SDK package and created `CasafariAdapter` implementing `PortalAdapter` interface
+  - Feed-based search system: automatically creates saved searches (feeds) for each zone/criteria combination with caching
+  - Aggregates data from ALL Italian portals (Idealista, Immobiliare.it, Casa.it, etc.) in single API call
+  - Pagination support: fetches up to 500 properties per zone (100 per batch) to ensure comprehensive coverage
+  - Automatic feed cleanup: deletes temporary feeds after use to prevent accumulation on Casafari account
+  - Successfully tested: 469 properties retrieved for client Lidia Aliprandi (6 zones completed before quota limit)
+  - Dynamic import solution for CommonJS module compatibility with ESM project
+  - Environment variable: CASAFARI_API_TOKEN required for authentication
+  - Legal and reliable alternative to web scraping with no anti-bot blocking issues
+  - **Known Limitation**: Geographic filtering (custom_locations) not supported in current SDK version - searches return results from all of Italy, requiring client-side filtering by address
+
 - **Mobile Responsive Optimization**: Complete iPhone responsive design implementation
   - Fixed client detail page tabs: now horizontally scrollable on mobile, all 10+ tabs accessible via swipe
   - Added iOS safe area support for iPhone notch/home bar (env(safe-area-inset-*))
@@ -77,5 +90,5 @@ The application features a modern full-stack architecture.
 - **string-similarity**: Fuzzy matching for property deduplication
 - **UltraMsg**: WhatsApp messaging integration
 - **OpenAI SDK + Replit AI Integrations**: AI features using GPT-5.
-- **Apify**: Automated web scraping service for property ingestion.
+- **Casafari SDK**: Professional B2B real estate data aggregator for Italian market (replaces Apify/Playwright scraping).
 - **Nominatim**: Geocoding services.
