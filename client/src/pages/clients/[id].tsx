@@ -115,9 +115,9 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Fetch matching shared properties
-  const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
-    queryKey: [`/api/clients/${id}/matching-shared-properties`],
+  // Fetch scraped properties from online portals (Immobiliare.it, Idealista)
+  const { data: scrapedProperties, isLoading: isScrapedPropertiesLoading } = useQuery({
+    queryKey: [`/api/clients/${id}/scraped-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
   });
   
@@ -401,7 +401,7 @@ export default function ClientDetailPage() {
                   queryKey: [`/api/clients/${id}/matching-properties`]
                 });
                 queryClient.invalidateQueries({
-                  queryKey: [`/api/clients/${id}/matching-shared-properties`]
+                  queryKey: [`/api/clients/${id}/scraped-properties`]
                 });
                 queryClient.invalidateQueries({
                   queryKey: [`/api/clients/${id}/properties-with-notification-status`]
@@ -1576,33 +1576,33 @@ export default function ClientDetailPage() {
             </Card>
           </TabsContent>
           
-          {/* Possibili Immobili (Proprietà Condivise) Tab */}
+          {/* Possibili Immobili (Scraping Portali) Tab */}
           <TabsContent value="matching-shared" className="space-y-6 mt-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle>Possibili Immobili</CardTitle>
-                  <CardDescription>Proprietà condivise che potrebbero interessare il cliente</CardDescription>
+                  <CardDescription>Immobili online (Immobiliare.it, Idealista) che corrispondono alle richieste del cliente</CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
-                {isMatchingSharedPropertiesLoading ? (
+                {isScrapedPropertiesLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                   </div>
-                ) : !matchingSharedProperties || matchingSharedProperties.length === 0 ? (
+                ) : !scrapedProperties || scrapedProperties.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
-                      <i className="fas fa-building"></i>
+                      <i className="fas fa-search"></i>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Nessuna proprietà condivisa</h3>
+                    <h3 className="text-lg font-medium mb-2">Nessun immobile trovato</h3>
                     <p>
-                      Non ci sono proprietà condivise compatibili con le preferenze del cliente.
+                      Non sono stati trovati immobili online compatibili con le preferenze del cliente.
                     </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {matchingSharedProperties.map((property) => (
+                    {scrapedProperties.map((property) => (
                       <Card key={property.id} className="overflow-hidden">
                         <div className="aspect-video relative bg-gray-100">
                           {property.images && property.images.length > 0 ? (
