@@ -4,6 +4,18 @@
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
 ## Recent Changes (November 1, 2025)
+- **Deduplication System Fix**: Risolto problema critico con falsi positivi giganti
+  - Bug eliminato: il sistema creava cluster di 121+ proprietà su indirizzi generici ("Milano", "")
+  - Implementata validazione rigorosa: proprietà DEVONO avere indirizzo specifico con numero civico
+  - Funzione `isGenericAddress()` blocca matching su city-only addresses e indirizzi vuoti
+  - Blacklist città italiane: Milano, Roma, Torino, Firenze, Bologna, Napoli, Genova, Venezia
+  - Requisiti minimi indirizzo: deve contenere numero civico, lunghezza minima 5 caratteri
+  - Anche con coordinate GPS disponibili, indirizzo specifico è obbligatorio per matching
+  - Test results: ridotti da 129 falsi positivi a 14 multi-agency reali con 7 cluster corretti
+  - Tutti i match ora hanno score 100% su indirizzi identici (variazioni punteggiatura)
+  - Database pulito: eliminate shared_properties create con indirizzi generici
+
+## Recent Changes (November 1, 2025)
 - **Casafari API Integration**: Implemented professional B2B real estate data aggregator for Italian market
   - Replaced failed Playwright/Apify scraping approaches (blocked by anti-bot systems on Idealista/Immobiliare.it)
   - Installed `casafari` SDK package and created `CasafariAdapter` implementing `PortalAdapter` interface
