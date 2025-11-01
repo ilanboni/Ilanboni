@@ -18,8 +18,7 @@ export class IdealistaAdapter implements PortalAdapter {
     await this.respectRateLimit();
 
     try {
-      const response = await axios.get(baseUrl, {
-        params,
+      const response = await axios.get(fullUrl, {
         headers: {
           'User-Agent': USER_AGENT,
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
