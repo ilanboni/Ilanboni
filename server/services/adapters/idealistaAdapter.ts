@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as https from 'https';
 import type { PortalAdapter, PropertyListing, SearchCriteria } from '../portalIngestionService';
 
 const IDEALISTA_BASE_URL = 'https://www.idealista.it';
@@ -11,23 +12,16 @@ export class IdealistaAdapter implements PortalAdapter {
   private lastRequestTime = 0;
 
   async search(criteria: SearchCriteria): Promise<PropertyListing[]> {
-    const { baseUrl, params } = this.buildSearchUrlAndParams(criteria);
-    const fullUrl = params ? `${baseUrl}?${new URLSearchParams(params as any).toString()}` : baseUrl;
+    const {baseUrl, params} = this.buildSearchUrlAndParams(criteria);
+    const queryString = params ? Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&') : '';
+    const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
     console.log(`[IDEALISTA] Searching: ${fullUrl}`);
 
     await this.respectRateLimit();
 
     try {
-      const response = await axios.get(fullUrl, {
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8'
-        },
-        timeout: 15000
-      });
-
-      const listings = this.parseSearchResults(response.data);
+      const html = await this.makeHttpsRequest(fullUrl);
+      const listings = this.parseSearchResults(html);
       console.log(`[IDEALISTA] Found ${listings.length} listings`);
       
       return listings;
@@ -35,6 +29,42 @@ export class IdealistaAdapter implements PortalAdapter {
       console.error('[IDEALISTA] Search failed:', error);
       return [];
     }
+  }
+
+  private makeHttpsRequest(url: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const urlObj = new URL(url);
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8'
+        },
+        timeout: 15000
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            resolve(data);
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}`));
+          }
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+      req.end();
+    });
   }
 
   async fetchDetails(externalId: string): Promise<PropertyListing | null> {
