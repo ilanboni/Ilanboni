@@ -2,7 +2,8 @@ import { db } from "../db";
 import { buyers, clients } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { PropertyListing, SearchCriteria } from "./portalIngestionService";
-import { CasafariAdapter } from "./adapters/casafariAdapter";
+import { ImmobiliarePlaywrightAdapter } from "./adapters/immobiliarePlaywrightAdapter";
+import { IdealistaAdapter } from "./adapters/idealistaAdapter";
 
 export interface ScrapedPropertyResult extends PropertyListing {
   portalSource: string;
@@ -10,7 +11,8 @@ export interface ScrapedPropertyResult extends PropertyListing {
 }
 
 export class ClientPropertyScrapingService {
-  private casafariAdapter = new CasafariAdapter();
+  private immobiliareAdapter = new ImmobiliarePlaywrightAdapter();
+  private idealistaAdapter = new IdealistaAdapter();
 
   async scrapePropertiesForClient(clientId: number): Promise<ScrapedPropertyResult[]> {
     console.log(`[CLIENT-SCRAPING] Starting scraping for client ${clientId}`);
@@ -57,17 +59,30 @@ export class ClientPropertyScrapingService {
 
       console.log(`[CLIENT-SCRAPING] Searching zone: ${zone || 'Milano (generic)'}`, criteria);
 
-      // Use Casafari API (aggregates data from all Italian portals)
+      // Scrape Immobiliare.it with Playwright
       try {
-        const casafariResults = await this.casafariAdapter.search(criteria);
-        const enriched = casafariResults.map(r => ({
+        const immobiliareResults = await this.immobiliareAdapter.search(criteria);
+        const enriched = immobiliareResults.map(r => ({
           ...r,
-          portalSource: 'Casafari (Multi-portal)'
+          portalSource: 'Immobiliare.it (Scraping)'
         }));
         allResults.push(...enriched);
-        console.log(`[CLIENT-SCRAPING] Casafari: found ${casafariResults.length} properties for zone ${zone || 'Milano'}`);
+        console.log(`[CLIENT-SCRAPING] Immobiliare.it: found ${immobiliareResults.length} properties for zone ${zone || 'Milano'}`);
       } catch (error) {
-        console.error(`[CLIENT-SCRAPING] Casafari scraping failed for zone ${zone}:`, error);
+        console.error(`[CLIENT-SCRAPING] Immobiliare.it scraping failed for zone ${zone}:`, error);
+      }
+
+      // Scrape Idealista.it with Playwright
+      try {
+        const idealistaResults = await this.idealistaAdapter.search(criteria);
+        const enriched = idealistaResults.map(r => ({
+          ...r,
+          portalSource: 'Idealista.it (Scraping)'
+        }));
+        allResults.push(...enriched);
+        console.log(`[CLIENT-SCRAPING] Idealista.it: found ${idealistaResults.length} properties for zone ${zone || 'Milano'}`);
+      } catch (error) {
+        console.error(`[CLIENT-SCRAPING] Idealista.it scraping failed for zone ${zone}:`, error);
       }
     }
 
