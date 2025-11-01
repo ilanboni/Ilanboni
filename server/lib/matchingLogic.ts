@@ -51,7 +51,7 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
   }
   
   // Verifica metratura con tolleranza del 10% inferiore
-  if (buyer.minSize && property.size < buyer.minSize * 0.9) {
+  if (buyer.minSize && property.size && property.size < buyer.minSize * 0.9) {
     return false;
   }
   
@@ -283,7 +283,7 @@ export function calculatePropertyMatchPercentage(property: Property, buyer: Buye
   let score = 100;
   
   // Applica penalità in base alla differenza di dimensione (se troppo grande)
-  if (buyer.minSize && property.size > buyer.minSize * 1.5) {
+  if (buyer.minSize && property.size && property.size > buyer.minSize * 1.5) {
     // Penalizza immobili molto più grandi del necessario
     const sizeDifference = (property.size - buyer.minSize) / buyer.minSize;
     score -= Math.min(30, sizeDifference * 30); // Max 30% di penalità
