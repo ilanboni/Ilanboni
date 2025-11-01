@@ -3,6 +3,18 @@
 ## Overview
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
+## Recent Changes (November 1, 2025)
+- **Mobile Responsive Optimization**: Complete iPhone responsive design implementation
+  - Fixed client detail page tabs: now horizontally scrollable on mobile, all 10+ tabs accessible via swipe
+  - Added iOS safe area support for iPhone notch/home bar (env(safe-area-inset-*))
+  - Touch-friendly targets: minimum 44x44px for all interactive elements
+  - Mobile-optimized typography: 16px base font to prevent iOS zoom
+  - Responsive grid layouts with appropriate spacing for mobile (gap-3) vs desktop (gap-6)
+  - Bottom navigation bar with safe area padding for iPhone home indicator
+  - Hidden heavy components on mobile (maps, complex visualizations) for better performance
+  - Sticky header with responsive logo and touch-optimized menu controls
+  - Verified with Playwright testing on iPhone 12 Pro emulation
+
 ## Recent Changes (October 31, 2025)
 - **Automatic Zone Geocoding System**: Implemented full automation for buyer search area visualization
   - Zones extracted by AI are now automatically geolocated using Nominatim API with polygon boundaries when available

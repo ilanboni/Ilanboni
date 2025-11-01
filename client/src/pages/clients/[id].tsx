@@ -610,23 +610,25 @@ export default function ClientDetailPage() {
         </div>
         
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-10">
-            <TabsTrigger value="overview">Panoramica</TabsTrigger>
-            <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
-            <TabsTrigger value="appointments">Appuntamenti</TabsTrigger>
-            <TabsTrigger value="tasks">Note e Attività</TabsTrigger>
-            {client?.type === 'buyer' && (
-              <>
-                <TabsTrigger value="preferences">Preferenze</TabsTrigger>
-                <TabsTrigger value="matching-properties">Immobili compatibili</TabsTrigger>
-                <TabsTrigger value="matching-shared">Possibili immobili</TabsTrigger>
-                <TabsTrigger value="properties-notification-status">Immobili da inviare</TabsTrigger>
-              </>
-            )}
-            <TabsTrigger value="sent-properties">Immobili inviati</TabsTrigger>
-            <TabsTrigger value="matches-today">Match Oggi</TabsTrigger>
-            <TabsTrigger value="interactions-history">Cronologia Invii</TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
+            <TabsList className="w-auto inline-flex md:grid md:w-full md:grid-cols-4 lg:grid-cols-10 min-w-full md:min-w-0">
+              <TabsTrigger value="overview" className="whitespace-nowrap flex-shrink-0">Panoramica</TabsTrigger>
+              <TabsTrigger value="communications" className="whitespace-nowrap flex-shrink-0">Comunicazioni</TabsTrigger>
+              <TabsTrigger value="appointments" className="whitespace-nowrap flex-shrink-0">Appuntamenti</TabsTrigger>
+              <TabsTrigger value="tasks" className="whitespace-nowrap flex-shrink-0">Note e Attività</TabsTrigger>
+              {client?.type === 'buyer' && (
+                <>
+                  <TabsTrigger value="preferences" className="whitespace-nowrap flex-shrink-0">Preferenze</TabsTrigger>
+                  <TabsTrigger value="matching-properties" className="whitespace-nowrap flex-shrink-0">Immobili compatibili</TabsTrigger>
+                  <TabsTrigger value="matching-shared" className="whitespace-nowrap flex-shrink-0">Possibili immobili</TabsTrigger>
+                  <TabsTrigger value="properties-notification-status" className="whitespace-nowrap flex-shrink-0">Immobili da inviare</TabsTrigger>
+                </>
+              )}
+              <TabsTrigger value="sent-properties" className="whitespace-nowrap flex-shrink-0">Immobili inviati</TabsTrigger>
+              <TabsTrigger value="matches-today" className="whitespace-nowrap flex-shrink-0">Match Oggi</TabsTrigger>
+              <TabsTrigger value="interactions-history" className="whitespace-nowrap flex-shrink-0">Cronologia Invii</TabsTrigger>
+            </TabsList>
+          </div>
           
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
