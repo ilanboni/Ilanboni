@@ -52,6 +52,7 @@
     "@types/react-helmet": "^6.1.11",
     "apify-client": "^2.19.0",
     "axios": "^1.9.0",
+    "casafari": "^3.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

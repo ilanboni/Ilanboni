@@ -2,8 +2,7 @@ import { db } from "../db";
 import { buyers, clients } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { PropertyListing, SearchCriteria } from "./portalIngestionService";
-import { IdealistaApifyAdapter } from "./adapters/idealistaApifyAdapter";
-import { ImmobiliareApifyAdapter } from "./adapters/immobiliareApifyAdapter";
+import { CasafariAdapter } from "./adapters/casafariAdapter";
 
 export interface ScrapedPropertyResult extends PropertyListing {
   portalSource: string;
@@ -11,8 +10,7 @@ export interface ScrapedPropertyResult extends PropertyListing {
 }
 
 export class ClientPropertyScrapingService {
-  private idealistaAdapter = new IdealistaApifyAdapter();
-  private immobiliareAdapter = new ImmobiliareApifyAdapter();
+  private casafariAdapter = new CasafariAdapter();
 
   async scrapePropertiesForClient(clientId: number): Promise<ScrapedPropertyResult[]> {
     console.log(`[CLIENT-SCRAPING] Starting scraping for client ${clientId}`);
@@ -59,34 +57,17 @@ export class ClientPropertyScrapingService {
 
       console.log(`[CLIENT-SCRAPING] Searching zone: ${zone || 'Milano (generic)'}`, criteria);
 
-      // Scrape from both portals in parallel
-      const results = await Promise.allSettled([
-        this.idealistaAdapter.search(criteria),
-        this.immobiliareAdapter.search(criteria)
-      ]);
-
-      // Process Idealista results
-      if (results[0].status === 'fulfilled') {
-        const enrichedIdealista = results[0].value.map(r => ({
+      // Use Casafari API (aggregates data from all Italian portals)
+      try {
+        const casafariResults = await this.casafariAdapter.search(criteria);
+        const enriched = casafariResults.map(r => ({
           ...r,
-          portalSource: 'Idealista'
+          portalSource: 'Casafari (Multi-portal)'
         }));
-        allResults.push(...enrichedIdealista);
-        console.log(`[CLIENT-SCRAPING] Idealista: found ${results[0].value.length} properties for zone ${zone || 'Milano'}`);
-      } else {
-        console.error(`[CLIENT-SCRAPING] Idealista scraping failed for zone ${zone}:`, results[0].reason);
-      }
-
-      // Process Immobiliare results
-      if (results[1].status === 'fulfilled') {
-        const enrichedImmobiliare = results[1].value.map(r => ({
-          ...r,
-          portalSource: 'Immobiliare.it'
-        }));
-        allResults.push(...enrichedImmobiliare);
-        console.log(`[CLIENT-SCRAPING] Immobiliare.it: found ${results[1].value.length} properties for zone ${zone || 'Milano'}`);
-      } else {
-        console.error(`[CLIENT-SCRAPING] Immobiliare.it scraping failed for zone ${zone}:`, results[1].reason);
+        allResults.push(...enriched);
+        console.log(`[CLIENT-SCRAPING] Casafari: found ${casafariResults.length} properties for zone ${zone || 'Milano'}`);
+      } catch (error) {
+        console.error(`[CLIENT-SCRAPING] Casafari scraping failed for zone ${zone}:`, error);
       }
     }
 
@@ -153,9 +134,9 @@ export class ClientPropertyScrapingService {
   }
 
   async cleanup() {
-    // Cleanup browser resources
+    // Cleanup Casafari resources
     try {
-      await this.immobiliareAdapter.cleanup();
+      await this.casafariAdapter.cleanup();
     } catch (error) {
       console.error('[CLIENT-SCRAPING] Cleanup failed:', error);
     }
