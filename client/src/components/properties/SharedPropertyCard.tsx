@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,8 @@ import {
   GitBranch,
   Trophy,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Eye
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
@@ -566,6 +568,22 @@ export function SharedPropertyCard({ property, tasks = [], matchedClients = [], 
                 </div>
               </div>
             )}
+            
+            {/* Pulsante Vedi Dettagli */}
+            <div className="mt-6">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="w-full"
+                asChild
+                data-testid={`button-view-details-${property.id}`}
+              >
+                <Link href={`/properties/shared/${property.id}`}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Vedi Dettagli Completi
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </CollapsibleContent>
       </Card>

@@ -330,6 +330,33 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
       const cityMatch = address.match(/,\s*([^,]+)$/);
       const city = cityMatch?.[1]?.trim() || 'Milano';
 
+      // Extract main image URL
+      const imageSelectors = [
+        'img[src*="idealista"]',
+        'img[src*="immobiliare"]',
+        'img.nd-media__img',
+        'img[class*="card"]',
+        'picture img',
+        'img[loading="lazy"]',
+        'img'
+      ];
+      let imageUrl: string | undefined;
+      for (const selector of imageSelectors) {
+        const imgEl = await element.$(selector);
+        if (imgEl) {
+          const src = await imgEl.getAttribute('src');
+          const dataSrc = await imgEl.getAttribute('data-src');
+          imageUrl = src || dataSrc || undefined;
+          if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('//'))) {
+            // Ensure absolute URL
+            if (imageUrl.startsWith('//')) {
+              imageUrl = 'https:' + imageUrl;
+            }
+            break;
+          }
+        }
+      }
+
       // Relaxed validation: only require URL, title, and price
       // Size is optional as many listings don't provide it
       if (!url || !title || price === 0) {
@@ -350,7 +377,8 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
         type: 'apartment',
         url,
         description: title.trim(),
-        ownerType: 'agency'
+        ownerType: 'agency',
+        images: imageUrl ? [imageUrl] : undefined
       };
     } catch (error) {
       console.error('[IMMOBILIARE-PW] Error extracting listing:', error);
