@@ -38,12 +38,7 @@ export class ClientPropertyScrapingService {
       throw new Error(`Buyer data not found for client ${clientId}`);
     }
 
-    if (buyer.rating !== 5) {
-      console.log(`[CLIENT-SCRAPING] Client ${clientId} has rating ${buyer.rating}, not 5. Skipping.`);
-      return [];
-    }
-
-    console.log(`[CLIENT-SCRAPING] Client ${client.name} has rating 5, proceeding with scraping`);
+    console.log(`[CLIENT-SCRAPING] Client ${client.firstName} ${client.lastName} (rating ${buyer.rating || 'N/A'}), proceeding with scraping`);
 
     // Extract search criteria from buyer preferences
     const zones = (buyer.zones as string[] | null) || [];
