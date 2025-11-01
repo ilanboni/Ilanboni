@@ -111,9 +111,11 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
       parts.push(criteria.city.toLowerCase().replace(/\s+/g, '-'));
     }
     
-    if (criteria.zone) {
-      parts.push(criteria.zone.toLowerCase().replace(/\s+/g, '-'));
-    }
+    // TEMPORARY: Skip zone to test if scraping works at all
+    // TODO: Implement locality-normalization layer to map AI zones to portal slugs
+    // if (criteria.zone) {
+    //   parts.push(criteria.zone.toLowerCase().replace(/\s+/g, '-'));
+    // }
 
     let url = parts.join('/') + '/';
     
@@ -179,6 +181,17 @@ export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
         console.log('[IMMOBILIARE-PW] No listings found with any selector. Checking page content...');
         const html = await page.content();
         console.log(`[IMMOBILIARE-PW] Page HTML length: ${html.length} chars`);
+        
+        // Log page title and URL to debug
+        const title = await page.title();
+        const url = page.url();
+        console.log(`[IMMOBILIARE-PW] Page title: "${title}"`);
+        console.log(`[IMMOBILIARE-PW] Current URL: ${url}`);
+        
+        // Check if page contains actual content or error
+        const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 500) || '');
+        console.log(`[IMMOBILIARE-PW] Body preview: ${bodyText}`);
+        
         // Log first few class names for debugging
         const classes = await page.$$eval('[class]', els => 
           els.slice(0, 20).map(el => el.className).filter(c => c && c.includes('list') || c.includes('card') || c.includes('result'))

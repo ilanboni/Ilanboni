@@ -1,159 +1,179 @@
-import axios from 'axios';
-import * as https from 'https';
+import { chromium, Browser, Page } from 'playwright';
 import type { PortalAdapter, PropertyListing, SearchCriteria } from '../portalIngestionService';
 
 const IDEALISTA_BASE_URL = 'https://www.idealista.it';
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-const REQUEST_DELAY_MS = 2000;
+const REQUEST_DELAY_MS = 3000;
+const PAGE_TIMEOUT = 30000;
 
 export class IdealistaAdapter implements PortalAdapter {
-  name = 'Idealista';
+  name = 'Idealista (Playwright)';
   portalId = 'idealista';
   private lastRequestTime = 0;
+  private browser: Browser | null = null;
 
   async search(criteria: SearchCriteria): Promise<PropertyListing[]> {
-    const {baseUrl, params} = this.buildSearchUrlAndParams(criteria);
-    const queryString = params ? Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&') : '';
-    const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
-    console.log(`[IDEALISTA] Searching: ${fullUrl}`);
+    const searchUrl = this.buildSearchUrl(criteria);
+    console.log(`[IDEALISTA-PW] Searching: ${searchUrl}`);
 
     await this.respectRateLimit();
 
+    let page: Page | null = null;
+    let browserCreated = false;
     try {
-      const html = await this.makeHttpsRequest(fullUrl);
-      const listings = this.parseSearchResults(html);
-      console.log(`[IDEALISTA] Found ${listings.length} listings`);
+      if (this.browser) {
+        try {
+          await this.browser.close();
+        } catch (e) {
+          // Ignore close errors
+        }
+      }
       
+      this.browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      browserCreated = true;
+
+      page = await this.browser.newPage({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      });
+
+      await page.setViewportSize({ width: 1920, height: 1080 });
+
+      await page.goto(searchUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: PAGE_TIMEOUT
+      });
+
+      await page.waitForTimeout(2000);
+
+      const acceptCookies = page.locator('button:has-text("Accetta"), button:has-text("Accetto")').first();
+      if (await acceptCookies.count() > 0) {
+        await acceptCookies.click().catch(() => {});
+        await page.waitForTimeout(1000);
+      }
+
+      const listings = await this.extractListings(page);
+      console.log(`[IDEALISTA-PW] Found ${listings.length} listings`);
+
       return listings;
     } catch (error) {
-      console.error('[IDEALISTA] Search failed:', error);
+      console.error('[IDEALISTA-PW] Search failed:', error);
       return [];
+    } finally {
+      if (page) {
+        await page.close().catch(() => {});
+      }
+      if (browserCreated && this.browser) {
+        await this.browser.close().catch(() => {});
+        this.browser = null;
+      }
     }
-  }
-
-  private makeHttpsRequest(url: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const urlObj = new URL(url);
-      const options = {
-        hostname: urlObj.hostname,
-        path: urlObj.pathname + urlObj.search,
-        method: 'GET',
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8'
-        },
-        timeout: 15000
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        res.on('data', (chunk) => { data += chunk; });
-        res.on('end', () => {
-          if (res.statusCode === 200) {
-            resolve(data);
-          } else {
-            reject(new Error(`HTTP ${res.statusCode}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.on('timeout', () => {
-        req.destroy();
-        reject(new Error('Request timeout'));
-      });
-      req.end();
-    });
   }
 
   async fetchDetails(externalId: string): Promise<PropertyListing | null> {
-    const url = `${IDEALISTA_BASE_URL}/immobile/${externalId}/`;
-    
-    await this.respectRateLimit();
-
-    try {
-      const response = await axios.get(url, {
-        headers: {
-          'User-Agent': USER_AGENT
-        },
-        timeout: 15000
-      });
-
-      return this.parseDetailPage(response.data, externalId);
-    } catch (error) {
-      console.error(`[IDEALISTA] Failed to fetch details for ${externalId}:`, error);
-      return null;
-    }
+    return null;
   }
 
   async isAvailable(): Promise<boolean> {
     try {
-      const response = await axios.head(IDEALISTA_BASE_URL, {
-        headers: { 'User-Agent': USER_AGENT },
-        timeout: 5000
-      });
-      return response.status === 200;
-    } catch {
+      if (!this.browser) {
+        this.browser = await chromium.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+      }
+      const page = await this.browser.newPage();
+      await page.goto(IDEALISTA_BASE_URL, { timeout: 10000 });
+      const title = await page.title();
+      await page.close();
+      return title.includes('idealista');
+    } catch (error) {
+      console.error('[IDEALISTA-PW] Availability check failed:', error);
       return false;
     }
   }
 
-  private buildSearchUrlAndParams(criteria: SearchCriteria): { baseUrl: string; params?: Record<string, string> } {
+  async cleanup() {
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
+    }
+  }
+
+  private buildSearchUrl(criteria: SearchCriteria): string {
     const parts: string[] = [IDEALISTA_BASE_URL];
-    
     parts.push('vendita-case');
     
     if (criteria.city) {
       parts.push(criteria.city.toLowerCase().replace(/\s+/g, '-'));
     }
     
-    if (criteria.zone) {
-      parts.push(criteria.zone.toLowerCase().replace(/\s+/g, '-'));
-    }
+    // TEMPORARY: Skip zone to test if scraping works at all
+    // TODO: Implement locality-normalization layer to map AI zones to portal slugs
+    // if (criteria.zone) {
+    //   parts.push(criteria.zone.toLowerCase().replace(/\s+/g, '-'));
+    // }
 
-    const baseUrl = parts.join('/') + '/';
+    let url = parts.join('/') + '/';
     
-    const params: Record<string, string> = {};
-    
-    if (criteria.minPrice) {
-      params.prezzoMinimo = criteria.minPrice.toString();
-    }
+    const params = new URLSearchParams();
     if (criteria.maxPrice) {
-      params.prezzoMassimo = criteria.maxPrice.toString();
+      params.append('prezzoMassimo', criteria.maxPrice.toString());
     }
     if (criteria.minSize) {
-      params.superficieMinima = criteria.minSize.toString();
-    }
-    if (criteria.maxSize) {
-      params.superficieMassima = criteria.maxSize.toString();
+      params.append('superficieMinima', criteria.minSize.toString());
     }
     if (criteria.bedrooms) {
-      params.camere = criteria.bedrooms.toString();
+      params.append('camere', criteria.bedrooms.toString());
     }
 
-    return { baseUrl, params: Object.keys(params).length > 0 ? params : undefined };
+    const queryString = params.toString();
+    if (queryString) {
+      url += '?' + queryString;
+    }
+
+    return url;
   }
 
-  private parseSearchResults(html: string): PropertyListing[] {
+  private async extractListings(page: Page): Promise<PropertyListing[]> {
     const listings: PropertyListing[] = [];
 
-    const articleRegex = /<article[^>]*class="[^"]*item[^"]*"[^>]*>(.*?)<\/article>/gs;
-    const articles = html.match(articleRegex) || [];
+    try {
+      const html = await page.content();
+      const title = await page.title();
+      const url = page.url();
+      
+      const articleRegex = /<article[^>]*class="[^"]*item[^"]*"[^>]*>(.*?)<\/article>/gs;
+      const articles = html.match(articleRegex) || [];
 
-    for (const article of articles.slice(0, 20)) {
-      try {
-        const listing = this.parseArticle(article);
-        if (listing) {
-          listings.push(listing);
-        }
-      } catch (error) {
-        console.error('[IDEALISTA] Failed to parse article:', error);
+      console.log(`[IDEALISTA-PW] Page HTML length: ${html.length} chars`);
+      console.log(`[IDEALISTA-PW] Page title: "${title}"`);
+      console.log(`[IDEALISTA-PW] Current URL: ${url}`);
+      console.log(`[IDEALISTA-PW] Found ${articles.length} article matches`);
+      
+      if (articles.length === 0) {
+        const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 500) || '');
+        console.log(`[IDEALISTA-PW] Body preview: ${bodyText}`);
       }
+
+      for (const article of articles.slice(0, 20)) {
+        try {
+          const listing = this.parseArticle(article);
+          if (listing) {
+            listings.push(listing);
+          }
+        } catch (error) {
+          console.error('[IDEALISTA-PW] Failed to parse article:', error);
+        }
+      }
+    } catch (error) {
+      console.error('[IDEALISTA-PW] Failed to extract listings:', error);
     }
 
     return listings;
   }
+
 
   private parseArticle(article: string): PropertyListing | null {
     const idMatch = article.match(/data-adid="(\d+)"/);
