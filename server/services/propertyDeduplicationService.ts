@@ -32,6 +32,46 @@ const FUZZY_MATCH_THRESHOLD = 0.65; // Lowered from 0.75 to catch more similar a
 const IMAGE_SIMILARITY_THRESHOLD = 5;
 
 /**
+ * Verifica se un indirizzo è troppo generico per essere usato nel matching
+ */
+function isGenericAddress(address: string): boolean {
+  if (!address || address.trim().length === 0) return true;
+  
+  const normalized = address.toLowerCase().trim();
+  
+  // Blacklist: indirizzi troppo generici
+  const genericAddresses = [
+    'milano',
+    'roma',
+    'torino',
+    'firenze',
+    'bologna',
+    'napoli',
+    'genova',
+    'venezia',
+    'italy',
+    'italia'
+  ];
+  
+  if (genericAddresses.includes(normalized)) {
+    return true;
+  }
+  
+  // Un indirizzo valido deve contenere almeno un numero (civico)
+  const hasNumber = /\d/.test(address);
+  if (!hasNumber) {
+    return true;
+  }
+  
+  // Un indirizzo troppo corto è probabilmente generico
+  if (normalized.length < 5) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Normalizza un indirizzo per il confronto
  */
 function normalizeAddress(address: string): string {
@@ -63,14 +103,33 @@ function calculatePropertySimilarity(prop1: Property, prop2: Property): { score:
     console.log(`[DEBUG] Coordinates: (${prop1.latitude},${prop1.longitude}) vs (${prop2.latitude},${prop2.longitude})`);
   }
   
+  // CRITICAL VALIDATION: Properties MUST have BOTH valid addresses
+  // Even if coordinates exist, we don't trust them without a specific address
+  // This prevents false positives from matching properties with generic addresses
+  const hasValidAddress1 = prop1.address && !isGenericAddress(prop1.address);
+  const hasValidAddress2 = prop2.address && !isGenericAddress(prop2.address);
+  
+  if (!hasValidAddress1 || !hasValidAddress2) {
+    // Cannot reliably match without specific addresses - return 0 score
+    if (isDebugPair) {
+      console.log(`[DEBUG] BLOCKED: Generic or missing address`);
+      console.log(`[DEBUG] Address 1: "${prop1.address}" - valid: ${hasValidAddress1}`);
+      console.log(`[DEBUG] Address 2: "${prop2.address}" - valid: ${hasValidAddress2}`);
+    }
+    return { score: 0, reasons: ['Match impossibile: indirizzo generico o assente'] };
+  }
+  
+  // Now check if we have coordinates for geographic matching
+  const hasValidCoordinates = prop1.latitude && prop1.longitude && prop2.latitude && prop2.longitude;
+  
   // Geographic fuzzy matching (500m tolerance) - PREFERRED method
-  if (prop1.latitude && prop1.longitude && prop2.latitude && prop2.longitude) {
+  if (hasValidCoordinates) {
     maxScore += 40;
     const distance = geocodingService.calculateDistance(
-      prop1.latitude, 
-      prop1.longitude, 
-      prop2.latitude, 
-      prop2.longitude
+      prop1.latitude!, 
+      prop1.longitude!, 
+      prop2.latitude!, 
+      prop2.longitude!
     );
     
     // 500m tolerance for same property
@@ -82,22 +141,35 @@ function calculatePropertySimilarity(prop1: Property, prop2: Property): { score:
   } 
   // Fallback to string-based address matching if no coordinates
   else if (prop1.address && prop2.address) {
-    maxScore += 40;
-    const addr1 = normalizeAddress(prop1.address);
-    const addr2 = normalizeAddress(prop2.address);
-    const addressScore = stringSimilarity.compareTwoStrings(addr1, addr2);
+    // CRITICAL FIX: Skip matching on generic/invalid addresses
+    const isGeneric1 = isGenericAddress(prop1.address);
+    const isGeneric2 = isGenericAddress(prop2.address);
     
-    if (isDebugPair) {
-      console.log(`[DEBUG] Normalized: "${addr1}" vs "${addr2}"`);
-      console.log(`[DEBUG] Address similarity: ${(addressScore * 100).toFixed(1)}%`);
-      console.log(`[DEBUG] Threshold: ${(FUZZY_MATCH_THRESHOLD * 100).toFixed(0)}%`);
-    }
-    
-    if (addressScore > FUZZY_MATCH_THRESHOLD) {
-      const points = addressScore * 40;
-      totalScore += points;
-      reasons.push(`Indirizzo simile (${(addressScore * 100).toFixed(0)}%)`);
-      if (isDebugPair) console.log(`[DEBUG] Address points added: ${points}`);
+    if (isGeneric1 || isGeneric2) {
+      // Don't award points for generic addresses - they're not reliable for matching
+      if (isDebugPair) {
+        console.log(`[DEBUG] SKIPPED: Generic address detected`);
+        console.log(`[DEBUG] Address 1 generic: ${isGeneric1}, Address 2 generic: ${isGeneric2}`);
+      }
+      // Don't add to maxScore either - we can't use this for matching
+    } else {
+      maxScore += 40;
+      const addr1 = normalizeAddress(prop1.address);
+      const addr2 = normalizeAddress(prop2.address);
+      const addressScore = stringSimilarity.compareTwoStrings(addr1, addr2);
+      
+      if (isDebugPair) {
+        console.log(`[DEBUG] Normalized: "${addr1}" vs "${addr2}"`);
+        console.log(`[DEBUG] Address similarity: ${(addressScore * 100).toFixed(1)}%`);
+        console.log(`[DEBUG] Threshold: ${(FUZZY_MATCH_THRESHOLD * 100).toFixed(0)}%`);
+      }
+      
+      if (addressScore > FUZZY_MATCH_THRESHOLD) {
+        const points = addressScore * 40;
+        totalScore += points;
+        reasons.push(`Indirizzo simile (${(addressScore * 100).toFixed(0)}%)`);
+        if (isDebugPair) console.log(`[DEBUG] Address points added: ${points}`);
+      }
     }
   }
   
