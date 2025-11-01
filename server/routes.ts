@@ -1790,24 +1790,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Dati acquirente non trovati" });
       }
       
-      // Recupera proprietà condivise compatibili
-      // Qui implementiamo un approccio semplificato - in un'app reale potremmo avere una query più ottimizzata
+      console.log(`[MATCHING-SHARED] Cliente ${clientId}: Cerco immobili concorrenti che matchano le zone di ricerca`);
+      console.log(`[MATCHING-SHARED] Zone richieste:`, buyer.zones);
+      console.log(`[MATCHING-SHARED] Search area:`, buyer.searchArea ? 'Presente' : 'Assente');
+      console.log(`[MATCHING-SHARED] Budget max: €${buyer.maxPrice || 'N/A'}, Dimensione min: ${buyer.minSize || 'N/A'} mq`);
+      
+      // Recupera tutte le proprietà condivise (degli altri agenti/concorrenti)
       const allSharedProperties = await storage.getSharedProperties({});
       
-      // Filtra le proprietà in base ai criteri dell'acquirente
+      // Importa la funzione di matching centralizzata
+      const { isSharedPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+      
+      // Filtra le proprietà usando la funzione di matching che applica:
+      // - Filtro per zone di ricerca (searchArea con poligoni)
+      // - Filtro per prezzo (con tolleranza 10%)
+      // - Filtro per dimensione (con tolleranza 10%)
       const matchingProperties = allSharedProperties.filter(property => {
-        // Controlla dimensioni
-        if (buyer.minSize && (!property.size || property.size < buyer.minSize)) {
-          return false;
-        }
-        
-        // Controlla prezzo
-        if (buyer.maxPrice && (!property.price || property.price > buyer.maxPrice)) {
-          return false;
-        }
-        
-        return true;
+        return isSharedPropertyMatchingBuyerCriteria(property, buyer);
       });
+      
+      console.log(`[MATCHING-SHARED] Trovati ${matchingProperties.length} immobili concorrenti compatibili su ${allSharedProperties.length} totali`);
       
       res.json(matchingProperties);
     } catch (error) {
