@@ -51,11 +51,6 @@ export default function ClientDetailPage() {
   const id = parseInt(params.id);
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
-  
-  // Monitoriamo i cambiamenti di tab per il debug
-  useEffect(() => {
-    setDebugLogs(logs => [...logs, `Tab attiva: ${activeTab}`]);
-  }, [activeTab]);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isAIResponseModalOpen, setIsAIResponseModalOpen] = useState(false);
   const [isSendingNotification, setIsSendingNotification] = useState(false);
@@ -67,27 +62,11 @@ export default function ClientDetailPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Stato per i log di debug
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  
   // Fetch client details
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
     queryKey: [`/api/clients/${id}`],
     enabled: !isNaN(id),
   });
-
-  // Debug logging when client data changes
-  useEffect(() => {
-    if (client) {
-      setDebugLogs(logs => [
-        ...logs,
-        `Cliente caricato: ${client?.firstName} ${client?.lastName}`,
-        `Tipo cliente: ${client?.type}`,
-        `È acquirente: ${client?.type === 'buyer'}`,
-        `Dettagli buyer: ${client?.buyer ? 'presenti' : 'assenti'}`,
-      ]);
-    }
-  }, [client]);
   
   // Fetch client communications
   const { data: communications, isLoading: isCommunicationsLoading } = useQuery<Communication[]>({
@@ -113,28 +92,10 @@ export default function ClientDetailPage() {
     enabled: !isNaN(id) && client?.type === "buyer",
   });
   
-  // Fetch matching properties (per client compratori) - CACHE DISABILITATA per debug
+  // Fetch matching properties (per client compratori)
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
-    queryKey: [`/api/clients/${id}/matching-properties`, Date.now()], // Aggiunge timestamp per evitare cache
+    queryKey: [`/api/clients/${id}/matching-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
-    staleTime: 0, // I dati sono immediatamente considerati obsoleti
-    cacheTime: 0, // Non mantiene cache
-    refetchOnMount: true, // Ricarica sempre al mount
-    refetchOnWindowFocus: false,
-    queryFn: async () => {
-      console.log(`🔄 Caricamento matching properties per cliente ${id}...`);
-      const response = await fetch(`/api/clients/${id}/matching-properties?t=${Date.now()}`);
-      if (!response.ok) {
-        if (response.status === 400) {
-          console.log(`❌ Cliente ${id} non è un compratore`);
-          return []; // Il cliente non è un compratore
-        }
-        throw new Error('Errore nel caricamento degli immobili compatibili');
-      }
-      const data = await response.json();
-      console.log(`✅ Matching properties per cliente ${id}:`, data);
-      return data;
-    }
   });
   
   // Fetch matching properties with notification status (per client compratori)
@@ -154,28 +115,10 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Fetch matching shared properties - CACHE DISABILITATA per debug
+  // Fetch matching shared properties
   const { data: matchingSharedProperties, isLoading: isMatchingSharedPropertiesLoading } = useQuery({
-    queryKey: [`/api/clients/${id}/matching-shared-properties`, Date.now()], // Aggiunge timestamp per evitare cache
+    queryKey: [`/api/clients/${id}/matching-shared-properties`],
     enabled: !isNaN(id) && client?.type === "buyer",
-    staleTime: 0, // I dati sono immediatamente considerati obsoleti
-    cacheTime: 0, // Non mantiene cache
-    refetchOnMount: true, // Ricarica sempre al mount
-    refetchOnWindowFocus: false,
-    queryFn: async () => {
-      console.log(`🔄 Caricamento proprietà condivise compatibili per cliente ${id}...`);
-      const response = await fetch(`/api/clients/${id}/matching-shared-properties?t=${Date.now()}`);
-      if (!response.ok) {
-        if (response.status === 400) {
-          console.log(`❌ Cliente ${id} non è un compratore`);
-          return []; // Il cliente non è un compratore
-        }
-        throw new Error('Errore nel caricamento delle proprietà condivise compatibili');
-      }
-      const data = await response.json();
-      console.log(`✅ Proprietà condivise compatibili per cliente ${id}:`, data);
-      return data;
-    }
   });
   
   // Fetch properties sent to client
@@ -402,18 +345,6 @@ export default function ClientDetailPage() {
           content={`Visualizza i dettagli, le comunicazioni e gli appuntamenti di ${client?.firstName} ${client?.lastName}`} 
         />
       </Helmet>
-      
-      {/* Debug Panel - visibile solo in ambiente di sviluppo */}
-      {import.meta.env.DEV && debugLogs.length > 0 && (
-        <div className="my-4 p-4 bg-black text-white text-xs font-mono rounded-md overflow-auto max-h-52">
-          <h4 className="text-green-400 font-bold mb-2">Debug Info:</h4>
-          <ul className="list-disc pl-5 space-y-1">
-            {debugLogs.map((log, i) => (
-              <li key={i}>{log}</li>
-            ))}
-          </ul>
-        </div>
-      )}
       
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
