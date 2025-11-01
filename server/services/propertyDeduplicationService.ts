@@ -103,28 +103,27 @@ function calculatePropertySimilarity(prop1: Property, prop2: Property): { score:
     console.log(`[DEBUG] Coordinates: (${prop1.latitude},${prop1.longitude}) vs (${prop2.latitude},${prop2.longitude})`);
   }
   
-  // CRITICAL VALIDATION: Properties MUST have BOTH valid addresses
-  // Even if coordinates exist, we don't trust them without a specific address
-  // This prevents false positives from matching properties with generic addresses
+  // Check if addresses are specific (not generic like "Milano")
   const hasValidAddress1 = prop1.address && !isGenericAddress(prop1.address);
   const hasValidAddress2 = prop2.address && !isGenericAddress(prop2.address);
+  const bothHaveValidAddresses = hasValidAddress1 && hasValidAddress2;
   
-  if (!hasValidAddress1 || !hasValidAddress2) {
-    // Cannot reliably match without specific addresses - return 0 score
-    if (isDebugPair) {
-      console.log(`[DEBUG] BLOCKED: Generic or missing address`);
-      console.log(`[DEBUG] Address 1: "${prop1.address}" - valid: ${hasValidAddress1}`);
-      console.log(`[DEBUG] Address 2: "${prop2.address}" - valid: ${hasValidAddress2}`);
-    }
-    return { score: 0, reasons: ['Match impossibile: indirizzo generico o assente'] };
-  }
-  
-  // Now check if we have coordinates for geographic matching
+  // Check if we have GPS coordinates for both properties
   const hasValidCoordinates = prop1.latitude && prop1.longitude && prop2.latitude && prop2.longitude;
   
-  // Geographic fuzzy matching (500m tolerance) - PREFERRED method
+  // CRITICAL VALIDATION: If BOTH addresses are generic AND no GPS coordinates → BLOCK matching
+  // We cannot reliably match properties with only "Milano" as address and no location data
+  if (!bothHaveValidAddresses && !hasValidCoordinates) {
+    return { score: 0, reasons: ['Match impossibile: indirizzi generici senza coordinate GPS'] };
+  }
+  
+  // MULTI-LEVEL MATCHING STRATEGY:
+  // 1. If both have specific addresses → use address matching (40 points possible)
+  // 2. If addresses generic but GPS available → use GPS fallback (30 points possible, 300m tolerance)
+  // 3. Always check price/size/floor/bedrooms for additional signals
+  
+  // LEVEL 1: GPS-based matching with 300m tolerance
   if (hasValidCoordinates) {
-    maxScore += 40;
     const distance = geocodingService.calculateDistance(
       prop1.latitude!, 
       prop1.longitude!, 
@@ -132,44 +131,44 @@ function calculatePropertySimilarity(prop1: Property, prop2: Property): { score:
       prop2.longitude!
     );
     
-    // 500m tolerance for same property
-    if (distance <= 500) {
-      const points = Math.max(0, 40 * (1 - distance / 500)); // Full points at 0m, 0 points at 500m
-      totalScore += points;
-      reasons.push(`Distanza geografica: ${Math.round(distance)}m`);
-    }
-  } 
-  // Fallback to string-based address matching if no coordinates
-  else if (prop1.address && prop2.address) {
-    // CRITICAL FIX: Skip matching on generic/invalid addresses
-    const isGeneric1 = isGenericAddress(prop1.address);
-    const isGeneric2 = isGenericAddress(prop2.address);
+    // If both have specific addresses, GPS gets 40 points max
+    // If addresses are generic, GPS gets only 30 points max (reduced confidence)
+    const gpsMaxPoints = bothHaveValidAddresses ? 40 : 30;
+    maxScore += gpsMaxPoints;
     
-    if (isGeneric1 || isGeneric2) {
-      // Don't award points for generic addresses - they're not reliable for matching
-      if (isDebugPair) {
-        console.log(`[DEBUG] SKIPPED: Generic address detected`);
-        console.log(`[DEBUG] Address 1 generic: ${isGeneric1}, Address 2 generic: ${isGeneric2}`);
-      }
-      // Don't add to maxScore either - we can't use this for matching
-    } else {
+    // 300m tolerance for same property (as requested by user)
+    if (distance <= 300) {
+      const points = Math.max(0, gpsMaxPoints * (1 - distance / 300)); // Full points at 0m, 0 points at 300m
+      totalScore += points;
+      const confidenceNote = bothHaveValidAddresses ? '' : ' (GPS fallback)';
+      reasons.push(`Distanza geografica: ${Math.round(distance)}m${confidenceNote}`);
+    }
+  }
+  
+  // LEVEL 2: Address string matching (only if both have specific addresses)
+  if (bothHaveValidAddresses) {
+    // Only add address scoring if GPS didn't already provide location points
+    if (!hasValidCoordinates) {
       maxScore += 40;
-      const addr1 = normalizeAddress(prop1.address);
-      const addr2 = normalizeAddress(prop2.address);
-      const addressScore = stringSimilarity.compareTwoStrings(addr1, addr2);
-      
-      if (isDebugPair) {
-        console.log(`[DEBUG] Normalized: "${addr1}" vs "${addr2}"`);
-        console.log(`[DEBUG] Address similarity: ${(addressScore * 100).toFixed(1)}%`);
-        console.log(`[DEBUG] Threshold: ${(FUZZY_MATCH_THRESHOLD * 100).toFixed(0)}%`);
-      }
-      
-      if (addressScore > FUZZY_MATCH_THRESHOLD) {
-        const points = addressScore * 40;
-        totalScore += points;
-        reasons.push(`Indirizzo simile (${(addressScore * 100).toFixed(0)}%)`);
-        if (isDebugPair) console.log(`[DEBUG] Address points added: ${points}`);
-      }
+    }
+    
+    const addr1 = normalizeAddress(prop1.address!);
+    const addr2 = normalizeAddress(prop2.address!);
+    const addressScore = stringSimilarity.compareTwoStrings(addr1, addr2);
+    
+    if (isDebugPair) {
+      console.log(`[DEBUG] Normalized: "${addr1}" vs "${addr2}"`);
+      console.log(`[DEBUG] Address similarity: ${(addressScore * 100).toFixed(1)}%`);
+      console.log(`[DEBUG] Threshold: ${(FUZZY_MATCH_THRESHOLD * 100).toFixed(0)}%`);
+    }
+    
+    if (addressScore > FUZZY_MATCH_THRESHOLD) {
+      // If GPS already scored this, boost by a small amount for address confirmation
+      // Otherwise, give full address points
+      const points = hasValidCoordinates ? 5 : addressScore * 40;
+      totalScore += points;
+      reasons.push(`Indirizzo simile (${(addressScore * 100).toFixed(0)}%)`);
+      if (isDebugPair) console.log(`[DEBUG] Address points added: ${points}`);
     }
   }
   

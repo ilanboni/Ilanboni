@@ -4,6 +4,13 @@
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
 ## Recent Changes (November 1, 2025)
+- **Deduplication GPS Fallback System**: Implementato sistema multi-livello con tolleranza 300m
+  - GPS fallback: permette matching con coordinate GPS entro 300m anche con indirizzi generici
+  - Blocco critico: impedisce matching tra proprietà con solo "Milano" senza GPS (previene mega-cluster)
+  - Risultati: 10 cluster trovati (+43% rispetto a 7), nessun falso positivo
+  - Strategia a 3 livelli: 1) Indirizzi specifici, 2) GPS fallback 300m, 3) Prezzo/size/floor
+  - Match score graduato: GPS con indirizzi generici = 30 punti max, specifici = 40 punti max
+
 - **Agencies Link Fix**: Risolto problema con link agenzie in shared properties
   - Sistema di deduplicazione ora salva oggetti completi `{name, link, sourcePropertyId}` invece di semplici stringhe
   - Campo JSONB `agencies` include tutti i dati necessari per mostrare link funzionanti
