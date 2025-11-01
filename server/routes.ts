@@ -9918,25 +9918,12 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
         if (cluster.isMultiagency && cluster.properties.length >= 2) {
           const firstProperty = cluster.properties[0];
           
-          // Prepara i link alle agenzie (usa externalLink se disponibile)
-          const agencyLinks = cluster.properties
-            .map(p => p.externalLink)
-            .filter(link => link && link.trim() !== '')
-            .slice(0, 3); // Max 3 agenzie
-          
-          // Estrai nomi agenzie dai link (es. immobiliare.it, idealista.it)
-          const agencyNames = agencyLinks.map(link => {
-            if (!link) return '';
-            try {
-              const url = new URL(link);
-              const hostname = url.hostname.replace('www.', '');
-              // Prendi il nome principale (es. "immobiliare" da "immobiliare.it")
-              const name = hostname.split('.')[0];
-              return name.charAt(0).toUpperCase() + name.slice(1);
-            } catch {
-              return 'Portale';
-            }
-          });
+          // Prepara oggetti agenzie completi con name, link, sourcePropertyId
+          const agencies = cluster.properties.map(p => ({
+            name: p.portal || 'Agenzia Sconosciuta',
+            link: p.externalLink || '',
+            sourcePropertyId: p.id
+          }));
           
           // Verifica se esiste già una shared property per questo cluster
           const existingShared = await db
@@ -9955,12 +9942,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
               type: firstProperty.type,
               floor: firstProperty.floor || null,
               location: firstProperty.location,
-              agency1Link: agencyLinks[0] || null,
-              agency2Link: agencyLinks[1] || null,
-              agency3Link: agencyLinks[2] || null,
-              agency1Name: agencyNames[0] || null,
-              agency2Name: agencyNames[1] || null,
-              agency3Name: agencyNames[2] || null,
+              agencies: agencies, // JSONB array con agenzie complete (name, link, sourcePropertyId)
               rating: 4, // Alto perché è pluricondiviso
               stage: 'result',
               stageResult: 'multiagency',

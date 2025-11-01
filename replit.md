@@ -4,6 +4,13 @@
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
 ## Recent Changes (November 1, 2025)
+- **Agencies Link Fix**: Risolto problema con link agenzie in shared properties
+  - Sistema di deduplicazione ora salva oggetti completi `{name, link, sourcePropertyId}` invece di semplici stringhe
+  - Campo JSONB `agencies` include tutti i dati necessari per mostrare link funzionanti
+  - Frontend SharedPropertyCard mostra correttamente pulsanti "Vedi Annuncio" per ogni agenzia
+  - Supporta backward compatibility: converte automaticamente dati legacy (stringhe) in oggetti
+  - Fix applicato sia a `/api/run/scan` che a `deduplicationScheduler.runDeduplicationScan()`
+
 - **Deduplication System Fix**: Risolto problema critico con falsi positivi giganti
   - Bug eliminato: il sistema creava cluster di 121+ proprietà su indirizzi generici ("Milano", "")
   - Implementata validazione rigorosa: proprietà DEVONO avere indirizzo specifico con numero civico

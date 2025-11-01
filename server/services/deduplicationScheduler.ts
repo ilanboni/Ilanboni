@@ -53,10 +53,12 @@ export async function runDeduplicationScan() {
       if (cluster.isMultiagency && cluster.properties.length >= 2) {
         const firstProperty = cluster.properties[0];
         
-        // Raccogli portali/agenzie
-        const portals = cluster.properties
-          .map(p => p.portal)
-          .filter((name): name is string => name !== null && name !== undefined);
+        // Raccogli portali/agenzie con i link alle proprietà originali
+        const agencies = cluster.properties.map(p => ({
+          name: p.portal || 'Agenzia Sconosciuta',
+          link: p.externalLink || '',
+          sourcePropertyId: p.id
+        }));
         
         // Normalizza l'indirizzo per il confronto (rimuove virgole, punti, spazi multipli)
         const normalizedAddress = firstProperty.address
@@ -89,7 +91,7 @@ export async function runDeduplicationScan() {
             type: firstProperty.type,
             price: firstProperty.price,
             floor: firstProperty.floor || null,
-            agencies: portals, // JSONB array con tutte le agenzie
+            agencies: agencies, // JSONB array con agenzie complete (name, link, sourcePropertyId)
             rating: 4,
             stage: 'result',
             stageResult: 'multiagency',
@@ -104,10 +106,23 @@ export async function runDeduplicationScan() {
         } else {
           // Aggiorna scheda esistente con nuove agenzie (se ce ne sono)
           const existingAgencies = Array.isArray(existing.agencies) ? existing.agencies : [];
-          const newAgencies = portals.filter(p => !existingAgencies.includes(p));
+          
+          // Converti esistenti a oggetti se sono stringhe (legacy data)
+          const existingAgencyObjects = existingAgencies.map(a => 
+            typeof a === 'string' ? { name: a, link: '', sourcePropertyId: null } : a
+          );
+          
+          // Trova nuove agenzie non già presenti (confronta per sourcePropertyId)
+          const existingPropertyIds = new Set(
+            existingAgencyObjects
+              .map(a => a.sourcePropertyId)
+              .filter(id => id !== null)
+          );
+          
+          const newAgencies = agencies.filter(a => !existingPropertyIds.has(a.sourcePropertyId));
           
           if (newAgencies.length > 0) {
-            const updatedAgencies = [...existingAgencies, ...newAgencies];
+            const updatedAgencies = [...existingAgencyObjects, ...newAgencies];
             await db
               .update(sharedProperties)
               .set({ agencies: updatedAgencies })
