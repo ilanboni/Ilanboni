@@ -2,8 +2,8 @@ import { db } from "../db";
 import { buyers, clients } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { PropertyListing, SearchCriteria } from "./portalIngestionService";
-import { IdealistaAdapter } from "./adapters/idealistaAdapter";
-import { ImmobiliarePlaywrightAdapter } from "./adapters/immobiliarePlaywrightAdapter";
+import { IdealistaApifyAdapter } from "./adapters/idealistaApifyAdapter";
+import { ImmobiliareApifyAdapter } from "./adapters/immobiliareApifyAdapter";
 
 export interface ScrapedPropertyResult extends PropertyListing {
   portalSource: string;
@@ -11,8 +11,8 @@ export interface ScrapedPropertyResult extends PropertyListing {
 }
 
 export class ClientPropertyScrapingService {
-  private idealistaAdapter = new IdealistaAdapter();
-  private immobiliareAdapter = new ImmobiliarePlaywrightAdapter();
+  private idealistaAdapter = new IdealistaApifyAdapter();
+  private immobiliareAdapter = new ImmobiliareApifyAdapter();
 
   async scrapePropertiesForClient(clientId: number): Promise<ScrapedPropertyResult[]> {
     console.log(`[CLIENT-SCRAPING] Starting scraping for client ${clientId}`);
