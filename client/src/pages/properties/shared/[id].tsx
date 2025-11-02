@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,33 @@ function formatDate(dateString: string | Date) {
   }).format(date);
 }
 
+function isPrivateAgency(name: string, url: string): boolean {
+  const lowerName = (name || '').toLowerCase();
+  const lowerUrl = (url || '').toLowerCase();
+  
+  // Check for private indicators in name or URL
+  return (
+    lowerName.includes('privat') ||
+    lowerName.includes('proprietario') ||
+    lowerName.includes('owner') ||
+    lowerUrl.includes('privat') ||
+    lowerUrl.includes('proprietario')
+  );
+}
+
+function getAgencyDisplayName(name: string): string {
+  if (!name) return 'Agenzia';
+  
+  // Capitalize first letter
+  const formatted = name.charAt(0).toUpperCase() + name.slice(1);
+  
+  // Return "Immobiliare.it" for immobiliare, "Idealista" for idealista, etc.
+  if (formatted.toLowerCase() === 'immobiliare') return 'Immobiliare.it';
+  if (formatted.toLowerCase() === 'idealista') return 'Idealista';
+  
+  return formatted;
+}
+
 export default function SharedPropertyDetailsPage() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
@@ -109,6 +136,60 @@ export default function SharedPropertyDetailsPage() {
     },
     enabled: !!property?.matchBuyers
   });
+  
+  // State for agency links
+  const [agencyLinks, setAgencyLinks] = useState<any[]>([]);
+  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
+  
+  // Fetch agency links when property is loaded
+  useEffect(() => {
+    const fetchAgencyLinks = async () => {
+      if (!property?.agencies || !Array.isArray(property.agencies)) {
+        console.log('[AGENCY-LINKS] No agencies or not array');
+        setAgencyLinks([]);
+        return;
+      }
+      
+      setIsLoadingLinks(true);
+      console.log('[AGENCY-LINKS] Fetching URLs for', property.agencies.length, 'agencies');
+      
+      try {
+        const links = await Promise.all(
+          property.agencies.map(async (agency: any) => {
+            try {
+              console.log('[AGENCY-LINKS] Fetching property', agency.sourcePropertyId);
+              const response = await fetch(`/api/properties/${agency.sourcePropertyId}`);
+              if (!response.ok) {
+                console.log('[AGENCY-LINKS] Failed to fetch property', agency.sourcePropertyId);
+                return { ...agency, url: agency.link || '', isPrivate: false };
+              }
+              const prop = await response.json();
+              console.log('[AGENCY-LINKS] Got URL:', prop.url);
+              return { 
+                ...agency, 
+                url: agency.link || prop.url || '',
+                isPrivate: isPrivateAgency(agency.name, agency.link || prop.url || '')
+              };
+            } catch (error) {
+              console.error('[AGENCY-LINKS] Error fetching property', agency.sourcePropertyId, error);
+              return { ...agency, url: agency.link || '', isPrivate: false };
+            }
+          })
+        );
+        
+        console.log('[AGENCY-LINKS] Final links:', links);
+        setAgencyLinks(links);
+      } catch (error) {
+        console.error('[AGENCY-LINKS] Error in fetchAgencyLinks:', error);
+      } finally {
+        setIsLoadingLinks(false);
+      }
+    };
+    
+    if (property) {
+      fetchAgencyLinks();
+    }
+  }, [property]);
   
   // Update mutation
   const updateMutation = useMutation({
@@ -537,75 +618,54 @@ export default function SharedPropertyDetailsPage() {
                     )}
                   </div>
                   
-                  <h3 className="text-lg font-semibold mb-3 mt-6">Link Agenzie</h3>
+                  <h3 className="text-lg font-semibold mb-3 mt-6">Annunci ({agencyLinks.length})</h3>
                   
-                  <div className="space-y-3">
-                    {property.agency1Name || property.agency1Link ? (
-                      <div className="flex justify-between items-center border-b pb-2">
-                        <div>
-                          <Label className="block">Agenzia 1</Label>
-                          {property.agency1Name && <span className="text-sm">{property.agency1Name}</span>}
+                  <div className="space-y-2">
+                    {agencyLinks.length > 0 ? (
+                      agencyLinks.map((agency: any, index: number) => (
+                        <div 
+                          key={index} 
+                          className={`flex justify-between items-center p-3 rounded-lg border ${
+                            agency.isPrivate 
+                              ? 'bg-green-50 border-green-200' 
+                              : 'bg-white border-gray-200'
+                          }`}
+                          data-testid={`agency-link-${index}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {agency.isPrivate && (
+                              <Badge className="bg-green-600 text-white">
+                                Privato
+                              </Badge>
+                            )}
+                            <div>
+                              <Label className="block font-medium">
+                                {agency.isPrivate ? 'Privato' : getAgencyDisplayName(agency.name)}
+                              </Label>
+                              <span className="text-xs text-gray-500">
+                                Annuncio #{agency.sourcePropertyId}
+                              </span>
+                            </div>
+                          </div>
+                          {agency.url ? (
+                            <a 
+                              href={agency.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 text-sm font-medium"
+                              data-testid={`agency-link-button-${index}`}
+                            >
+                              Vedi Annuncio
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">Link non disponibile</span>
+                          )}
                         </div>
-                        {property.agency1Link && (
-                          <a 
-                            href={property.agency1Link} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary-600 hover:underline flex items-center"
-                          >
-                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                          </a>
-                        )}
-                      </div>
+                      ))
                     ) : (
-                      <div className="border-b pb-2 text-gray-500 text-sm">
-                        Nessun link per Agenzia 1
-                      </div>
-                    )}
-                    
-                    {property.agency2Name || property.agency2Link ? (
-                      <div className="flex justify-between items-center border-b pb-2">
-                        <div>
-                          <Label className="block">Agenzia 2</Label>
-                          {property.agency2Name && <span className="text-sm">{property.agency2Name}</span>}
-                        </div>
-                        {property.agency2Link && (
-                          <a 
-                            href={property.agency2Link} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary-600 hover:underline flex items-center"
-                          >
-                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="border-b pb-2 text-gray-500 text-sm">
-                        Nessun link per Agenzia 2
-                      </div>
-                    )}
-                    
-                    {property.agency3Name || property.agency3Link ? (
-                      <div className="flex justify-between items-center border-b pb-2">
-                        <div>
-                          <Label className="block">Agenzia 3</Label>
-                          {property.agency3Name && <span className="text-sm">{property.agency3Name}</span>}
-                        </div>
-                        {property.agency3Link && (
-                          <a 
-                            href={property.agency3Link} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary-600 hover:underline flex items-center"
-                          >
-                            Apri link <ExternalLink className="h-3.5 w-3.5 ml-1" />
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="border-b pb-2 text-gray-500 text-sm">
-                        Nessun link per Agenzia 3
+                      <div className="border p-3 rounded-lg text-gray-500 text-sm text-center">
+                        Nessun annuncio disponibile
                       </div>
                     )}
                   </div>
