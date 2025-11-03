@@ -3,6 +3,20 @@
 ## Overview
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
+## Recent Changes (November 3, 2025)
+- **All Competitor Properties Feature**: Implemented comprehensive view of all matching properties for high-value clients (rating ≥ 4)
+  - New endpoint `/api/clients/:id/all-competitor-properties` returns ALL properties matching buyer criteria (not just duplicates)
+  - Color-coded categorization system for immediate property type identification:
+    - **Green background**: Private properties (ownerType = 'private') - best acquisition opportunities
+    - **Yellow background**: Duplicate properties (is_shared = true) - multi-agency listings with higher competition
+    - **Red background**: Single agency properties (ownerType = 'agency', is_shared = false) - exclusive to one agency
+  - Button "Vedi Tutti i Concorrenti" visible only in "Possibili Immobili" tab for clients with rating ≥ 4
+  - Modal displays properties in responsive grid with legend explaining color codes
+  - Each property card shows: image, address, price, size, bedrooms, bathrooms, source portal
+  - Badge overlay indicates property type (Privato/Duplicato/Agency) with matching icon
+  - Successfully tested with playwright on client Lidia Aliprandi (ID: 112, rating: 5)
+  - Feature helps agents prioritize acquisition efforts based on competition level
+
 ## Recent Changes (November 1, 2025)
 - **Deduplication GPS Fallback System**: Implementato sistema multi-livello con tolleranza 300m
   - GPS fallback: permette matching con coordinate GPS entro 300m anche con indirizzi generici
