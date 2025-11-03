@@ -109,99 +109,79 @@ export class ApifyService {
   }
 
   /**
-   * Transform Apify raw data (azzouzana format) to our PropertyListing format
-   * Filters: Only Milano properties within 5km from Duomo (45.464, 9.190)
+   * Transform Apify raw data (igolaizola/immobiliare-it-scraper format) to our PropertyListing format
+   * New actor format: flat structure with direct fields
    */
   private transformApifyResults(items: any[]): PropertyListing[] {
-    const DUOMO_LAT = 45.464;
-    const DUOMO_LON = 9.190;
-    const MAX_DISTANCE_KM = 5;
+    console.log(`[APIFY] Processing ${items.length} raw items from Apify (igolaizola format)...`);
 
-    console.log(`[APIFY] Processing ${items.length} raw items from Apify...`);
+    // Log first item structure for debugging
+    if (items.length > 0) {
+      console.log('[APIFY] Sample item keys:', Object.keys(items[0]));
+      console.log('[APIFY] Sample item:', JSON.stringify(items[0], null, 2).substring(0, 500));
+    }
 
     return items
       .filter(item => {
-        if (!item || !item.directLink || !item.properties?.[0]) {
-          console.log(`[APIFY] Filtered out: missing required fields`);
-          return false;
-        }
-        
-        const location = item.properties[0].location;
-        if (!location) {
-          console.log(`[APIFY] Filtered out: no location data`);
+        if (!item) {
+          console.log(`[APIFY] Filtered out: null item`);
           return false;
         }
 
-        // Filter 1: Must be Milano
-        const city = location.city?.toLowerCase() || '';
-        if (city !== 'milano') {
-          console.log(`[APIFY] ❌ ${location.address} - Wrong city: ${location.city}`);
+        // Basic validation - must have city and it must be Milano/Milan
+        const city = item.city || item.City || item.municipality || '';
+        const cityNorm = city.toLowerCase();
+        if (!cityNorm.includes('milan') && !cityNorm.includes('milano')) {
+          console.log(`[APIFY] ❌ Filtered out: wrong city (${city})`);
           return false;
         }
 
-        // Filter 2: Must have valid coordinates
-        const lat = location.latitude;
-        const lon = location.longitude;
-        if (!lat || !lon) {
-          console.log(`[APIFY] ❌ ${location.address} - No coordinates`);
-          return false;
-        }
-
-        // Filter 3: Must be within 5km from Duomo
-        const distance = this.calculateDistance(DUOMO_LAT, DUOMO_LON, lat, lon);
-        if (distance > MAX_DISTANCE_KM) {
-          console.log(`[APIFY] ❌ ${location.address} - Too far: ${distance.toFixed(2)}km`);
-          return false;
-        }
-
-        console.log(`[APIFY] ✅ ${location.address} - Distance: ${distance.toFixed(2)}km`);
+        console.log(`[APIFY] ✅ Accepted: ${item.address || 'no address'} in ${city}`);
         return true;
       })
       .map(item => {
-        const prop = item.properties[0];
-        const location = prop.location || {};
+        // Extract fields from flat structure (igolaizola format)
+        const externalId = String(item.id || item.ID || item.propertyId || Date.now());
+        const price = parseInt(item.price || item.Price || item.priceValue || 0);
+        const size = parseInt(item.size || item.Size || item.surface || item.Surface || 0);
+        const address = item.address || item.Address || item.street || 'Indirizzo non disponibile';
+        const city = item.city || item.City || item.municipality || 'Milano';
+        const postalCode = item.postalCode || item.PostalCode || item.cap || '';
         
-        const externalId = String(item.id || Date.now());
-        const floor = prop.floor?.abbreviation || prop.floor?.floorOnlyValue;
-
+        // Type mapping
         let type = 'apartment';
-        const typologyName = item.typology?.name?.toLowerCase() || '';
-        if (typologyName.includes('villa')) type = 'villa';
-        else if (typologyName.includes('attico')) type = 'penthouse';
-        else if (typologyName.includes('loft')) type = 'loft';
+        const typeStr = (item.type || item.Type || item.propertyType || '').toLowerCase();
+        if (typeStr.includes('villa')) type = 'villa';
+        else if (typeStr.includes('attico') || typeStr.includes('penthouse')) type = 'penthouse';
+        else if (typeStr.includes('loft')) type = 'loft';
 
-        const agencyName = item.advertiser?.agency?.displayName || 
-                          item.advertiser?.supervisor?.displayName || 
-                          'Unknown';
+        // Build full address
+        const fullAddress = postalCode 
+          ? `${address}, ${postalCode}` 
+          : address;
 
-        const surfaceStr = prop.surface || '';
-        const sizeMatch = surfaceStr.match(/(\d+)/);
-        const size = sizeMatch ? parseFloat(sizeMatch[1]) : 0;
+        // Agency info
+        const agencyName = item.agency || item.Agency || item.advertiser || item.agencyName || 'Unknown';
 
-        const photos = prop.multimedia?.photos || [];
-        const imageUrls = photos
-          .map((p: any) => p.urls?.large || p.urls?.medium || p.urls?.small)
-          .filter((url: string) => url)
-          .slice(0, 10);
-
-        const address = location.address || 'Indirizzo non disponibile';
-        const city = location.city || 'Milano';
+        // URL construction
+        const url = item.url || item.URL || item.link || item.directLink || 
+                   `https://www.immobiliare.it/annunci/${externalId}/`;
 
         return {
           externalId,
-          title: item.title || prop.caption || 'Untitled',
-          address,
+          title: item.title || item.Title || `${type} in vendita`,
+          address: fullAddress,
           city,
-          price: item.price?.value || 0,
+          price,
           size,
-          bedrooms: prop.bedRoomsNumber ? parseInt(prop.bedRoomsNumber) : undefined,
-          bathrooms: prop.bathrooms ? parseInt(prop.bathrooms) : undefined,
-          floor,
+          bedrooms: parseInt(item.rooms || item.Rooms || item.bedrooms || item.Bedrooms || 0) || undefined,
+          bathrooms: parseInt(item.bathrooms || item.Bathrooms || item.baths || 0) || undefined,
+          floor: item.floor || item.Floor || undefined,
           type,
-          description: prop.caption || item.title || '',
-          url: item.directLink,
-          imageUrls,
-          ownerType: item.advertiser?.agency ? 'agency' : 'private',
+          description: item.description || item.Description || '',
+          url,
+          imageUrls: item.images || item.Images || item.photos || [],
+          ownerType: agencyName && agencyName !== 'Unknown' ? 'agency' : 'private',
           agencyName
         } as PropertyListing;
       });
