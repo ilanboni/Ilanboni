@@ -3746,6 +3746,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test Apify scraping (1-day trial)
+  app.post("/api/apify/test-scrape", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/apify/test-scrape] 🧪 Testing Apify actor scraping...');
+      
+      const { getApifyService } = await import('./services/apifyService');
+      const { ingestionService } = await import('./services/portalIngestionService');
+      
+      const apifyService = getApifyService();
+      
+      // Scrape with Apify actor (bypasses CAPTCHA with residential proxies)
+      const listings = await apifyService.scrapeAllMilano();
+      console.log(`[APIFY-TEST] Actor returned ${listings.length} listings`);
+      
+      // Import into database
+      let imported = 0;
+      let failed = 0;
+      for (const listing of listings) {
+        try {
+          await ingestionService.saveProperty(listing);
+          imported++;
+        } catch (error) {
+          console.error('[APIFY-TEST] Failed to import:', error);
+          failed++;
+        }
+      }
+      
+      console.log(`[APIFY-TEST] ✅ Completed: ${imported} imported, ${failed} failed from ${listings.length} total`);
+      
+      res.json({
+        success: true,
+        message: 'Apify scraping test completed',
+        totalFetched: listings.length,
+        imported,
+        failed,
+        datasetUrl: listings.length > 0 ? `Check server logs for Apify dataset URL` : undefined
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/apify/test-scrape]', error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : 'Scraping failed' 
+      });
+    }
+  });
+
   // Manual trigger: Scrape all Milano with Playwright (replaces broken Apify)
   app.post("/api/apify/scrape-milano", async (req: Request, res: Response) => {
     try {
