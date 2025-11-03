@@ -1,12 +1,17 @@
-import { chromium, Browser, Page } from 'playwright';
+import { chromium } from 'playwright-extra';
+import type { Browser, Page } from 'playwright';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { PortalAdapter, PropertyListing, SearchCriteria } from '../portalIngestionService';
+
+// Add stealth plugin to avoid CAPTCHA detection
+chromium.use(StealthPlugin());
 
 const IMMOBILIARE_BASE_URL = 'https://www.immobiliare.it';
 const REQUEST_DELAY_MS = 3000;
 const PAGE_TIMEOUT = 30000;
 
 export class ImmobiliarePlaywrightAdapter implements PortalAdapter {
-  name = 'Immobiliare.it (Playwright)';
+  name = 'Immobiliare.it (Playwright Stealth)';
   portalId = 'immobiliare';
   private lastRequestTime = 0;
   private browser: Browser | null = null;
