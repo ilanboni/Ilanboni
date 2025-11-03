@@ -135,13 +135,13 @@ export default function ClientDetailPage() {
     }
   });
 
+  const [isCompetitorModalOpen, setIsCompetitorModalOpen] = useState(false);
+
   // Fetch all competitor properties (only for buyers with rating >= 4)
   const { data: allCompetitorProperties, isLoading: isAllCompetitorPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/all-competitor-properties`],
-    enabled: false, // Will enable manually when button is clicked
+    enabled: isCompetitorModalOpen && !isNaN(id) && client?.type === "buyer" && (client?.buyer?.rating || 0) >= 4,
   });
-
-  const [isCompetitorModalOpen, setIsCompetitorModalOpen] = useState(false);
   
   // Loading state
   if (isClientLoading || isNaN(id)) {
@@ -1597,12 +1597,7 @@ export default function ClientDetailPage() {
                   <Button
                     variant="default"
                     className="gap-2"
-                    onClick={async () => {
-                      await queryClient.refetchQueries({
-                        queryKey: [`/api/clients/${id}/all-competitor-properties`]
-                      });
-                      setIsCompetitorModalOpen(true);
-                    }}
+                    onClick={() => setIsCompetitorModalOpen(true)}
                     data-testid="button-show-all-competitors"
                   >
                     <i className="fas fa-store"></i>
