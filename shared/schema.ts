@@ -125,6 +125,7 @@ export const properties = pgTable("properties", {
   externalLink: text("external_link"), // link to listing on website
   immobiliareItId: text("immobiliare_it_id"), // ID annuncio immobiliare.it per associazione automatica email
   ownerName: text("owner_name"), // nome del proprietario
+  ownerType: text("owner_type"), // 'private' or 'agency' - tipo di proprietario
   // Geocoding for fuzzy address matching
   latitude: text("latitude"), // stored as text for precision
   longitude: text("longitude"),
