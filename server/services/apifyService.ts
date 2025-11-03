@@ -110,77 +110,90 @@ export class ApifyService {
 
   /**
    * Transform Apify raw data (igolaizola/immobiliare-it-scraper format) to our PropertyListing format
-   * New actor format: flat structure with direct fields
+   * New actor format: nested structure with geography.municipality.name
    */
   private transformApifyResults(items: any[]): PropertyListing[] {
     console.log(`[APIFY] Processing ${items.length} raw items from Apify (igolaizola format)...`);
 
-    // Log first item structure for debugging
-    if (items.length > 0) {
-      console.log('[APIFY] Sample item keys:', Object.keys(items[0]));
-      console.log('[APIFY] Sample item:', JSON.stringify(items[0], null, 2).substring(0, 500));
-    }
-
     return items
       .filter(item => {
-        if (!item) {
-          console.log(`[APIFY] Filtered out: null item`);
+        if (!item || !item.geography) {
+          console.log(`[APIFY] ❌ Filtered out: missing geography data`);
           return false;
         }
 
-        // Basic validation - must have city and it must be Milano/Milan
-        const city = item.city || item.City || item.municipality || '';
+        // City is in geography.municipality.name
+        const city = item.geography.municipality?.name || '';
         const cityNorm = city.toLowerCase();
+        
         if (!cityNorm.includes('milan') && !cityNorm.includes('milano')) {
           console.log(`[APIFY] ❌ Filtered out: wrong city (${city})`);
           return false;
         }
 
-        console.log(`[APIFY] ✅ Accepted: ${item.address || 'no address'} in ${city}`);
+        const address = item.geography.street || '';
+        console.log(`[APIFY] ✅ Accepted: ${address} in ${city}`);
         return true;
       })
       .map(item => {
-        // Extract fields from flat structure (igolaizola format)
-        const externalId = String(item.id || item.ID || item.propertyId || Date.now());
-        const price = parseInt(item.price || item.Price || item.priceValue || 0);
-        const size = parseInt(item.size || item.Size || item.surface || item.Surface || 0);
-        const address = item.address || item.Address || item.street || 'Indirizzo non disponibile';
-        const city = item.city || item.City || item.municipality || 'Milano';
-        const postalCode = item.postalCode || item.PostalCode || item.cap || '';
+        const geography = item.geography || {};
+        const topology = item.topology || {};
+        const priceData = item.price || {};
+        const analytics = item.analytics || {};
+        const mediaData = item.media || {};
+        const contacts = item.contacts || {};
         
-        // Type mapping
+        // Extract fields from nested structure
+        const externalId = String(item.id || Date.now());
+        const price = priceData.raw || 0;
+        const size = topology.surface?.size || 0;
+        const address = geography.street || 'Indirizzo non disponibile';
+        const city = geography.municipality?.name || 'Milano';
+        const postalCode = geography.zipcode || '';
+        const latitude = geography.geolocation?.latitude;
+        const longitude = geography.geolocation?.longitude;
+        
+        // Type mapping from topology.typology.name
         let type = 'apartment';
-        const typeStr = (item.type || item.Type || item.propertyType || '').toLowerCase();
-        if (typeStr.includes('villa')) type = 'villa';
-        else if (typeStr.includes('attico') || typeStr.includes('penthouse')) type = 'penthouse';
-        else if (typeStr.includes('loft')) type = 'loft';
+        const typologyName = (topology.typology?.name || '').toLowerCase();
+        if (typologyName.includes('villa')) type = 'villa';
+        else if (typologyName.includes('attico') || typologyName.includes('penthouse')) type = 'penthouse';
+        else if (typologyName.includes('loft')) type = 'loft';
 
         // Build full address
         const fullAddress = postalCode 
           ? `${address}, ${postalCode}` 
           : address;
 
-        // Agency info
-        const agencyName = item.agency || item.Agency || item.advertiser || item.agencyName || 'Unknown';
+        // Agency info from analytics or contacts
+        const agencyName = analytics.agencyName || contacts.agencyName || 'Unknown';
 
         // URL construction
-        const url = item.url || item.URL || item.link || item.directLink || 
-                   `https://www.immobiliare.it/annunci/${externalId}/`;
+        const url = `https://www.immobiliare.it/annunci/${externalId}/`;
+
+        // Extract images from media.images array
+        const images = mediaData.images || [];
+        const imageUrls = images
+          .map((img: any) => img.hd || img.sd || '')
+          .filter((url: string) => url)
+          .slice(0, 10);
 
         return {
           externalId,
-          title: item.title || item.Title || `${type} in vendita`,
+          title: item.title || `${type} in vendita`,
           address: fullAddress,
           city,
           price,
           size,
-          bedrooms: parseInt(item.rooms || item.Rooms || item.bedrooms || item.Bedrooms || 0) || undefined,
-          bathrooms: parseInt(item.bathrooms || item.Bathrooms || item.baths || 0) || undefined,
-          floor: item.floor || item.Floor || undefined,
+          bedrooms: parseInt(topology.rooms || '0') || undefined,
+          bathrooms: parseInt(topology.bathrooms || '0') || undefined,
+          floor: topology.floor || undefined,
           type,
-          description: item.description || item.Description || '',
+          description: '', // No description field in this format
           url,
-          imageUrls: item.images || item.Images || item.photos || [],
+          imageUrls,
+          latitude,
+          longitude,
           ownerType: agencyName && agencyName !== 'Unknown' ? 'agency' : 'private',
           agencyName
         } as PropertyListing;

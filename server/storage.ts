@@ -54,6 +54,7 @@ export interface IStorage {
   
   // Property methods
   getProperty(id: number): Promise<Property | undefined>;
+  getPropertyByExternalId(externalId: string): Promise<Property | undefined>;
   getProperties(filters?: { status?: string; search?: string }): Promise<Property[]>;
   getPropertyWithDetails(id: number): Promise<PropertyWithDetails | undefined>;
   createProperty(property: InsertProperty): Promise<Property>;
@@ -690,6 +691,12 @@ export class MemStorage implements IStorage {
   // Property methods
   async getProperty(id: number): Promise<Property | undefined> {
     return this.propertyStore.get(id);
+  }
+  
+  async getPropertyByExternalId(externalId: string): Promise<Property | undefined> {
+    return Array.from(this.propertyStore.values()).find(
+      property => property.externalId === externalId
+    );
   }
   
   async getProperties(filters?: { status?: string; search?: string }): Promise<Property[]> {
@@ -1830,6 +1837,11 @@ export class DatabaseStorage implements IStorage {
   // Property methods
   async getProperty(id: number): Promise<Property | undefined> {
     const result = await db.select().from(properties).where(eq(properties.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getPropertyByExternalId(externalId: string): Promise<Property | undefined> {
+    const result = await db.select().from(properties).where(eq(properties.externalId, externalId));
     return result.length > 0 ? result[0] : undefined;
   }
 

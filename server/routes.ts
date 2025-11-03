@@ -3834,44 +3834,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Manual trigger: Scrape FULL Milano city (no zones, no distance filters)
+  // TEST: Get sample item from Apify dataset
+  app.get("/api/apify/test-sample", async (req: Request, res: Response) => {
+    try {
+      const { getApifyService } = await import('./services/apifyService');
+      const apifyService = getApifyService();
+      
+      // Run a quick scrape to get 1 sample item
+      const { ApifyClient } = await import('apify-client');
+      const apiToken = process.env.APIFY_API_TOKEN;
+      const client = new ApifyClient({ token: apiToken });
+      
+      const input = {
+        municipality: 'Milano',
+        category: 'vendita',
+        maxItems: 1
+      };
+      
+      const actorId = 'igolaizola/immobiliare-it-scraper';
+      const run = await client.actor(actorId).call(input);
+      const { items } = await client.dataset(run.defaultDatasetId).listItems();
+      
+      if (items.length > 0) {
+        res.json({
+          success: true,
+          sampleItem: items[0],
+          keys: Object.keys(items[0])
+        });
+      } else {
+        res.json({
+          success: false,
+          message: 'No items returned from Apify'
+        });
+      }
+    } catch (error) {
+      console.error('[TEST-SAMPLE]', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Test failed' });
+    }
+  });
+
+  // Manual trigger: Scrape FULL Milano city using Apify actor (bypasses CAPTCHA)
   app.post("/api/apify/scrape-full-city", async (req: Request, res: Response) => {
     try {
-      console.log('[POST /api/scrape-full-city] 🚀 Starting FULL Milano city scrape...');
+      console.log('[POST /api/apify/scrape-full-city] 🚀 Starting FULL Milano city scrape with Apify...');
       
-      const { milanoScrapingService } = await import('./services/milanoScrapingService');
+      const { getApifyService } = await import('./services/apifyService');
+      const apifyService = getApifyService();
       
-      // Scrape entire Milano city in one search
-      const result = await milanoScrapingService.scrapeFullCity();
+      // Scrape entire Milano city using Apify actor (igolaizola/immobiliare-it-scraper)
+      const listings = await apifyService.scrapeAllMilano();
       
-      console.log(`[FULL-CITY-SCRAPE] Completed: ${result.imported} imported, ${result.failed} failed`);
+      console.log(`[APIFY-FULL-CITY] Retrieved ${listings.length} listings from Apify`);
+      
+      // Import listings to database
+      let imported = 0;
+      let updated = 0;
+      let failed = 0;
+      const errors: string[] = [];
+      
+      for (const listing of listings) {
+        try {
+          const existingProperty = await storage.getPropertyByExternalId(listing.externalId);
+          
+          if (existingProperty) {
+            await storage.updateProperty(existingProperty.id, listing);
+            updated++;
+          } else {
+            await storage.createProperty(listing);
+            imported++;
+          }
+        } catch (err) {
+          failed++;
+          const errorMsg = `Failed to import ${listing.address}: ${err instanceof Error ? err.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+          
+          // Log first 5 errors to help debugging
+          if (failed <= 5) {
+            console.error(`[APIFY-IMPORT-ERROR #${failed}]`, errorMsg);
+            if (err instanceof Error && err.stack) {
+              console.error(`[APIFY-IMPORT-STACK #${failed}]`, err.stack.substring(0, 500));
+            }
+          }
+        }
+      }
+      
+      console.log(`[APIFY-FULL-CITY] Import completed: ${imported} new, ${updated} updated, ${failed} failed`);
+      
+      // Log summary of first errors
+      if (errors.length > 0) {
+        console.error(`[APIFY-FULL-CITY] First 10 errors:`, errors.slice(0, 10));
+      }
       
       // Trigger deduplication scan
-      if (result.imported > 0) {
+      if (imported > 0 || updated > 0) {
         try {
-          console.log('[FULL-CITY-SCRAPE] Triggering deduplication scan...');
+          console.log('[APIFY-FULL-CITY] Triggering deduplication scan...');
           const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
           await runDeduplicationScan();
-          console.log('[FULL-CITY-SCRAPE] Deduplication completed');
+          console.log('[APIFY-FULL-CITY] Deduplication completed');
         } catch (dedupError) {
-          console.error('[FULL-CITY-SCRAPE] Deduplication failed:', dedupError);
+          console.error('[APIFY-FULL-CITY] Deduplication failed:', dedupError);
         }
       }
       
       res.json({
         success: true,
-        method: 'full-city',
-        totalFetched: result.totalFetched,
-        imported: result.imported,
-        updated: result.updated,
-        failed: result.failed,
-        errors: result.errors
+        method: 'apify-actor',
+        totalFetched: listings.length,
+        imported,
+        updated,
+        failed,
+        errors
       });
       
     } catch (error) {
-      console.error('[POST /api/scrape-full-city]', error);
+      console.error('[POST /api/apify/scrape-full-city]', error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : 'Scraping failed' 
+        error: error instanceof Error ? error.message : 'Apify scraping failed' 
       });
     }
   });
