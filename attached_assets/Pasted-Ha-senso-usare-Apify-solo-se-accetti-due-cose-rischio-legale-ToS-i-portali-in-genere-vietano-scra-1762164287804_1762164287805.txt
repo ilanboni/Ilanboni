@@ -1,0 +1,244 @@
+Ha senso usare Apify solo se accetti due cose:
+
+rischio legale/ToS (i portali in genere vietano scraping);
+
+un po’ di manutenzione quando cambiano le pagine.
+
+Se ci stai, si può fare. Ti do un piano semplice e operativo (senza “trucchi anti-bot” né aggiramenti).
+
+Obiettivo
+
+Trovare entro 5 km dal Duomo:
+
+Privati (inserzionista privato).
+
+Pluricondivisi = stesso immobile pubblicizzato da 2+ agenzie → niente esclusiva.
+
+Escludere i tuoi immobili/agenzia.
+
+Inviare tutto al tuo gestionale (Replit) già clusterizzato + task.
+
+Architettura (pulita e robusta)
+
+3 actor Apify (uno per portale: Immobiliare.it, Casa.it, Idealista):
+
+Search Actor (liste)
+
+Query “Milano” con filtri standard del portale (vendita/affitto come vuoi).
+
+Limita a N pagine (es. 10–20) e rispetta delay tra richieste.
+
+Estrai per ogni risultato: title, price, size, floor, address (o zona), url, inserzionista (privato/agenzia), prima foto.
+
+Detail Actor (facoltativo ma consigliato)
+
+Apre la scheda per arricchire: civico, eventuali lat/lon (se presenti in JSON-LD), nome agenzia, eventuale telefono/email pubblici.
+
+Normalizer + Dedup Actor
+
+Unifica lo schema dati dai 3 portali.
+
+Applica raggio 5 km (Duomo: 45.4642, 9.1900; se manca geo ma c’è “Milano” → tieni).
+
+Esclude i tuoi: per nome agenzia (alias) e, se disponibili, confronta con indice portafoglio via endpoint del tuo gestionale.
+
+Clusterizza duplicati con “duplicate score” (indirizzo normalizzato + distanza + prezzo ±7% + mq ±10% + piano ±1; opzionale pHash 1ª foto).
+
+Tagga:
+
+owner_type = "private" → Privati
+
+multi_agency = true se cluster size ≥ 2 → Pluricondivisi
+
+Output finale: clusters + items.
+
+Webhook Apify → Replit
+Dopo ogni run: POST https://<tuo-repl>.replit.app/api/import-external con JSON (vedi schema sotto).
+Il tuo backend già fa: filtro 5 km, esclusione portafoglio, creazione task acquisizione/collaborazione, “Match Oggi”.
+
+Scheduler
+Su Apify pianifichi ogni giorno 07:05 Europe/Rome.
+
+Schema dati (uguale per tutti gli actor)
+{
+  "title": "Trilocale ristrutturato",
+  "price_eur": 520000,
+  "size_mq": 95,
+  "floor": "3",
+  "address": "Via Xxx 12, Milano",
+  "latitude": 45.4639,
+  "longitude": 9.1908,
+  "url": "https://.../annuncio/...",
+  "portal": "immobiliare.it",
+  "owner_type": "private|agency|unknown",
+  "agency_name": "Agenzia ABC",
+  "images": ["https://.../foto1.jpg"]
+}
+
+Rilevazione “Privati” e “Pluricondivisi”
+
+Privati: usa l’etichetta del portale (“privato”, “particolare”), oppure assenza di agency_name.
+
+Pluricondivisi: nel Normalizer raggruppa per:
+
+indirizzo normalizzato (via+numero, senza “Milano”)
+
+distanza ≤ 30–80 m se hai lat/lon
+
+prezzo entro ±7%
+
+mq entro ±10%
+
+piano uguale o differenza ≤1
+→ score ≥ 70 = duplicato (stesso appartamento); 45–69 = sospetto (stesso stabile).
+
+Come lo colleghi al tuo gestionale
+
+Endpoint di import (già lo usi): POST /api/import-external
+
+Body: { source: "apify", items: [ ... ], clusters?: [ [idx...] ] }
+
+Indice portafoglio (opzionale ma utile): /api/portfolio/index-lite → urls[], listing_ids[], addresses[]
+
+Dopo l’import, il tuo backend lancia /api/run/match:
+
+Privati → task “Call/WhatsApp proprietario” (bozza msg, invio manuale salvo WABA)
+
+Pluri (agenzie) → task “Acquisizione: trova intestatario/contatta”
+
+Mono agenzia → task “Collaborazione: invia email”
+
+Costi & rischi (onesti)
+
+Legali/ToS: i portali spesso vietano scraping → Rischio blocchi IP o diffide. Usa rate limit alto, user-agent chiaro, rispetta robots, niente aggiramenti.
+
+Manutenzione: cambi HTML → va aggiornato. Apify aiuta con log/monitor, ma serve una “mano” quando si rompe.
+
+Costo: dipende da pagine/giorno e proxy. Con volume limitato (Milano, 10–20 pagine per portale/dì) resti contenuto; il vero costo sono i proxy residenziali se servono. (Non ti do numeri precisi perché variano, ma è di solito meno delle API enterprise.)
+
+Cosa ti preparo adesso
+
+Ti lascio i prompt di configurazione (copiaincolla in Apify) e un endpoint lato Replit.
+
+1) Input Actor (uguale per i 3 portali)
+{
+  "city": "Milano",
+  "dealType": "sale",     // o "rent"
+  "maxPages": 15,         // sicurezza
+  "delayMs": 3000,        // cortesia (3s)
+  "center": { "lat": 45.4642, "lon": 9.1900 },
+  "radiusKm": 5
+}
+
+2) Webhook Apify (dopo ogni run)
+
+URL:
+
+https://cavourimmobiliare-ilanboni.replit.app/api/import-external
+
+
+Metodo: POST
+Headers: Authorization: Bearer <REPLIT_API_TOKEN>, Content-Type: application/json
+Body: il dataset JSON dell’actor (lista di items come dallo schema).
+
+3) Endpoint Replit (incollalo nel tuo backend se non c’è già)
+// server/routes.ts (aggiungi)
+app.post("/api/import-external", auth, express.json({limit:"3mb"}), async (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items : req.body;
+  if (!Array.isArray(items)) return res.status(400).json({ error: "items array required" });
+
+  // 1) normalizza/canonicalizza
+  const norm = (s:string)=> (s||"").toLowerCase().normalize("NFKD").replace(/[^\w\s]/g," ").replace(/\s+/g," ").trim();
+  const stripUtm = (u:string)=>{ try{ const x=new URL(u); [...x.searchParams.keys()].forEach(k=>{ if(k.startsWith("utm_")) x.searchParams.delete(k); }); return x.toString(); }catch{ return u; } };
+
+  const mapped = items.map((a:any)=>({
+    title: a.title || "",
+    price_eur: a.price_eur ?? null,
+    size_mq: a.size_mq ?? null,
+    floor: a.floor ? String(a.floor) : "",
+    address: a.address || "",
+    address_norm: norm((a.address||"").replace(/\b(milano|mi)\b/g,"")),
+    latitude: a.latitude ?? null,
+    longitude: a.longitude ?? null,
+    url: stripUtm(a.url || ""),
+    portal: a.portal || "",
+    owner_type: a.owner_type || "unknown",
+    agency_name: a.agency_name || "",
+    images: Array.isArray(a.images) ? a.images : [],
+    source: "apify",
+  }));
+
+  // 2) filtro raggio 5 km (fallback “Milano” se manca geo)
+  function hav(lat1:number,lon1:number,lat2:number,lon2:number){
+    if([lat1,lon1,lat2,lon2].some(v=>!Number.isFinite(v))) return Infinity;
+    const R=6371, rad=(d:number)=>d*Math.PI/180;
+    const dLat=rad(lat2-lat1), dLon=rad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+  const CENTER = { lat: 45.4642, lon: 9.1900 }, RADIUS=5;
+  let filtered = mapped.filter(x => {
+    if (Number.isFinite(x.latitude) && Number.isFinite(x.longitude)) {
+      return hav(CENTER.lat,CENTER.lon,x.latitude as number,x.longitude as number) <= RADIUS;
+    }
+    return /milano/i.test(x.address);
+  });
+
+  // 3) escludi i “nostri”
+  const OURS = ["Cavour Immobiliare","CAVOUR IMMOBILIARE","Cavour RE"].map(norm);
+  filtered = filtered.filter(x => {
+    const ag = norm(x.agency_name||"");
+    return !OURS.some(n => ag.includes(n));
+  });
+
+  // 4) esclusione portafoglio (se hai l’indice già implementato)
+  // TODO: se esiste una funzione/servizio interno, chiamalo qui e filtra
+
+  // 5) cluster duplicati (score)
+  function pct(a?:number,b?:number){ if(!a||!b) return 1; const m=Math.max(a,b); return Math.abs(a-b)/m; }
+  function floorClose(f1?:string,f2?:string){ const n=(s?:string)=>parseInt(String(s||"").replace(/\D/g,"")||"0",10); return Math.abs(n(f1)-n(f2))<=1; }
+  function score(a:any,b:any){
+    let s=0;
+    if (a.address_norm && a.address_norm===b.address_norm) s+=40;
+    const d = hav(a.latitude,a.longitude,b.latitude,b.longitude);
+    if (d!==Infinity){ if (d<=0.03) s+=25; else if (d<=0.08) s+=15; }
+    if (pct(a.price_eur,b.price_eur) <= 0.07) s+=12;
+    if (pct(a.size_mq ,b.size_mq ) <= 0.10) s+=12;
+    if (floorClose(a.floor,b.floor)) s+=6;
+    return s;
+  }
+  // union-find semplice
+  const n = filtered.length;
+  const parent = Array.from({length:n},(_,i)=>i);
+  const find = (i:number)=> parent[i]===i?i:(parent[i]=find(parent[i]));
+  const unite=(i:number,j:number)=>{ const a=find(i), b=find(j); if(a!==b) parent[b]=a; };
+  for (let i=0;i<n;i++){
+    for (let j=i+1;j<n;j++){
+      if (score(filtered[i],filtered[j]) >= 70) unite(i,j);
+    }
+  }
+  const groups: Record<string, any[]> = {};
+  for (let i=0;i<n;i++){ const r=find(i); (groups[r] ||= []).push(filtered[i]); }
+  const clusters = Object.values(groups).filter(g => g.length>=2);
+
+  // 6) salva su DB (tuo formato) e genera task (riusa la logica che già hai)
+  // Esempio: salva flat e marca is_multiagency
+  const flat = clusters.flat().map(x => ({ ...x, is_multiagency: true }));
+  // Inserisci nel tuo storage (Drizzle/ORM) qui…
+  // await db.importFromExternal(flat);
+
+  // 7) avvia il tuo motore di match/task
+  // await runMatch();
+
+  return res.json({ ok:true, total_in: items.length, kept: filtered.length, clusters: clusters.length });
+});
+
+Conclusione
+
+Sì, Apify può andare, se accetti ToS/rotture.
+
+La pipeline sopra automatizza tutto: prende dai 3 portali, deduplica, filtra 5 km, esclude i tuoi, crea cluster, invia a Replit e genera i task.
+
+È più economico delle API enterprise, ma più fragile: tieni basso il volume e monitora i log.
+
+Se vuoi, ti preparo anche il template dell’actor Apify (senza selettori “hard-coded”), così il tuo dev aggiunge solo i selettori dei tre portali e parte subito.
