@@ -76,7 +76,32 @@ export default function PropertyDuplicatesPage() {
     queryKey: ['/api/shared-properties']
   });
 
-  // Mutation per scansione manuale
+  // Mutation per scraping nuove proprietà
+  const scrapeMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('/api/apify/scrape-full-city', {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "✅ Scraping completato",
+        description: `${data.imported} immobili importati su ${data.totalFetched} totali. Avvio deduplicazione...`
+      });
+      // Dopo lo scraping, avvia automaticamente la deduplicazione
+      scanMutation.mutate();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "❌ Errore scraping",
+        description: error.message || "Impossibile scaricare le proprietà",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Mutation per scansione manuale (solo deduplicazione)
   const scanMutation = useMutation({
     mutationFn: async () => {
       const token = import.meta.env.VITE_REPLIT_API_TOKEN;
@@ -103,7 +128,7 @@ export default function PropertyDuplicatesPage() {
         timestamp: new Date().toISOString()
       });
       toast({
-        title: "✅ Scansione completata",
+        title: "✅ Deduplicazione completata",
         description: `Trovati ${data.clustersFound} cluster di duplicati. ${data.multiagencyProperties} proprietà multi-agency identificate.`
       });
       // Invalida cache per aggiornare lista
@@ -113,12 +138,16 @@ export default function PropertyDuplicatesPage() {
     },
     onError: (error: any) => {
       toast({
-        title: "❌ Errore scansione",
-        description: error.message || "Impossibile completare la scansione",
+        title: "❌ Errore deduplicazione",
+        description: error.message || "Impossibile completare la deduplicazione",
         variant: "destructive"
       });
     }
   });
+
+  const handleScrapeAndScan = () => {
+    scrapeMutation.mutate();
+  };
 
   const handleScan = () => {
     scanMutation.mutate();
@@ -174,7 +203,7 @@ export default function PropertyDuplicatesPage() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-heading font-bold text-gray-900">
               Duplicati Multi-Agency
@@ -183,35 +212,62 @@ export default function PropertyDuplicatesPage() {
               Identifica immobili gestiti da più agenzie o da privati e agenzie
             </p>
           </div>
-          <Button
-            onClick={handleScan}
-            disabled={scanMutation.isPending}
-            data-testid="button-scan-now"
-            className="mt-4 md:mt-0"
-          >
-            {scanMutation.isPending ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Scansione in corso...
-              </>
-            ) : (
-              <>
-                <Scan className="h-4 w-4 mr-2" />
-                Scansiona Ora
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={handleScrapeAndScan}
+              disabled={scrapeMutation.isPending || scanMutation.isPending}
+              data-testid="button-scrape-and-scan"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {scrapeMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Scaricamento...
+                </>
+              ) : (
+                <>
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Scarica Nuove Proprietà
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleScan}
+              disabled={scanMutation.isPending || scrapeMutation.isPending}
+              data-testid="button-scan-now"
+              variant="outline"
+            >
+              {scanMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Deduplicazione...
+                </>
+              ) : (
+                <>
+                  <Scan className="h-4 w-4 mr-2" />
+                  Solo Deduplicazione
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Alert informativo */}
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            La scansione analizza tutti gli immobili nel database e identifica duplicati basandosi su: 
-            <strong> indirizzo (similarità &gt;75%)</strong>, 
-            <strong> prezzo (scarto &lt;5-10%)</strong>, 
-            <strong> superficie (±5-10mq)</strong>, 
-            e <strong>hash immagini</strong>.
+            <div className="space-y-2">
+              <p>
+                <strong className="text-green-600">📥 Scarica Nuove Proprietà:</strong> Scarica immobili da Immobiliare.it per tutta Milano (~2-3 minuti) e poi esegue automaticamente la deduplicazione.
+              </p>
+              <p>
+                <strong>🔄 Solo Deduplicazione:</strong> Analizza solo gli immobili già nel database (~2 secondi) identificando duplicati basandosi su: 
+                <strong> indirizzo</strong>, 
+                <strong> prezzo (±10%)</strong>, 
+                <strong> superficie (±15%)</strong>, 
+                e <strong>GPS (300m)</strong>.
+              </p>
+            </div>
           </AlertDescription>
         </Alert>
 
