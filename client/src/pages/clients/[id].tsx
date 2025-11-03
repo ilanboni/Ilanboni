@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
 import { useClientPreferences } from "@/hooks/useClientPreferences";
 import { MapContainer, TileLayer, Polygon, Circle, Marker } from "react-leaflet";
@@ -133,6 +134,14 @@ export default function ClientDetailPage() {
       return response.json();
     }
   });
+
+  // Fetch all competitor properties (only for buyers with rating >= 4)
+  const { data: allCompetitorProperties, isLoading: isAllCompetitorPropertiesLoading } = useQuery({
+    queryKey: [`/api/clients/${id}/all-competitor-properties`],
+    enabled: false, // Will enable manually when button is clicked
+  });
+
+  const [isCompetitorModalOpen, setIsCompetitorModalOpen] = useState(false);
   
   // Loading state
   if (isClientLoading || isNaN(id)) {
@@ -1584,6 +1593,22 @@ export default function ClientDetailPage() {
                   <CardTitle>Possibili Immobili</CardTitle>
                   <CardDescription>Immobili online (Immobiliare.it, Idealista) che corrispondono alle richieste del cliente</CardDescription>
                 </div>
+                {client?.buyer?.rating && client.buyer.rating >= 4 && (
+                  <Button
+                    variant="default"
+                    className="gap-2"
+                    onClick={async () => {
+                      await queryClient.refetchQueries({
+                        queryKey: [`/api/clients/${id}/all-competitor-properties`]
+                      });
+                      setIsCompetitorModalOpen(true);
+                    }}
+                    data-testid="button-show-all-competitors"
+                  >
+                    <i className="fas fa-store"></i>
+                    <span>Vedi Tutti i Concorrenti</span>
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {isScrapedPropertiesLoading ? (
@@ -1860,6 +1885,147 @@ export default function ClientDetailPage() {
         detectedProperties={detectedProperties}
         conversationThread={conversationThread}
       />
+
+      {/* All Competitor Properties Modal */}
+      <Dialog open={isCompetitorModalOpen} onOpenChange={setIsCompetitorModalOpen}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tutti gli Immobili dei Concorrenti in Target</DialogTitle>
+            <DialogDescription>
+              Immobili che corrispondono alle preferenze del cliente (rating {client?.buyer?.rating}/5)
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isAllCompetitorPropertiesLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          ) : !allCompetitorProperties || allCompetitorProperties.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="text-6xl mb-4">
+                <i className="fas fa-search"></i>
+              </div>
+              <h3 className="text-lg font-medium mb-2">Nessun immobile trovato</h3>
+              <p>Non sono stati trovati immobili dei concorrenti che corrispondono alle preferenze del cliente.</p>
+            </div>
+          ) : (
+            <>
+              <div className="mb-4 flex gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
+                  <span>Privato</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded"></div>
+                  <span>Duplicato (Multi-Agency)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-red-100 border border-red-300 rounded"></div>
+                  <span>Singolo Agency</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {allCompetitorProperties.map((property: any) => (
+                  <Card 
+                    key={property.id} 
+                    className={`overflow-hidden ${
+                      property.isPrivate ? 'bg-green-50 border-green-200' :
+                      property.isDuplicate ? 'bg-yellow-50 border-yellow-200' :
+                      property.isSingleAgency ? 'bg-red-50 border-red-200' :
+                      ''
+                    }`}
+                    data-testid={`card-competitor-property-${property.id}`}
+                  >
+                    <div className="aspect-video relative bg-gray-100">
+                      {property.images && property.images.length > 0 ? (
+                        <img 
+                          src={property.images[0]} 
+                          alt={property.address} 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-gray-400">
+                          <i className="fas fa-building text-4xl"></i>
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <Badge className="bg-primary-900/80 text-white">
+                          € {property.price?.toLocaleString() || "N/D"}
+                        </Badge>
+                      </div>
+                      <div className="absolute top-2 left-2">
+                        {property.isPrivate && (
+                          <Badge className="bg-green-600 text-white">
+                            <i className="fas fa-user mr-1"></i>Privato
+                          </Badge>
+                        )}
+                        {property.isDuplicate && (
+                          <Badge className="bg-yellow-600 text-white">
+                            <i className="fas fa-copy mr-1"></i>Duplicato
+                          </Badge>
+                        )}
+                        {property.isSingleAgency && (
+                          <Badge className="bg-red-600 text-white">
+                            <i className="fas fa-store mr-1"></i>Agency
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg line-clamp-1">
+                            {property.address}
+                          </h3>
+                          <p className="text-sm text-gray-600">{property.city}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between mt-3 text-sm text-gray-700">
+                        <div>
+                          <span className="font-medium">{property.size} m²</span>
+                          {property.bedrooms && (
+                            <>
+                              <span className="mx-1">•</span>
+                              <span>{property.bedrooms} cam.</span>
+                            </>
+                          )}
+                          {property.bathrooms && (
+                            <>
+                              <span className="mx-1">•</span>
+                              <span>{property.bathrooms} bagni</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {property.source && (
+                        <div className="mt-3 text-xs text-gray-500">
+                          Fonte: {property.source}
+                        </div>
+                      )}
+                      
+                      <div className="mt-4 flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1 text-xs"
+                          asChild
+                        >
+                          <Link href={property.url || `/properties/${property.id}`}>
+                            <i className="fas fa-info-circle mr-1"></i> Dettagli
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
