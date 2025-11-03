@@ -12,7 +12,7 @@ export interface ApifyScraperConfig {
 
 export class ApifyService {
   private client: ApifyClient;
-  private actorId = 'azzouzana/immobiliare-it-listing-page-scraper-by-search-url';
+  private actorId = 'igolaizola/immobiliare-it-scraper'; // New actor with 1-day trial
 
   constructor(apiToken: string) {
     this.client = new ApifyClient({ token: apiToken });
@@ -25,8 +25,10 @@ export class ApifyService {
   async scrapeImmobiliare(config: ApifyScraperConfig): Promise<PropertyListing[]> {
     console.log(`[APIFY] Starting scrape with ${config.searchUrls.length} URLs`);
     
+    // New actor format: igolaizola/immobiliare-it-scraper
     const input = {
-      startUrls: config.searchUrls,
+      municipality: 'milano',
+      category: 'vendita',
       maxItems: config.maxItems || 1000,
       proxyConfiguration: config.proxyConfiguration || {
         useApifyProxy: true,
