@@ -1846,6 +1846,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Errore durante lo scraping degli immobili" });
     }
   });
+
+  // Endpoint per ottenere TUTTE le proprietà dei concorrenti in target (per buyer con rating >= 4)
+  app.get("/api/clients/:id/all-competitor-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+
+      console.log(`[ALL-COMPETITOR-PROPERTIES] Request for client ${clientId}`);
+
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+
+      if (client.type !== 'buyer') {
+        return res.status(400).json({ error: "Solo i clienti compratori hanno accesso a questa funzione" });
+      }
+
+      const buyer = await storage.getBuyerByClientId(clientId);
+      if (!buyer) {
+        return res.status(404).json({ error: "Dati acquirente non trovati" });
+      }
+
+      // Check rating requirement
+      if (!buyer.rating || buyer.rating < 4) {
+        return res.status(403).json({ error: "Questa funzione è disponibile solo per clienti con rating 4 o 5" });
+      }
+
+      console.log(`[ALL-COMPETITOR-PROPERTIES] Client rating: ${buyer.rating} - proceeding`);
+
+      // Get all properties from external sources (Apify, scrapers)
+      // Exclude our own properties (isOwned = false means they're from competitors)
+      const allCompetitorProperties = await db
+        .select()
+        .from(properties)
+        .where(eq(properties.isOwned, false));
+
+      console.log(`[ALL-COMPETITOR-PROPERTIES] Found ${allCompetitorProperties.length} competitor properties total`);
+
+      // Import matching logic
+      const { isPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+
+      // Filter properties by buyer criteria
+      const matchingProperties = allCompetitorProperties.filter(property => {
+        return isPropertyMatchingBuyerCriteria(property, buyer);
+      });
+
+      console.log(`[ALL-COMPETITOR-PROPERTIES] ${matchingProperties.length} properties match buyer criteria`);
+
+      // Enrich with categorization info for color coding
+      const enrichedProperties = matchingProperties.map(property => ({
+        ...property,
+        // Categorization for frontend color coding:
+        // - isPrivate: green background
+        // - isDuplicate: yellow background  
+        // - isSingleAgency: red background
+        isPrivate: !property.portal || property.portal === 'private',
+        isDuplicate: property.isShared === true,
+        isSingleAgency: property.portal && property.portal !== 'private' && property.isShared === false
+      }));
+
+      res.json(enrichedProperties);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/all-competitor-properties]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà dei concorrenti" });
+    }
+  });
   
   // Endpoint per ottenere gli immobili compatibili con un cliente con info su invio
   app.get("/api/clients/:id/properties-with-notification-status", async (req: Request, res: Response) => {
