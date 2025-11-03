@@ -195,7 +195,8 @@ export class ApifyService {
           latitude,
           longitude,
           ownerType: agencyName && agencyName !== 'Unknown' ? 'agency' : 'private',
-          agencyName
+          agencyName,
+          source: 'apify'
         } as PropertyListing;
       });
   }

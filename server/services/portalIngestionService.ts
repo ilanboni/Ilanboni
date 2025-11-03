@@ -17,8 +17,11 @@ export interface PropertyListing {
   description?: string;
   url: string;
   imageUrls?: string[];
+  latitude?: number;
+  longitude?: number;
   ownerType?: 'agency' | 'private';
   agencyName?: string;
+  source?: string;
 }
 
 export interface SearchCriteria {
@@ -214,13 +217,15 @@ export class PortalIngestionService {
         portal: portalId,
         externalId: listing.externalId,
         url: listing.url,
-        source: `scraper-${portalId}`,
+        source: listing.source || `scraper-${portalId}`,
+        latitude: listing.latitude,
+        longitude: listing.longitude,
         firstSeenAt: now,
         lastSeenAt: now,
         isOwned: false,
         isShared: false,
         status: 'available', // CRITICAL FIX: Include in deduplication scan
-        geocodeStatus: 'pending'
+        geocodeStatus: listing.latitude && listing.longitude ? 'success' : 'pending'
       }).returning();
       
       console.log(`[INGESTION] Imported new property: ${listing.externalId}`);

@@ -3762,24 +3762,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Import into database
       let imported = 0;
+      let updated = 0;
       let failed = 0;
       for (const listing of listings) {
         try {
-          await ingestionService.saveProperty(listing);
-          imported++;
+          const existingProperty = await storage.getPropertyByExternalId(listing.externalId);
+          
+          if (existingProperty) {
+            await storage.updateProperty(existingProperty.id, listing);
+            updated++;
+          } else {
+            await storage.createProperty(listing);
+            imported++;
+          }
         } catch (error) {
           console.error('[APIFY-TEST] Failed to import:', error);
           failed++;
         }
       }
       
-      console.log(`[APIFY-TEST] ✅ Completed: ${imported} imported, ${failed} failed from ${listings.length} total`);
+      console.log(`[APIFY-TEST] ✅ Completed: ${imported} imported, ${updated} updated, ${failed} failed from ${listings.length} total`);
       
       res.json({
         success: true,
         message: 'Apify scraping test completed',
         totalFetched: listings.length,
         imported,
+        updated,
         failed,
         datasetUrl: listings.length > 0 ? `Check server logs for Apify dataset URL` : undefined
       });
