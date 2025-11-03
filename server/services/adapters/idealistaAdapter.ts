@@ -1,12 +1,17 @@
-import { chromium, Browser, Page } from 'playwright';
+import { chromium } from 'playwright-extra';
+import type { Browser, Page } from 'playwright';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { PortalAdapter, PropertyListing, SearchCriteria } from '../portalIngestionService';
+
+// Add stealth plugin to avoid CAPTCHA detection
+chromium.use(StealthPlugin());
 
 const IDEALISTA_BASE_URL = 'https://www.idealista.it';
 const REQUEST_DELAY_MS = 3000;
 const PAGE_TIMEOUT = 30000;
 
 export class IdealistaAdapter implements PortalAdapter {
-  name = 'Idealista (Playwright)';
+  name = 'Idealista (Playwright Stealth)';
   portalId = 'idealista';
   private lastRequestTime = 0;
   private browser: Browser | null = null;
@@ -46,6 +51,11 @@ export class IdealistaAdapter implements PortalAdapter {
       });
 
       await page.waitForTimeout(2000);
+
+      // Debug screenshot
+      const screenshotPath = `/tmp/idealista-debug-${Date.now()}.png`;
+      await page.screenshot({ path: screenshotPath, fullPage: false });
+      console.log(`[IDEALISTA-PW] Screenshot saved: ${screenshotPath}`);
 
       const acceptCookies = page.locator('button:has-text("Accetta"), button:has-text("Accetto")').first();
       if (await acceptCookies.count() > 0) {

@@ -34,7 +34,9 @@ export class MilanoScrapingService {
       // No zone = search entire city
     };
 
-    const result = await ingestionService.importFromPortal('immobiliare', criteria);
+    // Try Idealista first (testing if it bypasses CAPTCHA better than Immobiliare)
+    console.log('[MILANO-SCRAPING] 🧪 Testing Idealista.it with stealth mode...');
+    const result = await ingestionService.importFromPortal('idealista', criteria);
     
     console.log(`[MILANO-SCRAPING] ✅ Full city: ${result.imported} imported, ${result.failed} failed from ${result.totalFetched} total`);
     
