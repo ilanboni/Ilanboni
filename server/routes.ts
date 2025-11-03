@@ -1901,12 +1901,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrichedProperties = matchingProperties.map(property => ({
         ...property,
         // Categorization for frontend color coding:
-        // - isPrivate: green background
-        // - isDuplicate: yellow background  
-        // - isSingleAgency: red background
-        isPrivate: !property.portal || property.portal === 'private',
+        // - isPrivate: green background (ownerType = 'private')
+        // - isDuplicate: yellow background (isShared = true)
+        // - isSingleAgency: red background (ownerType = 'agency' && isShared = false)
+        isPrivate: property.ownerType === 'private',
         isDuplicate: property.isShared === true,
-        isSingleAgency: property.portal && property.portal !== 'private' && property.isShared === false
+        isSingleAgency: property.ownerType === 'agency' && property.isShared === false
       }));
 
       res.json(enrichedProperties);

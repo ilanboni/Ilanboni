@@ -220,12 +220,16 @@ export class PortalIngestionService {
         source: listing.source || `scraper-${portalId}`,
         latitude: listing.latitude,
         longitude: listing.longitude,
+        location: listing.latitude && listing.longitude 
+          ? { lat: Number(listing.latitude), lng: Number(listing.longitude) }
+          : null,
         firstSeenAt: now,
         lastSeenAt: now,
         isOwned: false,
         isShared: false,
         status: 'available', // CRITICAL FIX: Include in deduplication scan
-        geocodeStatus: listing.latitude && listing.longitude ? 'success' : 'pending'
+        geocodeStatus: listing.latitude && listing.longitude ? 'success' : 'pending',
+        ownerType: listing.ownerType || 'private'
       }).returning();
       
       console.log(`[INGESTION] Imported new property: ${listing.externalId}`);
@@ -239,6 +243,7 @@ export class PortalIngestionService {
                 .set({
                   latitude: coords.lat,
                   longitude: coords.lng,
+                  location: { lat: Number(coords.lat), lng: Number(coords.lng) },
                   geocodeStatus: 'success'
                 })
                 .where(eq(properties.id, inserted[0].id))

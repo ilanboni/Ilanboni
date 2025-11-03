@@ -61,21 +61,14 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
   }
   
   // Verifica se l'immobile è all'interno dell'area di ricerca (poligono)
-  if (buyer.searchArea && property.location) {
+  if (buyer.searchArea) {
+    // Se il buyer ha specificato una searchArea, la property DEVE avere location
+    if (!property.location) {
+      console.log(`[Matching] L'immobile ${property.id} non ha coordinate GPS - RIFIUTATO (buyer richiede searchArea)`);
+      return false;
+    }
+    
     try {
-      // Se searchArea è disponibile come GeoJSON o altro formato
-      // usa la funzione pointInPolygon per verificare se la posizione
-      // dell'immobile è all'interno del poligono
-      
-      // Nota: questa è una semplificazione, in un'implementazione reale
-      // useremmo una libreria come turf.js per verificare se il punto
-      // è all'interno del poligono
-      
-      // Se non abbiamo informazioni sulla posizione, assumiamo che non sia nel poligono
-      if (!property.location) {
-        return false;
-      }
-      
       // Verifico che la posizione dell'immobile sia nel formato corretto
       const propertyLocation = property.location as any;
       if (!propertyLocation || !propertyLocation.lat || !propertyLocation.lng) {
@@ -89,10 +82,36 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
       
       // Gestisci l'area di ricerca in formato GeoJSON, array semplice o cerchio
       let buyerPolygon;
+      let isInArea = false;
       
       if (buyer.searchArea && typeof buyer.searchArea === 'object') {
+        // Se è un FeatureCollection (array di poligoni/punti multipli)
+        if ((buyer.searchArea as any).type === 'FeatureCollection' && (buyer.searchArea as any).features) {
+          // Verifica se il punto è dentro ALMENO UNO dei poligoni
+          for (const feature of (buyer.searchArea as any).features) {
+            if (feature.geometry.type === 'Polygon' && feature.geometry.coordinates) {
+              const featurePolygon = polygon(feature.geometry.coordinates);
+              if (booleanPointInPolygon(immobilePoint, featurePolygon)) {
+                isInArea = true;
+                break;
+              }
+            }
+            // Gestisci Point con raggio di default 1000m
+            else if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
+              const distance = calculateDistance(
+                propertyLocation.lat, propertyLocation.lng,
+                feature.geometry.coordinates[1], feature.geometry.coordinates[0]
+              );
+              if (distance <= 1000) { // 1km di raggio di default per i punti
+                isInArea = true;
+                break;
+              }
+            }
+          }
+          return isInArea;
+        }
         // Se è un oggetto con center e radius (formato cerchio)
-        if ((buyer.searchArea as any).center && (buyer.searchArea as any).radius && 
+        else if ((buyer.searchArea as any).center && (buyer.searchArea as any).radius && 
             (buyer.searchArea as any).center.lat && (buyer.searchArea as any).center.lng) {
           
           // Calcola la distanza tra il punto dell'immobile e il centro del cerchio
@@ -144,21 +163,16 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
         return false;
       }
       
-      // Eseguo il controllo con Turf.js
-      const isInPolygon = booleanPointInPolygon(immobilePoint, buyerPolygon);
-      
-      console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione [${propertyLocation.lng}, ${propertyLocation.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id || buyer.clientId}`);
-      
-      // Aggiungo logging dettagliato per debugging
-      if (!isInPolygon) {
-        console.log(`[Matching] DETTAGLI MATCH FALLITO - Immobile ${property.id}:`);
-        console.log(`  - Indirizzo: ${property.address}`);
-        console.log(`  - Coordinate: [${propertyLocation.lng}, ${propertyLocation.lat}]`);
-        console.log(`  - Acquirente: ${buyer.id || buyer.clientId}`);
-        console.log(`  - Area di ricerca:`, JSON.stringify(buyer.searchArea));
+      // Eseguo il controllo con Turf.js (se buyerPolygon è stato creato)
+      if (buyerPolygon) {
+        const isInPolygon = booleanPointInPolygon(immobilePoint, buyerPolygon);
+        
+        console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione [${propertyLocation.lng}, ${propertyLocation.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id || buyer.clientId}`);
+        
+        return isInPolygon;
       }
       
-      return isInPolygon;
+      return false;
     } catch (error) {
       console.error('Errore nella verifica del poligono:', error);
       // In caso di errore, assumiamo che non sia nel poligono
@@ -166,8 +180,7 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
     }
   }
   
-  // Se l'acquirente non ha specificato un'area di ricerca o l'immobile non ha
-  // una posizione specificata, assumiamo che sia compatibile
+  // Se l'acquirente non ha specificato un'area di ricerca, assumiamo che sia compatibile
   return true;
 }
 

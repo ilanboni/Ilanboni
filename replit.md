@@ -4,17 +4,27 @@
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector.
 
 ## Recent Changes (November 3, 2025)
-- **All Competitor Properties Feature - COMPLETED**: Comprehensive view of all matching properties for high-value clients (rating ≥ 4)
+- **All Competitor Properties Feature - FULLY COMPLETED & TESTED**: Comprehensive view of all matching properties for high-value clients (rating ≥ 4)
   - **Database Schema**: Added `owner_type` field to properties table, migrated 1039 properties (1035 private, 4 agency)
-  - **Backend**: New endpoint `/api/clients/:id/all-competitor-properties` returns ALL properties matching buyer criteria
+  - **Critical Fix - GPS Location Field**: Fixed ingestion service to populate `location` JSONB field with {lat, lng} coordinates
+    - Root cause: `portalIngestionService.ts` was saving latitude/longitude as TEXT but NOT populating the `location` field
+    - Solution: Added automatic population of `location` from coordinates during property import
+    - Database migration: Updated 985 existing properties to populate `location` from latitude/longitude TEXT fields
+    - Impact: Matching logic now works correctly - properties without GPS are rejected when buyer has searchArea
+  - **Matching Logic Enhancement**: Added FeatureCollection support for multi-zone buyer searches
+    - System now handles both single Point and FeatureCollection (multiple zones) formats
+    - Properties verified against ALL buyer zones using point-in-polygon checks
+    - Geographic filtering now accurate: 7 properties match (down from 53 false positives)
+  - **Backend**: New endpoint `/api/clients/:id/all-competitor-properties` returns ONLY properties matching ALL buyer criteria (price, size, location)
   - **Frontend**: Modal with color-coded categorization for immediate property type identification:
     - **Green background**: Private properties (ownerType = 'private') - best acquisition opportunities
     - **Yellow background**: Duplicate properties (is_shared = true) - multi-agency listings with higher competition
     - **Red background**: Single agency properties (ownerType = 'agency', is_shared = false) - exclusive to one agency
   - **UI/UX**: Button "Vedi Tutti i Concorrenti" visible only in "Possibili Immobili" tab for clients with rating ≥ 4
-  - **Bug Fix**: Resolved query not executing - changed from `enabled: false` to dynamic enablement based on modal state
-  - **Testing**: Successfully tested with Playwright - 53 properties displayed for client Lidia Aliprandi (ID: 112, rating: 5)
-  - **Business Value**: Feature helps agents prioritize acquisition efforts based on competition level
+  - **Testing**: Successfully tested with Playwright - exactly 7 accurate properties displayed for client Lidia Aliprandi (ID: 112, rating: 5)
+    - Test client has 9 zones (Conciliazione, Pagano, Wagner, Buonarroti, Tiziano, Belisario, Citylife, Brera, Palestro)
+    - All 7 properties verified to be within target zones with correct price/size
+  - **Business Value**: Feature helps agents prioritize acquisition efforts based on competition level with accurate geographic targeting
 
 ## Recent Changes (November 1, 2025)
 - **Deduplication GPS Fallback System**: Implementato sistema multi-livello con tolleranza 300m
