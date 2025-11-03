@@ -1537,11 +1537,11 @@ export class MemStorage implements IStorage {
         and(
           or(
             isNull(buyers.maxPrice),
-            gte(buyers.maxPrice, sharedProperty.price * 1.1) // Tolleranza 10% sul prezzo
+            gte(buyers.maxPrice, Math.round(sharedProperty.price * 1.1)) // Tolleranza 10% sul prezzo
           ),
           or(
             isNull(buyers.minSize),
-            lte(buyers.minSize, sharedProperty.size / 0.9) // Tolleranza 10% sulla dimensione
+            lte(buyers.minSize, Math.round(sharedProperty.size / 0.9)) // Tolleranza 10% sulla dimensione
           )
         )
       );
@@ -2218,11 +2218,11 @@ export class DatabaseStorage implements IStorage {
         and(
           or(
             isNull(buyers.maxPrice),
-            gte(buyers.maxPrice, sharedProperty.price * 1.1) // Tolleranza 10% sul prezzo
+            gte(buyers.maxPrice, Math.round(sharedProperty.price * 1.1)) // Tolleranza 10% sul prezzo
           ),
           or(
             isNull(buyers.minSize),
-            lte(buyers.minSize, sharedProperty.size / 0.9) // Tolleranza 10% sulla dimensione
+            lte(buyers.minSize, Math.round(sharedProperty.size / 0.9)) // Tolleranza 10% sulla dimensione
           )
         )
       );
