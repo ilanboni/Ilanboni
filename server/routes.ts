@@ -10148,11 +10148,15 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           const firstProperty = cluster.properties[0];
           
           // Prepara oggetti agenzie completi con name, link, sourcePropertyId
-          const agencies = cluster.properties.map(p => ({
-            name: p.portal || 'Agenzia Sconosciuta',
-            link: p.externalLink || '',
-            sourcePropertyId: p.id
-          }));
+          const agencies = cluster.properties.map(p => {
+            const agencyName = p.agencyName || p.portal || 'Agenzia Sconosciuta';
+            console.log(`[Scan] Property #${p.id}: agencyName="${p.agencyName}", portal="${p.portal}", final="${agencyName}"`);
+            return {
+              name: agencyName,
+              link: p.externalLink || '',
+              sourcePropertyId: p.id
+            };
+          });
           
           // Verifica se esiste già una shared property per questo cluster
           const existingShared = await db
