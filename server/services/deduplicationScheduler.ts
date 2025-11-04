@@ -53,12 +53,20 @@ export async function runDeduplicationScan() {
       if (cluster.isMultiagency && cluster.properties.length >= 2) {
         const firstProperty = cluster.properties[0];
         
-        // Raccogli portali/agenzie con i link alle proprietà originali
+        // Raccogli nomi agenzie con i link alle proprietà originali
         const agencies = cluster.properties.map(p => ({
-          name: p.portal || 'Agenzia Sconosciuta',
+          name: p.agencyName || p.portal || 'Agenzia Sconosciuta',
           link: p.externalLink || '',
           sourcePropertyId: p.id
         }));
+        
+        // FILTRO CRITICO: Se tutte le proprietà hanno la stessa agenzia, 
+        // NON è una multiproprietà ma un'esclusiva pubblicizzata più volte
+        const uniqueAgencies = new Set(agencies.map(a => a.name));
+        if (uniqueAgencies.size === 1) {
+          console.log(`[DEDUP-SCHEDULER] ⏭️ Skip: ${firstProperty.address} - stessa agenzia (${Array.from(uniqueAgencies)[0]}), è un'esclusiva non una multiproprietà`);
+          continue; // Skip questo cluster
+        }
         
         // Normalizza l'indirizzo per il confronto (rimuove virgole, punti, spazi multipli)
         const normalizedAddress = firstProperty.address
