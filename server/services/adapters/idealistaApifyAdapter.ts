@@ -35,10 +35,41 @@ export class IdealistaApifyAdapter implements PortalAdapter {
           const { request, log, jQuery } = context;
           const $ = jQuery;
           
+          // DEBUG: Log page info
+          log.info('Page URL: ' + request.url);
+          log.info('Page title: ' + $('title').text());
+          log.info('Body length: ' + $('body').html().length);
+          
+          // Try to find any listing-like elements
+          const possibleSelectors = [
+            'article.item',
+            'article[data-adid]',
+            '[class*="item"]',
+            '[class*="card"]',
+            'article',
+            'li[data-adid]'
+          ];
+          
+          log.info('Testing selectors...');
+          for (const sel of possibleSelectors) {
+            const count = $(sel).length;
+            if (count > 0) {
+              log.info(\`Selector "\${sel}" found \${count} elements\`);
+            }
+          }
+          
           const listings = [];
           
+          const $items = $('article.item');
+          if ($items.length === 0) {
+            log.warning('No items found with selector article.item!');
+            log.info('Sample HTML: ' + $('body').html().substring(0, 1000));
+          } else {
+            log.info(\`Found \${$items.length} items with selector article.item\`);
+          }
+          
           // Extract listings from Idealista search results
-          $('article.item').each((i, el) => {
+          $items.each((i, el) => {
             const $el = $(el);
             const id = $el.attr('data-adid');
             const href = $el.find('a.item-link').attr('href');
@@ -92,6 +123,39 @@ export class IdealistaApifyAdapter implements PortalAdapter {
       };
 
       const run = await this.client.actor('apify/web-scraper').call(input);
+      
+      // Retrieve run logs for debugging
+      console.log(`[IDEALISTA-APIFY] Run ID: ${run.id}, Status: ${run.status}`);
+      try {
+        const logText = await this.client.run(run.id).log().get();
+        if (logText) {
+          const lines = logText.split('\n');
+          const relevantLogs = lines.filter(line => 
+            line.includes('Page URL:') || 
+            line.includes('Page title:') || 
+            line.includes('Testing selectors') ||
+            line.includes('Selector') ||
+            line.includes('found') ||
+            line.includes('No items') ||
+            line.includes('ERROR') ||
+            line.includes('WARN') ||
+            line.includes('Error') ||
+            line.includes('Failed')
+          ).slice(0, 100); // First 100 relevant lines
+          
+          if (relevantLogs.length > 0) {
+            console.log('[IDEALISTA-APIFY] Actor logs:');
+            relevantLogs.forEach(line => console.log('  ' + line));
+          } else {
+            // Show last 20 lines if no relevant logs found
+            console.log('[IDEALISTA-APIFY] Last 20 log lines:');
+            lines.slice(-20).forEach(line => console.log('  ' + line));
+          }
+        }
+      } catch (logError) {
+        console.log('[IDEALISTA-APIFY] Could not fetch logs:', logError.message);
+      }
+      
       const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
 
       console.log(`[IDEALISTA-APIFY] Dataset returned ${items.length} items`);
