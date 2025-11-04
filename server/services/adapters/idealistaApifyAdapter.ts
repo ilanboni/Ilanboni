@@ -94,11 +94,17 @@ export class IdealistaApifyAdapter implements PortalAdapter {
       const run = await this.client.actor('apify/web-scraper').call(input);
       const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
 
+      console.log(`[IDEALISTA-APIFY] Dataset returned ${items.length} items`);
+      if (items.length > 0) {
+        console.log('[IDEALISTA-APIFY] First item structure:', JSON.stringify(items[0], null, 2));
+      }
+
       // Transform Apify results to PropertyListings
       const listings: PropertyListing[] = [];
       for (const item of items) {
         // Extract listings from pageFunctionResult (Apify Web Scraper format)
         const results = item.pageFunctionResult || item;
+        console.log(`[IDEALISTA-APIFY] Results type: ${Array.isArray(results) ? 'array' : typeof results}, length: ${Array.isArray(results) ? results.length : 'N/A'}`);
         if (Array.isArray(results)) {
           for (const listing of results) {
             if (listing.id) {
