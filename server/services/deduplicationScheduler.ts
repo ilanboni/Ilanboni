@@ -1,7 +1,7 @@
 import { deduplicateProperties } from './propertyDeduplicationService';
 import { db } from '../db';
 import { properties, sharedProperties } from '../../shared/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 
 // Flag globale per prevenire esecuzioni concorrenti
 let isScanRunning = false;
