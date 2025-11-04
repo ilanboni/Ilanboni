@@ -102,7 +102,7 @@ export class IdealistaApifyAdapter implements PortalAdapter {
             if (id && href) {
               listings.push({
                 id,
-                url: href.startsWith('http') ? href : '${IDEALISTA_BASE_URL}' + href,
+                url: href.startsWith('http') ? href : 'https://www.idealista.it' + href,
                 title,
                 address,
                 price,
@@ -116,7 +116,8 @@ export class IdealistaApifyAdapter implements PortalAdapter {
           return listings;
         }`,
         proxyConfiguration: {
-          useApifyProxy: true
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL']
         },
         maxRequestsPerCrawl: 1,
         maxConcurrency: 1
@@ -124,36 +125,63 @@ export class IdealistaApifyAdapter implements PortalAdapter {
 
       const run = await this.client.actor('apify/web-scraper').call(input);
       
-      // Retrieve run logs for debugging
+      // Retrieve run details and logs for debugging
       console.log(`[IDEALISTA-APIFY] Run ID: ${run.id}, Status: ${run.status}`);
+      
+      // Get full run details including statusDetails
       try {
-        const logText = await this.client.run(run.id).log().get();
-        if (logText) {
-          const lines = logText.split('\n');
-          const relevantLogs = lines.filter(line => 
-            line.includes('Page URL:') || 
-            line.includes('Page title:') || 
-            line.includes('Testing selectors') ||
-            line.includes('Selector') ||
-            line.includes('found') ||
-            line.includes('No items') ||
-            line.includes('ERROR') ||
-            line.includes('WARN') ||
-            line.includes('Error') ||
-            line.includes('Failed')
-          ).slice(0, 100); // First 100 relevant lines
-          
-          if (relevantLogs.length > 0) {
-            console.log('[IDEALISTA-APIFY] Actor logs:');
-            relevantLogs.forEach(line => console.log('  ' + line));
-          } else {
-            // Show last 20 lines if no relevant logs found
-            console.log('[IDEALISTA-APIFY] Last 20 log lines:');
-            lines.slice(-20).forEach(line => console.log('  ' + line));
+        const runDetails = await this.client.run(run.id).get();
+        console.log('[IDEALISTA-APIFY] Full run details:', JSON.stringify({
+          status: runDetails?.status,
+          statusMessage: runDetails?.statusMessage,
+          failedRequestCount: runDetails?.failedRequestCount,
+          finishedRequestsCount: runDetails?.finishedRequestsCount,
+          startedAt: runDetails?.startedAt,
+          finishedAt: runDetails?.finishedAt,
+          statusDetails: runDetails?.statusDetails,
+          exitCode: runDetails?.exitCode,
+          defaultDatasetId: runDetails?.defaultDatasetId
+        }, null, 2));
+      } catch (detailsError) {
+        console.log('[IDEALISTA-APIFY] Could not fetch run details:', detailsError.message);
+      }
+      
+      // Retrieve logs using correct API
+      if (run.logId) {
+        try {
+          const logText = await this.client.log(run.logId).get();
+          if (logText) {
+            const lines = logText.split('\n');
+            const relevantLogs = lines.filter(line => 
+              line.includes('Page URL:') || 
+              line.includes('Page title:') || 
+              line.includes('Testing selectors') ||
+              line.includes('Selector') ||
+              line.includes('found') ||
+              line.includes('No items') ||
+              line.includes('ERROR') ||
+              line.includes('WARN') ||
+              line.includes('Error') ||
+              line.includes('Failed') ||
+              line.includes('403') ||
+              line.includes('CAPTCHA') ||
+              line.includes('blocked')
+            ).slice(0, 100); // First 100 relevant lines
+            
+            if (relevantLogs.length > 0) {
+              console.log('[IDEALISTA-APIFY] Actor logs (filtered):');
+              relevantLogs.forEach(line => console.log('  ' + line));
+            } else {
+              // Show last 30 lines if no relevant logs found
+              console.log('[IDEALISTA-APIFY] Last 30 log lines:');
+              lines.slice(-30).forEach(line => console.log('  ' + line));
+            }
           }
+        } catch (logError) {
+          console.log('[IDEALISTA-APIFY] Could not fetch logs:', logError.message);
         }
-      } catch (logError) {
-        console.log('[IDEALISTA-APIFY] Could not fetch logs:', logError.message);
+      } else {
+        console.log('[IDEALISTA-APIFY] No logId available in run object');
       }
       
       const { items } = await this.client.dataset(run.defaultDatasetId).listItems();

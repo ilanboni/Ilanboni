@@ -9558,15 +9558,11 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
       // Get today's appointments (skip if table doesn't exist)
       let appointmentsToday = [{ count: 0 }];
       try {
+        const todayStr = today.toISOString().split('T')[0];
         appointmentsToday = await db
           .select({ count: sql<number>`count(*)` })
           .from(appointments)
-          .where(
-            and(
-              gte(appointments.scheduledFor, today),
-              lt(appointments.scheduledFor, tomorrow)
-            )
-          );
+          .where(eq(appointments.date, todayStr));
       } catch (e) {
         console.log('Appointments table not found:', e);
       }
