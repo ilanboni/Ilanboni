@@ -203,6 +203,12 @@ export default function SharedPropertiesPage() {
                               {property.size} m² - {property.price.toLocaleString()} €
                             </div>
                           )}
+                          {property.agencies && Array.isArray(property.agencies) && property.agencies.length > 0 && (
+                            <div className="flex items-center text-sm font-medium text-blue-600">
+                              <Building className="h-4 w-4 mr-2" />
+                              {property.agencies.length} {property.agencies.length === 1 ? 'agenzia' : 'agenzie'}
+                            </div>
+                          )}
                           {property.isAcquired && (
                             <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">
                               Acquisito

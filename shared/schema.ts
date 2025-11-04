@@ -199,6 +199,7 @@ export const sharedProperties = pgTable("shared_properties", {
   stage: text("stage").default("address_found"), // address_found, owner_found, owner_contact_found, owner_contacted, result
   stageResult: text("stage_result"), // acquired, rejected, pending
   isAcquired: boolean("is_acquired").default(false),
+  isIgnored: boolean("is_ignored").default(false), // properties that the agent is not interested in
   matchBuyers: boolean("match_buyers").default(false), // whether to match with buyers
   location: jsonb("location"), // lat/lng
   createdAt: timestamp("created_at").defaultNow(),
