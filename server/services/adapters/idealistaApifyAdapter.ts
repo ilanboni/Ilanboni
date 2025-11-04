@@ -25,10 +25,12 @@ export class IdealistaApifyAdapter implements PortalAdapter {
     await this.respectRateLimit();
 
     try {
-      // Use Apify Web Scraper to bypass anti-bot
+      // Use Apify Web Scraper with Chrome to render JavaScript
       const input = {
         startUrls: [{ url: searchUrl }],
         globs: [{ glob: searchUrl }],
+        useChrome: true,
+        waitUntil: 'networkidle',
         pageFunction: `async function pageFunction(context) {
           const { request, log, jQuery } = context;
           const $ = jQuery;
@@ -98,6 +100,12 @@ export class IdealistaApifyAdapter implements PortalAdapter {
         if (Array.isArray(item)) {
           for (const listing of item) {
             if (listing.id) {
+              // Detect owner type: private vs agency
+              const isPrivate = listing.agency && (
+                listing.agency.toLowerCase().includes('privat') ||
+                listing.agency.toLowerCase().includes('propri')
+              );
+              
               listings.push({
                 externalId: listing.id,
                 title: listing.title || 'Appartamento',
@@ -109,7 +117,7 @@ export class IdealistaApifyAdapter implements PortalAdapter {
                 type: 'apartment',
                 url: listing.url,
                 description: listing.title || '',
-                ownerType: listing.agency === 'Privato' ? 'private' : 'agency',
+                ownerType: isPrivate ? 'private' : 'agency',
                 agencyName: listing.agency || undefined
               });
             }
