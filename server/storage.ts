@@ -2199,18 +2199,28 @@ export class DatabaseStorage implements IStorage {
 
   async ignoreSharedProperty(id: number): Promise<boolean> {
     const sharedProperty = await this.getSharedProperty(id);
-    if (!sharedProperty) return false;
+    if (!sharedProperty) {
+      console.log(`[ignoreSharedProperty] Proprietà ${id} non trovata`);
+      return false;
+    }
+    
+    console.log(`[ignoreSharedProperty] Proprietà ${id} trovata, aggiornamento in corso...`);
     
     // Mark as ignored
-    await db.update(sharedProperties)
+    const result = await db.update(sharedProperties)
       .set({ 
         isIgnored: true,
         updatedAt: new Date()
       })
-      .where(eq(sharedProperties.id, id));
+      .where(eq(sharedProperties.id, id))
+      .returning();
     
-    console.log(`[ignoreSharedProperty] Proprietà ${id} contrassegnata come ignorata`);
-    return true;
+    console.log(`[ignoreSharedProperty] Update completato. Righe aggiornate: ${result.length}`);
+    if (result.length > 0) {
+      console.log(`[ignoreSharedProperty] isIgnored ora è: ${result[0].isIgnored}`);
+    }
+    
+    return result.length > 0;
   }
 
   async getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]> {
