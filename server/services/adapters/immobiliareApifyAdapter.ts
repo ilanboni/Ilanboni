@@ -30,7 +30,7 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
         startUrls: [{ url: searchUrl }],
         globs: [{ glob: searchUrl }],
         useChrome: true,
-        waitUntil: 'networkidle',
+        waitUntil: ['networkidle'],
         pageFunction: `async function pageFunction(context) {
           const { request, log, jQuery } = context;
           const $ = jQuery;
@@ -116,8 +116,10 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
       // Transform Apify results to PropertyListings
       const listings: PropertyListing[] = [];
       for (const item of items) {
-        if (Array.isArray(item)) {
-          for (const listing of item) {
+        // Extract listings from pageFunctionResult (Apify Web Scraper format)
+        const results = item.pageFunctionResult || item;
+        if (Array.isArray(results)) {
+          for (const listing of results) {
             if (listing.url) {
               // Detect owner type: private vs agency
               const isPrivate = listing.agency && (
