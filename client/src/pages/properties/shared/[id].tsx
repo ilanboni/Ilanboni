@@ -101,6 +101,7 @@ export default function SharedPropertyDetailsPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAcquireDialogOpen, setIsAcquireDialogOpen] = useState(false);
+  const [isIgnoreDialogOpen, setIsIgnoreDialogOpen] = useState(false);
   
   // Fetch shared property details
   const { data: property, isLoading, isError, error } = useQuery({
@@ -268,6 +269,30 @@ export default function SharedPropertyDetailsPage() {
     }
   });
   
+  // Ignore mutation
+  const ignoreMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/shared-properties/${params.id}/ignore`, {
+        method: 'PATCH'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
+      toast({
+        title: "Proprietà ignorata",
+        description: "Questa proprietà non verrà più mostrata e non verrà riproposta nei prossimi scraping.",
+      });
+      setLocation("/properties/shared");
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: error?.message || "Si è verificato un errore durante l'operazione.",
+      });
+    }
+  });
+  
   const handleUpdate = (data: InsertSharedProperty) => {
     console.log("Dati completi da inviare per modifica:", data);
 
@@ -309,6 +334,11 @@ export default function SharedPropertyDetailsPage() {
   const handleAcquire = () => {
     acquireMutation.mutate();
     setIsAcquireDialogOpen(false);
+  };
+  
+  const handleIgnore = () => {
+    ignoreMutation.mutate();
+    setIsIgnoreDialogOpen(false);
   };
   
   if (isLoading) {
@@ -702,6 +732,31 @@ export default function SharedPropertyDetailsPage() {
                       </Button>
                       <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
                         {deleteMutation.isPending ? "Eliminazione..." : "Elimina"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                
+                <Dialog open={isIgnoreDialogOpen} onOpenChange={setIsIgnoreDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="text-orange-600 hover:text-orange-700" data-testid="button-ignore-property">
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      Annulla multiproprietà
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Annulla multiproprietà</DialogTitle>
+                      <DialogDescription>
+                        Questa proprietà verrà contrassegnata come "non interessante" e non apparirà più nei prossimi scraping automatici. Sei sicuro di voler procedere?
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsIgnoreDialogOpen(false)}>
+                        Annulla
+                      </Button>
+                      <Button variant="default" onClick={handleIgnore} disabled={ignoreMutation.isPending}>
+                        {ignoreMutation.isPending ? "Elaborazione..." : "Conferma"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

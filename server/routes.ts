@@ -2633,6 +2633,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Ignore a shared property
+  app.patch("/api/shared-properties/:id/ignore", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const sharedProperty = await storage.getSharedProperty(id);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      const success = await storage.ignoreSharedProperty(id);
+      if (!success) {
+        return res.status(500).json({ error: "Errore durante l'operazione" });
+      }
+      
+      res.json({ success: true, message: "Proprietà ignorata con successo" });
+    } catch (error) {
+      console.error(`[PATCH /api/shared-properties/${req.params.id}/ignore]`, error);
+      res.status(500).json({ error: "Errore durante l'operazione" });
+    }
+  });
+  
   // Endpoint per trovare clienti potenziali per una proprietà condivisa
   app.get("/api/shared-properties/:id/matching-buyers", async (req: Request, res: Response) => {
     try {

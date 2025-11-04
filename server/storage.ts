@@ -69,6 +69,7 @@ export interface IStorage {
   createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty>;
   updateSharedProperty(id: number, data: Partial<InsertSharedProperty>): Promise<SharedProperty | undefined>;
   acquireSharedProperty(id: number): Promise<boolean>;
+  ignoreSharedProperty(id: number): Promise<boolean>;
   deleteSharedProperty(id: number): Promise<boolean>;
   getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]>;
   
@@ -2079,9 +2080,12 @@ export class DatabaseStorage implements IStorage {
   async getSharedProperties(filters?: { stage?: string; search?: string }): Promise<SharedProperty[]> {
     let query = db.select().from(sharedProperties);
     
+    const conditions: SQL[] = [];
+    
+    // Always exclude ignored properties
+    conditions.push(eq(sharedProperties.isIgnored, false));
+    
     if (filters) {
-      const conditions: SQL[] = [];
-      
       if (filters.stage) {
         conditions.push(eq(sharedProperties.stage, filters.stage));
       }
@@ -2096,10 +2100,10 @@ export class DatabaseStorage implements IStorage {
           )
         );
       }
-      
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
     }
     
     return await query.orderBy(desc(sharedProperties.updatedAt));
@@ -2193,7 +2197,21 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
-
+  async ignoreSharedProperty(id: number): Promise<boolean> {
+    const sharedProperty = await this.getSharedProperty(id);
+    if (!sharedProperty) return false;
+    
+    // Mark as ignored
+    await db.update(sharedProperties)
+      .set({ 
+        isIgnored: true,
+        updatedAt: new Date()
+      })
+      .where(eq(sharedProperties.id, id));
+    
+    console.log(`[ignoreSharedProperty] Proprietà ${id} contrassegnata come ignorata`);
+    return true;
+  }
 
   async getMatchingBuyersForSharedProperty(sharedPropertyId: number): Promise<ClientWithDetails[]> {
     const sharedProperty = await this.getSharedProperty(sharedPropertyId);

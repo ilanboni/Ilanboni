@@ -67,11 +67,16 @@ export async function runDeduplicationScan() {
           .replace(/\s+/g, ' ')
           .trim();
         
-        // Verifica se esiste già una scheda per questo indirizzo (usando normalizzazione fuzzy)
+        // Verifica se esiste già una scheda per questo indirizzo (incluse quelle ignorate)
         const allSharedProps = await db
           .select()
           .from(sharedProperties)
-          .where(eq(sharedProperties.isAcquired, false));
+          .where(
+            or(
+              eq(sharedProperties.isAcquired, false),
+              eq(sharedProperties.isIgnored, true)
+            )
+          );
         
         const existing = allSharedProps.find(sp => {
           const spNormalized = sp.address
@@ -103,6 +108,9 @@ export async function runDeduplicationScan() {
           
           sharedPropertiesCreated++;
           console.log(`[DEDUP-SCHEDULER] ✅ Creata scheda proprietà condivisa per: ${firstProperty.address}`);
+        } else if (existing.isIgnored) {
+          // Proprietà ignorata dall'utente, non fare nulla
+          console.log(`[DEDUP-SCHEDULER] ⏭️ Proprietà ignorata dall'utente, skip: ${existing.address}`);
         } else {
           // Aggiorna scheda esistente con nuove agenzie (se ce ne sono)
           const existingAgencies = Array.isArray(existing.agencies) ? existing.agencies : [];
