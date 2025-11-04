@@ -136,6 +136,7 @@ export const properties = pgTable("properties", {
   // Campi per agente virtuale
   floor: text("floor"), // piano dell'appartamento
   portal: text("portal"), // portale di provenienza (immobiliare.it, idealista.it, etc.)
+  agencyName: text("agency_name"), // nome dell'agenzia che gestisce l'annuncio (estratto da Casafari)
   isMultiagency: boolean("is_multiagency").default(false), // se è pluricondiviso (presente su più portali)
   exclusivityHint: boolean("exclusivity_hint").default(false), // se è probabilmente in esclusiva (un solo portale, testo "esclusiva")
   // Campi per ingestion tracking

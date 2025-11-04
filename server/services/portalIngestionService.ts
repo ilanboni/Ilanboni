@@ -215,6 +215,7 @@ export class PortalIngestionService {
         floor: listing.floor,
         description: listing.description,
         portal: portalId,
+        agencyName: listing.agencyName, // Nome reale dell'agenzia estratto da Casafari
         externalId: listing.externalId,
         url: listing.url,
         source: listing.source || `scraper-${portalId}`,
