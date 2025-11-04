@@ -63,6 +63,16 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
             const priceText = $el.find('.in-realEstateListCard__price, .in-card__price').text().trim();
             const detailsText = $el.text();
             
+            // Extract agency name - try multiple selectors
+            let agency = $el.find('.in-realEstateListCard__agency, .in-card__agency, .in-agencyInfo__name, [class*="agency"]').first().text().trim();
+            // Also check for portal label (e.g., "immobiliare.it - Agency Name")
+            if (!agency) {
+              const portalMatch = title.match(/immobiliare\\.it\\s*-\\s*(.+?)$/i);
+              if (portalMatch) {
+                agency = portalMatch[1].trim();
+              }
+            }
+            
             // Extract price
             const priceMatch = priceText.match(/([\\d\\.]+)/);
             const price = priceMatch ? parseInt(priceMatch[1].replace(/\\./g, '')) : 0;
@@ -83,7 +93,8 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
                 address,
                 price,
                 size,
-                bedrooms
+                bedrooms,
+                agency: agency || undefined
               });
             }
           });
@@ -117,7 +128,8 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
                 type: 'apartment',
                 url: listing.url,
                 description: listing.title || '',
-                ownerType: 'agency'
+                ownerType: 'agency',
+                agencyName: listing.agency || undefined
               });
             }
           }

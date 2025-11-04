@@ -45,6 +45,15 @@ export class IdealistaApifyAdapter implements PortalAdapter {
             const priceText = $el.find('span.item-price').text().trim();
             const detailsText = $el.text();
             
+            // Extract agency name - try multiple selectors
+            let agency = $el.find('.item-advertiser, .advertiser-name, .item-agency, [class*="agency"]').first().text().trim();
+            // Fallback: check for "Privato" or "Agenzia" in text
+            if (!agency) {
+              if (detailsText.includes('Privato')) {
+                agency = 'Privato';
+              }
+            }
+            
             // Extract price
             const priceMatch = priceText.match(/([\\d\\.]+)/);
             const price = priceMatch ? parseInt(priceMatch[1].replace(/\\./g, '')) : 0;
@@ -65,7 +74,8 @@ export class IdealistaApifyAdapter implements PortalAdapter {
                 address,
                 price,
                 size,
-                bedrooms
+                bedrooms,
+                agency: agency || undefined
               });
             }
           });
@@ -99,7 +109,8 @@ export class IdealistaApifyAdapter implements PortalAdapter {
                 type: 'apartment',
                 url: listing.url,
                 description: listing.title || '',
-                ownerType: 'agency'
+                ownerType: listing.agency === 'Privato' ? 'private' : 'agency',
+                agencyName: listing.agency || undefined
               });
             }
           }
