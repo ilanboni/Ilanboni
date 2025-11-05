@@ -138,59 +138,44 @@ export default function SharedPropertyDetailsPage() {
     enabled: !!property?.matchBuyers
   });
   
-  // State for agency links
-  const [agencyLinks, setAgencyLinks] = useState<any[]>([]);
-  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
-  
-  // Fetch agency links when property is loaded
-  useEffect(() => {
-    const fetchAgencyLinks = async () => {
-      if (!property?.agencies || !Array.isArray(property.agencies)) {
-        console.log('[AGENCY-LINKS] No agencies or not array');
-        setAgencyLinks([]);
-        return;
+  // Fetch agency links via optimized batch endpoint
+  const { data: agencyLinks = [], isLoading: isLoadingLinks } = useQuery({
+    queryKey: ['/api/shared-properties', params.id, 'agency-links'],
+    queryFn: async () => {
+      if (!property?.agencies || !Array.isArray(property.agencies) || property.agencies.length === 0) {
+        return [];
       }
       
-      setIsLoadingLinks(true);
-      console.log('[AGENCY-LINKS] Fetching URLs for', property.agencies.length, 'agencies');
+      console.log('[AGENCY-LINKS] Fetching links for', property.agencies.length, 'agencies');
       
       try {
-        const links = await Promise.all(
-          property.agencies.map(async (agency: any) => {
-            try {
-              console.log('[AGENCY-LINKS] Fetching property', agency.sourcePropertyId);
-              const response = await fetch(`/api/properties/${agency.sourcePropertyId}`);
-              if (!response.ok) {
-                console.log('[AGENCY-LINKS] Failed to fetch property', agency.sourcePropertyId);
-                return { ...agency, url: agency.link || '', isPrivate: false };
-              }
-              const prop = await response.json();
-              console.log('[AGENCY-LINKS] Got URL:', prop.url);
-              return { 
-                ...agency, 
-                url: agency.link || prop.url || '',
-                isPrivate: isPrivateAgency(agency.name, agency.link || prop.url || '')
-              };
-            } catch (error) {
-              console.error('[AGENCY-LINKS] Error fetching property', agency.sourcePropertyId, error);
-              return { ...agency, url: agency.link || '', isPrivate: false };
-            }
-          })
-        );
-        
-        console.log('[AGENCY-LINKS] Final links:', links);
-        setAgencyLinks(links);
+        // Use batch endpoint to fetch all URLs in one request
+        const response = await fetch(`/api/shared-properties/${params.id}/agency-links`);
+        if (!response.ok) {
+          console.log('[AGENCY-LINKS] Batch fetch failed, falling back to agencies data');
+          // Fallback: use data from agencies field
+          return property.agencies.map((agency: any) => ({
+            ...agency,
+            url: agency.link || '',
+            isPrivate: isPrivateAgency(agency.name, agency.link || '')
+          }));
+        }
+        const links = await response.json();
+        console.log('[AGENCY-LINKS] Fetched', links.length, 'agency links');
+        return links;
       } catch (error) {
-        console.error('[AGENCY-LINKS] Error in fetchAgencyLinks:', error);
-      } finally {
-        setIsLoadingLinks(false);
+        console.error('[AGENCY-LINKS] Error fetching agency links:', error);
+        // Fallback to agencies data
+        return property.agencies.map((agency: any) => ({
+          ...agency,
+          url: agency.link || '',
+          isPrivate: isPrivateAgency(agency.name, agency.link || '')
+        }));
       }
-    };
-    
-    if (property) {
-      fetchAgencyLinks();
-    }
-  }, [property]);
+    },
+    enabled: !!property && !!property.agencies && Array.isArray(property.agencies) && property.agencies.length > 0,
+    staleTime: 5 * 60 * 1000 // Cache for 5 minutes
+  });
   
   // Update mutation
   const updateMutation = useMutation({
@@ -204,6 +189,7 @@ export default function SharedPropertyDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
       queryClient.invalidateQueries({ queryKey: ['/api/shared-properties', params.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties', params.id, 'agency-links'] });
       toast({
         title: "Proprietà aggiornata",
         description: "La proprietà condivisa è stata aggiornata con successo.",

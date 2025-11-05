@@ -16,7 +16,7 @@ import {
   type SharedPropertyWithDetails
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, lt, and, or, gte, lte, like, not, isNull, SQL, sql } from "drizzle-orm";
+import { eq, desc, lt, and, or, gte, lte, like, not, isNull, inArray, SQL, sql } from "drizzle-orm";
 import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
 
 // Storage interface with CRUD methods for all entities
@@ -56,6 +56,7 @@ export interface IStorage {
   getProperty(id: number): Promise<Property | undefined>;
   getPropertyByExternalId(externalId: string): Promise<Property | undefined>;
   getProperties(filters?: { status?: string; search?: string }): Promise<Property[]>;
+  getPropertiesByIds(ids: number[]): Promise<Property[]>;
   getPropertyWithDetails(id: number): Promise<PropertyWithDetails | undefined>;
   createProperty(property: InsertProperty): Promise<Property>;
   updateProperty(id: number, data: Partial<InsertProperty>): Promise<Property | undefined>;
@@ -1873,6 +1874,14 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query.orderBy(desc(properties.updatedAt));
+  }
+
+  async getPropertiesByIds(ids: number[]): Promise<Property[]> {
+    if (ids.length === 0) return [];
+    
+    // Use inArray for efficient batch query
+    const result = await db.select().from(properties).where(inArray(properties.id, ids));
+    return result;
   }
 
   async getPropertyWithDetails(id: number): Promise<PropertyWithDetails | undefined> {

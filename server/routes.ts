@@ -3062,6 +3062,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint ottimizzato per ottenere i link delle agenzie in batch
+  app.get("/api/shared-properties/:id/agency-links", async (req: Request, res: Response) => {
+    try {
+      const sharedPropertyId = parseInt(req.params.id);
+      if (isNaN(sharedPropertyId)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const sharedProperty = await storage.getSharedProperty(sharedPropertyId);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      if (!sharedProperty.agencies || !Array.isArray(sharedProperty.agencies)) {
+        return res.json([]);
+      }
+      
+      // Extract and normalize sourcePropertyIds from agencies
+      const sourcePropertyIds = sharedProperty.agencies
+        .filter((agency: any) => agency.sourcePropertyId)
+        .map((agency: any) => {
+          const id = agency.sourcePropertyId;
+          return typeof id === 'number' ? id : parseInt(String(id));
+        })
+        .filter((id: number) => !isNaN(id) && id > 0);
+      
+      // Remove duplicates
+      const uniqueIds = Array.from(new Set(sourcePropertyIds));
+      
+      if (uniqueIds.length === 0) {
+        // Return agencies with existing link data
+        const agencyLinks = sharedProperty.agencies.map((agency: any) => ({
+          ...agency,
+          url: agency.link || '',
+          isPrivate: false
+        }));
+        return res.json(agencyLinks);
+      }
+      
+      console.log(`[AGENCY-LINKS] Fetching ${uniqueIds.length} properties in batch`);
+      const startTime = Date.now();
+      
+      // Batch fetch all properties in a single query
+      const properties = await storage.getPropertiesByIds(uniqueIds);
+      
+      const duration = Date.now() - startTime;
+      console.log(`[AGENCY-LINKS] Batch fetch completed in ${duration}ms (${properties.length} properties found)`);
+      const propertyMap = new Map(properties.map(p => [p.id, p]));
+      
+      // Helper function to detect private agencies
+      const isPrivateAgency = (name: string, url: string): boolean => {
+        const lowerName = (name || '').toLowerCase();
+        const lowerUrl = (url || '').toLowerCase();
+        return (
+          lowerName.includes('privat') ||
+          lowerName.includes('proprietario') ||
+          lowerName.includes('owner') ||
+          lowerUrl.includes('privat') ||
+          lowerUrl.includes('proprietario')
+        );
+      };
+      
+      // Map agencies to include URLs from properties
+      const agencyLinks = sharedProperty.agencies.map((agency: any) => {
+        // Normalize sourcePropertyId to number for Map lookup
+        const sourceId = agency.sourcePropertyId;
+        const numericId = typeof sourceId === 'number' ? sourceId : parseInt(String(sourceId));
+        const property = !isNaN(numericId) ? propertyMap.get(numericId) : undefined;
+        
+        const url = agency.link || property?.url || '';
+        return {
+          ...agency,
+          url,
+          isPrivate: isPrivateAgency(agency.name, url)
+        };
+      });
+      
+      res.json(agencyLinks);
+    } catch (error) {
+      console.error(`[GET /api/shared-properties/${req.params.id}/agency-links]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei link delle agenzie" });
+    }
+  });
+  
   // Endpoint per ottenere le attività di una proprietà condivisa
   app.get("/api/shared-properties/:id/tasks", async (req: Request, res: Response) => {
     try {
