@@ -1,9 +1,10 @@
 import { db } from "../db";
 import { buyers, clients, sharedProperties } from "@shared/schema";
-import { eq, and, lte, gte, sql } from "drizzle-orm";
+import { eq, and, lte, gte, sql, isNull } from "drizzle-orm";
 import type { PropertyListing, SearchCriteria } from "./portalIngestionService";
 import { ImmobiliareApifyAdapter } from "./adapters/immobiliareApifyAdapter";
 import { IdealistaApifyAdapter } from "./adapters/idealistaApifyAdapter";
+import { geocodingService } from "./geocodingService";
 
 export interface ScrapedPropertyResult extends PropertyListing {
   id?: number; // ID from sharedProperties table (for saved/database properties)
@@ -208,6 +209,9 @@ export class ClientPropertyScrapingService {
     // Save new scraped properties to database (only from Apify, not DB multi-agency)
     await this.saveScrapedPropertiesToDatabase(scoredResults, clientId);
 
+    // Geocode properties missing GPS coordinates as fallback
+    await this.geocodeMissingCoordinates();
+
     return scoredResults;
   }
 
@@ -274,6 +278,56 @@ export class ClientPropertyScrapingService {
       console.log(`[CLIENT-SCRAPING] Saved to database: ${newCount} new, ${updatedCount} updated`);
     } catch (error) {
       console.error('[CLIENT-SCRAPING] Error saving properties to database:', error);
+    }
+  }
+
+  private async geocodeMissingCoordinates(): Promise<void> {
+    try {
+      // Find properties without GPS coordinates (limit to 50 per run to avoid overwhelming Nominatim)
+      const propertiesWithoutCoords = await db
+        .select()
+        .from(sharedProperties)
+        .where(isNull(sharedProperties.location))
+        .limit(50);
+
+      if (propertiesWithoutCoords.length === 0) {
+        console.log('[GEOCODING-FALLBACK] No properties need geocoding');
+        return;
+      }
+
+      console.log(`[GEOCODING-FALLBACK] Geocoding ${propertiesWithoutCoords.length} properties without GPS coordinates...`);
+      let geocodedCount = 0;
+
+      for (const property of propertiesWithoutCoords) {
+        try {
+          // Skip if no address
+          if (!property.address || !property.city) {
+            continue;
+          }
+
+          // Geocode using the service
+          const coords = await geocodingService.geocodeAddress(property.address, property.city);
+          
+          if (coords) {
+            // Update property with geocoded coordinates
+            await db.update(sharedProperties)
+              .set({
+                location: sql`ST_SetSRID(ST_MakePoint(${parseFloat(coords.lng)}, ${parseFloat(coords.lat)}), 4326)`,
+                updatedAt: new Date()
+              })
+              .where(eq(sharedProperties.id, property.id));
+            
+            geocodedCount++;
+            console.log(`[GEOCODING-FALLBACK] ✓ Geocoded #${property.id}: ${property.address}`);
+          }
+        } catch (error) {
+          console.error(`[GEOCODING-FALLBACK] Failed to geocode property #${property.id}:`, error);
+        }
+      }
+
+      console.log(`[GEOCODING-FALLBACK] Successfully geocoded ${geocodedCount}/${propertiesWithoutCoords.length} properties`);
+    } catch (error) {
+      console.error('[GEOCODING-FALLBACK] Error in geocoding fallback:', error);
     }
   }
 

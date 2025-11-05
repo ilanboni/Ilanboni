@@ -143,6 +143,14 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
           const url = item.url || '';
           const propertyId = item.id || item.propertyId || '';
           
+          // Extract GPS coordinates if available
+          const rawLat = item.geography?.location?.latitude || item.geography?.lat || item.lat;
+          const rawLng = item.geography?.location?.longitude || item.geography?.lng || item.lng || item.geography?.lon || item.lon;
+          
+          // Convert to number safely
+          const latitude = rawLat ? (typeof rawLat === 'number' ? rawLat : parseFloat(String(rawLat))) : undefined;
+          const longitude = rawLng ? (typeof rawLng === 'number' ? rawLng : parseFloat(String(rawLng))) : undefined;
+          
           // Get advertiser info (agency or private)
           const advertiserType = item.analytics?.advertiser?.type || item.advertiserType || 'agency';
           const advertiserName = item.analytics?.advertiser?.name || item.advertiserName || '';
@@ -163,6 +171,8 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
               type: 'apartment',
               url: url,
               description: item.description || '',
+              latitude: latitude && !isNaN(latitude) ? latitude : undefined,
+              longitude: longitude && !isNaN(longitude) ? longitude : undefined,
               ownerType: isPrivate ? 'private' : 'agency',
               agencyName: isPrivate ? undefined : advertiserName || undefined
             });

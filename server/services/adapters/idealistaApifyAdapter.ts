@@ -120,6 +120,14 @@ export class IdealistaApifyAdapter implements PortalAdapter {
           const url = item.url || '';
           const propertyId = item.propertyCode || item.id || '';
           
+          // Extract GPS coordinates if available
+          const rawLat = item.latitude || item.lat;
+          const rawLng = item.longitude || item.lng || item.lon;
+          
+          // Convert to number safely
+          const latitude = rawLat ? (typeof rawLat === 'number' ? rawLat : parseFloat(String(rawLat))) : undefined;
+          const longitude = rawLng ? (typeof rawLng === 'number' ? rawLng : parseFloat(String(rawLng))) : undefined;
+          
           // Get contact/agency info
           const contact = item.contact || '';
           const isPrivate = contact.toLowerCase().includes('privat') || 
@@ -138,6 +146,8 @@ export class IdealistaApifyAdapter implements PortalAdapter {
               type: 'apartment',
               url: url,
               description: item.description || '',
+              latitude: latitude && !isNaN(latitude) ? latitude : undefined,
+              longitude: longitude && !isNaN(longitude) ? longitude : undefined,
               ownerType: isPrivate ? 'private' : 'agency',
               agencyName: isPrivate ? undefined : (contact || undefined)
             });
