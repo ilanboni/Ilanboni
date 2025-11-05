@@ -6,6 +6,7 @@ import { ImmobiliareApifyAdapter } from "./adapters/immobiliareApifyAdapter";
 import { IdealistaApifyAdapter } from "./adapters/idealistaApifyAdapter";
 
 export interface ScrapedPropertyResult extends PropertyListing {
+  id?: number; // ID from sharedProperties table (for saved/database properties)
   portalSource: string;
   matchScore?: number;
   isMultiagency?: boolean;
@@ -70,6 +71,7 @@ export class ClientPropertyScrapingService {
       }
       
       return {
+        id: sp.id, // CRITICAL: Include the sharedProperties.id for frontend links
         externalId: sp.externalId || sp.id.toString(),
         title: `${sp.type} - ${sp.address}`,
         address: sp.address,
@@ -85,7 +87,7 @@ export class ClientPropertyScrapingService {
         latitude,
         longitude,
         imageUrls: Array.isArray(sp.imageUrls) ? sp.imageUrls : [],
-        ownerType: sp.ownerType || 'agency',
+        ownerType: (sp.ownerType as 'agency' | 'private') || 'agency',
         agencyName: sp.ownerName || 'Multi-Agency',
         portalSource: sp.portalSource || 'Database',
         isMultiagency: true,
@@ -217,8 +219,8 @@ export class ClientPropertyScrapingService {
       let updatedCount = 0;
       
       for (const result of results) {
-        // Skip multi-agency properties already in DB
-        if (result.portalSource === 'Database (Multi-Agency)') {
+        // Skip properties already in database (they have an ID)
+        if (result.id) {
           continue;
         }
         
@@ -322,7 +324,8 @@ export class ClientPropertyScrapingService {
         }
         
         return {
-          externalId: sp.id.toString(),
+          id: sp.id, // CRITICAL: Include the sharedProperties.id for frontend links
+          externalId: sp.externalId || sp.id.toString(),
           title: `${sp.type} - ${sp.address}`,
           address: sp.address,
           city: sp.city || 'Milano',
@@ -333,15 +336,15 @@ export class ClientPropertyScrapingService {
           floor: sp.floor || undefined,
           type: sp.type || 'apartment',
           description: sp.ownerNotes || '',
-          url: '',
+          url: sp.url || '',
           latitude,
           longitude,
-          ownerType: 'agency',
-          agencyName: 'Multi-Agency',
-          portalSource: 'Database (Multi-Agency)',
+          ownerType: (sp.ownerType as 'agency' | 'private') || 'agency',
+          agencyName: sp.ownerName || 'Multi-Agency',
+          portalSource: sp.portalSource || 'Database (Multi-Agency)',
           isMultiagency: true,
           isDuplicate: true,
-          isPrivate: false
+          isPrivate: sp.ownerType === 'private'
         };
       });
 
