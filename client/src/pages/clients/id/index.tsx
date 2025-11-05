@@ -114,11 +114,32 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Fetch scraped properties for rating 5 clients (manual only - click "Aggiorna")
+  // Fetch SAVED scraped properties (FAST - from database)
+  const { data: savedScrapedProperties, isLoading: isSavedScrapedPropertiesLoading, refetch: refetchSavedScrapedProperties } = useQuery({
+    queryKey: [`/api/clients/${id}/saved-scraped-properties`],
+    enabled: !isNaN(id) && client?.type === "buyer" && client?.buyer?.rating === 5,
+    staleTime: Infinity,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnReconnect: false,
+    queryFn: async () => {
+      const response = await fetch(`/api/clients/${id}/saved-scraped-properties`);
+      if (!response.ok) {
+        if (response.status === 400) {
+          return [];
+        }
+        throw new Error('Errore nel caricamento degli immobili salvati');
+      }
+      return response.json();
+    }
+  });
+
+  // Fetch scraped properties (SLOW - scraping) - manual only, click "Aggiorna"
   const { data: scrapedProperties, isLoading: isScrapedPropertiesLoading, refetch: refetchScrapedProperties } = useQuery({
     queryKey: [`/api/clients/${id}/scraped-properties`],
     enabled: false, // Disabled: scraping starts only when user clicks "Aggiorna"
-    staleTime: Infinity, // Keep results until manual refresh
+    staleTime: 0, // Don't cache scraping results - always use saved ones
     refetchInterval: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -1078,15 +1099,18 @@ export default function ClientDetailPage() {
                 <div>
                   <CardTitle>Possibili Immobili</CardTitle>
                   <CardDescription>
-                    {(client as any)?.rating === 5 
+                    {client?.buyer?.rating === 5 
                       ? "Immobili da altre agenzie trovati tramite scraping (Rating 5)" 
-                      : "Disponibile solo per clienti con rating 5"
+                      : `Disponibile solo per clienti con rating 5 (rating attuale: ${client?.buyer?.rating}, type: ${client?.type}, buyer exists: ${!!client?.buyer})`
                     }
                   </CardDescription>
                 </div>
-                {(client as any)?.rating === 5 && (
+                {client?.buyer?.rating === 5 && (
                   <Button 
-                    onClick={() => refetchScrapedProperties()} 
+                    onClick={async () => {
+                      await refetchScrapedProperties();
+                      await refetchSavedScrapedProperties();
+                    }} 
                     disabled={isScrapedPropertiesLoading}
                     data-testid="button-refresh-scraped-properties"
                   >
@@ -1099,7 +1123,7 @@ export default function ClientDetailPage() {
                 )}
               </CardHeader>
               <CardContent>
-                {(client as any)?.rating !== 5 ? (
+                {client?.buyer?.rating !== 5 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
                       <i className="fas fa-star-half-alt"></i>
@@ -1107,7 +1131,7 @@ export default function ClientDetailPage() {
                     <h3 className="text-lg font-medium mb-2">Rating non sufficiente</h3>
                     <p>
                       Questa funzionalità è disponibile solo per clienti con rating 5.<br />
-                      Rating attuale: {(client as any)?.rating || 'N/A'}
+                      Rating attuale: {client?.buyer?.rating || 'N/A'}
                     </p>
                   </div>
                 ) : isScrapedPropertiesLoading ? (
@@ -1115,20 +1139,25 @@ export default function ClientDetailPage() {
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
                     <p className="text-gray-500">Ricerca immobili in corso...</p>
                   </div>
-                ) : !scrapedProperties || scrapedProperties.length === 0 ? (
+                ) : isSavedScrapedPropertiesLoading ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+                    <p className="text-gray-500">Caricamento immobili salvati...</p>
+                  </div>
+                ) : !savedScrapedProperties || savedScrapedProperties.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
                       <i className="fas fa-search"></i>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Nessun immobile trovato</h3>
+                    <h3 className="text-lg font-medium mb-2">Nessun immobile salvato</h3>
                     <p>
-                      Non sono stati trovati immobili compatibili da altre agenzie.<br />
-                      Clicca "Aggiorna" per fare una nuova ricerca.
+                      Non ci sono immobili salvati nel database.<br />
+                      Clicca "Aggiorna" per avviare lo scraping e trovare nuovi immobili.
                     </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {scrapedProperties.map((property, idx) => (
+                    {savedScrapedProperties.map((property, idx) => (
                       <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className="overflow-hidden" data-testid={`card-property-${idx}`}>
                         <div className="aspect-video relative bg-gray-100">
                           {property.imageUrls && property.imageUrls.length > 0 ? (

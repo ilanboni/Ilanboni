@@ -17,6 +17,96 @@ export class ClientPropertyScrapingService {
   private immobiliareAdapter = new ImmobiliareApifyAdapter();
   private idealistaAdapter = new IdealistaApifyAdapter();
 
+  async getSavedScrapedPropertiesForClient(clientId: number): Promise<ScrapedPropertyResult[]> {
+    console.log(`[CLIENT-SCRAPING] Loading saved scraped properties for client ${clientId}`);
+
+    // Get client and buyer data
+    const client = await db.query.clients.findFirst({
+      where: eq(clients.id, clientId)
+    });
+
+    if (!client) {
+      throw new Error(`Client ${clientId} not found`);
+    }
+
+    if (client.type !== 'buyer') {
+      throw new Error(`Client ${clientId} is not a buyer`);
+    }
+
+    const buyer = await db.query.buyers.findFirst({
+      where: eq(buyers.clientId, clientId)
+    });
+
+    if (!buyer) {
+      throw new Error(`Buyer data not found for client ${clientId}`);
+    }
+
+    // Get all saved scraped properties from database
+    const savedProperties = await db
+      .select()
+      .from(sharedProperties)
+      .where(eq(sharedProperties.matchBuyers, true));
+
+    console.log(`[CLIENT-SCRAPING] Found ${savedProperties.length} saved properties in database`);
+
+    // Convert to ScrapedPropertyResult format
+    const results: ScrapedPropertyResult[] = savedProperties.map(sp => {
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      
+      if (sp.location) {
+        try {
+          const loc = sp.location as any;
+          if (loc.coordinates && Array.isArray(loc.coordinates)) {
+            longitude = loc.coordinates[0];
+            latitude = loc.coordinates[1];
+          } else if (loc.x !== undefined && loc.y !== undefined) {
+            longitude = loc.x;
+            latitude = loc.y;
+          }
+        } catch (e) {
+          console.warn('[CLIENT-SCRAPING] Failed to parse location for property', sp.id);
+        }
+      }
+      
+      return {
+        externalId: sp.externalId || sp.id.toString(),
+        title: `${sp.type} - ${sp.address}`,
+        address: sp.address,
+        city: sp.city || 'Milano',
+        price: sp.price || 0,
+        size: sp.size || 0,
+        bedrooms: undefined,
+        bathrooms: undefined,
+        floor: sp.floor || undefined,
+        type: sp.type || 'apartment',
+        description: sp.ownerNotes || '',
+        url: sp.url || '',
+        latitude,
+        longitude,
+        imageUrls: Array.isArray(sp.imageUrls) ? sp.imageUrls : [],
+        ownerType: sp.ownerType || 'agency',
+        agencyName: sp.ownerName || 'Multi-Agency',
+        portalSource: sp.portalSource || 'Database',
+        isMultiagency: true,
+        isDuplicate: true,
+        isPrivate: sp.ownerType === 'private'
+      };
+    });
+
+    // Calculate match score for each result
+    const scoredResults = results.map(result => ({
+      ...result,
+      matchScore: this.calculateMatchScore(result, buyer)
+    }));
+
+    // Sort by match score
+    scoredResults.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+
+    console.log(`[CLIENT-SCRAPING] Returning ${scoredResults.length} saved properties`);
+    return scoredResults;
+  }
+
   async scrapePropertiesForClient(clientId: number): Promise<ScrapedPropertyResult[]> {
     console.log(`[CLIENT-SCRAPING] Starting scraping for client ${clientId}`);
 
@@ -113,7 +203,76 @@ export class ClientPropertyScrapingService {
 
     console.log(`[CLIENT-SCRAPING] Total results: ${allResults.length}, unique: ${uniqueResults.length}, scored: ${scoredResults.length}`);
 
+    // Save new scraped properties to database (only from Apify, not DB multi-agency)
+    await this.saveScrapedPropertiesToDatabase(scoredResults, clientId);
+
     return scoredResults;
+  }
+
+  private async saveScrapedPropertiesToDatabase(results: ScrapedPropertyResult[], clientId: number): Promise<void> {
+    try {
+      console.log(`[CLIENT-SCRAPING] Saving ${results.length} properties to database...`);
+      
+      let newCount = 0;
+      let updatedCount = 0;
+      
+      for (const result of results) {
+        // Skip multi-agency properties already in DB
+        if (result.portalSource === 'Database (Multi-Agency)') {
+          continue;
+        }
+        
+        // Check if property already exists (by externalId + portalSource)
+        const existing = await db.query.sharedProperties.findFirst({
+          where: and(
+            eq(sharedProperties.externalId, result.externalId),
+            eq(sharedProperties.portalSource, result.portalSource)
+          )
+        });
+        
+        const propertyData = {
+          externalId: result.externalId,
+          portalSource: result.portalSource,
+          address: result.address,
+          city: result.city,
+          price: result.price,
+          size: result.size,
+          floor: result.floor,
+          type: result.type,
+          ownerType: result.ownerType || 'unknown',
+          ownerName: result.agencyName || null,
+          ownerPhone: null,
+          ownerNotes: result.description || null,
+          matchBuyers: true,
+          imageUrls: result.imageUrls || [],
+          url: result.url || null,
+          location: result.latitude && result.longitude 
+            ? sql`ST_SetSRID(ST_MakePoint(${result.longitude}, ${result.latitude}), 4326)`
+            : null,
+          scrapedForClientId: clientId,
+          lastScrapedAt: new Date()
+        };
+        
+        if (existing) {
+          // Update existing property
+          await db.update(sharedProperties)
+            .set({
+              ...propertyData,
+              updatedAt: new Date()
+            })
+            .where(eq(sharedProperties.id, existing.id));
+          updatedCount++;
+        } else {
+          // Insert new property
+          await db.insert(sharedProperties).values(propertyData);
+          newCount++;
+        }
+      }
+      
+      console.log(`[CLIENT-SCRAPING] Saved to database: ${newCount} new, ${updatedCount} updated`);
+    } catch (error) {
+      console.error('[CLIENT-SCRAPING] Error saving properties to database:', error);
+    }
   }
 
   private deduplicateResults(results: ScrapedPropertyResult[]): ScrapedPropertyResult[] {

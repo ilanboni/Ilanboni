@@ -1818,7 +1818,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint per scraping on-demand di immobili compatibili (solo clienti rating 5)
+  // Endpoint per caricare immobili salvati (VELOCE - no scraping)
+  app.get("/api/clients/:id/saved-scraped-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+
+      console.log(`[SAVED-SCRAPED-PROPERTIES] Request for client ${clientId}`);
+
+      const savedProperties = await clientPropertyScrapingService.getSavedScrapedPropertiesForClient(clientId);
+
+      console.log(`[SAVED-SCRAPED-PROPERTIES] Returning ${savedProperties.length} saved properties for client ${clientId}`);
+      res.json(savedProperties);
+    } catch (error: any) {
+      console.error(`[GET /api/clients/${req.params.id}/saved-scraped-properties]`, error);
+      
+      if (error.message?.includes('not a buyer')) {
+        return res.status(400).json({ error: "Il cliente non è un compratore" });
+      }
+      
+      if (error.message?.includes('not found')) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+
+      res.status(500).json({ error: "Errore durante il caricamento degli immobili salvati" });
+    }
+  });
+
+  // Endpoint per scraping on-demand di immobili compatibili (LENTO - esegue scraping)
   app.get("/api/clients/:id/scraped-properties", async (req: Request, res: Response) => {
     try {
       const clientId = parseInt(req.params.id);

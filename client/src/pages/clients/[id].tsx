@@ -116,10 +116,46 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Fetch scraped properties from online portals (Immobiliare.it, Idealista)
-  const { data: scrapedProperties, isLoading: isScrapedPropertiesLoading } = useQuery({
+  // Fetch SAVED scraped properties (FAST - from database)
+  const { data: savedScrapedProperties, isLoading: isSavedScrapedPropertiesLoading, refetch: refetchSavedScrapedProperties } = useQuery({
+    queryKey: [`/api/clients/${id}/saved-scraped-properties`],
+    enabled: !isNaN(id) && client?.type === "buyer" && client?.buyer?.rating === 5,
+    staleTime: Infinity,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnReconnect: false,
+    queryFn: async () => {
+      const response = await fetch(`/api/clients/${id}/saved-scraped-properties`);
+      if (!response.ok) {
+        if (response.status === 400) {
+          return [];
+        }
+        throw new Error('Errore nel caricamento degli immobili salvati');
+      }
+      return response.json();
+    }
+  });
+
+  // Fetch scraped properties (SLOW - scraping) - manual only, click "Aggiorna"
+  const { data: scrapedProperties, isLoading: isScrapedPropertiesLoading, refetch: refetchScrapedProperties } = useQuery({
     queryKey: [`/api/clients/${id}/scraped-properties`],
-    enabled: !isNaN(id) && client?.type === "buyer",
+    enabled: false, // Disabled: scraping starts only when user clicks "Aggiorna"
+    staleTime: 0,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    queryFn: async () => {
+      const response = await fetch(`/api/clients/${id}/scraped-properties`);
+      if (!response.ok) {
+        if (response.status === 400) {
+          return [];
+        }
+        throw new Error('Errore nel caricamento degli immobili scrapati');
+      }
+      return response.json();
+    }
   });
   
   // Fetch properties sent to client
@@ -1591,43 +1627,84 @@ export default function ClientDetailPage() {
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle>Possibili Immobili</CardTitle>
-                  <CardDescription>Immobili online (Immobiliare.it, Idealista) che corrispondono alle richieste del cliente</CardDescription>
+                  <CardDescription>
+                    {client?.buyer?.rating === 5 
+                      ? "Immobili da altre agenzie trovati tramite scraping (Rating 5)" 
+                      : "Immobili online (Immobiliare.it, Idealista) che corrispondono alle richieste del cliente"
+                    }
+                  </CardDescription>
                 </div>
-                {client?.buyer?.rating && client.buyer.rating >= 4 && (
-                  <Button
-                    variant="default"
-                    className="gap-2"
-                    onClick={() => setIsCompetitorModalOpen(true)}
-                    data-testid="button-show-all-competitors"
-                  >
-                    <i className="fas fa-store"></i>
-                    <span>Vedi Tutti i Concorrenti</span>
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {client?.buyer?.rating === 5 && (
+                    <Button 
+                      onClick={async () => {
+                        await refetchScrapedProperties();
+                        await refetchSavedScrapedProperties();
+                      }} 
+                      disabled={isScrapedPropertiesLoading}
+                      data-testid="button-refresh-scraped-properties"
+                    >
+                      {isScrapedPropertiesLoading ? (
+                        <><i className="fas fa-spinner animate-spin mr-2"></i>Ricerca...</>
+                      ) : (
+                        <><i className="fas fa-sync mr-2"></i>Aggiorna</>
+                      )}
+                    </Button>
+                  )}
+                  {client?.buyer?.rating && client.buyer.rating >= 4 && (
+                    <Button
+                      variant="default"
+                      className="gap-2"
+                      onClick={() => setIsCompetitorModalOpen(true)}
+                      data-testid="button-show-all-competitors"
+                    >
+                      <i className="fas fa-store"></i>
+                      <span>Vedi Tutti i Concorrenti</span>
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                {isScrapedPropertiesLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                {client?.buyer?.rating !== 5 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-5xl mb-4">
+                      <i className="fas fa-star-half-alt"></i>
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">Rating non sufficiente</h3>
+                    <p>
+                      Questa funzionalità è disponibile solo per clienti con rating 5.<br />
+                      Rating attuale: {client?.buyer?.rating || 'N/A'}
+                    </p>
                   </div>
-                ) : !scrapedProperties || scrapedProperties.length === 0 ? (
+                ) : isScrapedPropertiesLoading ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+                    <p className="text-gray-500">Ricerca immobili in corso...</p>
+                  </div>
+                ) : isSavedScrapedPropertiesLoading ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+                    <p className="text-gray-500">Caricamento immobili salvati...</p>
+                  </div>
+                ) : !savedScrapedProperties || savedScrapedProperties.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
                       <i className="fas fa-search"></i>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Nessun immobile trovato</h3>
+                    <h3 className="text-lg font-medium mb-2">Nessun immobile salvato</h3>
                     <p>
-                      Non sono stati trovati immobili online compatibili con le preferenze del cliente.
+                      Non ci sono immobili salvati nel database.<br />
+                      Clicca "Aggiorna" per avviare lo scraping e trovare nuovi immobili.
                     </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {scrapedProperties.map((property) => (
-                      <Card key={property.id} className="overflow-hidden">
+                    {savedScrapedProperties.map((property, idx) => (
+                      <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className="overflow-hidden" data-testid={`card-property-${idx}`}>
                         <div className="aspect-video relative bg-gray-100">
-                          {property.images && property.images.length > 0 ? (
+                          {property.imageUrls && property.imageUrls.length > 0 ? (
                             <img 
-                              src={property.images[0]} 
+                              src={property.imageUrls[0]} 
                               alt={property.title} 
                               className="w-full h-full object-cover" 
                             />

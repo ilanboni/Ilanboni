@@ -203,6 +203,13 @@ export const sharedProperties = pgTable("shared_properties", {
   isIgnored: boolean("is_ignored").default(false), // properties that the agent is not interested in
   matchBuyers: boolean("match_buyers").default(false), // whether to match with buyers
   location: jsonb("location"), // lat/lng
+  externalId: text("external_id"), // ID from external portal (Immobiliare, Idealista, etc.)
+  portalSource: text("portal_source"), // "Immobiliare.it", "Idealista.it", etc.
+  url: text("url"), // Link to external listing
+  imageUrls: jsonb("image_urls"), // Array of image URLs from scraping
+  ownerType: text("owner_type"), // "private" or "agency"
+  scrapedForClientId: integer("scraped_for_client_id").references(() => clients.id), // Which client requested the scraping
+  lastScrapedAt: timestamp("last_scraped_at"), // Last time this property was scraped
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
