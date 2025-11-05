@@ -19,111 +19,28 @@ export class IdealistaApifyAdapter implements PortalAdapter {
   }
 
   async search(criteria: SearchCriteria): Promise<PropertyListing[]> {
-    const searchUrl = this.buildSearchUrl(criteria);
-    console.log(`[IDEALISTA-APIFY] Searching: ${searchUrl}`);
+    console.log(`[IDEALISTA-APIFY] Searching with criteria:`, criteria);
 
     await this.respectRateLimit();
 
     try {
-      // Use Apify Web Scraper with Chrome to render JavaScript
+      // Use igolaizola/idealista-scraper - specialized actor for idealista.it
+      const location = criteria.city === 'milano' ? 'Milano' : criteria.city;
+      
       const input = {
-        startUrls: [{ url: searchUrl }],
-        globs: [{ glob: searchUrl }],
-        useChrome: true,
-        waitUntil: ['networkidle'],
-        pageFunction: `async function pageFunction(context) {
-          const { request, log, jQuery } = context;
-          const $ = jQuery;
-          
-          // DEBUG: Log page info
-          log.info('Page URL: ' + request.url);
-          log.info('Page title: ' + $('title').text());
-          log.info('Body length: ' + $('body').html().length);
-          
-          // Try to find any listing-like elements
-          const possibleSelectors = [
-            'article.item',
-            'article[data-adid]',
-            '[class*="item"]',
-            '[class*="card"]',
-            'article',
-            'li[data-adid]'
-          ];
-          
-          log.info('Testing selectors...');
-          for (const sel of possibleSelectors) {
-            const count = $(sel).length;
-            if (count > 0) {
-              log.info(\`Selector "\${sel}" found \${count} elements\`);
-            }
-          }
-          
-          const listings = [];
-          
-          const $items = $('article.item');
-          if ($items.length === 0) {
-            log.warning('No items found with selector article.item!');
-            log.info('Sample HTML: ' + $('body').html().substring(0, 1000));
-          } else {
-            log.info(\`Found \${$items.length} items with selector article.item\`);
-          }
-          
-          // Extract listings from Idealista search results
-          $items.each((i, el) => {
-            const $el = $(el);
-            const id = $el.attr('data-adid');
-            const href = $el.find('a.item-link').attr('href');
-            const title = $el.find('a.item-link').text().trim();
-            const address = $el.find('span.item-detail').first().text().trim();
-            const priceText = $el.find('span.item-price').text().trim();
-            const detailsText = $el.text();
-            
-            // Extract agency name - try multiple selectors
-            let agency = $el.find('.item-advertiser, .advertiser-name, .item-agency, [class*="agency"]').first().text().trim();
-            // Fallback: check for "Privato" or "Agenzia" in text
-            if (!agency) {
-              if (detailsText.includes('Privato')) {
-                agency = 'Privato';
-              }
-            }
-            
-            // Extract price
-            const priceMatch = priceText.match(/([\\d\\.]+)/);
-            const price = priceMatch ? parseInt(priceMatch[1].replace(/\\./g, '')) : 0;
-            
-            // Extract size
-            const sizeMatch = detailsText.match(/(\\d+)\\s*m²/);
-            const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
-            
-            // Extract bedrooms
-            const roomsMatch = detailsText.match(/(\\d+)\\s*locale/i);
-            const bedrooms = roomsMatch ? parseInt(roomsMatch[1]) : undefined;
-            
-            if (id && href) {
-              listings.push({
-                id,
-                url: href.startsWith('http') ? href : 'https://www.idealista.it' + href,
-                title,
-                address,
-                price,
-                size,
-                bedrooms,
-                agency: agency || undefined
-              });
-            }
-          });
-          
-          return listings;
-        }`,
+        location: location, // City name or Idealista location ID
+        maxItems: 100, // Limit results per zone
+        propertyType: 'homes', // apartment/home type
+        operation: 'sale', // vendita
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL']
-        },
-        maxRequestsPerCrawl: 1,
-        maxConcurrency: 1
+        }
       };
 
-      const run = await this.client.actor('apify/web-scraper').call(input);
+      console.log(`[IDEALISTA-APIFY] Input for igolaizola actor:`, JSON.stringify(input, null, 2));
+
+      const run = await this.client.actor('igolaizola/idealista-scraper').call(input);
       
       // Retrieve run details and logs for debugging
       console.log(`[IDEALISTA-APIFY] Run ID: ${run.id}, Status: ${run.status}`);
@@ -191,37 +108,42 @@ export class IdealistaApifyAdapter implements PortalAdapter {
         console.log('[IDEALISTA-APIFY] First item structure:', JSON.stringify(items[0], null, 2));
       }
 
-      // Transform Apify results to PropertyListings
+      // Transform igolaizola idealista-scraper results to PropertyListings
       const listings: PropertyListing[] = [];
       for (const item of items) {
-        // Extract listings from pageFunctionResult (Apify Web Scraper format)
-        const results = item.pageFunctionResult || item;
-        console.log(`[IDEALISTA-APIFY] Results type: ${Array.isArray(results) ? 'array' : typeof results}, length: ${Array.isArray(results) ? results.length : 'N/A'}`);
-        if (Array.isArray(results)) {
-          for (const listing of results) {
-            if (listing.id) {
-              // Detect owner type: private vs agency
-              const isPrivate = listing.agency && (
-                listing.agency.toLowerCase().includes('privat') ||
-                listing.agency.toLowerCase().includes('propri')
-              );
-              
-              listings.push({
-                externalId: listing.id,
-                title: listing.title || 'Appartamento',
-                address: listing.address || '',
-                city: 'Milano',
-                price: listing.price || 0,
-                size: listing.size || 0,
-                bedrooms: listing.bedrooms,
-                type: 'apartment',
-                url: listing.url,
-                description: listing.title || '',
-                ownerType: isPrivate ? 'private' : 'agency',
-                agencyName: listing.agency || undefined
-              });
-            }
+        try {
+          // igolaizola format for idealista
+          const price = item.price || 0;
+          const size = item.size || 0;
+          const rooms = item.rooms;
+          const address = item.address || '';
+          const url = item.url || '';
+          const propertyId = item.propertyCode || item.id || '';
+          
+          // Get contact/agency info
+          const contact = item.contact || '';
+          const isPrivate = contact.toLowerCase().includes('privat') || 
+                          contact.toLowerCase().includes('propri') ||
+                          contact.toLowerCase().includes('particular');
+          
+          if (url && price > 0) {
+            listings.push({
+              externalId: propertyId,
+              title: item.title || item.description || `Appartamento - ${address}`,
+              address: address,
+              city: criteria.city || 'Milano',
+              price: price,
+              size: size,
+              bedrooms: rooms,
+              type: 'apartment',
+              url: url,
+              description: item.description || '',
+              ownerType: isPrivate ? 'private' : 'agency',
+              agencyName: isPrivate ? undefined : (contact || undefined)
+            });
           }
+        } catch (itemError) {
+          console.error('[IDEALISTA-APIFY] Failed to transform item:', itemError);
         }
       }
 

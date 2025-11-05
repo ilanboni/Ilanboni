@@ -19,130 +19,37 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
   }
 
   async search(criteria: SearchCriteria): Promise<PropertyListing[]> {
-    const searchUrl = this.buildSearchUrl(criteria);
-    console.log(`[IMMOBILIARE-APIFY] Searching: ${searchUrl}`);
+    console.log(`[IMMOBILIARE-APIFY] Searching with criteria:`, criteria);
 
     await this.respectRateLimit();
 
     try {
-      // Use Apify Web Scraper with Chrome to render JavaScript
+      // Use igolaizola/immobiliare-it-scraper - specialized actor for immobiliare.it
       const input = {
-        startUrls: [{ url: searchUrl }],
-        globs: [{ glob: searchUrl }],
-        useChrome: true,
-        waitUntil: ['networkidle'],
-        pageFunction: `async function pageFunction(context) {
-          const { request, log, jQuery } = context;
-          const $ = jQuery;
-          
-          // DEBUG: Log page info
-          log.info('Page URL: ' + request.url);
-          log.info('Page title: ' + $('title').text());
-          log.info('Body length: ' + $('body').html().length);
-          
-          // Try to find any listing-like elements
-          const possibleSelectors = [
-            'li.in-realEstateResults__item',
-            'article.in-card',
-            'div.in-searchList__item',
-            'li.in-card',
-            '[class*="card"]',
-            '[class*="item"]',
-            '[class*="result"]',
-            'article',
-            'li[data-id]'
-          ];
-          
-          log.info('Testing selectors...');
-          for (const sel of possibleSelectors) {
-            const count = $(sel).length;
-            if (count > 0) {
-              log.info(\`Selector "\${sel}" found \${count} elements\`);
-            }
-          }
-          
-          const listings = [];
-          
-          // Extract listings from Immobiliare.it search results
-          // Try multiple selectors for compatibility
-          const selectors = [
-            'li.in-realEstateResults__item',
-            'article.in-card',
-            'div.in-searchList__item',
-            'li.in-card'
-          ];
-          
-          let $items = $();
-          for (const selector of selectors) {
-            $items = $(selector);
-            if ($items.length > 0) {
-              log.info(\`Found \${$items.length} items with selector: \${selector}\`);
-              break;
-            }
-          }
-          
-          if ($items.length === 0) {
-            log.warning('No items found with any selector!');
-            log.info('Sample HTML: ' + $('body').html().substring(0, 1000));
-          }
-          
-          $items.each((i, el) => {
-            const $el = $(el);
-            const id = $el.attr('data-id') || $el.attr('id') || String(Date.now() + i);
-            const $link = $el.find('a[href*="/annunci/"]').first();
-            const href = $link.attr('href');
-            const title = $link.attr('title') || $el.find('.in-card__title, h2').text().trim();
-            const address = $el.find('.in-realEstateListCard__location, .in-card__location').text().trim();
-            const priceText = $el.find('.in-realEstateListCard__price, .in-card__price').text().trim();
-            const detailsText = $el.text();
-            
-            // Extract agency name - try multiple selectors
-            let agency = $el.find('.in-realEstateListCard__agency, .in-card__agency, .in-agencyInfo__name, [class*="agency"]').first().text().trim();
-            // Also check for portal label (e.g., "immobiliare.it - Agency Name")
-            if (!agency) {
-              const portalMatch = title.match(/immobiliare\\.it\\s*-\\s*(.+?)$/i);
-              if (portalMatch) {
-                agency = portalMatch[1].trim();
-              }
-            }
-            
-            // Extract price
-            const priceMatch = priceText.match(/([\\d\\.]+)/);
-            const price = priceMatch ? parseInt(priceMatch[1].replace(/\\./g, '')) : 0;
-            
-            // Extract size
-            const sizeMatch = detailsText.match(/(\\d+)\\s*m²/);
-            const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
-            
-            // Extract bedrooms
-            const roomsMatch = detailsText.match(/(\\d+)\\s*local/i);
-            const bedrooms = roomsMatch ? parseInt(roomsMatch[1]) : undefined;
-            
-            if (href) {
-              listings.push({
-                id,
-                url: href.startsWith('http') ? href : 'https://www.immobiliare.it' + href,
-                title,
-                address,
-                price,
-                size,
-                bedrooms,
-                agency: agency || undefined
-              });
-            }
-          });
-          
-          return listings;
-        }`,
+        province: criteria.city === 'milano' ? 'milano' : criteria.city,
+        municipality: criteria.city === 'milano' ? 'Milano' : criteria.city,
+        maxItems: 100, // Limit results per zone
+        propertyType: 'homes', // apartment/home type
+        operation: 'sale', // vendita
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL']
-        },
-        maxRequestsPerCrawl: 1,
-        maxConcurrency: 1
+        }
       };
 
-      const run = await this.client.actor('apify/web-scraper').call(input);
+      // Add price filter if specified
+      if (criteria.maxPrice) {
+        input['maxPrice'] = criteria.maxPrice;
+      }
+
+      // Add size filter if specified
+      if (criteria.minSize) {
+        input['minSurface'] = criteria.minSize;
+      }
+
+      console.log(`[IMMOBILIARE-APIFY] Input for igolaizola actor:`, JSON.stringify(input, null, 2));
+
+      const run = await this.client.actor('igolaizola/immobiliare-it-scraper').call(input);
       
       // Retrieve run details and logs for debugging
       console.log(`[IMMOBILIARE-APIFY] Run ID: ${run.id}, Status: ${run.status}`);
@@ -210,37 +117,44 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
         console.log('[IMMOBILIARE-APIFY] First item structure:', JSON.stringify(items[0], null, 2));
       }
 
-      // Transform Apify results to PropertyListings
+      // Transform igolaizola immobiliare-it-scraper results to PropertyListings
       const listings: PropertyListing[] = [];
       for (const item of items) {
-        // Extract listings from pageFunctionResult (Apify Web Scraper format)
-        const results = item.pageFunctionResult || item;
-        console.log(`[IMMOBILIARE-APIFY] Results type: ${Array.isArray(results) ? 'array' : typeof results}, length: ${Array.isArray(results) ? results.length : 'N/A'}`);
-        if (Array.isArray(results)) {
-          for (const listing of results) {
-            if (listing.url) {
-              // Detect owner type: private vs agency
-              const isPrivate = listing.agency && (
-                listing.agency.toLowerCase().includes('privat') ||
-                listing.agency.toLowerCase().includes('proprietario')
-              );
-              
-              listings.push({
-                externalId: listing.id,
-                title: listing.title || 'Appartamento',
-                address: listing.address || '',
-                city: 'Milano',
-                price: listing.price || 0,
-                size: listing.size || 0,
-                bedrooms: listing.bedrooms,
-                type: 'apartment',
-                url: listing.url,
-                description: listing.title || '',
-                ownerType: isPrivate ? 'private' : 'agency',
-                agencyName: listing.agency || undefined
-              });
-            }
+        try {
+          // igolaizola format: direct object with analytics, topology, geography, etc.
+          const price = item.analytics?.price?.value || item.price || 0;
+          const surface = item.topology?.surface || item.surface || 0;
+          const rooms = item.topology?.rooms || item.rooms;
+          const address = item.geography?.location?.fullLocation || item.geography?.address || item.address || '';
+          const url = item.url || '';
+          const propertyId = item.id || item.propertyId || '';
+          
+          // Get advertiser info (agency or private)
+          const advertiserType = item.analytics?.advertiser?.type || item.advertiserType || 'agency';
+          const advertiserName = item.analytics?.advertiser?.name || item.advertiserName || '';
+          
+          const isPrivate = advertiserType === 'private' || advertiserType === 'owner' || 
+                          advertiserName.toLowerCase().includes('privat') ||
+                          advertiserName.toLowerCase().includes('proprietario');
+          
+          if (url && price > 0) {
+            listings.push({
+              externalId: propertyId,
+              title: item.title || `${item.topology?.typology || 'Appartamento'} - ${address}`,
+              address: address,
+              city: criteria.city || 'Milano',
+              price: price,
+              size: surface,
+              bedrooms: rooms,
+              type: 'apartment',
+              url: url,
+              description: item.description || '',
+              ownerType: isPrivate ? 'private' : 'agency',
+              agencyName: isPrivate ? undefined : advertiserName || undefined
+            });
           }
+        } catch (itemError) {
+          console.error('[IMMOBILIARE-APIFY] Failed to transform item:', itemError);
         }
       }
 
