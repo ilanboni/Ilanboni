@@ -114,11 +114,11 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Fetch scraped properties for rating 5 clients
+  // Fetch scraped properties for rating 5 clients (manual only - click "Aggiorna")
   const { data: scrapedProperties, isLoading: isScrapedPropertiesLoading, refetch: refetchScrapedProperties } = useQuery({
     queryKey: [`/api/clients/${id}/scraped-properties`],
-    enabled: !isNaN(id) && client?.type === "buyer" && (client as any)?.rating === 5,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: false, // Disabled: scraping starts only when user clicks "Aggiorna"
+    staleTime: Infinity, // Keep results until manual refresh
     refetchInterval: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
