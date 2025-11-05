@@ -142,28 +142,49 @@ export class ClientPropertyScrapingService {
         .from(sharedProperties)
         .where(eq(sharedProperties.matchBuyers, true));
 
-      const results: ScrapedPropertyResult[] = multiAgency.map(sp => ({
-        externalId: sp.id.toString(),
-        title: `${sp.type} - ${sp.address}`,
-        address: sp.address,
-        city: sp.city || 'Milano',
-        price: sp.price,
-        size: sp.size,
-        bedrooms: sp.rooms || undefined,
-        bathrooms: sp.bathrooms || undefined,
-        floor: sp.floor || undefined,
-        type: sp.type,
-        description: sp.ownerNotes || '',
-        url: '',
-        latitude: sp.location ? (sp.location as any).coordinates[1] : undefined,
-        longitude: sp.location ? (sp.location as any).coordinates[0] : undefined,
-        ownerType: 'agency',
-        agencyName: 'Multi-Agency',
-        portalSource: 'Database (Multi-Agency)',
-        isMultiagency: true,
-        isDuplicate: true,
-        isPrivate: false
-      }));
+      const results: ScrapedPropertyResult[] = multiAgency.map(sp => {
+        // Handle PostGIS location format safely
+        let latitude: number | undefined;
+        let longitude: number | undefined;
+        
+        if (sp.location) {
+          try {
+            const loc = sp.location as any;
+            if (loc.coordinates && Array.isArray(loc.coordinates)) {
+              longitude = loc.coordinates[0];
+              latitude = loc.coordinates[1];
+            } else if (loc.x !== undefined && loc.y !== undefined) {
+              longitude = loc.x;
+              latitude = loc.y;
+            }
+          } catch (e) {
+            console.warn('[CLIENT-SCRAPING] Failed to parse location for property', sp.id);
+          }
+        }
+        
+        return {
+          externalId: sp.id.toString(),
+          title: `${sp.type} - ${sp.address}`,
+          address: sp.address,
+          city: sp.city || 'Milano',
+          price: sp.price || 0,
+          size: sp.size || 0,
+          bedrooms: undefined,
+          bathrooms: undefined,
+          floor: sp.floor || undefined,
+          type: sp.type || 'apartment',
+          description: sp.ownerNotes || '',
+          url: '',
+          latitude,
+          longitude,
+          ownerType: 'agency',
+          agencyName: 'Multi-Agency',
+          portalSource: 'Database (Multi-Agency)',
+          isMultiagency: true,
+          isDuplicate: true,
+          isPrivate: false
+        };
+      });
 
       return results;
     } catch (error) {
