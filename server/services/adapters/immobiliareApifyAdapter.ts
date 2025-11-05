@@ -25,12 +25,26 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
 
     try {
       // Use igolaizola/immobiliare-it-scraper - specialized actor for immobiliare.it
+      // Province must be 2-letter code (e.g., MI for Milano, RM for Roma)
+      const provinceCode = criteria.city === 'milano' ? 'MI' : '';
+      
+      // Map property types: our format → actor format
+      // Actor accepts: "", "apartment", "house", "commercialProperty", "land"
+      const propertyTypeMap: Record<string, string> = {
+        'apartment': 'apartment',
+        'house': 'house',
+        'villa': 'house',
+        'commercial': 'commercialProperty',
+        'land': 'land'
+      };
+      const actorPropertyType = propertyTypeMap[criteria.propertyType || 'apartment'] || 'apartment';
+      
       const input = {
-        province: criteria.city === 'milano' ? 'milano' : criteria.city,
+        province: provinceCode,
         municipality: criteria.city === 'milano' ? 'Milano' : criteria.city,
         maxItems: 100, // Limit results per zone
-        propertyType: 'homes', // apartment/home type
-        operation: 'sale', // vendita
+        propertyType: actorPropertyType,
+        operation: 'buy', // buy = vendita ("sale" is invalid)
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL']
