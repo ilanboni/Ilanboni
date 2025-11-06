@@ -1224,6 +1224,21 @@ export class MemStorage implements IStorage {
     return this.marketInsightStore.delete(id);
   }
   
+  // Helper method to normalize property types for matching
+  private normalizePropertyType(type: string | undefined | null): string {
+    if (!type) return '';
+    const normalized = type.toLowerCase().trim();
+    
+    // Map common synonyms to standardized types
+    if (normalized === 'appartamento' || normalized === 'apartment') return 'apartment';
+    if (normalized === 'attico' || normalized === 'penthouse') return 'penthouse';
+    if (normalized === 'monolocale') return 'apartment'; // Monolocale is a type of apartment
+    if (normalized === 'villa') return 'villa';
+    if (normalized === 'loft') return 'loft';
+    
+    return normalized;
+  }
+
   // Matching methods
   async matchPropertiesForBuyer(buyerId: number): Promise<Property[]> {
     const buyer = this.buyerStore.get(buyerId);
@@ -1236,6 +1251,16 @@ export class MemStorage implements IStorage {
     
     // Filter properties based on buyer criteria
     return properties.filter(property => {
+      // Property type check - strict matching required if buyer specifies a type
+      if (buyer.propertyType) {
+        const buyerType = this.normalizePropertyType(buyer.propertyType);
+        const propertyType = this.normalizePropertyType(property.type);
+        
+        if (buyerType && propertyType !== buyerType) {
+          return false;
+        }
+      }
+      
       // Size check with 10% tolerance (può essere fino al 10% in meno della metratura minima richiesta)
       if (buyer.minSize && property.size < buyer.minSize * 0.9) {
         return false;
@@ -1261,11 +1286,22 @@ export class MemStorage implements IStorage {
   /**
    * Verifica se un immobile corrisponde alle preferenze di un acquirente,
    * applicando i criteri di tolleranza richiesti:
+   * - Tipologia proprietà (matching esatto)
    * - Poligono di ricerca (semplificato)
    * - Metratura fino al 10% in meno del minimo richiesto
    * - Prezzo fino al 10% in più del massimo richiesto
    */
   isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer): boolean {
+    // Property type check - strict matching required if buyer specifies a type
+    if (buyer.propertyType) {
+      const buyerType = this.normalizePropertyType(buyer.propertyType);
+      const propertyType = this.normalizePropertyType(property.type);
+      
+      if (buyerType && propertyType !== buyerType) {
+        return false;
+      }
+    }
+    
     // Size check with 10% tolerance
     if (buyer.minSize && property.size < buyer.minSize * 0.9) {
       return false;
