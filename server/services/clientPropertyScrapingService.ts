@@ -357,7 +357,17 @@ export class ClientPropertyScrapingService {
         .from(sharedProperties)
         .where(eq(sharedProperties.matchBuyers, true));
 
-      const results: ScrapedPropertyResult[] = multiAgency.map(sp => {
+      console.log(`[CLIENT-SCRAPING] Found ${multiAgency.length} multi-agency properties before filtering`);
+
+      // Filter using centralized matching logic
+      const { isSharedPropertyMatchingBuyerCriteria } = await import('../lib/matchingLogic');
+      const matchingProperties = multiAgency.filter(sp => 
+        isSharedPropertyMatchingBuyerCriteria(sp, buyer)
+      );
+
+      console.log(`[CLIENT-SCRAPING] After filtering: ${matchingProperties.length} properties match buyer criteria (type: ${buyer.propertyType || 'any'})`);
+
+      const results: ScrapedPropertyResult[] = matchingProperties.map(sp => {
         // Handle PostGIS location format safely
         let latitude: number | undefined;
         let longitude: number | undefined;
