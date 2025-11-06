@@ -18,6 +18,7 @@ import { SharedPropertyForm } from "@/components/properties/SharedPropertyForm";
 import { SharedPropertySimpleForm } from "@/components/properties/SharedPropertySimpleForm";
 import { apiRequest } from "@/lib/queryClient";
 import SharedPropertyTasks from "@/components/properties/SharedPropertyTasks";
+import SharedPropertyNotes from "@/components/properties/SharedPropertyNotes";
 import SharedPropertyMatchingBuyers from "@/components/properties/SharedPropertyMatchingBuyers";
 import PropertyInterestedClients from "@/components/properties/PropertyInterestedClients";
 import PropertyPipeline from "@/components/properties/PropertyPipeline";
@@ -782,12 +783,15 @@ export default function SharedPropertyDetailsPage() {
         <div>
           {/* Schede per le diverse funzionalità */}
           <Tabs defaultValue="matching" className="w-full mb-6">
-            <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 w-full gap-2">
+            <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 w-full gap-2">
               <TabsTrigger value="matching">
                 Potenziali interessati
               </TabsTrigger>
               <TabsTrigger value="tasks">
                 Attività
+              </TabsTrigger>
+              <TabsTrigger value="notes">
+                Note
               </TabsTrigger>
               <TabsTrigger value="interested-clients">
                 Clienti Interessati
@@ -809,6 +813,10 @@ export default function SharedPropertyDetailsPage() {
             
             <TabsContent value="tasks">
               <SharedPropertyTasks sharedPropertyId={property.id} />
+            </TabsContent>
+
+            <TabsContent value="notes">
+              <SharedPropertyNotes sharedPropertyId={property.id} />
             </TabsContent>
 
             <TabsContent value="interested-clients">
