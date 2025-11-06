@@ -49,10 +49,18 @@ export class ClientPropertyScrapingService {
       .from(sharedProperties)
       .where(eq(sharedProperties.matchBuyers, true));
 
-    console.log(`[CLIENT-SCRAPING] Found ${savedProperties.length} saved properties in database`);
+    console.log(`[CLIENT-SCRAPING] Found ${savedProperties.length} saved properties before filtering`);
+
+    // Filter using centralized matching logic
+    const { isSharedPropertyMatchingBuyerCriteria } = await import('../lib/matchingLogic');
+    const matchingProperties = savedProperties.filter(sp => 
+      isSharedPropertyMatchingBuyerCriteria(sp, buyer)
+    );
+
+    console.log(`[CLIENT-SCRAPING] After filtering: ${matchingProperties.length} properties match buyer criteria (type: ${buyer.propertyType || 'any'})`);
 
     // Convert to ScrapedPropertyResult format
-    const results: ScrapedPropertyResult[] = savedProperties.map(sp => {
+    const results: ScrapedPropertyResult[] = matchingProperties.map(sp => {
       let latitude: number | undefined;
       let longitude: number | undefined;
       
