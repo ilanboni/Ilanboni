@@ -10,6 +10,25 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point, polygon } from '@turf/helpers';
 
 /**
+ * Normalizza i tipi di proprietà per il matching, gestendo sinonimi e varianti
+ * @param type Il tipo di proprietà da normalizzare
+ * @returns Il tipo normalizzato
+ */
+function normalizePropertyType(type: string | undefined | null): string {
+  if (!type) return '';
+  const normalized = type.toLowerCase().trim();
+  
+  // Map common synonyms to standardized types
+  if (normalized === 'appartamento' || normalized === 'apartment') return 'apartment';
+  if (normalized === 'attico' || normalized === 'penthouse') return 'penthouse';
+  if (normalized === 'monolocale') return 'apartment'; // Monolocale is a type of apartment
+  if (normalized === 'villa') return 'villa';
+  if (normalized === 'loft') return 'loft';
+  
+  return normalized;
+}
+
+/**
  * Calcola la distanza tra due punti usando la formula di Haversine
  * @param lat1 Latitudine del primo punto
  * @param lng1 Longitudine del primo punto
@@ -36,6 +55,7 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 /**
  * Verifica se un immobile corrisponde alle preferenze di un acquirente,
  * applicando i criteri di tolleranza specificati:
+ * - Tipologia proprietà (matching esatto se specificato)
  * - È situato all'interno del poligono di ricerca dell'acquirente
  * - Ha una metratura che può essere fino al 10% inferiore al minimo richiesto
  * - Ha un prezzo che può essere fino al 10% superiore al massimo richiesto
@@ -48,6 +68,17 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
   // Verifica se l'immobile è disponibile
   if (property.status !== 'available') {
     return false;
+  }
+  
+  // Property type check - strict matching required if buyer specifies a type
+  if (buyer.propertyType) {
+    const buyerType = normalizePropertyType(buyer.propertyType);
+    const propertyType = normalizePropertyType(property.type);
+    
+    if (buyerType && propertyType !== buyerType) {
+      console.log(`[Matching] Property ${property.id} type '${property.type}' (normalized: '${propertyType}') doesn't match buyer requirement '${buyer.propertyType}' (normalized: '${buyerType}') - REJECTED`);
+      return false;
+    }
   }
   
   // Verifica metratura con tolleranza del 10% inferiore
@@ -195,6 +226,17 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
  */
 export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProperty, buyer: Buyer): boolean {
   // SharedProperty non ha campo status - assumiamo siano sempre disponibili
+  
+  // Property type check - strict matching required if buyer specifies a type
+  if (buyer.propertyType) {
+    const buyerType = normalizePropertyType(buyer.propertyType);
+    const propertyType = normalizePropertyType(sharedProperty.type);
+    
+    if (buyerType && propertyType !== buyerType) {
+      console.log(`[Matching] SharedProperty ${sharedProperty.id} type '${sharedProperty.type}' (normalized: '${propertyType}') doesn't match buyer requirement '${buyer.propertyType}' (normalized: '${buyerType}') - REJECTED`);
+      return false;
+    }
+  }
   
   // Verifica metratura con tolleranza del 10% inferiore
   if (buyer.minSize && sharedProperty.size && sharedProperty.size < buyer.minSize * 0.9) {
