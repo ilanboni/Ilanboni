@@ -3162,6 +3162,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint per ottenere le note di una proprietà condivisa
+  app.get("/api/shared-properties/:id/notes", async (req: Request, res: Response) => {
+    try {
+      const sharedPropertyId = parseInt(req.params.id);
+      if (isNaN(sharedPropertyId)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const notes = await storage.getSharedPropertyNotes(sharedPropertyId);
+      res.json(notes);
+    } catch (error) {
+      console.error(`[GET /api/shared-properties/${req.params.id}/notes]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle note" });
+    }
+  });
+
+  // Endpoint per creare una nuova nota per una proprietà condivisa
+  app.post("/api/shared-properties/:id/notes", upload.single('attachment'), async (req: Request, res: Response) => {
+    try {
+      const sharedPropertyId = parseInt(req.params.id);
+      if (isNaN(sharedPropertyId)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+
+      const { subject, notes } = req.body;
+      if (!subject || !notes) {
+        return res.status(400).json({ error: "Oggetto e note sono obbligatori" });
+      }
+
+      // Gestione allegato (se presente)
+      let attachmentUrl = null;
+      let attachmentName = null;
+      let attachmentType = null;
+
+      if (req.file) {
+        // TODO: Upload file to storage and get URL
+        // Per ora salviamo solo le informazioni del file
+        attachmentName = req.file.originalname;
+        attachmentType = req.file.mimetype;
+        // In futuro implementare upload su cloud storage (Replit Object Storage, S3, etc.)
+      }
+
+      const newNote = await storage.createSharedPropertyNote({
+        sharedPropertyId,
+        subject,
+        notes,
+        attachmentUrl,
+        attachmentName,
+        attachmentType
+      });
+
+      res.status(201).json(newNote);
+    } catch (error) {
+      console.error(`[POST /api/shared-properties/${req.params.id}/notes]`, error);
+      res.status(500).json({ error: "Errore durante la creazione della nota" });
+    }
+  });
+
+  // Endpoint per eliminare una nota
+  app.delete("/api/shared-properties/notes/:noteId", async (req: Request, res: Response) => {
+    try {
+      const noteId = parseInt(req.params.noteId);
+      if (isNaN(noteId)) {
+        return res.status(400).json({ error: "ID nota non valido" });
+      }
+
+      await storage.deleteSharedPropertyNote(noteId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error(`[DELETE /api/shared-properties/notes/${req.params.noteId}]`, error);
+      res.status(500).json({ error: "Errore durante l'eliminazione della nota" });
+    }
+  });
+
   // API per la gestione dei clienti
   
   // Ottieni tutti i clienti (con filtri opzionali)

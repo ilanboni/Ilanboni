@@ -214,6 +214,19 @@ export const sharedProperties = pgTable("shared_properties", {
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+// Shared property notes (for tracking considerations and activities)
+export const sharedPropertyNotes = pgTable("shared_property_notes", {
+  id: serial("id").primaryKey(),
+  sharedPropertyId: integer("shared_property_id").notNull().references(() => sharedProperties.id, { onDelete: 'cascade' }),
+  subject: text("subject").notNull(), // oggetto/titolo della nota
+  notes: text("notes").notNull(), // contenuto/considerazioni
+  attachmentUrl: text("attachment_url"), // URL del file allegato (se presente)
+  attachmentName: text("attachment_name"), // nome originale del file
+  attachmentType: text("attachment_type"), // tipo MIME del file
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // Appointments
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
@@ -420,6 +433,7 @@ export const insertInteractionSchema = createInsertSchema(interactions)
   .omit({ id: true, createdAt: true });
 export const insertMarketInsightSchema = createInsertSchema(marketInsights).omit({ id: true, createdAt: true });
 export const insertPropertyVisitSchema = createInsertSchema(propertyVisits).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSharedPropertyNoteSchema = createInsertSchema(sharedPropertyNotes).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Tabella per tracciare gli immobili inviati ai clienti
 export const propertySent = pgTable("property_sent", {
@@ -554,6 +568,9 @@ export type InsertPropertySent = z.infer<typeof insertPropertySentSchema>;
 
 export type PropertyVisit = typeof propertyVisits.$inferSelect;
 export type InsertPropertyVisit = z.infer<typeof insertPropertyVisitSchema>;
+
+export type SharedPropertyNote = typeof sharedPropertyNotes.$inferSelect;
+export type InsertSharedPropertyNote = z.infer<typeof insertSharedPropertyNoteSchema>;
 
 // Custom types for front-end usage
 export type ClientType = "buyer" | "seller";

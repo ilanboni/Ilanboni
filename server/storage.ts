@@ -5,6 +5,7 @@ import {
   sellers, type Seller, type InsertSeller,
   properties, type Property, type InsertProperty,
   sharedProperties, type SharedProperty, type InsertSharedProperty,
+  sharedPropertyNotes, type SharedPropertyNote, type InsertSharedPropertyNote,
   appointments, type Appointment, type InsertAppointment,
   tasks, type Task, type InsertTask,
   communications, type Communication, type InsertCommunication,
@@ -106,6 +107,11 @@ export interface IStorage {
   updateTask(id: number, data: Partial<InsertTask>): Promise<Task | undefined>;
   completeTask(id: number): Promise<Task | undefined>;
   deleteTask(id: number): Promise<boolean>;
+  
+  // Shared property notes methods
+  getSharedPropertyNotes(sharedPropertyId: number): Promise<SharedPropertyNote[]>;
+  createSharedPropertyNote(note: InsertSharedPropertyNote): Promise<SharedPropertyNote>;
+  deleteSharedPropertyNote(noteId: number): Promise<boolean>;
   
   // Client conversation task methods
   findClientConversationTask(clientId: number): Promise<Task | undefined>;
@@ -2735,6 +2741,25 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTask(id: number): Promise<boolean> {
     const result = await db.delete(tasks).where(eq(tasks.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Shared property notes methods
+  async getSharedPropertyNotes(sharedPropertyId: number): Promise<SharedPropertyNote[]> {
+    return await db
+      .select()
+      .from(sharedPropertyNotes)
+      .where(eq(sharedPropertyNotes.sharedPropertyId, sharedPropertyId))
+      .orderBy(desc(sharedPropertyNotes.createdAt));
+  }
+
+  async createSharedPropertyNote(note: InsertSharedPropertyNote): Promise<SharedPropertyNote> {
+    const result = await db.insert(sharedPropertyNotes).values(note).returning();
+    return result[0];
+  }
+
+  async deleteSharedPropertyNote(noteId: number): Promise<boolean> {
+    const result = await db.delete(sharedPropertyNotes).where(eq(sharedPropertyNotes.id, noteId)).returning();
     return result.length > 0;
   }
 
