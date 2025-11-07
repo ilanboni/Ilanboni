@@ -119,7 +119,7 @@ export default function ClientDetailPage() {
   // Fetch SAVED scraped properties (FAST - from database)
   const { data: savedScrapedProperties, isLoading: isSavedScrapedPropertiesLoading, refetch: refetchSavedScrapedProperties } = useQuery({
     queryKey: [`/api/clients/${id}/saved-scraped-properties`],
-    enabled: !isNaN(id) && client?.type === "buyer" && client?.buyer?.rating === 5,
+    enabled: !isNaN(id) && client?.type === "buyer" && client?.buyer?.rating && client.buyer.rating >= 4,
     staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,
@@ -1628,14 +1628,14 @@ export default function ClientDetailPage() {
                 <div>
                   <CardTitle>Possibili Immobili</CardTitle>
                   <CardDescription>
-                    {client?.buyer?.rating === 5 
-                      ? "Immobili da altre agenzie trovati tramite scraping (Rating 5)" 
+                    {client?.buyer?.rating && client.buyer.rating >= 4
+                      ? "Immobili trovati tramite Casafari API (Rating 4-5)" 
                       : "Immobili online (Immobiliare.it, Idealista) che corrispondono alle richieste del cliente"
                     }
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  {client?.buyer?.rating === 5 && (
+                  {client?.buyer?.rating && client.buyer.rating >= 4 && (
                     <Button 
                       onClick={async () => {
                         await refetchScrapedProperties();
@@ -1651,28 +1651,17 @@ export default function ClientDetailPage() {
                       )}
                     </Button>
                   )}
-                  {client?.buyer?.rating && client.buyer.rating >= 4 && (
-                    <Button
-                      variant="default"
-                      className="gap-2"
-                      onClick={() => setIsCompetitorModalOpen(true)}
-                      data-testid="button-show-all-competitors"
-                    >
-                      <i className="fas fa-store"></i>
-                      <span>Vedi Tutti i Concorrenti</span>
-                    </Button>
-                  )}
                 </div>
               </CardHeader>
               <CardContent>
-                {client?.buyer?.rating !== 5 ? (
+                {client?.buyer?.rating && client.buyer.rating < 4 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
                       <i className="fas fa-star-half-alt"></i>
                     </div>
                     <h3 className="text-lg font-medium mb-2">Rating non sufficiente</h3>
                     <p>
-                      Questa funzionalità è disponibile solo per clienti con rating 5.<br />
+                      Questa funzionalità è disponibile solo per clienti con rating 4 o 5.<br />
                       Rating attuale: {client?.buyer?.rating || 'N/A'}
                     </p>
                   </div>
@@ -1699,8 +1688,13 @@ export default function ClientDetailPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {savedScrapedProperties.map((property, idx) => (
-                      <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className="overflow-hidden" data-testid={`card-property-${idx}`}>
+                    {savedScrapedProperties.map((property, idx) => {
+                      const bgColor = property.classification === 'private' ? 'bg-green-50' :
+                                     property.classification === 'multiagency' ? 'bg-yellow-50' :
+                                     property.classification === 'single-agency' ? 'bg-red-50' :
+                                     '';
+                      return (
+                      <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className={`overflow-hidden ${bgColor}`} data-testid={`card-property-${idx}`}>
                         <div className="aspect-video relative bg-gray-100">
                           {property.imageUrls && property.imageUrls.length > 0 ? (
                             <img 
@@ -1787,7 +1781,8 @@ export default function ClientDetailPage() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>

@@ -4,7 +4,10 @@ import { eq, and, lte, gte, sql, isNull } from "drizzle-orm";
 import type { PropertyListing, SearchCriteria } from "./portalIngestionService";
 import { ImmobiliareApifyAdapter } from "./adapters/immobiliareApifyAdapter";
 import { IdealistaApifyAdapter } from "./adapters/idealistaApifyAdapter";
+import { CasafariAdapter } from "./adapters/casafariAdapter";
 import { geocodingService } from "./geocodingService";
+
+export type PropertyClassification = 'private' | 'multiagency' | 'single-agency';
 
 export interface ScrapedPropertyResult extends PropertyListing {
   id?: number; // ID from sharedProperties table (for saved/database properties)
@@ -13,11 +16,14 @@ export interface ScrapedPropertyResult extends PropertyListing {
   isMultiagency?: boolean;
   isDuplicate?: boolean;
   isPrivate?: boolean;
+  classification?: PropertyClassification; // New: for color coding
+  agencyCount?: number; // Number of different agencies listing this property
 }
 
 export class ClientPropertyScrapingService {
   private immobiliareAdapter = new ImmobiliareApifyAdapter();
   private idealistaAdapter = new IdealistaApifyAdapter();
+  private casafariAdapter = new CasafariAdapter();
 
   async getSavedScrapedPropertiesForClient(clientId: number): Promise<ScrapedPropertyResult[]> {
     console.log(`[CLIENT-SCRAPING] Loading saved scraped properties for client ${clientId}`);
@@ -105,8 +111,14 @@ export class ClientPropertyScrapingService {
       };
     });
 
+    // Classify properties if buyer rating >= 4 (Casafari users)
+    const buyerRating = buyer.rating || 0;
+    const classifiedResults = buyerRating >= 4
+      ? this.classifyProperties(results)
+      : results;
+
     // Calculate match score for each result
-    const scoredResults = results.map(result => ({
+    const scoredResults = classifiedResults.map(result => ({
       ...result,
       matchScore: this.calculateMatchScore(result, buyer)
     }));
@@ -147,64 +159,111 @@ export class ClientPropertyScrapingService {
     // Extract search criteria from buyer preferences
     const zones = (buyer.zones as string[] | null) || [];
     const allResults: ScrapedPropertyResult[] = [];
+    const buyerRating = buyer.rating || 0;
 
     // If no zones specified, do a generic search for Milano
     const searchZones = zones.length > 0 ? zones : [''];
 
-    for (const zone of searchZones) {
-      const criteria: SearchCriteria = {
-        city: 'milano',
-        zone: zone || undefined,
-        maxPrice: buyer.maxPrice || undefined,
-        minSize: buyer.minSize || undefined,
-        bedrooms: buyer.rooms || undefined,
-        propertyType: buyer.propertyType || undefined
-      };
+    // For high-rated clients (4-5), use Casafari API exclusively
+    if (buyerRating >= 4) {
+      console.log(`[CLIENT-SCRAPING] ⭐ High-rated client (${buyerRating}) - using Casafari API`);
+      
+      for (const zone of searchZones) {
+        const criteria: SearchCriteria = {
+          city: 'milano',
+          zone: zone || undefined,
+          maxPrice: buyer.maxPrice || undefined,
+          minSize: buyer.minSize || undefined,
+          bedrooms: buyer.rooms || undefined,
+          propertyType: buyer.propertyType || undefined
+        };
 
-      console.log(`[CLIENT-SCRAPING] Searching zone: ${zone || 'Milano (generic)'}`, criteria);
+        console.log(`[CLIENT-SCRAPING] Casafari search for zone: ${zone || 'Milano (generic)'}`, criteria);
 
-      // Scrape Immobiliare.it with Apify
-      try {
-        const immobiliareResults = await this.immobiliareAdapter.search(criteria);
-        const enriched = immobiliareResults.map(r => ({
-          ...r,
-          portalSource: 'Immobiliare.it (Apify)',
-          isPrivate: r.ownerType === 'private',
-          isMultiagency: false
-        }));
-        allResults.push(...enriched);
-        console.log(`[CLIENT-SCRAPING] Immobiliare.it: found ${immobiliareResults.length} properties for zone ${zone || 'Milano'}`);
-      } catch (error) {
-        console.error(`[CLIENT-SCRAPING] Immobiliare.it scraping failed for zone ${zone}:`, error);
+        try {
+          const casafariResults = await this.casafariAdapter.search(criteria);
+          const enriched = casafariResults.map(r => ({
+            ...r,
+            portalSource: 'Casafari',
+            isPrivate: r.ownerType === 'private'
+          }));
+          allResults.push(...enriched);
+          console.log(`[CLIENT-SCRAPING] Casafari: found ${casafariResults.length} properties for zone ${zone || 'Milano'}`);
+        } catch (error) {
+          console.error(`[CLIENT-SCRAPING] Casafari search failed for zone ${zone}:`, error);
+        }
       }
 
-      // Scrape Idealista.it with Apify
+      // Cleanup Casafari feeds after search
       try {
-        const idealistaResults = await this.idealistaAdapter.search(criteria);
-        const enriched = idealistaResults.map(r => ({
-          ...r,
-          portalSource: 'Idealista.it (Apify)',
-          isPrivate: r.ownerType === 'private',
-          isMultiagency: false
-        }));
-        allResults.push(...enriched);
-        console.log(`[CLIENT-SCRAPING] Idealista.it: found ${idealistaResults.length} properties for zone ${zone || 'Milano'}`);
+        await this.casafariAdapter.cleanup();
       } catch (error) {
-        console.error(`[CLIENT-SCRAPING] Idealista.it scraping failed for zone ${zone}:`, error);
+        console.error('[CLIENT-SCRAPING] Casafari cleanup failed:', error);
       }
+    } else {
+      // For lower-rated clients, use Apify adapters
+      console.log(`[CLIENT-SCRAPING] Standard client (rating ${buyerRating}) - using Apify adapters`);
+      
+      for (const zone of searchZones) {
+        const criteria: SearchCriteria = {
+          city: 'milano',
+          zone: zone || undefined,
+          maxPrice: buyer.maxPrice || undefined,
+          minSize: buyer.minSize || undefined,
+          bedrooms: buyer.rooms || undefined,
+          propertyType: buyer.propertyType || undefined
+        };
+
+        console.log(`[CLIENT-SCRAPING] Searching zone: ${zone || 'Milano (generic)'}`, criteria);
+
+        // Scrape Immobiliare.it with Apify
+        try {
+          const immobiliareResults = await this.immobiliareAdapter.search(criteria);
+          const enriched = immobiliareResults.map(r => ({
+            ...r,
+            portalSource: 'Immobiliare.it (Apify)',
+            isPrivate: r.ownerType === 'private',
+            isMultiagency: false
+          }));
+          allResults.push(...enriched);
+          console.log(`[CLIENT-SCRAPING] Immobiliare.it: found ${immobiliareResults.length} properties for zone ${zone || 'Milano'}`);
+        } catch (error) {
+          console.error(`[CLIENT-SCRAPING] Immobiliare.it scraping failed for zone ${zone}:`, error);
+        }
+
+        // Scrape Idealista.it with Apify
+        try {
+          const idealistaResults = await this.idealistaAdapter.search(criteria);
+          const enriched = idealistaResults.map(r => ({
+            ...r,
+            portalSource: 'Idealista.it (Apify)',
+            isPrivate: r.ownerType === 'private',
+            isMultiagency: false
+          }));
+          allResults.push(...enriched);
+          console.log(`[CLIENT-SCRAPING] Idealista.it: found ${idealistaResults.length} properties for zone ${zone || 'Milano'}`);
+        } catch (error) {
+          console.error(`[CLIENT-SCRAPING] Idealista.it scraping failed for zone ${zone}:`, error);
+        }
+      }
+
+      // Add multi-agency properties from database (shared_properties) for non-Casafari clients
+      console.log(`[CLIENT-SCRAPING] Fetching multi-agency properties from database...`);
+      const multiAgencyProperties = await this.getMultiAgencyPropertiesForClient(buyer);
+      allResults.push(...multiAgencyProperties);
+      console.log(`[CLIENT-SCRAPING] Added ${multiAgencyProperties.length} multi-agency properties from database`);
     }
-
-    // Add multi-agency properties from database (shared_properties)
-    console.log(`[CLIENT-SCRAPING] Fetching multi-agency properties from database...`);
-    const multiAgencyProperties = await this.getMultiAgencyPropertiesForClient(buyer);
-    allResults.push(...multiAgencyProperties);
-    console.log(`[CLIENT-SCRAPING] Added ${multiAgencyProperties.length} multi-agency properties from database`);
 
     // Deduplicate by externalId + portalSource
     const uniqueResults = this.deduplicateResults(allResults);
 
+    // Classify properties (private/multiagency/single-agency) for Casafari results
+    const classifiedResults = buyerRating >= 4 
+      ? this.classifyProperties(uniqueResults)
+      : uniqueResults;
+
     // Calculate match score for each result based on buyer criteria
-    const scoredResults = uniqueResults.map(result => ({
+    const scoredResults = classifiedResults.map(result => ({
       ...result,
       matchScore: this.calculateMatchScore(result, buyer)
     }));
@@ -355,6 +414,82 @@ export class ClientPropertyScrapingService {
 
     console.log(`[DEDUP] Processed ${results.length} results, found ${unique.length} unique (by portal:ID)`);
     return unique;
+  }
+
+  private classifyProperties(results: ScrapedPropertyResult[]): ScrapedPropertyResult[] {
+    console.log(`[CLASSIFY] Classifying ${results.length} properties...`);
+    
+    // Normalize address for comparison
+    const normalizeAddress = (addr: string): string => {
+      return addr.toLowerCase()
+        .replace(/via|viale|piazza|corso|largo/gi, '')
+        .replace(/\s+/g, ' ')
+        .replace(/[,\.]/g, '')
+        .trim();
+    };
+    
+    // Group properties by normalized address and similar price
+    const groups = new Map<string, ScrapedPropertyResult[]>();
+    
+    for (const result of results) {
+      const normalizedAddr = normalizeAddress(result.address);
+      const priceRange = Math.floor(result.price / 10000) * 10000; // Group by 10k price ranges
+      const groupKey = `${normalizedAddr}:${priceRange}:${result.size || 0}`;
+      
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, []);
+      }
+      groups.get(groupKey)!.push(result);
+    }
+    
+    // Classify each property based on its group
+    const classified: ScrapedPropertyResult[] = [];
+    let privateCount = 0;
+    let multiagencyCount = 0;
+    let singleAgencyCount = 0;
+    
+    for (const [groupKey, groupProperties] of Array.from(groups.entries())) {
+      // Get unique agencies in this group
+      const agencies = new Set<string>();
+      let hasPrivate = false;
+      
+      for (const prop of groupProperties) {
+        if (prop.ownerType === 'private') {
+          hasPrivate = true;
+        } else if (prop.agencyName) {
+          agencies.add(prop.agencyName);
+        }
+      }
+      
+      // Classify based on composition
+      let classification: PropertyClassification;
+      if (hasPrivate && agencies.size === 0) {
+        // Only private listings
+        classification = 'private';
+        privateCount += groupProperties.length;
+      } else if (hasPrivate || agencies.size > 1) {
+        // Mixed (private + agency) or multiple agencies
+        classification = 'multiagency';
+        multiagencyCount += groupProperties.length;
+      } else {
+        // Single agency only
+        classification = 'single-agency';
+        singleAgencyCount += groupProperties.length;
+      }
+      
+      // Apply classification to all properties in group
+      for (const prop of groupProperties) {
+        classified.push({
+          ...prop,
+          classification,
+          agencyCount: agencies.size,
+          isMultiagency: classification === 'multiagency'
+        });
+      }
+    }
+    
+    console.log(`[CLASSIFY] Results: ${privateCount} private, ${multiagencyCount} multi-agency, ${singleAgencyCount} single-agency`);
+    return classified;
   }
 
   private async getMultiAgencyPropertiesForClient(buyer: any): Promise<ScrapedPropertyResult[]> {
