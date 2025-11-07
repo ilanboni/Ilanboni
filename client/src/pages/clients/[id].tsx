@@ -2085,9 +2085,15 @@ export default function ClientDetailPage() {
                           className="flex-1 text-xs"
                           asChild
                         >
-                          <Link href={property.url || `/properties/${property.id}`}>
-                            <i className="fas fa-info-circle mr-1"></i> Dettagli
-                          </Link>
+                          {property.url && (property.url.startsWith('http://') || property.url.startsWith('https://')) ? (
+                            <a href={property.url} target="_blank" rel="noopener noreferrer">
+                              <i className="fas fa-info-circle mr-1"></i> Dettagli
+                            </a>
+                          ) : (
+                            <Link href={property.url || `/properties/${property.id}`}>
+                              <i className="fas fa-info-circle mr-1"></i> Dettagli
+                            </Link>
+                          )}
                         </Button>
                       </div>
                     </CardContent>
