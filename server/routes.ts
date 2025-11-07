@@ -2533,6 +2533,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API per proprietà condivise
   
+  // Get multi-agency scraped properties near Duomo (500m radius)
+  app.get("/api/scraped-properties/multi-agency", async (req: Request, res: Response) => {
+    try {
+      const DUOMO_LAT = 45.464203;
+      const DUOMO_LON = 9.191383;
+      const RADIUS_METERS = 500;
+      
+      // Helper function to calculate distance using Haversine formula
+      const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+        const R = 6371e3; // Earth's radius in meters
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180;
+        const Δλ = (lng2-lng1) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // distance in meters
+      };
+      
+      // Query shared_properties table for multi-agency properties
+      const allSharedProperties = await db.select().from(sharedProperties);
+      
+      // Filter for multi-agency (2+ agencies) and within 500m of Duomo
+      const multiAgencyNearDuomo = allSharedProperties.filter(property => {
+        // Check if property has agencies array with 2+ entries
+        const agencies = property.agencies as any[];
+        if (!agencies || !Array.isArray(agencies) || agencies.length < 2) {
+          return false;
+        }
+        
+        // Check if property has valid location
+        const location = property.location as any;
+        if (!location || !location.lat || !location.lng) {
+          return false;
+        }
+        
+        // Calculate distance from Duomo
+        const distance = calculateDistance(
+          DUOMO_LAT,
+          DUOMO_LON,
+          location.lat,
+          location.lng
+        );
+        
+        return distance <= RADIUS_METERS;
+      });
+      
+      // Sort by most agencies first, then by distance
+      multiAgencyNearDuomo.sort((a, b) => {
+        const aAgencies = (a.agencies as any[])?.length || 0;
+        const bAgencies = (b.agencies as any[])?.length || 0;
+        
+        if (aAgencies !== bAgencies) {
+          return bAgencies - aAgencies; // More agencies first
+        }
+        
+        const aLocation = a.location as any;
+        const bLocation = b.location as any;
+        
+        const distA = calculateDistance(DUOMO_LAT, DUOMO_LON, aLocation.lat, aLocation.lng);
+        const distB = calculateDistance(DUOMO_LAT, DUOMO_LON, bLocation.lat, bLocation.lng);
+        
+        return distA - distB; // Closer first
+      });
+      
+      console.log(`[MULTI-AGENCY] Found ${multiAgencyNearDuomo.length} multi-agency properties within ${RADIUS_METERS}m of Duomo`);
+      
+      res.json(multiAgencyNearDuomo);
+    } catch (error) {
+      console.error("[GET /api/scraped-properties/multi-agency]", error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà multi-agency" });
+    }
+  });
+  
   // Get shared properties with optional filters
   app.get("/api/shared-properties", async (req: Request, res: Response) => {
     try {
