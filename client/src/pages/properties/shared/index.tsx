@@ -47,26 +47,20 @@ function getStageLabel(stage: string) {
 
 export default function SharedPropertiesPage() {
   const [, setLocation] = useLocation();
-  const [filters, setFilters] = useState<{ stage?: string; search?: string }>({});
   const { toast } = useToast();
 
-  // Fetch shared properties
+  // Fetch multi-agency properties near Duomo (500m radius)
   const { data: sharedProperties, isLoading, isError } = useQuery({
-    queryKey: ['/api/shared-properties', filters],
-    queryFn: async ({ queryKey }) => {
+    queryKey: ['/api/scraped-properties/multi-agency'],
+    queryFn: async () => {
       try {
-        const [_, filters] = queryKey;
-        const queryParams = new URLSearchParams();
-        if (filters.stage) queryParams.set('stage', filters.stage);
-        if (filters.search) queryParams.set('search', filters.search);
-
-        const response = await fetch(`/api/shared-properties?${queryParams}`);
+        const response = await fetch(`/api/scraped-properties/multi-agency`);
         if (!response.ok) {
-          throw new Error('Errore nel caricamento delle proprietà condivise');
+          throw new Error('Errore nel caricamento delle proprietà multi-agency');
         }
         return response.json() as Promise<SharedProperty[]>;
       } catch (error) {
-        console.error("Errore nel caricamento delle proprietà condivise:", error);
+        console.error("Errore nel caricamento delle proprietà multi-agency:", error);
         throw error;
       }
     },
@@ -74,24 +68,12 @@ export default function SharedPropertiesPage() {
     retryDelay: 1000
   });
 
-  // Handle search
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const searchInput = e.currentTarget.elements.namedItem('search') as HTMLInputElement;
-    setFilters(prev => ({ ...prev, search: searchInput.value }));
-  };
-
-  // Handle filter by stage
-  const handleStageFilter = (stage: string) => {
-    setFilters(prev => ({ ...prev, stage: stage === 'all' ? undefined : stage }));
-  };
-
   if (isError) {
     return (
       <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-6">Proprietà Condivise</h1>
+        <h1 className="text-3xl font-bold mb-6">Proprietà Multi-Agency</h1>
         <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-800">
-          Si è verificato un errore nel caricamento delle proprietà condivise.
+          Si è verificato un errore nel caricamento delle proprietà multi-agency.
         </div>
       </div>
     );
@@ -100,44 +82,9 @@ export default function SharedPropertiesPage() {
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Proprietà Condivise</h1>
-        <Button onClick={() => setLocation("/properties/shared/new")}>
-          <Plus className="mr-2 h-4 w-4" /> Nuova proprietà condivisa
-        </Button>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="flex-1">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <Input 
-              name="search" 
-              placeholder="Cerca per indirizzo, città o proprietario" 
-              defaultValue={filters.search} 
-              className="flex-1"
-            />
-            <Button type="submit">Cerca</Button>
-          </form>
-        </div>
-        <div className="w-full md:w-60">
-          <Select 
-            value={filters.stage || 'all'} 
-            onValueChange={handleStageFilter}
-          >
-            <SelectTrigger>
-              <div className="flex items-center">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filtra per fase" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutte le fasi</SelectItem>
-              <SelectItem value="address_found">Indirizzo trovato</SelectItem>
-              <SelectItem value="owner_found">Proprietario trovato</SelectItem>
-              <SelectItem value="owner_contact_found">Contatto del proprietario</SelectItem>
-              <SelectItem value="owner_contacted">Proprietario contattato</SelectItem>
-              <SelectItem value="result">Risultato</SelectItem>
-            </SelectContent>
-          </Select>
+        <div>
+          <h1 className="text-3xl font-bold">Proprietà Multi-Agency</h1>
+          <p className="text-gray-600 mt-1">Proprietà entro 500m dal Duomo gestite da 2 o più agenzie diverse</p>
         </div>
       </div>
 
@@ -164,10 +111,8 @@ export default function SharedPropertiesPage() {
         <>
           {(!sharedProperties || sharedProperties.length === 0) ? (
             <div className="bg-gray-50 border border-gray-200 rounded-md p-6 text-center">
-              <p className="text-gray-600 mb-2">Nessuna proprietà condivisa trovata</p>
-              <Button variant="outline" onClick={() => setLocation("/properties/shared/new")}>
-                <Plus className="mr-2 h-4 w-4" /> Aggiungi proprietà condivisa
-              </Button>
+              <p className="text-gray-600 mb-2">Nessuna proprietà multi-agency trovata entro 500m dal Duomo</p>
+              <p className="text-sm text-gray-500">Le proprietà multi-agency appaiono qui quando vengono scrapate per clienti con rating 4-5</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
