@@ -2556,14 +2556,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return R * c; // distance in meters
       };
       
+      // Helper function to normalize agency names
+      const normalizeAgencyName = (name: string): string => {
+        return name
+          .toLowerCase()
+          .replace(/[.,\s-]/g, '')
+          .replace(/srl|spa|snc|sas|ss|sapa/g, '');
+      };
+      
       // Query shared_properties table for multi-agency properties
       const allSharedProperties = await db.select().from(sharedProperties);
       
-      // Filter for multi-agency (2+ agencies) and within 500m of Duomo
+      // Filter for multi-agency (2+ UNIQUE agencies) and within 5km of Duomo
       const multiAgencyNearDuomo = allSharedProperties.filter(property => {
-        // Check if property has agencies array with 2+ entries
+        // Check if property has agencies array
         const agencies = property.agencies as any[];
-        if (!agencies || !Array.isArray(agencies) || agencies.length < 2) {
+        if (!agencies || !Array.isArray(agencies) || agencies.length === 0) {
+          return false;
+        }
+        
+        // Count unique agencies using normalized names
+        const uniqueAgencies = new Set(
+          agencies.map(a => normalizeAgencyName(a.name || ''))
+        );
+        
+        // Must have 2+ DIFFERENT agencies
+        if (uniqueAgencies.size < 2) {
           return false;
         }
         

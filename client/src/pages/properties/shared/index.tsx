@@ -53,7 +53,8 @@ export default function SharedPropertiesPage() {
     multiAgencyOnly?: boolean;
     classification?: 'private' | 'multiagency' | 'single-agency' | 'all';
   }>({
-    classification: 'all'
+    classification: 'all',
+    multiAgencyOnly: true // Default: show only properties within 5km of Duomo
   });
   const { toast } = useToast();
 
