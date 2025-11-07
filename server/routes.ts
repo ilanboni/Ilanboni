@@ -2533,12 +2533,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API per proprietà condivise
   
-  // Get multi-agency scraped properties near Duomo (500m radius)
+  // Get multi-agency scraped properties near Duomo (5km radius)
   app.get("/api/scraped-properties/multi-agency", async (req: Request, res: Response) => {
     try {
       const DUOMO_LAT = 45.464203;
       const DUOMO_LON = 9.191383;
-      const RADIUS_METERS = 500;
+      const RADIUS_METERS = 5000; // 5km radius
       
       // Helper function to calculate distance using Haversine formula
       const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {

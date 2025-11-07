@@ -47,16 +47,21 @@ function getStageLabel(stage: string) {
 
 export default function SharedPropertiesPage() {
   const [, setLocation] = useLocation();
-  const [filters, setFilters] = useState<{ stage?: string; search?: string; multiAgencyOnly?: boolean }>({});
+  const [filters, setFilters] = useState<{ 
+    stage?: string; 
+    search?: string; 
+    multiAgencyOnly?: boolean;
+    classification?: 'private' | 'multiagency' | 'single-agency' | 'all';
+  }>({
+    classification: 'all'
+  });
   const { toast } = useToast();
 
   // Fetch shared properties (all or multi-agency only)
   const { data: sharedProperties, isLoading, isError } = useQuery({
     queryKey: [filters.multiAgencyOnly ? '/api/scraped-properties/multi-agency' : '/api/shared-properties', filters],
-    queryFn: async ({ queryKey }) => {
+    queryFn: async () => {
       try {
-        const [endpoint, filters] = queryKey;
-        
         if (filters.multiAgencyOnly) {
           // Fetch multi-agency properties near Duomo
           const response = await fetch(`/api/scraped-properties/multi-agency`);
@@ -108,6 +113,79 @@ export default function SharedPropertiesPage() {
     }));
   };
 
+  // Get background color based on classification
+  const getClassificationBgColor = (agencies: any[] | null | undefined): string => {
+    if (!agencies || !Array.isArray(agencies) || agencies.length === 0) {
+      return 'bg-green-50'; // Private - no agencies
+    }
+    
+    // Count unique agencies (normalized)
+    const normalizeAgencyName = (name: string): string => {
+      return name
+        .toLowerCase()
+        .replace(/[.,\s-]/g, '')
+        .replace(/srl|spa|snc|sas|ss|sapa/g, '');
+    };
+    
+    const uniqueAgencies = new Set(
+      agencies.map(a => normalizeAgencyName(a.name || ''))
+    );
+    
+    if (uniqueAgencies.size >= 2) {
+      return 'bg-yellow-50'; // Multi-agency
+    } else {
+      return 'bg-red-50'; // Single agency
+    }
+  };
+
+  // Filter properties by classification
+  const filterByClassification = (properties: any[]) => {
+    if (!filters.classification || filters.classification === 'all') {
+      return properties;
+    }
+    
+    return properties.filter(property => {
+      const agencies = property.agencies as any[];
+      
+      if (filters.classification === 'private') {
+        return !agencies || agencies.length === 0;
+      }
+      
+      if (filters.classification === 'multiagency') {
+        if (!agencies || !Array.isArray(agencies)) return false;
+        const normalizeAgencyName = (name: string): string => {
+          return name
+            .toLowerCase()
+            .replace(/[.,\s-]/g, '')
+            .replace(/srl|spa|snc|sas|ss|sapa/g, '');
+        };
+        const uniqueAgencies = new Set(
+          agencies.map(a => normalizeAgencyName(a.name || ''))
+        );
+        return uniqueAgencies.size >= 2;
+      }
+      
+      if (filters.classification === 'single-agency') {
+        if (!agencies || !Array.isArray(agencies) || agencies.length === 0) return false;
+        const normalizeAgencyName = (name: string): string => {
+          return name
+            .toLowerCase()
+            .replace(/[.,\s-]/g, '')
+            .replace(/srl|spa|snc|sas|ss|sapa/g, '');
+        };
+        const uniqueAgencies = new Set(
+          agencies.map(a => normalizeAgencyName(a.name || ''))
+        );
+        return uniqueAgencies.size === 1;
+      }
+      
+      return true;
+    });
+  };
+
+  // Apply classification filter to displayed properties
+  const displayedProperties = sharedProperties ? filterByClassification(sharedProperties) : [];
+
   if (isError) {
     return (
       <div className="container py-8">
@@ -141,7 +219,44 @@ export default function SharedPropertiesPage() {
             <Button type="submit" disabled={filters.multiAgencyOnly}>Cerca</Button>
           </form>
         </div>
-        <div className="w-full md:w-60">
+        <div className="w-full md:w-48">
+          <Select 
+            value={filters.classification || 'all'} 
+            onValueChange={(value) => setFilters(prev => ({ 
+              ...prev, 
+              classification: value as 'private' | 'multiagency' | 'single-agency' | 'all'
+            }))}
+          >
+            <SelectTrigger>
+              <div className="flex items-center">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Tipo" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutte</SelectItem>
+              <SelectItem value="private">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
+                  Privati
+                </div>
+              </SelectItem>
+              <SelectItem value="multiagency">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-yellow-100 border border-yellow-300 rounded"></div>
+                  Pluricondivise
+                </div>
+              </SelectItem>
+              <SelectItem value="single-agency">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-100 border border-red-300 rounded"></div>
+                  Monocondivise
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full md:w-48">
           <Select 
             value={filters.stage || 'all'} 
             onValueChange={handleStageFilter}
@@ -178,10 +293,29 @@ export default function SharedPropertiesPage() {
       {filters.multiAgencyOnly && (
         <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
           <p className="text-sm text-blue-800">
-            📍 Filtro attivo: Proprietà gestite da 2+ agenzie diverse entro 500m dal Duomo di Milano
+            📍 Filtro attivo: Proprietà gestite da 2+ agenzie diverse entro 5km dal Duomo di Milano
           </p>
         </div>
       )}
+
+      {/* Legend for color-coding */}
+      <div className="bg-gray-50 border border-gray-200 rounded-md p-3 mb-4">
+        <p className="text-xs font-semibold text-gray-700 mb-2">Legenda classificazione:</p>
+        <div className="flex flex-wrap gap-4 text-xs text-gray-600">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
+            <span>Privato</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded"></div>
+            <span>Pluricondivise (Multi-Agency)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-red-100 border border-red-300 rounded"></div>
+            <span>Monocondivise (Singola Agenzia)</span>
+          </div>
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -204,11 +338,11 @@ export default function SharedPropertiesPage() {
         </div>
       ) : (
         <>
-          {(!sharedProperties || sharedProperties.length === 0) ? (
+          {(!displayedProperties || displayedProperties.length === 0) ? (
             <div className="bg-gray-50 border border-gray-200 rounded-md p-6 text-center">
               {filters.multiAgencyOnly ? (
                 <>
-                  <p className="text-gray-600 mb-2">Nessuna proprietà multi-agency trovata entro 500m dal Duomo</p>
+                  <p className="text-gray-600 mb-2">Nessuna proprietà multi-agency trovata entro 5km dal Duomo</p>
                   <p className="text-sm text-gray-500">Le proprietà multi-agency appaiono qui quando vengono scrapate per clienti con rating 4-5</p>
                 </>
               ) : (
@@ -221,59 +355,75 @@ export default function SharedPropertiesPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sharedProperties.map((property) => (
-                <Link key={property.id} href={`/properties/shared/${property.id}`}>
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col">
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-start">
-                        <CardTitle className="text-lg">{property.address}</CardTitle>
-                        <Badge className={getStageColor(property.stage)}>
-                          {getStageLabel(property.stage)}
-                        </Badge>
-                      </div>
-                      <CardDescription>
-                        <div className="flex items-center text-gray-500">
-                          <MapPin className="h-3.5 w-3.5 mr-1" />
-                          {property.city || "Città sconosciuta"}
-                        </div>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                      <div className="space-y-2">
-                        {property.ownerName && (
-                          <div className="flex items-center text-sm">
-                            <User className="h-4 w-4 mr-2 text-gray-400" />
-                            {property.ownerName}
-                          </div>
-                        )}
-                        {property.size && property.price && (
-                          <div className="flex items-center text-sm">
-                            <Building className="h-4 w-4 mr-2 text-gray-400" />
-                            {property.size} m² - {property.price.toLocaleString()} €
-                          </div>
-                        )}
-                        {property.agencies && Array.isArray(property.agencies) && property.agencies.length > 0 && (
-                          <div className="flex items-center text-sm font-medium text-blue-600">
-                            <Building className="h-4 w-4 mr-2" />
-                            {property.agencies.length} {property.agencies.length === 1 ? 'agenzia' : 'agenzie'}
-                          </div>
-                        )}
-                        {property.isAcquired && (
-                          <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">
-                            Acquisito
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="properties-grid">
+              {displayedProperties.map((property, idx) => {
+                const bgColor = getClassificationBgColor(property.agencies as any[]);
+                return (
+                  <Link key={property.id} href={`/properties/shared/${property.id}`} data-testid={`link-property-${idx}`}>
+                    <Card 
+                      className={`cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col ${bgColor}`}
+                      data-testid={`card-property-${idx}`}
+                      data-classification={
+                        !property.agencies || property.agencies.length === 0 ? 'private' :
+                        (() => {
+                          const normalizeAgencyName = (name: string): string => {
+                            return name.toLowerCase().replace(/[.,\s-]/g, '').replace(/srl|spa|snc|sas|ss|sapa/g, '');
+                          };
+                          const uniqueAgencies = new Set((property.agencies as any[]).map(a => normalizeAgencyName(a.name || '')));
+                          return uniqueAgencies.size >= 2 ? 'multiagency' : 'single-agency';
+                        })()
+                      }
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-lg">{property.address}</CardTitle>
+                          <Badge className={getStageColor(property.stage)}>
+                            {getStageLabel(property.stage)}
                           </Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button variant="outline" className="w-full">
-                        Vedi dettagli
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </Link>
-              ))}
+                        </div>
+                        <CardDescription>
+                          <div className="flex items-center text-gray-500">
+                            <MapPin className="h-3.5 w-3.5 mr-1" />
+                            {property.city || "Città sconosciuta"}
+                          </div>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                        <div className="space-y-2">
+                          {property.ownerName && (
+                            <div className="flex items-center text-sm">
+                              <User className="h-4 w-4 mr-2 text-gray-400" />
+                              {property.ownerName}
+                            </div>
+                          )}
+                          {property.size && property.price && (
+                            <div className="flex items-center text-sm">
+                              <Building className="h-4 w-4 mr-2 text-gray-400" />
+                              {property.size} m² - {property.price.toLocaleString()} €
+                            </div>
+                          )}
+                          {property.agencies && Array.isArray(property.agencies) && property.agencies.length > 0 && (
+                            <div className="flex items-center text-sm font-medium text-blue-600">
+                              <Building className="h-4 w-4 mr-2" />
+                              {property.agencies.length} {property.agencies.length === 1 ? 'agenzia' : 'agenzie'}
+                            </div>
+                          )}
+                          {property.isAcquired && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
+                              Acquisito
+                            </Badge>
+                          )}
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button variant="outline" className="w-full">
+                          Vedi dettagli
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </>
