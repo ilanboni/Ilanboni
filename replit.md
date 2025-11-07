@@ -1,10 +1,13 @@
 # Client Management System
 
 ## Recent Changes
-- **Multi-Agency Property Consolidation (November 7, 2025)**: Implemented property grouping to show duplicate multi-agency listings as a single card with all agency links. Each multi-agency property now displays a scrollable list of all agencies offering the same property, with direct external links. This eliminates duplicate cards and makes it easier to compare all options for the same property.
+- **Property Deduplication Fix (November 7, 2025)**: Fixed two critical bugs in property classification:
+  1. **Agency name normalization**: Properties from same agency with name variations (e.g., "F.I.L. Casa Agency S.r.l." vs "FIL Casa Agency SRL") were incorrectly classified as multi-agency. Now normalizes names (lowercase, remove punctuation, standardize legal suffixes) before counting unique agencies.
+  2. **Consolidate ALL duplicates**: Previously only multi-agency properties were consolidated. Now ALL duplicate listings (same address/price) are consolidated into single cards with multiple links, regardless of whether they're from multiple agencies (yellow) or same agency (red). This eliminates the "sacco di doppioni" issue.
+- **Multi-Agency Property Consolidation (November 7, 2025)**: Implemented property grouping to show duplicate listings as a single card with all agency links. Each consolidated property displays a scrollable list of all listings with direct external links. This makes it easier to compare all options for the same property.
 - Implemented Casafari API integration for rating 4-5 clients, replacing dual scraping system (Immobiliare + Idealista Apify)
 - Built property classification engine that groups listings by address/price and counts unique agencies to determine private/multi-agency/single-agency status
-- Applied color-coded UI: green backgrounds for private listings, yellow for shared/multi-agency, red for single-agency
+- Applied color-coded UI: green backgrounds for private listings, yellow for multi-agency, red for single-agency
 - Unified UI to single "Aggiorna" button (removed "Vedi Tutti i Concorrenti")
 - Fixed critical SecurityError where external property URLs incorrectly used internal routing - now use anchor tags with target="_blank"
 - Ensured classification applies to both freshly scraped and saved properties from database
