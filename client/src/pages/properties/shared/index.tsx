@@ -118,56 +118,54 @@ export default function SharedPropertiesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sharedProperties.map((property) => (
                 <Link key={property.id} href={`/properties/shared/${property.id}`}>
-                  <a className="block h-full">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-lg">{property.address}</CardTitle>
-                          <Badge className={getStageColor(property.stage)}>
-                            {getStageLabel(property.stage)}
-                          </Badge>
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg">{property.address}</CardTitle>
+                        <Badge className={getStageColor(property.stage)}>
+                          {getStageLabel(property.stage)}
+                        </Badge>
+                      </div>
+                      <CardDescription>
+                        <div className="flex items-center text-gray-500">
+                          <MapPin className="h-3.5 w-3.5 mr-1" />
+                          {property.city || "Città sconosciuta"}
                         </div>
-                        <CardDescription>
-                          <div className="flex items-center text-gray-500">
-                            <MapPin className="h-3.5 w-3.5 mr-1" />
-                            {property.city || "Città sconosciuta"}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <div className="space-y-2">
+                        {property.ownerName && (
+                          <div className="flex items-center text-sm">
+                            <User className="h-4 w-4 mr-2 text-gray-400" />
+                            {property.ownerName}
                           </div>
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <div className="space-y-2">
-                          {property.ownerName && (
-                            <div className="flex items-center text-sm">
-                              <User className="h-4 w-4 mr-2 text-gray-400" />
-                              {property.ownerName}
-                            </div>
-                          )}
-                          {property.size && property.price && (
-                            <div className="flex items-center text-sm">
-                              <Building className="h-4 w-4 mr-2 text-gray-400" />
-                              {property.size} m² - {property.price.toLocaleString()} €
-                            </div>
-                          )}
-                          {property.agencies && Array.isArray(property.agencies) && property.agencies.length > 0 && (
-                            <div className="flex items-center text-sm font-medium text-blue-600">
-                              <Building className="h-4 w-4 mr-2" />
-                              {property.agencies.length} {property.agencies.length === 1 ? 'agenzia' : 'agenzie'}
-                            </div>
-                          )}
-                          {property.isAcquired && (
-                            <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">
-                              Acquisito
-                            </Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                      <CardFooter>
-                        <Button variant="outline" className="w-full">
-                          Vedi dettagli
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </a>
+                        )}
+                        {property.size && property.price && (
+                          <div className="flex items-center text-sm">
+                            <Building className="h-4 w-4 mr-2 text-gray-400" />
+                            {property.size} m² - {property.price.toLocaleString()} €
+                          </div>
+                        )}
+                        {property.agencies && Array.isArray(property.agencies) && property.agencies.length > 0 && (
+                          <div className="flex items-center text-sm font-medium text-blue-600">
+                            <Building className="h-4 w-4 mr-2" />
+                            {property.agencies.length} {property.agencies.length === 1 ? 'agenzia' : 'agenzie'}
+                          </div>
+                        )}
+                        {property.isAcquired && (
+                          <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">
+                            Acquisito
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button variant="outline" className="w-full">
+                        Vedi dettagli
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 </Link>
               ))}
             </div>
