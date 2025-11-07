@@ -436,6 +436,22 @@ export class ClientPropertyScrapingService {
         .trim();
     };
     
+    // Normalize agency name for comparison (handles variations like "S.r.l.", "SRL", punctuation, etc.)
+    const normalizeAgencyName = (name: string): string => {
+      return name.toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[\.,'"\-]/g, '')  // Remove punctuation
+        .replace(/\bs\.?r\.?l\.?\b/gi, 'srl')  // Normalize S.r.l., S.R.L., etc. to srl
+        .replace(/\bs\.?p\.?a\.?\b/gi, 'spa')  // Normalize S.p.A., SPA, etc. to spa
+        .replace(/\bs\.?a\.?s\.?\b/gi, 'sas')  // Normalize S.a.s., SAS, etc. to sas
+        .replace(/\bs\.?n\.?c\.?\b/gi, 'snc')  // Normalize S.n.c., SNC, etc. to snc
+        .replace(/\bdi\b/gi, '')  // Remove common connectors
+        .replace(/\be\b/gi, '')
+        .replace(/\&/g, 'e')  // Normalize & to e
+        .replace(/\s+/g, ' ')  // Clean up extra spaces
+        .trim();
+    };
+    
     // Group properties by normalized address and similar price
     const groups = new Map<string, ScrapedPropertyResult[]>();
     
@@ -458,7 +474,7 @@ export class ClientPropertyScrapingService {
     let consolidatedCount = 0;
     
     for (const [groupKey, groupProperties] of Array.from(groups.entries())) {
-      // Get unique agencies in this group
+      // Get unique agencies in this group (using normalized names)
       const agencies = new Set<string>();
       let hasPrivate = false;
       
@@ -466,7 +482,9 @@ export class ClientPropertyScrapingService {
         if (prop.ownerType === 'private') {
           hasPrivate = true;
         } else if (prop.agencyName) {
-          agencies.add(prop.agencyName);
+          // Use normalized agency name for counting unique agencies
+          const normalized = normalizeAgencyName(prop.agencyName);
+          agencies.add(normalized);
         }
       }
       
@@ -486,8 +504,8 @@ export class ClientPropertyScrapingService {
         singleAgencyCount += groupProperties.length;
       }
       
-      // For multi-agency: consolidate into ONE property with all variants
-      if (classification === 'multiagency' && groupProperties.length > 1) {
+      // Consolidate duplicates (both multi-agency AND single-agency with multiple listings)
+      if (groupProperties.length > 1) {
         // Use the first property as the canonical one
         const canonical = groupProperties[0];
         
@@ -504,21 +522,20 @@ export class ClientPropertyScrapingService {
           ...canonical,
           classification,
           agencyCount: agencies.size,
-          isMultiagency: true,
+          isMultiagency: classification === 'multiagency',
           agencyVariants
         });
         
         consolidatedCount++;
       } else {
-        // For private and single-agency: keep all properties as-is
-        for (const prop of groupProperties) {
-          classified.push({
-            ...prop,
-            classification,
-            agencyCount: agencies.size,
-            isMultiagency: classification === 'multiagency'
-          });
-        }
+        // Single property (no duplicates): keep as-is
+        const prop = groupProperties[0];
+        classified.push({
+          ...prop,
+          classification,
+          agencyCount: agencies.size,
+          isMultiagency: classification === 'multiagency'
+        });
       }
     }
     
