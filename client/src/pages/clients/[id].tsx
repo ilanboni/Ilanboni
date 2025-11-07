@@ -1756,29 +1756,80 @@ export default function ClientDetailPage() {
                             </div>
                           </div>
                           
-                          <div className="mt-4 flex justify-between">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-xs"
-                              asChild
-                            >
-                              <Link href={`/properties/shared/${property.id}`}>
-                                <i className="fas fa-info-circle mr-1"></i> Dettagli
-                              </Link>
-                            </Button>
-                            
-                            <Button 
-                              variant="default" 
-                              size="sm" 
-                              className="text-xs"
-                              asChild
-                            >
-                              <Link href={`/communications/whatsapp?clientId=${id}&sharedPropertyId=${property.id}`}>
-                                <i className="fab fa-whatsapp mr-1"></i> Invia
-                              </Link>
-                            </Button>
-                          </div>
+                          {/* Multi-agency: show all agency links */}
+                          {property.agencyVariants && property.agencyVariants.length > 1 ? (
+                            <div className="mt-4">
+                              <p className="text-xs font-semibold text-gray-700 mb-2">
+                                <i className="fas fa-building mr-1"></i> 
+                                Disponibile presso {property.agencyVariants.length} {property.agencyVariants.length === 1 ? 'agenzia' : 'agenzie'}:
+                              </p>
+                              <div className="space-y-1 max-h-32 overflow-y-auto">
+                                {property.agencyVariants.map((variant, vIdx) => (
+                                  <a
+                                    key={`${variant.portalSource}-${variant.externalId}-${vIdx}`}
+                                    href={variant.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-between text-xs p-2 bg-white/50 hover:bg-white rounded border border-gray-200 hover:border-primary-300 transition-colors"
+                                  >
+                                    <span className="font-medium text-gray-900 truncate flex-1">
+                                      {variant.agencyName}
+                                    </span>
+                                    <span className="text-gray-500 ml-2">
+                                      <i className="fas fa-external-link-alt"></i>
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                              <div className="mt-3 flex justify-between gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-xs flex-1"
+                                  asChild
+                                >
+                                  <Link href={`/properties/shared/${property.id}`}>
+                                    <i className="fas fa-info-circle mr-1"></i> Dettagli
+                                  </Link>
+                                </Button>
+                                
+                                <Button 
+                                  variant="default" 
+                                  size="sm" 
+                                  className="text-xs flex-1"
+                                  asChild
+                                >
+                                  <Link href={`/communications/whatsapp?clientId=${id}&sharedPropertyId=${property.id}`}>
+                                    <i className="fab fa-whatsapp mr-1"></i> Invia
+                                  </Link>
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-4 flex justify-between">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-xs"
+                                asChild
+                              >
+                                <Link href={`/properties/shared/${property.id}`}>
+                                  <i className="fas fa-info-circle mr-1"></i> Dettagli
+                                </Link>
+                              </Button>
+                              
+                              <Button 
+                                variant="default" 
+                                size="sm" 
+                                className="text-xs"
+                                asChild
+                              >
+                                <Link href={`/communications/whatsapp?clientId=${id}&sharedPropertyId=${property.id}`}>
+                                  <i className="fab fa-whatsapp mr-1"></i> Invia
+                                </Link>
+                              </Button>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                       );

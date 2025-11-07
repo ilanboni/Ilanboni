@@ -9,6 +9,13 @@ import { geocodingService } from "./geocodingService";
 
 export type PropertyClassification = 'private' | 'multiagency' | 'single-agency';
 
+export interface AgencyVariant {
+  agencyName: string;
+  url: string;
+  portalSource: string;
+  externalId: string;
+}
+
 export interface ScrapedPropertyResult extends PropertyListing {
   id?: number; // ID from sharedProperties table (for saved/database properties)
   portalSource: string;
@@ -18,6 +25,7 @@ export interface ScrapedPropertyResult extends PropertyListing {
   isPrivate?: boolean;
   classification?: PropertyClassification; // New: for color coding
   agencyCount?: number; // Number of different agencies listing this property
+  agencyVariants?: AgencyVariant[]; // All agency listings for multi-agency properties
 }
 
 export class ClientPropertyScrapingService {
@@ -447,6 +455,7 @@ export class ClientPropertyScrapingService {
     let privateCount = 0;
     let multiagencyCount = 0;
     let singleAgencyCount = 0;
+    let consolidatedCount = 0;
     
     for (const [groupKey, groupProperties] of Array.from(groups.entries())) {
       // Get unique agencies in this group
@@ -477,18 +486,43 @@ export class ClientPropertyScrapingService {
         singleAgencyCount += groupProperties.length;
       }
       
-      // Apply classification to all properties in group
-      for (const prop of groupProperties) {
+      // For multi-agency: consolidate into ONE property with all variants
+      if (classification === 'multiagency' && groupProperties.length > 1) {
+        // Use the first property as the canonical one
+        const canonical = groupProperties[0];
+        
+        // Build agency variants array with all listings
+        const agencyVariants: AgencyVariant[] = groupProperties.map(prop => ({
+          agencyName: prop.agencyName || (prop.ownerType === 'private' ? 'Privato' : 'Agenzia'),
+          url: prop.url,
+          portalSource: prop.portalSource,
+          externalId: prop.externalId
+        }));
+        
+        // Push ONE consolidated property
         classified.push({
-          ...prop,
+          ...canonical,
           classification,
           agencyCount: agencies.size,
-          isMultiagency: classification === 'multiagency'
+          isMultiagency: true,
+          agencyVariants
         });
+        
+        consolidatedCount++;
+      } else {
+        // For private and single-agency: keep all properties as-is
+        for (const prop of groupProperties) {
+          classified.push({
+            ...prop,
+            classification,
+            agencyCount: agencies.size,
+            isMultiagency: classification === 'multiagency'
+          });
+        }
       }
     }
     
-    console.log(`[CLASSIFY] Results: ${privateCount} private, ${multiagencyCount} multi-agency, ${singleAgencyCount} single-agency`);
+    console.log(`[CLASSIFY] Results: ${privateCount} private, ${multiagencyCount} multi-agency (${consolidatedCount} consolidated), ${singleAgencyCount} single-agency`);
     return classified;
   }
 
