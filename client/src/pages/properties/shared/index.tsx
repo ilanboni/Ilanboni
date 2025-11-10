@@ -68,6 +68,7 @@ export default function SharedPropertiesPage() {
     search?: string; 
     multiAgencyOnly?: boolean;
     classification?: 'private' | 'multiagency' | 'single-agency' | 'all';
+    isFavorite?: boolean;
   }>({
     classification: 'all',
     multiAgencyOnly: true // Default: show only properties within 5km of Duomo
@@ -131,7 +132,10 @@ export default function SharedPropertiesPage() {
       try {
         if (filters.multiAgencyOnly) {
           // Fetch multi-agency properties near Duomo
-          const response = await fetch(`/api/scraped-properties/multi-agency`);
+          const queryParams = new URLSearchParams();
+          if (filters.isFavorite) queryParams.set('isFavorite', 'true');
+          
+          const response = await fetch(`/api/scraped-properties/multi-agency?${queryParams}`);
           if (!response.ok) {
             throw new Error('Errore nel caricamento delle proprietà multi-agency');
           }
@@ -141,6 +145,7 @@ export default function SharedPropertiesPage() {
           const queryParams = new URLSearchParams();
           if (filters.stage) queryParams.set('stage', filters.stage);
           if (filters.search) queryParams.set('search', filters.search);
+          if (filters.isFavorite) queryParams.set('isFavorite', 'true');
 
           const response = await fetch(`/api/shared-properties?${queryParams}`);
           if (!response.ok) {
@@ -344,6 +349,20 @@ export default function SharedPropertiesPage() {
           >
             <Building className="mr-2 h-4 w-4" />
             {filters.multiAgencyOnly ? "Mostra tutte" : "Multi-Agency Duomo"}
+          </Button>
+        </div>
+        <div className="w-full md:w-auto">
+          <Button 
+            variant={filters.isFavorite ? "default" : "outline"}
+            onClick={() => {
+              setCurrentPage(1);
+              setFilters(prev => ({ ...prev, isFavorite: !prev.isFavorite }));
+            }}
+            className="w-full md:w-auto"
+            data-testid="button-toggle-favorites"
+          >
+            <Star className={`mr-2 h-4 w-4 ${filters.isFavorite ? 'fill-yellow-400' : ''}`} />
+            Solo preferiti
           </Button>
         </div>
       </div>
