@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,8 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Building, Filter, MapPin, Plus, User } from "lucide-react";
+import { Building, Filter, MapPin, Plus, User, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { SharedProperty } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+
+const ITEMS_PER_PAGE = 50;
+
+type AgencyInfo = {
+  name?: string | null;
+  link?: string | null;
+};
+
+function normalizeAgencyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[.,\s-]/g, '')
+    .replace(/srl|spa|snc|sas|ss|sapa/g, '');
+}
 
 function getStageColor(stage: string) {
   switch (stage) {
@@ -47,6 +62,7 @@ function getStageLabel(stage: string) {
 
 export default function SharedPropertiesPage() {
   const [, setLocation] = useLocation();
+  const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<{ 
     stage?: string; 
     search?: string; 
@@ -57,6 +73,56 @@ export default function SharedPropertiesPage() {
     multiAgencyOnly: true // Default: show only properties within 5km of Duomo
   });
   const { toast } = useToast();
+
+  // Mutation for toggling favorite status
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async ({ propertyId, isFavorite }: { propertyId: number; isFavorite: boolean }) => {
+      return await apiRequest(`/api/shared-properties/${propertyId}/favorite`, {
+        method: 'PATCH',
+        data: { isFavorite }
+      });
+    },
+    onMutate: async ({ propertyId, isFavorite }) => {
+      // Optimistic update - use EXACT same key structure as useQuery
+      const queryKey = filters.multiAgencyOnly 
+        ? ['/api/scraped-properties/multi-agency', filters] 
+        : ['/api/shared-properties', filters];
+      
+      await queryClient.cancelQueries({ queryKey });
+      
+      const previousData = queryClient.getQueryData(queryKey);
+      
+      queryClient.setQueryData(queryKey, (old: any[]) => {
+        return old?.map(prop => 
+          prop.id === propertyId ? { ...prop, isFavorite } : prop
+        ) || old;
+      });
+      
+      return { previousData, queryKey };
+    },
+    onError: (error, variables, context) => {
+      // Rollback on error
+      if (context) {
+        queryClient.setQueryData(context.queryKey, context.previousData);
+      }
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato preferito",
+        variant: "destructive"
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Aggiornato",
+        description: "Lo stato preferito è stato modificato"
+      });
+    },
+    onSettled: () => {
+      // Invalidate all shared-properties queries to keep other filters in sync
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/scraped-properties/multi-agency'] });
+    }
+  });
 
   // Fetch shared properties (all or multi-agency only)
   const { data: sharedProperties, isLoading, isError } = useQuery({
@@ -105,6 +171,7 @@ export default function SharedPropertiesPage() {
 
   // Toggle multi-agency filter
   const toggleMultiAgencyFilter = () => {
+    setCurrentPage(1); // Reset to first page
     setFilters(prev => ({ 
       ...prev, 
       multiAgencyOnly: !prev.multiAgencyOnly,
@@ -114,78 +181,71 @@ export default function SharedPropertiesPage() {
     }));
   };
 
-  // Get background color based on classification
-  const getClassificationBgColor = (agencies: any[] | null | undefined): string => {
-    if (!agencies || !Array.isArray(agencies) || agencies.length === 0) {
-      return 'bg-green-50'; // Private - no agencies
-    }
-    
-    // Count unique agencies (normalized)
-    const normalizeAgencyName = (name: string): string => {
-      return name
-        .toLowerCase()
-        .replace(/[.,\s-]/g, '')
-        .replace(/srl|spa|snc|sas|ss|sapa/g, '');
-    };
-    
-    const uniqueAgencies = new Set(
-      agencies.map(a => normalizeAgencyName(a.name || ''))
-    );
-    
-    if (uniqueAgencies.size >= 2) {
-      return 'bg-yellow-50'; // Multi-agency
-    } else {
-      return 'bg-red-50'; // Single agency
-    }
+  // Handle classification filter change
+  const handleClassificationChange = (value: string) => {
+    setCurrentPage(1); // Reset to first page
+    setFilters(prev => ({ 
+      ...prev, 
+      classification: value as 'private' | 'multiagency' | 'single-agency' | 'all'
+    }));
   };
 
-  // Filter properties by classification
-  const filterByClassification = (properties: any[]) => {
-    if (!filters.classification || filters.classification === 'all') {
-      return properties;
-    }
+  // Pre-compute classification metadata for each property (runs once per data fetch)
+  const enrichedProperties = useMemo(() => {
+    if (!sharedProperties) return [];
     
-    return properties.filter(property => {
-      const agencies = property.agencies as any[];
+    return sharedProperties.map(property => {
+      const agencies: AgencyInfo[] = Array.isArray(property.agencies) ? property.agencies as AgencyInfo[] : [];
+      let uniqueAgencyCount = 0;
+      let classification: 'private' | 'multiagency' | 'single-agency' = 'private';
+      let bgColor = 'bg-green-50';
       
-      if (filters.classification === 'private') {
-        return !agencies || agencies.length === 0;
-      }
-      
-      if (filters.classification === 'multiagency') {
-        if (!agencies || !Array.isArray(agencies)) return false;
-        const normalizeAgencyName = (name: string): string => {
-          return name
-            .toLowerCase()
-            .replace(/[.,\s-]/g, '')
-            .replace(/srl|spa|snc|sas|ss|sapa/g, '');
-        };
+      if (agencies.length > 0) {
         const uniqueAgencies = new Set(
           agencies.map(a => normalizeAgencyName(a.name || ''))
         );
-        return uniqueAgencies.size >= 2;
+        uniqueAgencyCount = uniqueAgencies.size;
+        
+        if (uniqueAgencyCount >= 2) {
+          classification = 'multiagency';
+          bgColor = 'bg-yellow-50';
+        } else {
+          classification = 'single-agency';
+          bgColor = 'bg-red-50';
+        }
       }
       
-      if (filters.classification === 'single-agency') {
-        if (!agencies || !Array.isArray(agencies) || agencies.length === 0) return false;
-        const normalizeAgencyName = (name: string): string => {
-          return name
-            .toLowerCase()
-            .replace(/[.,\s-]/g, '')
-            .replace(/srl|spa|snc|sas|ss|sapa/g, '');
-        };
-        const uniqueAgencies = new Set(
-          agencies.map(a => normalizeAgencyName(a.name || ''))
-        );
-        return uniqueAgencies.size === 1;
-      }
-      
-      return true;
+      return {
+        ...property,
+        _computed: {
+          classification,
+          bgColor,
+          uniqueAgencyCount,
+          agencies
+        }
+      };
     });
-  };
+  }, [sharedProperties]);
 
-  // Apply classification filter to displayed properties
-  const displayedProperties = sharedProperties ? filterByClassification(sharedProperties) : [];
+  // Filter properties by classification (memoized)
+  const filteredProperties = useMemo(() => {
+    if (!filters.classification || filters.classification === 'all') {
+      return enrichedProperties;
+    }
+    
+    return enrichedProperties.filter(property => {
+      return property._computed.classification === filters.classification;
+    });
+  }, [enrichedProperties, filters.classification]);
+
+  // Paginate properties
+  const paginatedProperties = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredProperties.slice(startIndex, endIndex);
+  }, [filteredProperties, currentPage]);
+
+  const totalPages = Math.ceil((filteredProperties?.length || 0) / ITEMS_PER_PAGE);
 
   if (isError) {
     return (
@@ -223,10 +283,7 @@ export default function SharedPropertiesPage() {
         <div className="w-full md:w-48">
           <Select 
             value={filters.classification || 'all'} 
-            onValueChange={(value) => setFilters(prev => ({ 
-              ...prev, 
-              classification: value as 'private' | 'multiagency' | 'single-agency' | 'all'
-            }))}
+            onValueChange={handleClassificationChange}
           >
             <SelectTrigger>
               <div className="flex items-center">
@@ -339,7 +396,7 @@ export default function SharedPropertiesPage() {
         </div>
       ) : (
         <>
-          {(!displayedProperties || displayedProperties.length === 0) ? (
+          {(!paginatedProperties || paginatedProperties.length === 0) ? (
             <div className="bg-gray-50 border border-gray-200 rounded-md p-6 text-center">
               {filters.multiAgencyOnly ? (
                 <>
@@ -356,31 +413,46 @@ export default function SharedPropertiesPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="properties-grid">
-              {displayedProperties.map((property, idx) => {
-                const bgColor = getClassificationBgColor(property.agencies as any[]);
-                return (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="properties-grid">
+                {paginatedProperties.map((property, idx) => (
                   <Link key={property.id} href={`/properties/shared/${property.id}`} data-testid={`link-property-${idx}`}>
                     <Card 
-                      className={`cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col ${bgColor}`}
+                      className={`cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col ${property._computed.bgColor}`}
                       data-testid={`card-property-${idx}`}
-                      data-classification={
-                        !property.agencies || property.agencies.length === 0 ? 'private' :
-                        (() => {
-                          const normalizeAgencyName = (name: string): string => {
-                            return name.toLowerCase().replace(/[.,\s-]/g, '').replace(/srl|spa|snc|sas|ss|sapa/g, '');
-                          };
-                          const uniqueAgencies = new Set((property.agencies as any[]).map(a => normalizeAgencyName(a.name || '')));
-                          return uniqueAgencies.size >= 2 ? 'multiagency' : 'single-agency';
-                        })()
-                      }
+                      data-classification={property._computed.classification}
                     >
                       <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-lg">{property.address}</CardTitle>
-                          <Badge className={getStageColor(property.stage)}>
-                            {getStageLabel(property.stage)}
-                          </Badge>
+                        <div className="flex justify-between items-start gap-2">
+                          <CardTitle className="text-lg flex-1">{property.address || 'Indirizzo non disponibile'}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleFavoriteMutation.mutate({
+                                  propertyId: property.id,
+                                  isFavorite: !property.isFavorite
+                                });
+                              }}
+                              disabled={toggleFavoriteMutation.isPending}
+                              title={property.isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+                              aria-label={property.isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+                              data-testid={`button-favorite-${idx}`}
+                            >
+                              <Star 
+                                className={`h-4 w-4 ${property.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`}
+                              />
+                            </Button>
+                            {property.stage && (
+                              <Badge className={getStageColor(property.stage)}>
+                                {getStageLabel(property.stage)}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <CardDescription>
                           <div className="flex items-center text-gray-500">
@@ -403,10 +475,10 @@ export default function SharedPropertiesPage() {
                               {property.size} m² - {property.price.toLocaleString()} €
                             </div>
                           )}
-                          {property.agencies && Array.isArray(property.agencies) && property.agencies.length > 0 && (
+                          {property._computed.agencies.length > 0 && (
                             <div className="flex items-center text-sm font-medium text-blue-600">
                               <Building className="h-4 w-4 mr-2" />
-                              {property.agencies.length} {property.agencies.length === 1 ? 'agenzia' : 'agenzie'}
+                              {property._computed.agencies.length} {property._computed.agencies.length === 1 ? 'agenzia' : 'agenzie'}
                             </div>
                           )}
                           {property.isAcquired && (
@@ -423,9 +495,38 @@ export default function SharedPropertiesPage() {
                       </CardFooter>
                     </Card>
                   </Link>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    data-testid="button-prev-page"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Precedente
+                  </Button>
+                  <span className="text-sm text-gray-600">
+                    Pagina {currentPage} di {totalPages} ({filteredProperties.length} proprietà)
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    data-testid="button-next-page"
+                  >
+                    Successiva
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

@@ -201,6 +201,7 @@ export const sharedProperties = pgTable("shared_properties", {
   stageResult: text("stage_result"), // acquired, rejected, pending
   isAcquired: boolean("is_acquired").default(false),
   isIgnored: boolean("is_ignored").default(false), // properties that the agent is not interested in
+  isFavorite: boolean("is_favorite").default(false), // properties marked as favorites for follow-up
   matchBuyers: boolean("match_buyers").default(false), // whether to match with buyers
   location: jsonb("location"), // lat/lng
   externalId: text("external_id"), // ID from external portal (Immobiliare, Idealista, etc.)

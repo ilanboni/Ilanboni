@@ -2636,11 +2636,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get shared properties with optional filters
   app.get("/api/shared-properties", async (req: Request, res: Response) => {
     try {
-      const { stage, search } = req.query;
+      const { stage, search, isFavorite } = req.query;
       
-      const filters: { stage?: string; search?: string } = {};
+      const filters: { stage?: string; search?: string; isFavorite?: boolean } = {};
       if (stage) filters.stage = stage as string;
       if (search) filters.search = search as string;
+      if (isFavorite !== undefined) filters.isFavorite = isFavorite === 'true';
       
       const sharedProperties = await storage.getSharedProperties(filters);
       res.json(sharedProperties);
@@ -2762,6 +2763,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Toggle favorite status for a shared property
+  app.patch("/api/shared-properties/:id/favorite", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+      
+      const { isFavorite } = req.body;
+      if (typeof isFavorite !== 'boolean') {
+        return res.status(400).json({ error: "Campo 'isFavorite' richiesto (boolean)" });
+      }
+      
+      const sharedProperty = await storage.getSharedProperty(id);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+      
+      const updated = await storage.updateSharedProperty(id, { isFavorite });
+      if (!updated) {
+        return res.status(500).json({ error: "Errore durante l'aggiornamento" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error(`[PATCH /api/shared-properties/${req.params.id}/favorite]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento dello stato preferito" });
+    }
+  });
+
   // Ignore a shared property
   app.patch("/api/shared-properties/:id/ignore", async (req: Request, res: Response) => {
     try {
