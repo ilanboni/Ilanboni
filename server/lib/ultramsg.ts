@@ -356,7 +356,7 @@ export class UltraMsgClient {
       
       // Se è un messaggio in uscita, verifica se è una conferma appuntamento
       if (isFromMe) {
-        console.log("[ULTRAMSG-APPOINTMENT] Verifica messaggio in uscita per conferma appuntamento");
+        console.log("[ULTRAMSG-OUTBOUND] Elaborazione messaggio in uscita dal cellulare");
         
         try {
           const { isAppointmentConfirmation, extractAppointmentData, createCalendarEventFromAppointment } = await import('../services/appointmentExtractor');
@@ -390,19 +390,21 @@ export class UltraMsgClient {
           console.error("[ULTRAMSG-APPOINTMENT] Errore nell'elaborazione automatica dell'appuntamento:", appointmentError);
         }
         
-        // Dopo aver verificato l'appuntamento, ignora il messaggio in uscita per il normale processing
-        console.log("[ULTRAMSG] Messaggio in uscita ignorato dopo verifica appuntamento");
-        return null;
+        // CONTINUIAMO IL PROCESSING PER SALVARE IL MESSAGGIO IN USCITA
+        console.log("[ULTRAMSG-OUTBOUND] Procediamo a salvare il messaggio in uscita...");
       }
       
-      console.log("[ULTRAMSG] Messaggio in arrivo valido rilevato:", {
+      console.log("[ULTRAMSG] Messaggio valido rilevato:", {
         event_type: eventType,
         from_me: isFromMe,
-        from: webhookData.from
+        from: webhookData.from,
+        to: webhookData.to
       });
 
-      // Estrai il numero di telefono (gestisce diversi formati)
-      let phone = webhookData.from || webhookData.author || webhookData.sender || '';
+      // Estrai il numero di telefono del cliente (da "from" se inbound, da "to" se outbound)
+      let phone = isFromMe 
+        ? (webhookData.to || '') 
+        : (webhookData.from || webhookData.author || webhookData.sender || '');
       console.log("[ULTRAMSG] Numero di telefono originale:", phone);
       
       // Gestisci il formato specifico di WhatsApp che aggiunge @c.us alla fine
@@ -638,8 +640,23 @@ export class UltraMsgClient {
         }
       }
       
-      // Prepara i dati per il database
-      const communicationData: InsertCommunication = {
+      // Prepara i dati per il database (diversi per inbound vs outbound)
+      const communicationData: InsertCommunication = isFromMe ? {
+        // Messaggio in USCITA (inviato dal cellulare)
+        clientId: client!.id,
+        type: 'whatsapp',
+        subject: `Messaggio WhatsApp a ${phone}`,
+        content: messageContent,
+        summary,
+        direction: 'outbound',
+        needsFollowUp: false,
+        needsResponse: false,
+        status: 'completed',
+        propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
+        responseToId: null,
+        externalId: webhookData.external_id || `outbound-${phone}-${Date.now()}`
+      } : {
+        // Messaggio in ENTRATA (ricevuto dal cliente)
         clientId: client!.id,
         type: 'whatsapp',
         subject: `Messaggio WhatsApp da ${phone}`,
@@ -647,18 +664,20 @@ export class UltraMsgClient {
         summary,
         direction: 'inbound',
         needsFollowUp: true,
-        needsResponse: true, // Tutti i messaggi in arrivo richiedono una risposta
+        needsResponse: true,
         status: 'pending',
         propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
         responseToId: lastOutboundComm?.id || null,
-        externalId: webhookData.external_id || `${phone}-${Date.now()}`
+        externalId: webhookData.external_id || `inbound-${phone}-${Date.now()}`
       };
       
       // Salva nel database
       const communication = await storage.createCommunication(communicationData);
       
-      // Verifica se l'agente virtuale è abilitato
-      if (process.env.ENABLE_VIRTUAL_AGENT === 'true') {
+      console.log(`[ULTRAMSG] ✅ Comunicazione salvata: ID=${communication.id}, Direction=${isFromMe ? 'outbound' : 'inbound'}, Client=${client!.firstName} ${client!.lastName}`);
+      
+      // Verifica se l'agente virtuale è abilitato (SOLO per messaggi in entrata)
+      if (!isFromMe && process.env.ENABLE_VIRTUAL_AGENT === 'true') {
         try {
           console.log(`[VIRTUAL-AGENT] Messaggio ricevuto da ${client!.firstName} ${client!.lastName}, attivazione elaborazione asincrona`);
           
