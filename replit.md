@@ -1,6 +1,12 @@
 # Client Management System
 
 ## Recent Changes
+- **Enhanced Task Management System (November 10, 2025)**: Implemented comprehensive task management with timeline visualization and manual property addition:
+  1. **Activity Timeline Component**: Replaced table view with visual card-based timeline showing tasks with icons, status badges, priority indicators, and clickable navigation to task details.
+  2. **Task Detail Page** (`/tasks/:id`): Full-featured task editing page with form validation, pipeline visualization (Da Fare → In Corso → Completata → Annullata), complete/delete actions, and automatic query invalidation.
+  3. **"Ricerca" Task Type**: Added new task type for property research activities, with auto-creation when properties are added manually.
+  4. **Manual Property Addition**: New "Aggiungi Immobile" button on client pages opens dialog to manually add properties with URL, address, characteristics. Backend endpoint `/api/shared-properties/manual` creates property with `isAcquired=false` (temporary), `isFavorite=true`, and auto-generates "Immobile in linea con ricerca cliente X" task using transactional service (`manualSharedPropertyService`).
+  5. **Architecture Pattern**: Followed architect recommendations: dedicated endpoint for manual flow, service layer with transaction for property+task creation, proper separation from automated scraping logic.
 - **Client Task Creation (November 10, 2025)**: Implemented direct task creation from client detail pages:
   1. **New "Nuova Attività" button**: Added to "Note e Attività" tab in client details, opening a modal dialog pre-filled with client ID.
   2. **CreateTaskDialog component**: Built with react-hook-form + zodResolver for type-safe validation using insertTaskSchema.pick() + extend() pattern to avoid Zod type inference issues.

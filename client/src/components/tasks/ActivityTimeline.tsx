@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,8 @@ const priorityConfig = {
 };
 
 export function ActivityTimeline({ clientId, propertyId, sharedPropertyId }: ActivityTimelineProps) {
+  const [, setLocation] = useLocation();
+  
   // Build query URL based on filters
   const queryUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -113,10 +116,7 @@ export function ActivityTimeline({ clientId, propertyId, sharedPropertyId }: Act
             key={task.id}
             className="hover:shadow-md transition-shadow cursor-pointer group"
             data-testid={`activity-card-${task.id}`}
-            onClick={() => {
-              // TODO: Navigate to task detail page
-              console.log("Open task detail:", task.id);
-            }}
+            onClick={() => setLocation(`/tasks/${task.id}`)}
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-4">

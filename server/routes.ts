@@ -69,6 +69,7 @@ import { isPropertyMatchingBuyerCriteria, calculatePropertyMatchPercentage } fro
 import { nlToFilters, type PropertyFilters } from "./services/nlProcessingService";
 import { searchAreaGeocodingService } from "./services/searchAreaGeocodingService";
 import { clientPropertyScrapingService } from "./services/clientPropertyScrapingService";
+import { createManualSharedProperty } from "./services/manualSharedPropertyService";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -2705,6 +2706,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("[POST /api/shared-properties] Errore completo:", error);
       res.status(500).json({ error: "Errore durante la creazione della proprietà condivisa" });
+    }
+  });
+
+  // Create manual shared property with auto-task creation
+  app.post("/api/shared-properties/manual", async (req: Request, res: Response) => {
+    try {
+      console.log("Ricevuta richiesta di creazione proprietà manuale:", JSON.stringify(req.body, null, 2));
+      
+      const { url, address, city, type, price, size, floor, notes, scrapedForClientId } = req.body;
+
+      if (!url || !address || !type || price === undefined || !scrapedForClientId) {
+        return res.status(400).json({ 
+          error: "Campi obbligatori mancanti: url, address, type, price, scrapedForClientId" 
+        });
+      }
+
+      const result = await createManualSharedProperty({
+        url,
+        address,
+        city: city || "Milano",
+        type,
+        price: Number(price),
+        size: size ? Number(size) : undefined,
+        floor,
+        notes,
+        scrapedForClientId: Number(scrapedForClientId)
+      });
+
+      console.log("Proprietà manuale creata con task:", result.property.id, result.task.id);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("[POST /api/shared-properties/manual] Errore:", error);
+      res.status(500).json({ error: error.message || "Errore durante la creazione della proprietà manuale" });
     }
   });
   

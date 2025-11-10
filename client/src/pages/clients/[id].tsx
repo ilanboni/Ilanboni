@@ -43,6 +43,7 @@ import ClientInteractionsHistory from "@/components/clients/ClientInteractionsHi
 import NLPreferencesInput from "@/components/clients/NLPreferencesInput";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 import { ActivityTimeline } from "@/components/tasks/ActivityTimeline";
+import { AddPropertyToClientDialog } from "@/components/properties/AddPropertyToClientDialog";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -492,23 +493,29 @@ export default function ClientDetailPage() {
             </Button>
             
             {client && (
-              <PropertyAssociationModal 
-                client={{
-                  id: client.id,
-                  firstName: client.firstName,
-                  lastName: client.lastName,
-                  type: client.type
-                }}
-                trigger={
-                  <Button 
-                    variant="outline" 
-                    className="gap-2 border-purple-600 text-purple-600 hover:bg-purple-50"
-                  >
-                    <Building className="h-4 w-4" />
-                    <span>Associa Proprietà</span>
-                  </Button>
-                }
-              />
+              <>
+                <PropertyAssociationModal 
+                  client={{
+                    id: client.id,
+                    firstName: client.firstName,
+                    lastName: client.lastName,
+                    type: client.type
+                  }}
+                  trigger={
+                    <Button 
+                      variant="outline" 
+                      className="gap-2 border-purple-600 text-purple-600 hover:bg-purple-50"
+                    >
+                      <Building className="h-4 w-4" />
+                      <span>Associa Proprietà</span>
+                    </Button>
+                  }
+                />
+                <AddPropertyToClientDialog 
+                  clientId={client.id}
+                  clientName={`${client.firstName} ${client.lastName}`}
+                />
+              </>
             )}
 
             <Button

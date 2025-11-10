@@ -31,6 +31,7 @@ import CommunicationEditPage from "@/pages/communications/[id]/edit";
 import CommunicationNewPage from "@/pages/communications/new";
 import WhatsAppSenderPage from "@/pages/communications/whatsapp";
 import TasksPage from "@/pages/tasks/index";
+import TaskDetailPage from "@/pages/tasks/[id]";
 import AnalyticsPage from "@/pages/analytics/index";
 import SearchHeatmapPage from "@/pages/analytics/search-heatmap";
 import DemandAnalysisPage from "@/pages/analytics/demand-analysis";
@@ -82,6 +83,7 @@ function Router() {
       <Route path="/communications/whatsapp" component={WhatsAppSenderPage} />
       <Route path="/communications/:id/edit" component={CommunicationEditPage} />
       <Route path="/communications/:id" component={CommunicationDetailPage} />
+      <Route path="/tasks/:id" component={TaskDetailPage} />
       <Route path="/tasks" component={TasksPage} />
       <Route path="/analytics" component={AnalyticsPage} />
       <Route path="/analytics/search-heatmap" component={SearchHeatmapPage} />
