@@ -60,15 +60,23 @@ export function AddPropertyToClientDialog({ clientId, clientName }: AddPropertyT
         }
       });
     },
-    onSuccess: () => {
+    onSuccess: (response: { isDuplicate?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/shared-properties"] });
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/tasks`] });
       form.reset();
       setOpen(false);
-      toast({
-        title: "Immobile aggiunto",
-        description: "L'immobile è stato aggiunto ai preferiti e verrà visualizzato tra le proprietà multi-agency. È stata creata un'attività di ricerca.",
-      });
+      
+      if (response.isDuplicate) {
+        toast({
+          title: "Immobile già presente",
+          description: "Questo immobile era già stato aggiunto. L'attività di ricerca è stata collegata al tuo cliente.",
+        });
+      } else {
+        toast({
+          title: "Immobile aggiunto",
+          description: "L'immobile è stato aggiunto ai preferiti e verrà visualizzato tra le proprietà multi-agency. È stata creata un'attività di ricerca.",
+        });
+      }
     },
     onError: (error: any) => {
       console.error("Errore aggiunta immobile:", error);

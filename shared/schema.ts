@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, date, time, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, date, time, jsonb, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -213,7 +213,12 @@ export const sharedProperties = pgTable("shared_properties", {
   lastScrapedAt: timestamp("last_scraped_at"), // Last time this property was scraped
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
-});
+}, (table) => ({
+  // Unique constraint on URL to prevent duplicate listings from same source
+  urlIdx: uniqueIndex("shared_properties_url_idx").on(table.url),
+  // Unique constraint on address+price to prevent duplicate manual entries
+  addressPriceIdx: uniqueIndex("shared_properties_address_price_idx").on(table.address, table.price)
+}));
 
 // Shared property notes (for tracking considerations and activities)
 export const sharedPropertyNotes = pgTable("shared_property_notes", {
@@ -266,7 +271,10 @@ export const tasks = pgTable("tasks", {
   target: text("target"), // destinatario/target (es. numero WhatsApp, "PROPRIETARIO", "AGENZIA")
   notes: text("notes"), // Note libere (può contenere link wa.me, istruzioni, etc.)
   createdAt: timestamp("created_at").defaultNow()
-});
+}, (table) => ({
+  // Unique constraint to prevent duplicate search tasks for same property+client
+  searchTaskIdx: uniqueIndex("tasks_search_unique_idx").on(table.sharedPropertyId, table.clientId, table.type)
+}));
 
 // Thread di conversazione
 export const conversationThreads = pgTable("conversation_threads", {

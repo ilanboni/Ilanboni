@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { sharedProperties, tasks, clients } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 
 interface ManualPropertyData {
   url: string;
@@ -17,6 +17,7 @@ interface ManualPropertyData {
 interface CreateResult {
   property: typeof sharedProperties.$inferSelect;
   task: typeof tasks.$inferSelect;
+  isDuplicate: boolean;
 }
 
 export async function createManualSharedProperty(
@@ -33,50 +34,79 @@ export async function createManualSharedProperty(
     throw new Error(`Client with ID ${data.scrapedForClientId} not found`);
   }
 
-  // Create property and task in transaction
+  // Use transaction with INSERT ON CONFLICT to handle duplicates atomically
   return await db.transaction(async (tx) => {
-    // Insert shared property
-    const [property] = await tx
-      .insert(sharedProperties)
-      .values({
-        address: data.address,
-        city: data.city || "Milano",
-        type: data.type,
-        price: data.price,
-        size: data.size || null,
-        floor: data.floor || null,
-        url: data.url,
-        ownerNotes: data.notes || null,
-        scrapedForClientId: data.scrapedForClientId,
-        isFavorite: true,
-        isAcquired: false,
-        matchBuyers: false,
-        stage: "address_found",
-        rating: 3,
-        portalSource: getPortalSourceFromUrl(data.url)
-      })
-      .returning();
+    let property: typeof sharedProperties.$inferSelect;
+    let isDuplicate = false;
 
-    // Create associated task
+    // Try to insert property, handling both unique constraints (url and address+price)
+    // Use ON CONFLICT DO NOTHING without target to handle any constraint violation
+    const insertResult = await tx.execute(sql`
+      INSERT INTO shared_properties (
+        address, city, type, price, size, floor, url, owner_notes,
+        scraped_for_client_id, is_favorite, is_acquired, match_buyers,
+        stage, rating, portal_source
+      ) VALUES (
+        ${data.address}, ${data.city || "Milano"}, ${data.type}, ${data.price},
+        ${data.size || null}, ${data.floor || null}, ${data.url}, ${data.notes || null},
+        ${data.scrapedForClientId}, true, false, false,
+        'address_found', 3, ${getPortalSourceFromUrl(data.url)}
+      )
+      ON CONFLICT DO NOTHING
+      RETURNING *
+    `);
+
+    // If insert was successful, we have a new property
+    if (insertResult.rows.length > 0) {
+      property = insertResult.rows[0] as typeof sharedProperties.$inferSelect;
+    } else {
+      // Conflict occurred on either url or address+price, fetch existing property
+      isDuplicate = true;
+      const existing = await tx.execute(sql`
+        SELECT * FROM shared_properties
+        WHERE url = ${data.url}
+           OR (address = ${data.address} AND price = ${data.price})
+        LIMIT 1
+      `);
+      property = existing.rows[0] as typeof sharedProperties.$inferSelect;
+    }
+
+    // Now handle task creation with ON CONFLICT
     const taskTitle = `Immobile in linea con ricerca cliente ${client.firstName} ${client.lastName}`;
     const taskDescription = `Immobile trovato: ${data.address}, ${data.city || "Milano"} - €${data.price.toLocaleString()}`;
 
-    const [task] = await tx
-      .insert(tasks)
-      .values({
-        type: "search",
-        title: taskTitle,
-        description: taskDescription,
-        clientId: data.scrapedForClientId,
-        sharedPropertyId: property.id,
-        priority: 2,
-        dueDate: new Date().toISOString().split("T")[0],
-        status: "pending",
-        notes: `Link: ${data.url}`
-      })
-      .returning();
+    const taskResult = await tx.execute(sql`
+      INSERT INTO tasks (
+        type, title, description, client_id, shared_property_id,
+        priority, due_date, status, notes
+      ) VALUES (
+        'search', ${taskTitle}, ${taskDescription}, ${data.scrapedForClientId},
+        ${property.id}, 2, ${new Date().toISOString().split("T")[0]},
+        'pending', ${"Link: " + data.url}
+      )
+      ON CONFLICT (shared_property_id, client_id, type) DO NOTHING
+      RETURNING *
+    `);
 
-    return { property, task };
+    let task: typeof tasks.$inferSelect;
+
+    // If task insert was successful, we have a new task
+    if (taskResult.rows.length > 0) {
+      task = taskResult.rows[0] as typeof tasks.$inferSelect;
+    } else {
+      // Task conflict occurred, fetch existing task
+      isDuplicate = true;
+      const existingTask = await tx.execute(sql`
+        SELECT * FROM tasks
+        WHERE shared_property_id = ${property.id}
+          AND client_id = ${data.scrapedForClientId}
+          AND type = 'search'
+        LIMIT 1
+      `);
+      task = existingTask.rows[0] as typeof tasks.$inferSelect;
+    }
+
+    return { property, task, isDuplicate };
   });
 }
 
