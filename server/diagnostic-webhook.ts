@@ -122,12 +122,10 @@ router.post('/configure-webhook', async (req: Request, res: Response) => {
     // URL dell'API UltraMsg per configurare il webhook
     const hookUrl = `https://api.ultramsg.com/${process.env.ULTRAMSG_INSTANCE_ID}/webhook`;
     
-    // Determina l'URL del webhook basato sull'ambiente
-    const baseUrl = process.env.REPLIT_DOMAINS 
-      ? `https://${process.env.REPLIT_DOMAINS}` 
-      : (process.env.BASE_URL || process.env.REPLIT_SLUG 
-        ? `https://${process.env.REPLIT_SLUG}.replit.app`
-        : 'https://client-management-system-28.replit.app');
+    // Determina l'URL del webhook basato sull'ambiente (STESSA LOGICA DI check-webhook)
+    const baseUrl = process.env.REPLIT_SLUG 
+      ? `https://${process.env.REPLIT_SLUG}.replit.app` 
+      : (process.env.BASE_URL || 'http://localhost:5000');
     
     const webhookUrl = `${baseUrl}/api/whatsapp/webhook`;
     console.log(`Configurazione webhook su: ${webhookUrl}`);
