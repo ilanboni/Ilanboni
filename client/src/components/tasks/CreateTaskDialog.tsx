@@ -75,8 +75,8 @@ export function CreateTaskDialog({ clientId, clientName }: CreateTaskDialogProps
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/tasks") });
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/tasks`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       form.reset();
       setOpen(false);
       toast({
