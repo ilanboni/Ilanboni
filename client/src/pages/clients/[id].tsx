@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WhatsAppModal } from "@/components/communications/WhatsAppModal";
+import { WhatsAppChatView } from "@/components/communications/WhatsAppChatView";
 import { useClientPreferences } from "@/hooks/useClientPreferences";
 import { MapContainer, TileLayer, Polygon, Circle, Marker } from "react-leaflet";
 import { AIAssistantResponseModal } from "@/components/communications/AIAssistantResponseModal";
@@ -60,6 +61,7 @@ export default function ClientDetailPage() {
   const [aiGeneratedResponse, setAiGeneratedResponse] = useState("");
   const [detectedProperties, setDetectedProperties] = useState<{ id: number; address: string }[]>([]);
   const [conversationThread, setConversationThread] = useState("");
+  const [communicationsView, setCommunicationsView] = useState<"chat" | "table">("chat");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -887,23 +889,54 @@ export default function ClientDetailPage() {
           <TabsContent value="communications" className="space-y-6 mt-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle>Comunicazioni</CardTitle>
-                <Button 
-                  variant="default"
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href={`/communications/new?clientId=${id}`}>
-                    <i className="fas fa-plus"></i>
-                    <span>Nuova Comunicazione</span>
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-4">
+                  <CardTitle>Comunicazioni</CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={communicationsView === "chat" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCommunicationsView("chat")}
+                      className="gap-2"
+                      data-testid="button-chat-view"
+                    >
+                      <i className="fab fa-whatsapp"></i>
+                      Chat WhatsApp
+                    </Button>
+                    <Button
+                      variant={communicationsView === "table" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCommunicationsView("table")}
+                      className="gap-2"
+                      data-testid="button-table-view"
+                    >
+                      <i className="fas fa-list"></i>
+                      Tutte
+                    </Button>
+                  </div>
+                </div>
+                {communicationsView === "table" && (
+                  <Button 
+                    variant="default"
+                    className="gap-2"
+                    asChild
+                  >
+                    <Link href={`/communications/new?clientId=${id}`}>
+                      <i className="fas fa-plus"></i>
+                      <span>Nuova Comunicazione</span>
+                    </Link>
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {isCommunicationsLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                   </div>
+                ) : communicationsView === "chat" ? (
+                  <WhatsAppChatView 
+                    clientId={id} 
+                    communications={communications || []} 
+                  />
                 ) : !communications || communications.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
@@ -937,10 +970,9 @@ export default function ClientDetailPage() {
                             <TableCell className="text-sm">
                               {(() => {
                                 try {
-                                  // Formato data: 21/05/25 14:17
-                                  return format(new Date(comm.createdAt), "dd/MM/yy HH:mm", {
+                                  return comm.createdAt ? format(new Date(comm.createdAt), "dd/MM/yy HH:mm", {
                                     locale: it,
-                                  });
+                                  }) : "Data non disponibile";
                                 } catch (e) {
                                   console.error("Errore formattazione data:", e);
                                   return "Data non disponibile";
