@@ -2676,7 +2676,7 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number }): Promise<TaskWithClient[]> {
+  async getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number; clientId?: number; propertyId?: number; sharedPropertyId?: number }): Promise<TaskWithClient[]> {
     let query = db.select({
       ...tasks,
       clientFirstName: clients.firstName,
@@ -2692,6 +2692,18 @@ export class DatabaseStorage implements IStorage {
       
       if (filters.type) {
         conditions.push(eq(tasks.type, filters.type));
+      }
+      
+      if (filters.clientId !== undefined) {
+        conditions.push(eq(tasks.clientId, filters.clientId));
+      }
+      
+      if (filters.propertyId !== undefined) {
+        conditions.push(eq(tasks.propertyId, filters.propertyId));
+      }
+      
+      if (filters.sharedPropertyId !== undefined) {
+        conditions.push(eq(tasks.sharedPropertyId, filters.sharedPropertyId));
       }
       
       if (filters.search) {

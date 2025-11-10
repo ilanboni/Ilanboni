@@ -2,11 +2,12 @@
 
 ## Recent Changes
 - **Task Filtering Fix (November 10, 2025)**: Fixed critical bug where ActivityTimeline in "Note e Attività" tab showed all tasks instead of filtering by client:
-  1. **Backend Filtering**: Updated GET /api/tasks endpoint to support clientId, propertyId, and sharedPropertyId query parameters for precise task filtering.
-  2. **Storage Layer**: Enhanced IStorage.getTasks interface and MemStorage implementation to apply filters sequentially (status, type, clientId, propertyId, sharedPropertyId, search) with limit support.
-  3. **Individual Task Retrieval**: Added GET /api/tasks/:id endpoint for retrieving single task details by ID.
-  4. **Backwards Compatible**: All filter parameters are optional, maintaining compatibility with existing callers.
-  5. **End-to-End Tested**: Playwright test confirms ActivityTimeline shows only tasks for current client (377 tasks for client 114), matching API response exactly.
+  1. **Root Cause**: System uses DatabaseStorage, not MemStorage. Initial fix only updated MemStorage.getTasks(), leaving DatabaseStorage.getTasks() without filters.
+  2. **Backend Filtering**: Updated both MemStorage.getTasks() and DatabaseStorage.getTasks() to support clientId, propertyId, and sharedPropertyId query parameters using SQL conditions with drizzle-orm eq().
+  3. **Storage Layer**: Enhanced IStorage.getTasks interface and both implementations to apply filters sequentially (status, type, clientId, propertyId, sharedPropertyId, search) with limit support.
+  4. **Individual Task Retrieval**: Added GET /api/tasks/:id endpoint for retrieving single task details by ID.
+  5. **Backwards Compatible**: All filter parameters are optional, maintaining compatibility with existing callers.
+  6. **End-to-End Tested**: Playwright test confirms ActivityTimeline shows only tasks for current client. Before fix: GET /api/tasks?clientId=114 returned 377 tasks (all tasks). After fix: returns 4 tasks (only Angelica Contreras' tasks). UI matches API response exactly (4 task cards displayed).
 - **Enhanced Task Management System (November 10, 2025)**: Implemented comprehensive task management with timeline visualization and manual property addition:
   1. **Activity Timeline Component**: Replaced table view with visual card-based timeline showing tasks with icons, status badges, priority indicators, and clickable navigation to task details.
   2. **Task Detail Page** (`/tasks/:id`): Full-featured task editing page with form validation, pipeline visualization (Da Fare → In Corso → Completata → Annullata), complete/delete actions, and automatic query invalidation.
