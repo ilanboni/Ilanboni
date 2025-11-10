@@ -1228,9 +1228,9 @@ export default function ClientDetailPage() {
                   className="gap-2"
                   asChild
                 >
-                  <Link href={`/tasks/new?clientId=${id}`}>
-                    <i className="fas fa-plus"></i>
-                    <span>Nuova Attività</span>
+                  <Link href="/tasks">
+                    <i className="fas fa-tasks"></i>
+                    <span>Gestisci Attività</span>
                   </Link>
                 </Button>
               </CardHeader>
@@ -1299,13 +1299,7 @@ export default function ClientDetailPage() {
                             </TableCell>
                             <TableCell>{getTaskStatusBadge(task.status)}</TableCell>
                             <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" asChild>
-                                  <Link href={`/tasks/${task.id}`}>
-                                    <i className="fas fa-eye"></i>
-                                  </Link>
-                                </Button>
-                              </div>
+                              <span className="text-xs text-gray-400">#{task.id}</span>
                             </TableCell>
                           </TableRow>
                         ))}
