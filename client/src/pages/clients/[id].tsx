@@ -42,6 +42,7 @@ import ClientMatchesToday from "@/components/clients/ClientMatchesToday";
 import ClientInteractionsHistory from "@/components/clients/ClientInteractionsHistory";
 import NLPreferencesInput from "@/components/clients/NLPreferencesInput";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
+import { ActivityTimeline } from "@/components/tasks/ActivityTimeline";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -1274,78 +1275,7 @@ export default function ClientDetailPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {isTasksLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-                  </div>
-                ) : !tasks || tasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-5xl mb-4">
-                      <i className="fas fa-clipboard-list"></i>
-                    </div>
-                    <h3 className="text-lg font-medium mb-2">Nessuna nota o attività</h3>
-                    <p>
-                      Non ci sono note o attività registrate per questo cliente.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-48">Data</TableHead>
-                          <TableHead className="w-48">Scadenza</TableHead>
-                          <TableHead className="w-40">Tipo</TableHead>
-                          <TableHead>Titolo</TableHead>
-                          <TableHead className="w-32">Stato</TableHead>
-                          <TableHead className="w-20 text-right">Azioni</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tasks.map((task) => (
-                          <TableRow key={task.id}>
-                            <TableCell>
-                              {(() => {
-                                try {
-                                  return formatDistanceToNow(new Date(task.createdAt), {
-                                    addSuffix: true,
-                                    locale: it,
-                                  });
-                                } catch (e) {
-                                  console.error("Errore formattazione data:", e);
-                                  return "Data non disponibile";
-                                }
-                              })()}
-                            </TableCell>
-                            <TableCell>{formatDate(task.dueDate)}</TableCell>
-                            <TableCell>{getTaskTypeBadge(task.type)}</TableCell>
-                            <TableCell className="font-medium">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="max-w-[300px] truncate cursor-help">
-                                      {task.title}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-sm">
-                                    <p className="font-medium">{task.title}</p>
-                                    {task.description && (
-                                      <p className="text-sm mt-1">{task.description}</p>
-                                    )}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </TableCell>
-                            <TableCell>{getTaskStatusBadge(task.status)}</TableCell>
-                            <TableCell className="text-right">
-                              <span className="text-xs text-gray-400">#{task.id}</span>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
+                <ActivityTimeline clientId={id} />
               </CardContent>
             </Card>
           </TabsContent>
