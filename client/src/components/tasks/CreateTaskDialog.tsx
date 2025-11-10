@@ -137,6 +137,7 @@ export function CreateTaskDialog({ clientId, clientName }: CreateTaskDialogProps
                       <SelectItem value="email">Email</SelectItem>
                       <SelectItem value="viewing">Visita immobile</SelectItem>
                       <SelectItem value="document">Documenti</SelectItem>
+                      <SelectItem value="search">Ricerca</SelectItem>
                       <SelectItem value="other">Altro</SelectItem>
                     </SelectContent>
                   </Select>
