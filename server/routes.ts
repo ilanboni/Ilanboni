@@ -5325,6 +5325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         body: string;
         media_url: string;
         mime_type: string;
+        external_id?: string;
+        data?: any;
       } = {
         event_type: 'message',
         from_me: false,
@@ -5371,6 +5373,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const messageData = webhookData.data || webhookData;
           normalizedWebhook.event_type = messageData.event_type || messageData.type || webhookData.event_type || 'message';
           normalizedWebhook.from_me = messageData.fromMe === true || messageData.from_me === true || webhookData.from_me === true;
+          
+          // Estrai l'ID univoco del messaggio (per deduplicazione)
+          normalizedWebhook.external_id = messageData.id || webhookData.id || webhookData.external_id;
+          normalizedWebhook.data = webhookData.data;
           
           // Cerca il numero di telefono mittente in tutti i possibili luoghi
           let possibleFrom = messageData.from || messageData.author || messageData.sender || webhookData.from || '';
