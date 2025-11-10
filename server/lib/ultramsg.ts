@@ -544,11 +544,14 @@ export class UltraMsgClient {
         }
       }
 
+      // Estrai l'ID univoco del messaggio da UltraMsg
+      const messageId = webhookData.data?.id || webhookData.id || webhookData.external_id;
+      
       // Verifica se questo messaggio è già stato registrato (usando l'ID esterno)
-      if (webhookData.external_id) {
-        const existingMessage = await storage.getCommunicationByExternalId(String(webhookData.external_id));
+      if (messageId) {
+        const existingMessage = await storage.getCommunicationByExternalId(String(messageId));
         if (existingMessage) {
-          console.log(`[ULTRAMSG] Messaggio con ID esterno ${webhookData.external_id} già esistente, ignorato per evitare duplicati`);
+          console.log(`[ULTRAMSG] ⏭️ Messaggio duplicato con ID ${messageId} già esistente (evento: ${webhookData.event_type}), ignorato`);
           return existingMessage;
         }
       }
@@ -654,7 +657,7 @@ export class UltraMsgClient {
         status: 'completed',
         propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
         responseToId: null,
-        externalId: webhookData.external_id || `outbound-${phone}-${Date.now()}`
+        externalId: messageId || `outbound-${phone}-${Date.now()}`
       } : {
         // Messaggio in ENTRATA (ricevuto dal cliente)
         clientId: client!.id,
@@ -668,7 +671,7 @@ export class UltraMsgClient {
         status: 'pending',
         propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
         responseToId: lastOutboundComm?.id || null,
-        externalId: webhookData.external_id || `inbound-${phone}-${Date.now()}`
+        externalId: messageId || `inbound-${phone}-${Date.now()}`
       };
       
       // Salva nel database
