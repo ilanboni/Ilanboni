@@ -1,6 +1,12 @@
 # Client Management System
 
 ## Recent Changes
+- **Client Task Creation (November 10, 2025)**: Implemented direct task creation from client detail pages:
+  1. **New "Nuova Attività" button**: Added to "Note e Attività" tab in client details, opening a modal dialog pre-filled with client ID.
+  2. **CreateTaskDialog component**: Built with react-hook-form + zodResolver for type-safe validation using insertTaskSchema.pick() + extend() pattern to avoid Zod type inference issues.
+  3. **Form fields**: Task type (follow-up, call, meeting, email, viewing, document, other), title (required), description (optional), due date (required, locale-safe using date-fns), priority (1-3, coerced from string select to number).
+  4. **API integration**: POST /api/tasks with automatic query invalidation for both client tasks and global task list.
+  5. **End-to-End Tested**: Playwright test confirms dialog opens, form submission works, toast appears, and tasks table refreshes with new task immediately.
 - **Multi-Agency Properties Performance & Favorites (November 10, 2025)**: Fixed critical browser crash issue on multi-agency properties page and implemented favorites system:
   1. **Performance Optimizations**: Implemented pagination (50 properties per page), memoized classification calculations, hoisted expensive functions outside component scope, preventing browser freeze when loading hundreds of properties.
   2. **Favorites System**: Added star button on each property card to mark favorites, with optimistic UI updates and "Solo preferiti" filter button to show only favorited properties. Backend stores `isFavorite` boolean field with PATCH endpoint for toggling state.

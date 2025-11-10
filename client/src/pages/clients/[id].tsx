@@ -41,6 +41,7 @@ import PropertyAssociationModal from "@/components/clients/PropertyAssociationMo
 import ClientMatchesToday from "@/components/clients/ClientMatchesToday";
 import ClientInteractionsHistory from "@/components/clients/ClientInteractionsHistory";
 import NLPreferencesInput from "@/components/clients/NLPreferencesInput";
+import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -1255,16 +1256,22 @@ export default function ClientDetailPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle>Note e Attività</CardTitle>
-                <Button 
-                  variant="default"
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href="/tasks">
-                    <i className="fas fa-tasks"></i>
-                    <span>Gestisci Attività</span>
-                  </Link>
-                </Button>
+                <div className="flex gap-2">
+                  <CreateTaskDialog 
+                    clientId={id} 
+                    clientName={`${client?.firstName || ''} ${client?.lastName || ''}`.trim()}
+                  />
+                  <Button 
+                    variant="outline"
+                    className="gap-2"
+                    asChild
+                  >
+                    <Link href="/tasks">
+                      <i className="fas fa-tasks"></i>
+                      <span>Tutte le Attività</span>
+                    </Link>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {isTasksLoading ? (

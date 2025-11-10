@@ -445,7 +445,7 @@ export function TaskManager({ showTitle = true, filter = "all" }: TaskManagerPro
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {getTypeBadge(task.type)}
-                            {getStatusBadge(task.status)}
+                            {getStatusBadge(task.status || "pending")}
                           </div>
                           <div className="text-sm text-gray-500">
                             {formatDate(task.dueDate)}
