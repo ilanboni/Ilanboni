@@ -10161,6 +10161,31 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  // Endpoint per recuperare un singolo task per ID
+  app.get("/api/tasks/:id", async (req: Request, res: Response) => {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      if (isNaN(taskId)) {
+        return res.status(400).json({ error: 'Invalid task ID' });
+      }
+
+      const [task] = await db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.id, taskId))
+        .limit(1);
+
+      if (!task) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
+
+      res.json(task);
+    } catch (error) {
+      console.error('[GET /api/tasks/:id]', error);
+      res.status(500).json({ error: 'Failed to fetch task' });
+    }
+  });
+
   // Endpoint per creare task chiamata generica
   // Endpoint per creare task automatici dalle comunicazioni in ingresso esistenti
   app.post("/api/tasks/backfill-inbound", async (req: Request, res: Response) => {

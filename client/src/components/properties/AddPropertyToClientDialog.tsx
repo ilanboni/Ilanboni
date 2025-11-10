@@ -62,7 +62,8 @@ export function AddPropertyToClientDialog({ clientId, clientName }: AddPropertyT
     },
     onSuccess: (response: { isDuplicate?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/shared-properties"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/tasks`] });
+      // Invalidate all task queries (includes ActivityTimeline queries with filters)
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       form.reset();
       setOpen(false);
       
