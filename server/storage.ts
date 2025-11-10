@@ -99,7 +99,7 @@ export interface IStorage {
   
   // Task methods
   getTask(id: number): Promise<Task | undefined>;
-  getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number }): Promise<TaskWithClient[]>;
+  getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number; clientId?: number; propertyId?: number; sharedPropertyId?: number }): Promise<TaskWithClient[]>;
   getTasksByClientId(clientId: number): Promise<Task[]>;
   getTasksByPropertyId(propertyId: number): Promise<Task[]>;
   getTasksBySharedPropertyId(sharedPropertyId: number): Promise<Task[]>;
@@ -924,16 +924,10 @@ export class MemStorage implements IStorage {
     return this.taskStore.get(id);
   }
   
-  async getTasks(filters?: { status?: string; type?: string }): Promise<TaskWithClient[]> {
+  async getTasks(filters?: { status?: string; type?: string; search?: string; limit?: number; clientId?: number; propertyId?: number; sharedPropertyId?: number }): Promise<TaskWithClient[]> {
     let tasks = Array.from(this.taskStore.values());
     
-    // Aggiunge i campi clientFirstName e clientLastName per compatibilità
-    const tasksWithClient: TaskWithClient[] = tasks.map(task => ({
-      ...task,
-      clientFirstName: task.clientId ? this.clientStore.get(task.clientId)?.firstName || null : null,
-      clientLastName: task.clientId ? this.clientStore.get(task.clientId)?.lastName || null : null,
-    }));
-    
+    // Apply filters
     if (filters) {
       if (filters.status && filters.status !== "all") {
         tasks = tasks.filter((task) => task.status === filters.status);
@@ -942,16 +936,38 @@ export class MemStorage implements IStorage {
       if (filters.type && filters.type !== "all") {
         tasks = tasks.filter((task) => task.type === filters.type);
       }
+      
+      if (filters.clientId !== undefined) {
+        tasks = tasks.filter((task) => task.clientId === filters.clientId);
+      }
+      
+      if (filters.propertyId !== undefined) {
+        tasks = tasks.filter((task) => task.propertyId === filters.propertyId);
+      }
+      
+      if (filters.sharedPropertyId !== undefined) {
+        tasks = tasks.filter((task) => task.sharedPropertyId === filters.sharedPropertyId);
+      }
+      
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        tasks = tasks.filter((task) => 
+          task.title.toLowerCase().includes(searchLower) ||
+          task.description?.toLowerCase().includes(searchLower)
+        );
+      }
     }
     
     // Add client details
-    return tasks.map(task => {
+    const tasksWithClient = tasks.map(task => {
       const extendedTask: any = { ...task };
       
       if (task.clientId) {
         const client = this.clientStore.get(task.clientId);
         if (client) {
           extendedTask.client = client;
+          extendedTask.clientFirstName = client.firstName;
+          extendedTask.clientLastName = client.lastName;
         }
       }
       
@@ -964,6 +980,13 @@ export class MemStorage implements IStorage {
       
       return extendedTask;
     });
+    
+    // Apply limit if specified
+    if (filters?.limit) {
+      return tasksWithClient.slice(0, filters.limit);
+    }
+    
+    return tasksWithClient;
   }
   
   async getTasksByClientId(clientId: number): Promise<Task[]> {
