@@ -1,6 +1,10 @@
 # Client Management System
 
 ## Recent Changes
+- **WhatsApp Web-Style Chat Interface (November 10, 2025)**: Implemented WhatsApp Web-style chat view in the Communications tab of client detail pages, replacing the table-only view with a dual-view system:
+  1. **Chat View (default)**: Displays WhatsApp messages in a familiar chat interface with message bubbles (green for outbound, white for inbound) and timestamps. Includes an inline composer for sending new messages with auto-scroll to latest messages and automatic cache invalidation after sending.
+  2. **Table View**: Preserves the original full communications table showing all communication types (email, phone, meetings, WhatsApp) with complete functionality including the "Nuova Comunicazione" button, status badges, and follow-up indicators.
+  3. **Toggle Controls**: Two buttons allow users to switch between "Chat WhatsApp" (default) and "Tutte" (table) views, providing quick access to both focused WhatsApp conversations and comprehensive communication history.
 - **Property Deduplication Fix (November 7, 2025)**: Fixed two critical bugs in property classification:
   1. **Agency name normalization**: Properties from same agency with name variations (e.g., "F.I.L. Casa Agency S.r.l." vs "FIL Casa Agency SRL") were incorrectly classified as multi-agency. Now normalizes names (lowercase, remove punctuation, standardize legal suffixes) before counting unique agencies.
   2. **Consolidate ALL duplicates**: Previously only multi-agency properties were consolidated. Now ALL duplicate listings (same address/price) are consolidated into single cards with multiple links, regardless of whether they're from multiple agencies (yellow) or same agency (red). This eliminates the "sacco di doppioni" issue.
