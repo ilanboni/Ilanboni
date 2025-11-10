@@ -7973,6 +7973,40 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  // Debug endpoint to manually retry Google Calendar sync
+  app.post("/api/appointments/:id/retry-sync", async (req: Request, res: Response) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ error: "ID appuntamento non valido" });
+      }
+      
+      console.log(`[DEBUG] Attempting to manually sync event ${eventId} to Google Calendar`);
+      
+      // Try to sync the event
+      await googleCalendarService.syncEventToGoogle(eventId);
+      
+      res.json({ success: true, message: "Sync attempted. Check server logs for details." });
+    } catch (error) {
+      console.error("[DEBUG] Manual sync failed:", error);
+      
+      // Check if this is a Google Calendar auth error
+      if (error instanceof Error && error.message === 'GOOGLE_CALENDAR_AUTH_REQUIRED') {
+        return res.status(409).json({ 
+          error: "Google Calendar non connesso",
+          message: "È necessario riconnettere Google Calendar prima di sincronizzare questo evento.",
+          authRequired: true
+        });
+      }
+      
+      // Generic error handling
+      res.status(500).json({ 
+        error: "Sync failed",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   app.delete("/api/appointments/:id", async (req: Request, res: Response) => {
     try {
       const eventId = parseInt(req.params.id);
@@ -9116,6 +9150,27 @@ document.getElementById('tokenForm').addEventListener('submit', async function(e
     }
   });
   
+  // Endpoint per verificare lo stato della connessione Google Calendar
+  app.get("/api/google-calendar/status", async (req: Request, res: Response) => {
+    try {
+      const isConfigured = googleCalendarService.isGoogleCalendarConfigured();
+      
+      // Count events needing auth
+      const [needsAuthCount] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(calendarEvents)
+        .where(eq(calendarEvents.syncStatus, 'needs_auth'));
+      
+      res.json({
+        isConnected: isConfigured,
+        eventsNeedingAuth: Number(needsAuthCount?.count || 0)
+      });
+    } catch (error) {
+      console.error("Error checking Google Calendar status:", error);
+      res.status(500).json({ error: "Failed to check Google Calendar status" });
+    }
+  });
+
   // Endpoint per ottenere l'URL di autorizzazione Google
   app.get("/api/oauth/auth-url", async (req: Request, res: Response) => {
     try {

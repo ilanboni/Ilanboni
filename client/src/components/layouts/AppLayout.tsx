@@ -2,6 +2,7 @@ import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import MobileNav from "./MobileNav";
+import { GoogleCalendarStatusBanner } from "@/components/google-calendar/GoogleCalendarStatusBanner";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -33,6 +34,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onMenuClick={toggleMobileMenu} />
+        <GoogleCalendarStatusBanner />
         
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-4 md:p-6 pb-20 md:pb-6">

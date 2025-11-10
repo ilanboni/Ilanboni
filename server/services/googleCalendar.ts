@@ -113,8 +113,27 @@ class GoogleCalendarService {
       for (const query of existingEventQueries) {
         const result = await query;
         if (result.length > 0) {
-          console.log(`[CALENDAR] ⚠️ Evento duplicato trovato con ID: ${result[0].id} (dedupeKey: ${result[0].dedupeKey}), salto creazione`);
-          return result[0];
+          const existingEvent = result[0];
+          
+          // Se l'evento esistente ha fallito la sync o necessita auth, tenta di risincronizzarlo
+          if (existingEvent.syncStatus === 'failed' || existingEvent.syncStatus === 'needs_auth') {
+            console.log(`[CALENDAR] 🔄 Evento duplicato trovato con sync_status='${existingEvent.syncStatus}' (ID: ${existingEvent.id}), tentativo di risincronizzazione...`);
+            
+            if (this.isConfigured) {
+              try {
+                await this.syncEventToGoogle(existingEvent.id);
+                console.log(`[CALENDAR] ✅ Risincronizzazione completata per evento ${existingEvent.id}`);
+              } catch (error) {
+                console.error(`[CALENDAR] ❌ Risincronizzazione fallita per evento ${existingEvent.id}:`, error);
+              }
+            } else {
+              console.log(`[CALENDAR] ⚠️ Google Calendar non configurato, impossibile risincronizzare evento ${existingEvent.id}`);
+            }
+          } else {
+            console.log(`[CALENDAR] ⚠️ Evento duplicato trovato con sync_status='${existingEvent.syncStatus}' (ID: ${existingEvent.id}), salto creazione`);
+          }
+          
+          return existingEvent;
         }
       }
 
@@ -141,7 +160,17 @@ class GoogleCalendarService {
       if (this.isConfigured) {
         await this.syncEventToGoogle(localEvent.id);
       } else {
-        console.log('[CALENDAR] Google Calendar not configured, event saved locally only');
+        console.log('[CALENDAR] ⚠️ Google Calendar not configured, marking event as needs_auth');
+        
+        // Mark event as needs_auth immediately so it appears in status checks
+        await db
+          .update(calendarEvents)
+          .set({
+            syncStatus: 'needs_auth',
+            syncError: 'Google Calendar non connesso - riautorizzazione richiesta',
+            lastSyncAt: new Date()
+          })
+          .where(eq(calendarEvents.id, localEvent.id));
       }
 
       return localEvent;
@@ -156,8 +185,19 @@ class GoogleCalendarService {
    */
   async syncEventToGoogle(eventId: number): Promise<void> {
     if (!this.isConfigured) {
-      console.log('[CALENDAR] Google Calendar not configured, skipping sync');
-      return;
+      console.log('[CALENDAR] ⚠️ Google Calendar not configured, cannot sync event');
+      
+      // Mark event as needs_auth
+      await db
+        .update(calendarEvents)
+        .set({
+          syncStatus: 'needs_auth',
+          syncError: 'Google Calendar non connesso - riautorizzazione richiesta',
+          lastSyncAt: new Date()
+        })
+        .where(eq(calendarEvents.id, eventId));
+      
+      throw new Error('GOOGLE_CALENDAR_AUTH_REQUIRED');
     }
 
     try {
@@ -225,15 +265,46 @@ class GoogleCalendarService {
     } catch (error) {
       console.error('[CALENDAR] Error syncing to Google Calendar:', error);
       
-      // Aggiorna lo stato dell'evento come fallito
-      await db
-        .update(calendarEvents)
-        .set({
-          syncStatus: 'failed',
-          syncError: error instanceof Error ? error.message : 'Unknown error',
-          updatedAt: new Date()
-        })
-        .where(eq(calendarEvents.id, eventId));
+      // Check if error is OAuth invalid_grant (expired/revoked token)
+      // Gaxios errors expose status via error.response.status OR error.status
+      const errorObj = error as any;
+      const httpStatus = errorObj?.response?.status || errorObj?.status;
+      const errorCode = errorObj?.response?.data?.error;
+      
+      const isInvalidGrant = error instanceof Error && 
+        httpStatus === 400 &&
+        errorCode === 'invalid_grant';
+      
+      if (isInvalidGrant) {
+        console.log(`[CALENDAR] Detected invalid_grant via ${errorObj?.response?.status ? 'response.status' : 'status'}: ${httpStatus}`);
+      }
+      
+      if (isInvalidGrant) {
+        console.error('[CALENDAR] ⚠️ OAuth token invalid/expired - clearing credentials and marking events as needs_auth');
+        await this.handleInvalidGrant();
+        
+        // Mark this event as needing auth instead of failed
+        await db
+          .update(calendarEvents)
+          .set({
+            syncStatus: 'needs_auth',
+            syncError: 'Google Calendar disconnected - reauthorization required',
+            updatedAt: new Date()
+          })
+          .where(eq(calendarEvents.id, eventId));
+        
+        throw new Error('GOOGLE_CALENDAR_AUTH_REQUIRED');
+      } else {
+        // Regular sync error - mark as failed
+        await db
+          .update(calendarEvents)
+          .set({
+            syncStatus: 'failed',
+            syncError: error instanceof Error ? error.message : 'Unknown error',
+            updatedAt: new Date()
+          })
+          .where(eq(calendarEvents.id, eventId));
+      }
     }
   }
 
@@ -521,6 +592,38 @@ class GoogleCalendarService {
     } catch (error) {
       console.error('[CALENDAR] Error retrieving events:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Handle invalid/expired OAuth grant - clear credentials and mark all failed events as needs_auth
+   */
+  private async handleInvalidGrant(): Promise<void> {
+    try {
+      console.log('[CALENDAR] Handling invalid OAuth grant - clearing stored credentials');
+      
+      // Delete the invalid token from database
+      await db
+        .delete(oauthTokens)
+        .where(eq(oauthTokens.service, 'google_calendar'));
+      
+      // Mark all failed events as needs_auth
+      await db
+        .update(calendarEvents)
+        .set({
+          syncStatus: 'needs_auth',
+          syncError: 'Google Calendar disconnected - reauthorization required',
+          updatedAt: new Date()
+        })
+        .where(eq(calendarEvents.syncStatus, 'failed'));
+      
+      // Set service as not configured
+      this.isConfigured = false;
+      this.calendar = null;
+      
+      console.log('[CALENDAR] ✅ Invalid credentials cleared - service marked as not configured');
+    } catch (error) {
+      console.error('[CALENDAR] Error handling invalid grant:', error);
     }
   }
 
