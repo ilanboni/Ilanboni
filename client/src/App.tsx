@@ -47,6 +47,7 @@ import PropertyDuplicatesPage from "@/pages/properties/duplicates";
 import AcquisitionsReportsPage from "@/pages/reports/acquisitions";
 import NaturalLanguageRequestPage from "@/pages/clients/nl-request";
 import ApifyAutomationPage from "@/pages/apify/automation";
+import WhatsAppDiagnosticPage from "@/pages/settings/whatsapp-diagnostic";
 
 function Router() {
   return (
@@ -91,6 +92,7 @@ function Router() {
       <Route path="/mail-merge" component={MailMergePage} />
       <Route path="/email-processor" component={EmailProcessorPage} />
       <Route path="/testing/whatsapp" component={WhatsAppTestPage} />
+      <Route path="/settings/whatsapp-diagnostic" component={WhatsAppDiagnosticPage} />
       <Route component={NotFound} />
     </Switch>
   );

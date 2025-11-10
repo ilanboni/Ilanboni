@@ -60,6 +60,7 @@ import virtualAssistantRouter from "./routes/virtualAssistant";
 import mailMergeRouter from "./routes/mailMerge";
 import whatsappRemindersRouter from "./routes/whatsappReminders";
 import { manualWebhookHandler } from "./routes/manualWebhook";
+import diagnosticWebhookRouter from "./diagnostic-webhook";
 import { backfillInboundTasks, createInboundTask } from "./services/inboundTaskManager";
 import { taskSyncScheduler } from "./services/taskSyncScheduler";
 import { authBearer } from "./middleware/auth";
@@ -119,6 +120,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registra le route per i promemoria WhatsApp
   app.use('/api/whatsapp', whatsappRemindersRouter);
+  
+  // Registra le route per la diagnostica WhatsApp webhook
+  app.use('/api/whatsapp/diagnostic', diagnosticWebhookRouter);
   
   // Stampa la chiave da usare per il forwarder
   const forwardKey = getForwardKey();
