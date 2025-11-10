@@ -83,6 +83,7 @@ export default function Sidebar({ className }: SidebarProps) {
         <SidebarLink to="/assistente" icon="fas fa-robot">Assistente Virtuale</SidebarLink>
         <SidebarLink to="/mail-merge" icon="fas fa-mail-bulk">Mail Merge Proprietari</SidebarLink>
         <SidebarLink to="/email-processor" icon="fas fa-envelope-open-text">Email Immobiliare.it</SidebarLink>
+        <SidebarLink to="/settings/whatsapp-diagnostic" icon="fab fa-whatsapp">Diagnostica WhatsApp</SidebarLink>
         <SidebarLink to="/analytics" icon="fas fa-chart-pie">Analisi di Mercato</SidebarLink>
         <SidebarLink to="/maps" icon="fas fa-map-marked-alt">Mappe e Ricerca</SidebarLink>
         <SidebarLink to="/settings" icon="fas fa-cog">Impostazioni</SidebarLink>
