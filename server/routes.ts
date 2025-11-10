@@ -70,6 +70,7 @@ import { nlToFilters, type PropertyFilters } from "./services/nlProcessingServic
 import { searchAreaGeocodingService } from "./services/searchAreaGeocodingService";
 import { clientPropertyScrapingService } from "./services/clientPropertyScrapingService";
 import { createManualSharedProperty } from "./services/manualSharedPropertyService";
+import { googleCalendarService } from "./services/googleCalendar";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -2947,8 +2948,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID cliente non valido" });
       }
       
-      const appointments = await storage.getAppointmentsByClientId(clientId);
-      res.json(appointments);
+      // Get appointments from both legacy appointments table and modern calendarEvents table
+      const legacyAppointments = await storage.getAppointmentsByClientId(clientId);
+      const calendarAppointments = await db
+        .select()
+        .from(calendarEvents)
+        .where(eq(calendarEvents.clientId, clientId))
+        .orderBy(desc(calendarEvents.startDate));
+      
+      // Transform calendarEvents to match appointments schema for backwards compatibility
+      const transformedCalendarAppts = calendarAppointments.map(event => {
+        const year = event.startDate.getFullYear();
+        const month = String(event.startDate.getMonth() + 1).padStart(2, '0');
+        const day = String(event.startDate.getDate()).padStart(2, '0');
+        const hours = String(event.startDate.getHours()).padStart(2, '0');
+        const minutes = String(event.startDate.getMinutes()).padStart(2, '0');
+        
+        return {
+          id: event.id,
+          clientId: event.clientId,
+          propertyId: event.propertyId || null,
+          date: `${year}-${month}-${day}`,
+          time: `${hours}:${minutes}`,
+          type: 'visit', // default type
+          status: 'scheduled',
+          notes: event.description || "",
+          feedback: "",
+          createdAt: event.createdAt,
+          // Include calendar-specific fields for richer UI
+          title: event.title,
+          location: event.location,
+          endDate: event.endDate,
+          syncStatus: event.syncStatus
+        };
+      });
+      
+      // Combine and sort by actual start timestamp for stable ordering
+      const allAppointments = [...legacyAppointments, ...transformedCalendarAppts]
+        .sort((a, b) => {
+          const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
+          const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
+          return dateB.getTime() - dateA.getTime();
+        });
+      
+      res.json(allAppointments);
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/appointments]`, error);
       res.status(500).json({ error: "Errore durante il recupero degli appuntamenti del cliente" });
@@ -7822,27 +7865,68 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
 
   app.post("/api/appointments", async (req: Request, res: Response) => {
     try {
-      const { title, date, time, location, clientId, propertyId } = req.body;
+      const { title, description, date, time, startDate, endDate, location, clientId, propertyId } = req.body;
       
-      // Combina data e ora per creare startDate
-      const startDate = new Date(`${date}T${time}`);
-      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 ora
+      // Support both formats: old (date + time) and new (startDate + endDate ISO strings)
+      let eventStartDate: Date;
+      let eventEndDate: Date;
+      let dateString: string;
+      let timeString: string;
       
+      if (startDate && endDate) {
+        // New format: ISO strings
+        eventStartDate = new Date(startDate);
+        eventEndDate = new Date(endDate);
+        // Extract date and time for legacy appointments table
+        dateString = eventStartDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        const hours = eventStartDate.getHours().toString().padStart(2, '0');
+        const minutes = eventStartDate.getMinutes().toString().padStart(2, '0');
+        timeString = `${hours}:${minutes}`;
+      } else if (date && time) {
+        // Old format: separate date and time
+        eventStartDate = new Date(`${date}T${time}`);
+        eventEndDate = new Date(eventStartDate.getTime() + 60 * 60 * 1000); // +1 ora
+        dateString = date;
+        timeString = time;
+      } else {
+        return res.status(400).json({ 
+          error: "Formato data non valido. Fornire (startDate + endDate) oppure (date + time)" 
+        });
+      }
+      
+      // Create event in Google Calendar (saves to calendarEvents table)
       const eventData = {
         title,
-        startDate,
-        endDate,
-        location,
-        clientId: clientId || null,
-        propertyId: propertyId || null
+        description: description || "",
+        startDate: eventStartDate,
+        endDate: eventEndDate,
+        location: location || "",
+        clientId: clientId || undefined,
+        propertyId: propertyId || undefined
       };
       
-      const [newEvent] = await db
-        .insert(calendarEvents)
-        .values(eventData)
-        .returning();
+      console.log('[APPOINTMENTS API] Creating appointment with Google Calendar sync:', eventData);
+      const calendarEvent = await googleCalendarService.createEvent(eventData);
       
-      res.json(newEvent);
+      // Also save to legacy appointments table if propertyId is provided (for backwards compatibility)
+      if (propertyId) {
+        try {
+          await db.insert(appointments).values({
+            clientId,
+            propertyId,
+            date: dateString,
+            time: timeString,
+            type: 'visit', // default type
+            status: 'scheduled',
+            notes: description || ""
+          });
+        } catch (legacyError) {
+          console.warn('[APPOINTMENTS API] Failed to save to legacy appointments table:', legacyError);
+          // Don't fail the request if legacy save fails - calendar event is the primary record
+        }
+      }
+      
+      res.json(calendarEvent);
     } catch (error) {
       console.error("Errore nella creazione dell'appuntamento:", error);
       res.status(500).json({ error: "Errore interno del server" });

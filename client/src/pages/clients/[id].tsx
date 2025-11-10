@@ -44,6 +44,7 @@ import NLPreferencesInput from "@/components/clients/NLPreferencesInput";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 import { ActivityTimeline } from "@/components/tasks/ActivityTimeline";
 import { AddPropertyToClientDialog } from "@/components/properties/AddPropertyToClientDialog";
+import { CreateAppointmentDialog } from "@/components/appointments/CreateAppointmentDialog";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -1068,16 +1069,11 @@ export default function ClientDetailPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle>Appuntamenti</CardTitle>
-                <Button 
-                  variant="default"
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href={`/appointments/new?clientId=${id}`}>
-                    <i className="fas fa-plus"></i>
-                    <span>Nuovo Appuntamento</span>
-                  </Link>
-                </Button>
+                <CreateAppointmentDialog
+                  clientId={id}
+                  clientName={`${client.firstName} ${client.lastName}`}
+                  clientPhone={client.phone}
+                />
               </CardHeader>
               <CardContent>
                 {isAppointmentsLoading ? (
