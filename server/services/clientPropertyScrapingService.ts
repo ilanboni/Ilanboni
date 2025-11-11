@@ -328,7 +328,7 @@ export class ClientPropertyScrapingService {
           imageUrls: result.imageUrls || [],
           url: result.url || null,
           location: result.latitude && result.longitude 
-            ? sql`ST_SetSRID(ST_MakePoint(${result.longitude}, ${result.latitude}), 4326)`
+            ? sql`ST_SetSRID(ST_MakePoint(${result.longitude}::double precision, ${result.latitude}::double precision), 4326)`
             : null,
           scrapedForClientId: clientId,
           lastScrapedAt: new Date()
@@ -387,7 +387,7 @@ export class ClientPropertyScrapingService {
             // Update property with geocoded coordinates
             await db.update(sharedProperties)
               .set({
-                location: sql`ST_SetSRID(ST_MakePoint(${parseFloat(coords.lng)}, ${parseFloat(coords.lat)}), 4326)`,
+                location: sql`ST_SetSRID(ST_MakePoint(${parseFloat(coords.lng)}::double precision, ${parseFloat(coords.lat)}::double precision), 4326)`,
                 updatedAt: new Date()
               })
               .where(eq(sharedProperties.id, property.id));
