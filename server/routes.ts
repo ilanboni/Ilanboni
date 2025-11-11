@@ -9187,6 +9187,67 @@ document.getElementById('tokenForm').addEventListener('submit', async function(e
     }
   });
 
+  // Endpoint per configurazione manuale Google Calendar OAuth
+  app.post("/api/oauth/manual-setup", async (req: Request, res: Response) => {
+    console.log('[OAUTH] Manual setup endpoint called');
+    try {
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ error: 'Codice di autorizzazione mancante' });
+      }
+
+      console.log('[OAUTH] Processing authorization code:', code.substring(0, 20) + '...');
+
+      const { google } = await import('googleapis');
+      const clientId = "876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com";
+      const clientSecret = "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";
+      const redirectUri = "https://client-management-system-ilanboni.replit.app/oauth/callback";
+      
+      const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+      
+      console.log('[OAUTH] Exchanging authorization code for tokens...');
+      const { tokens } = await oauth2Client.getToken(code);
+      
+      if (!tokens.refresh_token) {
+        console.log('[OAUTH] No refresh token received');
+        return res.status(400).json({ 
+          error: 'Refresh token non ricevuto. Riprova revocando l\'accesso dal tuo account Google e riautorizzando con "prompt=consent".' 
+        });
+      }
+
+      console.log('[OAUTH] Refresh token received, saving to database...');
+      
+      // Delete existing token if any
+      await db.delete(oauthTokens).where(eq(oauthTokens.service, 'google_calendar'));
+      
+      // Save new token to database
+      await db.insert(oauthTokens).values({
+        service: 'google_calendar',
+        refreshToken: tokens.refresh_token,
+        createdAt: new Date()
+      });
+      
+      console.log('[OAUTH] Token saved to database, reinitializing Google Calendar service...');
+      
+      // Reinitialize Google Calendar service with new token
+      await googleCalendarService.initialize();
+      
+      console.log('[OAUTH] Google Calendar configured successfully');
+      
+      res.json({
+        success: true,
+        message: 'Google Calendar configurato con successo!'
+      });
+    } catch (error) {
+      console.error('[OAUTH] Error in manual setup:', error);
+      res.status(500).json({ 
+        error: 'Errore nella configurazione',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
+    }
+  });
+
   // Configurazione Google Calendar diretta
   app.post("/api/calendar/setup", async (req: Request, res: Response) => {
     console.log('[CALENDAR] Setup endpoint called');
