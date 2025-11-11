@@ -127,6 +127,18 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
                 break;
               }
             }
+            // FIX ARCHITECT: Gestisci MultiPolygon (comune per zone complesse)
+            else if (feature.geometry.type === 'MultiPolygon' && feature.geometry.coordinates) {
+              // MultiPolygon = array di Polygon
+              for (const polygonCoords of feature.geometry.coordinates) {
+                const featurePolygon = polygon(polygonCoords);
+                if (booleanPointInPolygon(immobilePoint, featurePolygon)) {
+                  isInArea = true;
+                  break;
+                }
+              }
+              if (isInArea) break; // Exit outer loop if found
+            }
             // Gestisci Point con raggio di default 1000m
             else if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
               const distance = calculateDistance(
@@ -260,10 +272,51 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
       const immobilePoint = point([propertyLocation.lng, propertyLocation.lat]);
       
       let buyerPolygon;
+      let isInArea = false;
       
       if (buyer.searchArea && typeof buyer.searchArea === 'object') {
+        // FIX: Se è un FeatureCollection (array di poligoni/punti multipli) - per zone multiple
+        if ((buyer.searchArea as any).type === 'FeatureCollection' && (buyer.searchArea as any).features) {
+          // Verifica se il punto è dentro ALMENO UNO dei poligoni
+          for (const feature of (buyer.searchArea as any).features) {
+            if (feature.geometry.type === 'Polygon' && feature.geometry.coordinates) {
+              const featurePolygon = polygon(feature.geometry.coordinates);
+              if (booleanPointInPolygon(immobilePoint, featurePolygon)) {
+                isInArea = true;
+                console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO la zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'}`);
+                break;
+              }
+            }
+            // FIX ARCHITECT: Gestisci MultiPolygon (comune per zone complesse)
+            else if (feature.geometry.type === 'MultiPolygon' && feature.geometry.coordinates) {
+              // MultiPolygon = array di Polygon
+              for (const polygonCoords of feature.geometry.coordinates) {
+                const featurePolygon = polygon(polygonCoords);
+                if (booleanPointInPolygon(immobilePoint, featurePolygon)) {
+                  isInArea = true;
+                  console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO la zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'} (MultiPolygon)`);
+                  break;
+                }
+              }
+              if (isInArea) break; // Exit outer loop if found
+            }
+            // Gestisci Point con raggio di default 1000m
+            else if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
+              const distance = calculateDistance(
+                propertyLocation.lat, propertyLocation.lng,
+                feature.geometry.coordinates[1], feature.geometry.coordinates[0]
+              );
+              if (distance <= 1000) { // 1km di raggio di default per i punti
+                isInArea = true;
+                console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO il raggio della zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'}`);
+                break;
+              }
+            }
+          }
+          return isInArea;
+        }
         // Se è un oggetto con center e radius (formato cerchio)
-        if ((buyer.searchArea as any).center && (buyer.searchArea as any).radius && 
+        else if ((buyer.searchArea as any).center && (buyer.searchArea as any).radius && 
             (buyer.searchArea as any).center.lat && (buyer.searchArea as any).center.lng) {
           
           const searchArea = buyer.searchArea as any;

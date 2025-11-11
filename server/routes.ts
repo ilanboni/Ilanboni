@@ -4066,6 +4066,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[NL-REQUEST] Saved request ${clientRequest.id} with filters:`, filters);
 
+      // FIX: Update buyer with extracted preferences
+      if (client.type === 'buyer') {
+        const buyer = await storage.getBuyerByClientId(clientId);
+        if (buyer) {
+          const buyerUpdates: any = {};
+          
+          if (filters.zones && Array.isArray(filters.zones) && filters.zones.length > 0) {
+            buyerUpdates.zones = filters.zones;
+            console.log(`[NL-REQUEST] Updating buyer ${buyer.id} with zones:`, filters.zones);
+          }
+          
+          if (filters.budgetMax) {
+            buyerUpdates.maxPrice = filters.budgetMax;
+          }
+          
+          if (filters.sizeMin) {
+            buyerUpdates.minSize = filters.sizeMin;
+          }
+          
+          if (filters.propertyType) {
+            buyerUpdates.propertyType = filters.propertyType;
+          }
+          
+          if (filters.rooms) {
+            buyerUpdates.rooms = filters.rooms;
+          }
+          
+          if (filters.bathrooms) {
+            buyerUpdates.bathrooms = filters.bathrooms;
+          }
+          
+          if (filters.features) {
+            if (filters.features.elevator !== undefined) buyerUpdates.elevator = filters.features.elevator;
+            if (filters.features.balconyOrTerrace !== undefined) buyerUpdates.balconyOrTerrace = filters.features.balconyOrTerrace;
+            if (filters.features.parking !== undefined) buyerUpdates.parking = filters.features.parking;
+            if (filters.features.garden !== undefined) buyerUpdates.garden = filters.features.garden;
+          }
+          
+          if (Object.keys(buyerUpdates).length > 0) {
+            await storage.updateBuyer(buyer.id, buyerUpdates);
+            console.log(`[NL-REQUEST] Buyer ${buyer.id} updated with AI-extracted preferences`);
+            
+            // Trigger automatic geocoding if zones were updated
+            if (buyerUpdates.zones) {
+              console.log(`[NL-REQUEST] Triggering automatic geocoding for ${buyerUpdates.zones.length} zones`);
+              searchAreaGeocodingService.updateBuyerSearchArea(buyer.id, buyerUpdates.zones)
+                .then(() => console.log(`[NL-REQUEST] Geocoding completed for buyer ${buyer.id}`))
+                .catch(err => console.error(`[NL-REQUEST] Geocoding error for buyer ${buyer.id}:`, err));
+            }
+          }
+        }
+      }
+
       // Trigger property matching for this client
       // This will create match records in the database
       let matchedProperties: any[] = [];
