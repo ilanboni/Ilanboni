@@ -71,6 +71,7 @@ import { searchAreaGeocodingService } from "./services/searchAreaGeocodingServic
 import { clientPropertyScrapingService } from "./services/clientPropertyScrapingService";
 import { createManualSharedProperty } from "./services/manualSharedPropertyService";
 import { googleCalendarService } from "./services/googleCalendar";
+import { enrichArrayWithClassification, enrichWithClassification } from "./utils/propertyClassification";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -2628,7 +2629,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[MULTI-AGENCY] Found ${multiAgencyNearDuomo.length} multi-agency properties within ${RADIUS_METERS}m of Duomo`);
       
-      res.json(multiAgencyNearDuomo);
+      const enrichedProperties = enrichArrayWithClassification(multiAgencyNearDuomo);
+      res.json(enrichedProperties);
     } catch (error) {
       console.error("[GET /api/scraped-properties/multi-agency]", error);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà multi-agency" });
@@ -2646,7 +2648,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isFavorite !== undefined) filters.isFavorite = isFavorite === 'true';
       
       const sharedProperties = await storage.getSharedProperties(filters);
-      res.json(sharedProperties);
+      const enrichedProperties = enrichArrayWithClassification(sharedProperties);
+      res.json(enrichedProperties);
     } catch (error) {
       console.error("[GET /api/shared-properties]", error);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà condivise" });
@@ -2666,7 +2669,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Proprietà condivisa non trovata" });
       }
       
-      res.json(sharedProperty);
+      const enrichedProperty = enrichWithClassification(sharedProperty);
+      res.json(enrichedProperty);
     } catch (error) {
       console.error(`[GET /api/shared-properties/${req.params.id}]`, error);
       res.status(500).json({ error: "Errore durante il recupero della proprietà condivisa" });

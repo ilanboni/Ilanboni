@@ -11,20 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Building, Filter, MapPin, Plus, User, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { SharedProperty } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { SimplifiedSharedPropertyCard } from "@/components/properties/SimplifiedSharedPropertyCard";
 
 const ITEMS_PER_PAGE = 50;
-
-type AgencyInfo = {
-  name?: string | null;
-  link?: string | null;
-};
-
-function normalizeAgencyName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[.,\s-]/g, '')
-    .replace(/srl|spa|snc|sas|ss|sapa/g, '');
-}
 
 function getStageColor(stage: string) {
   switch (stage) {
@@ -74,6 +63,31 @@ export default function SharedPropertiesPage() {
     multiAgencyOnly: true // Default: show only properties within 5km of Duomo
   });
   const { toast } = useToast();
+
+  // Mutation for deleting property
+  const deleteMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      return await apiRequest(`/api/shared-properties/${propertyId}`, {
+        method: 'DELETE'
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Proprietà eliminata",
+        description: "La proprietà è stata eliminata con successo"
+      });
+      // Invalidate all shared-properties queries
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/scraped-properties/multi-agency'] });
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare la proprietà",
+        variant: "destructive"
+      });
+    }
+  });
 
   // Mutation for toggling favorite status
   const toggleFavoriteMutation = useMutation({
@@ -195,53 +209,21 @@ export default function SharedPropertiesPage() {
     }));
   };
 
-  // Pre-compute classification metadata for each property (runs once per data fetch)
-  const enrichedProperties = useMemo(() => {
-    if (!sharedProperties) return [];
-    
-    return sharedProperties.map(property => {
-      const agencies: AgencyInfo[] = Array.isArray(property.agencies) ? property.agencies as AgencyInfo[] : [];
-      let uniqueAgencyCount = 0;
-      let classification: 'private' | 'multiagency' | 'single-agency' = 'private';
-      let bgColor = 'bg-green-50';
-      
-      if (agencies.length > 0) {
-        const uniqueAgencies = new Set(
-          agencies.map(a => normalizeAgencyName(a.name || ''))
-        );
-        uniqueAgencyCount = uniqueAgencies.size;
-        
-        if (uniqueAgencyCount >= 2) {
-          classification = 'multiagency';
-          bgColor = 'bg-yellow-50';
-        } else {
-          classification = 'single-agency';
-          bgColor = 'bg-red-50';
-        }
-      }
-      
-      return {
-        ...property,
-        _computed: {
-          classification,
-          bgColor,
-          uniqueAgencyCount,
-          agencies
-        }
-      };
-    });
-  }, [sharedProperties]);
-
-  // Filter properties by classification (memoized)
+  // Filter properties by classification (backend already provides classification field)
   const filteredProperties = useMemo(() => {
+    if (!sharedProperties) return [];
     if (!filters.classification || filters.classification === 'all') {
-      return enrichedProperties;
+      return sharedProperties;
     }
     
-    return enrichedProperties.filter(property => {
-      return property._computed.classification === filters.classification;
+    return sharedProperties.filter(property => {
+      // Backend returns 'multiagency' or 'private', map 'single-agency' to 'private' for now
+      if (filters.classification === 'single-agency') {
+        return property.classification === 'private';
+      }
+      return property.classification === filters.classification;
     });
-  }, [enrichedProperties, filters.classification]);
+  }, [sharedProperties, filters.classification]);
 
   // Paginate properties
   const paginatedProperties = useMemo(() => {
@@ -433,87 +415,18 @@ export default function SharedPropertiesPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="properties-grid">
-                {paginatedProperties.map((property, idx) => (
-                  <Link key={property.id} href={`/properties/shared/${property.id}`} data-testid={`link-property-${idx}`}>
-                    <Card 
-                      className={`cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col ${property._computed.bgColor}`}
-                      data-testid={`card-property-${idx}`}
-                      data-classification={property._computed.classification}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start gap-2">
-                          <CardTitle className="text-lg flex-1">{property.address || 'Indirizzo non disponibile'}</CardTitle>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                toggleFavoriteMutation.mutate({
-                                  propertyId: property.id,
-                                  isFavorite: !property.isFavorite
-                                });
-                              }}
-                              disabled={toggleFavoriteMutation.isPending}
-                              title={property.isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
-                              aria-label={property.isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
-                              data-testid={`button-favorite-${idx}`}
-                            >
-                              <Star 
-                                className={`h-4 w-4 ${property.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`}
-                              />
-                            </Button>
-                            {property.stage && (
-                              <Badge className={getStageColor(property.stage)}>
-                                {getStageLabel(property.stage)}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <CardDescription>
-                          <div className="flex items-center text-gray-500">
-                            <MapPin className="h-3.5 w-3.5 mr-1" />
-                            {property.city || "Città sconosciuta"}
-                          </div>
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <div className="space-y-2">
-                          {property.ownerName && (
-                            <div className="flex items-center text-sm">
-                              <User className="h-4 w-4 mr-2 text-gray-400" />
-                              {property.ownerName}
-                            </div>
-                          )}
-                          {property.size && property.price && (
-                            <div className="flex items-center text-sm">
-                              <Building className="h-4 w-4 mr-2 text-gray-400" />
-                              {property.size} m² - {property.price.toLocaleString()} €
-                            </div>
-                          )}
-                          {property._computed.agencies.length > 0 && (
-                            <div className="flex items-center text-sm font-medium text-blue-600">
-                              <Building className="h-4 w-4 mr-2" />
-                              {property._computed.agencies.length} {property._computed.agencies.length === 1 ? 'agenzia' : 'agenzie'}
-                            </div>
-                          )}
-                          {property.isAcquired && (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
-                              Acquisito
-                            </Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                      <CardFooter>
-                        <Button variant="outline" className="w-full">
-                          Vedi dettagli
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </Link>
+              <div className="space-y-3" data-testid="properties-grid">
+                {paginatedProperties.map((property) => (
+                  <SimplifiedSharedPropertyCard
+                    key={property.id}
+                    property={property}
+                    onToggleFavorite={(propertyId, isFavorite) => {
+                      toggleFavoriteMutation.mutate({ propertyId, isFavorite });
+                    }}
+                    onDelete={(propertyId) => {
+                      deleteMutation.mutate(propertyId);
+                    }}
+                  />
                 ))}
               </div>
 
