@@ -18,7 +18,7 @@ export default function GoogleOAuthPage() {
   // Genera l'URL di autorizzazione Google
   const generateAuthUrl = () => {
     const clientId = "876070482272-badt95el39sgg9om6mumtf8tcebgiard.apps.googleusercontent.com";
-    const redirectUri = "https://client-management-system-ilanboni.replit.app/oauth/callback";
+    const redirectUri = `${window.location.origin}/oauth/callback`;
     const scope = "https://www.googleapis.com/auth/calendar";
     
     const url = `https://accounts.google.com/o/oauth2/auth?` +
