@@ -44,7 +44,6 @@ import EmailProcessorPage from "@/pages/email-processor";
 import MailMergePage from "@/pages/mail-merge/index";
 import SecretaryDashboard from "@/pages/secretary/dashboard";
 import SecretaryOutreach from "@/pages/secretary/outreach";
-import PropertyDuplicatesPage from "@/pages/properties/duplicates";
 import AcquisitionsReportsPage from "@/pages/reports/acquisitions";
 import NaturalLanguageRequestPage from "@/pages/clients/nl-request";
 import ApifyAutomationPage from "@/pages/apify/automation";
@@ -70,7 +69,6 @@ function Router() {
       <Route path="/clients/:id" component={ClientDetailPage} />
       <Route path="/properties" component={PropertiesPage} />
       <Route path="/properties/new" component={NewPropertyPage} />
-      <Route path="/properties/duplicates" component={PropertyDuplicatesPage} />
       <Route path="/properties/shared" component={SharedPropertiesPage} />
       <Route path="/properties/shared/new" component={NewSharedPropertyPage} />
       <Route path="/properties/shared/:id" component={SharedPropertyDetailPage} />
