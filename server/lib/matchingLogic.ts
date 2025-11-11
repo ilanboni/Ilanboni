@@ -261,7 +261,13 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
   }
   
   // Verifica se l'immobile è all'interno dell'area di ricerca (poligono)
-  if (buyer.searchArea && sharedProperty.location) {
+  if (buyer.searchArea) {
+    // FIX CRITICO: Se il buyer ha specificato una searchArea, la property DEVE avere location
+    if (!sharedProperty.location) {
+      console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) non ha coordinate GPS - RIFIUTATO (buyer richiede searchArea)`);
+      return false;
+    }
+    
     try {
       const propertyLocation = sharedProperty.location as any;
       if (!propertyLocation || !propertyLocation.lat || !propertyLocation.lng) {
