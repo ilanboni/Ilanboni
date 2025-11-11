@@ -328,10 +328,13 @@ class GoogleCalendarService {
       const fullName = confirmation.firstName ? 
         `${confirmation.firstName} ${confirmation.lastName}` : 
         confirmation.lastName;
+      
+      // Pulisci il numero di telefono rimuovendo @c.us (formato WhatsApp)
+      const cleanPhone = confirmation.phone.replace(/@c\.us$/i, '');
 
       const eventData: CalendarEventData = {
-        title: `${fullName} - ${confirmation.phone}`,
-        description: `Appuntamento confermato con ${confirmation.salutation} ${fullName}\nTelefono: ${confirmation.phone}\nIndirizzo: ${confirmation.address}`,
+        title: `${fullName} - ${cleanPhone}`,
+        description: `Appuntamento confermato con ${confirmation.salutation} ${fullName}\nTelefono: ${cleanPhone}\nIndirizzo: ${confirmation.address}`,
         startDate,
         endDate,
         location: confirmation.address,
