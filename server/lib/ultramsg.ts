@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { randomUUID } from 'crypto';
 import { Communication, InsertCommunication, Client, Property } from '@shared/schema';
 import { storage } from '../storage';
 import { summarizeText } from './openai';
@@ -142,7 +143,7 @@ export class UltraMsgClient {
    * @param priority Priorità del messaggio (opzionale, 0-10)
    * @returns Response from UltraMsg API
    */
-  async sendMessage(phoneNumber: string, message: string, priority?: number): Promise<UltraMsgMessageResponse> {
+  async sendMessage(phoneNumber: string, message: string, priority?: number, referenceId?: string): Promise<UltraMsgMessageResponse> {
     try {
       console.log('[ULTRAMSG] Tentativo di invio messaggio a:', phoneNumber);
       
@@ -170,6 +171,12 @@ export class UltraMsgClient {
         to: formattedPhone,
         body: message,
       };
+      
+      // Se è specificato un referenceId (per correlazione), aggiungilo
+      if (referenceId) {
+        payload.referenceId = referenceId;
+        console.log('[ULTRAMSG] ReferenceId aggiunto al payload:', referenceId);
+      }
       
       console.log('[ULTRAMSG] Payload preparato:', payload);
       
@@ -234,8 +241,12 @@ export class UltraMsgClient {
     additionalParams?: { propertyId?: number | null; responseToId?: number | null }
   ): Promise<Communication> {
     try {
-      // Invia messaggio tramite UltraMsg
-      const ultraMsgResponse = await this.sendMessage(phone, message);
+      // Genera un correlation ID unico per deduplicazione
+      const correlationId = randomUUID();
+      console.log('[ULTRAMSG] Correlation ID generato:', correlationId);
+      
+      // Invia messaggio tramite UltraMsg con il correlation ID come referenceId
+      const ultraMsgResponse = await this.sendMessage(phone, message, undefined, correlationId);
       
       if (!ultraMsgResponse.sent) {
         throw new Error(`Errore nell'invio del messaggio: ${ultraMsgResponse.error || 'Unknown error'}`);
@@ -254,7 +265,7 @@ export class UltraMsgClient {
         summary = message.length > 50 ? `${message.substring(0, 47)}...` : message;
       }
       
-      // Prepara i dati per il database
+      // Prepara i dati per il database con correlation ID e campi di tracking
       const communicationData: InsertCommunication = {
         clientId,
         type: 'whatsapp',
@@ -265,7 +276,10 @@ export class UltraMsgClient {
         needsFollowUp: false,
         status: 'completed',
         propertyId: additionalParams?.propertyId || null,
-        responseToId: additionalParams?.responseToId || null
+        responseToId: additionalParams?.responseToId || null,
+        correlationId,
+        source: 'app',
+        deliveryStatus: 'pending'
       };
       
       console.log('[ULTRAMSG] Salvando comunicazione con parametri:', communicationData);
@@ -273,7 +287,7 @@ export class UltraMsgClient {
       // Salva nel database
       const communication = await storage.createCommunication(communicationData);
       
-      console.log('[ULTRAMSG] Comunicazione salvata con ID:', `${communication.id} propertyId: ${communication.propertyId}`);
+      console.log('[ULTRAMSG] Comunicazione salvata con ID:', `${communication.id} propertyId: ${communication.propertyId} correlationId: ${correlationId}`);
       
       return communication;
     } catch (error) {
