@@ -309,6 +309,86 @@ class GoogleCalendarService {
   }
 
   /**
+   * Aggiorna un evento esistente su Google Calendar
+   */
+  async updateEventOnGoogle(eventId: number): Promise<void> {
+    if (!this.isConfigured) {
+      console.log('[CALENDAR] ⚠️ Google Calendar not configured, cannot update event');
+      throw new Error('GOOGLE_CALENDAR_AUTH_REQUIRED');
+    }
+
+    try {
+      // Recupera l'evento dal database
+      const [event] = await db
+        .select()
+        .from(calendarEvents)
+        .where(eq(calendarEvents.id, eventId));
+
+      if (!event) {
+        throw new Error(`Event with ID ${eventId} not found`);
+      }
+
+      if (!event.googleEventId) {
+        throw new Error(`Event ${eventId} has no Google Event ID`);
+      }
+
+      // Formatta le date nel fuso orario locale
+      const formatLocalDateTime = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+      };
+
+      const googleEvent = {
+        summary: event.title,
+        description: event.description || '',
+        location: event.location || '',
+        start: {
+          dateTime: formatLocalDateTime(event.startDate),
+          timeZone: 'Europe/Rome',
+        },
+        end: {
+          dateTime: formatLocalDateTime(event.endDate),
+          timeZone: 'Europe/Rome',
+        },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'popup', minutes: 1440 },
+            { method: 'popup', minutes: 120 }
+          ]
+        }
+      };
+
+      // Aggiorna l'evento su Google Calendar
+      await this.calendar.events.update({
+        calendarId: 'primary',
+        eventId: event.googleEventId,
+        resource: googleEvent,
+      });
+
+      // Aggiorna lo stato di sincronizzazione
+      await db
+        .update(calendarEvents)
+        .set({
+          syncStatus: 'synced',
+          lastSyncAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(calendarEvents.id, eventId));
+
+      console.log(`[CALENDAR] Event ${eventId} updated on Google Calendar: ${event.googleEventId}`);
+    } catch (error) {
+      console.error('[CALENDAR] Error updating event on Google Calendar:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Crea un evento da una conferma appuntamento
    */
   async createEventFromAppointmentConfirmation(confirmation: any): Promise<any> {

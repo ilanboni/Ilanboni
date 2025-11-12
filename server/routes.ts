@@ -8519,6 +8519,20 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  app.post("/api/calendar/events/:id/update", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const { googleCalendarService } = await import('./services/googleCalendar');
+      await googleCalendarService.updateEventOnGoogle(id);
+
+      res.json({ success: true, message: "Evento aggiornato su Google Calendar" });
+    } catch (error) {
+      console.error("Errore nell'aggiornamento evento:", error);
+      res.status(500).json({ error: "Errore nell'aggiornamento" });
+    }
+  });
+
   app.get("/api/calendar/status", async (req: Request, res: Response) => {
     try {
       const { googleCalendarService } = await import('./services/googleCalendar');
