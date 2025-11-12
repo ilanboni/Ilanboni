@@ -40,5 +40,5 @@ The application features a modern full-stack architecture.
 - **string-similarity**: Fuzzy matching for property deduplication
 - **UltraMsg**: WhatsApp messaging integration
 - **OpenAI SDK + Replit AI Integrations**: AI features
-- **Casafari SDK**: Professional B2B real estate data aggregator for the Italian market
+- **Apify**: Web scraping platform for automated property data collection from Immobiliare.it and Idealista.it
 - **Nominatim**: Geocoding services for search area visualization

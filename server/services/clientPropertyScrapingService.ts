@@ -4,7 +4,6 @@ import { eq, and, lte, gte, sql, isNull } from "drizzle-orm";
 import type { PropertyListing, SearchCriteria } from "./portalIngestionService";
 import { ImmobiliareApifyAdapter } from "./adapters/immobiliareApifyAdapter";
 import { IdealistaApifyAdapter } from "./adapters/idealistaApifyAdapter";
-import { CasafariAdapter } from "./adapters/casafariAdapter";
 import { geocodingService } from "./geocodingService";
 
 export type PropertyClassification = 'private' | 'multiagency' | 'single-agency';
@@ -31,7 +30,6 @@ export interface ScrapedPropertyResult extends PropertyListing {
 export class ClientPropertyScrapingService {
   private immobiliareAdapter = new ImmobiliareApifyAdapter();
   private idealistaAdapter = new IdealistaApifyAdapter();
-  private casafariAdapter = new CasafariAdapter();
 
   async getSavedScrapedPropertiesForClient(clientId: number): Promise<ScrapedPropertyResult[]> {
     console.log(`[CLIENT-SCRAPING] Loading saved scraped properties for client ${clientId}`);
@@ -119,11 +117,8 @@ export class ClientPropertyScrapingService {
       };
     });
 
-    // Classify properties if buyer rating >= 4 (Casafari users)
-    const buyerRating = buyer.rating || 0;
-    const classifiedResults = buyerRating >= 4
-      ? this.classifyProperties(results)
-      : results;
+    // Classify properties for all users
+    const classifiedResults = this.classifyProperties(results);
 
     // Calculate match score for each result
     const scoredResults = classifiedResults.map(result => ({
@@ -167,108 +162,67 @@ export class ClientPropertyScrapingService {
     // Extract search criteria from buyer preferences
     const zones = (buyer.zones as string[] | null) || [];
     const allResults: ScrapedPropertyResult[] = [];
-    const buyerRating = buyer.rating || 0;
 
     // If no zones specified, do a generic search for Milano
     const searchZones = zones.length > 0 ? zones : [''];
 
-    // For high-rated clients (4-5), use Casafari API exclusively
-    if (buyerRating >= 4) {
-      console.log(`[CLIENT-SCRAPING] ⭐ High-rated client (${buyerRating}) - using Casafari API`);
-      
-      for (const zone of searchZones) {
-        const criteria: SearchCriteria = {
-          city: 'milano',
-          zone: zone || undefined,
-          maxPrice: buyer.maxPrice || undefined,
-          minSize: buyer.minSize || undefined,
-          bedrooms: buyer.rooms || undefined,
-          propertyType: buyer.propertyType || undefined
-        };
+    // Use Apify adapters for all clients
+    console.log(`[CLIENT-SCRAPING] Using Apify adapters for all property searches`);
+    
+    for (const zone of searchZones) {
+      const criteria: SearchCriteria = {
+        city: 'milano',
+        zone: zone || undefined,
+        maxPrice: buyer.maxPrice || undefined,
+        minSize: buyer.minSize || undefined,
+        bedrooms: buyer.rooms || undefined,
+        propertyType: buyer.propertyType || undefined
+      };
 
-        console.log(`[CLIENT-SCRAPING] Casafari search for zone: ${zone || 'Milano (generic)'}`, criteria);
+      console.log(`[CLIENT-SCRAPING] Searching zone: ${zone || 'Milano (generic)'}`, criteria);
 
-        try {
-          const casafariResults = await this.casafariAdapter.search(criteria);
-          const enriched = casafariResults.map(r => ({
-            ...r,
-            portalSource: 'Casafari',
-            isPrivate: r.ownerType === 'private'
-          }));
-          allResults.push(...enriched);
-          console.log(`[CLIENT-SCRAPING] Casafari: found ${casafariResults.length} properties for zone ${zone || 'Milano'}`);
-        } catch (error) {
-          console.error(`[CLIENT-SCRAPING] Casafari search failed for zone ${zone}:`, error);
-        }
-      }
-
-      // Cleanup Casafari feeds after search
+      // Scrape Immobiliare.it with Apify
       try {
-        await this.casafariAdapter.cleanup();
+        const immobiliareResults = await this.immobiliareAdapter.search(criteria);
+        const enriched = immobiliareResults.map(r => ({
+          ...r,
+          portalSource: 'Immobiliare.it (Apify)',
+          isPrivate: r.ownerType === 'private',
+          isMultiagency: false
+        }));
+        allResults.push(...enriched);
+        console.log(`[CLIENT-SCRAPING] Immobiliare.it: found ${immobiliareResults.length} properties for zone ${zone || 'Milano'}`);
       } catch (error) {
-        console.error('[CLIENT-SCRAPING] Casafari cleanup failed:', error);
-      }
-    } else {
-      // For lower-rated clients, use Apify adapters
-      console.log(`[CLIENT-SCRAPING] Standard client (rating ${buyerRating}) - using Apify adapters`);
-      
-      for (const zone of searchZones) {
-        const criteria: SearchCriteria = {
-          city: 'milano',
-          zone: zone || undefined,
-          maxPrice: buyer.maxPrice || undefined,
-          minSize: buyer.minSize || undefined,
-          bedrooms: buyer.rooms || undefined,
-          propertyType: buyer.propertyType || undefined
-        };
-
-        console.log(`[CLIENT-SCRAPING] Searching zone: ${zone || 'Milano (generic)'}`, criteria);
-
-        // Scrape Immobiliare.it with Apify
-        try {
-          const immobiliareResults = await this.immobiliareAdapter.search(criteria);
-          const enriched = immobiliareResults.map(r => ({
-            ...r,
-            portalSource: 'Immobiliare.it (Apify)',
-            isPrivate: r.ownerType === 'private',
-            isMultiagency: false
-          }));
-          allResults.push(...enriched);
-          console.log(`[CLIENT-SCRAPING] Immobiliare.it: found ${immobiliareResults.length} properties for zone ${zone || 'Milano'}`);
-        } catch (error) {
-          console.error(`[CLIENT-SCRAPING] Immobiliare.it scraping failed for zone ${zone}:`, error);
-        }
-
-        // Scrape Idealista.it with Apify
-        try {
-          const idealistaResults = await this.idealistaAdapter.search(criteria);
-          const enriched = idealistaResults.map(r => ({
-            ...r,
-            portalSource: 'Idealista.it (Apify)',
-            isPrivate: r.ownerType === 'private',
-            isMultiagency: false
-          }));
-          allResults.push(...enriched);
-          console.log(`[CLIENT-SCRAPING] Idealista.it: found ${idealistaResults.length} properties for zone ${zone || 'Milano'}`);
-        } catch (error) {
-          console.error(`[CLIENT-SCRAPING] Idealista.it scraping failed for zone ${zone}:`, error);
-        }
+        console.error(`[CLIENT-SCRAPING] Immobiliare.it scraping failed for zone ${zone}:`, error);
       }
 
-      // Add multi-agency properties from database (shared_properties) for non-Casafari clients
-      console.log(`[CLIENT-SCRAPING] Fetching multi-agency properties from database...`);
-      const multiAgencyProperties = await this.getMultiAgencyPropertiesForClient(buyer);
-      allResults.push(...multiAgencyProperties);
-      console.log(`[CLIENT-SCRAPING] Added ${multiAgencyProperties.length} multi-agency properties from database`);
+      // Scrape Idealista.it with Apify
+      try {
+        const idealistaResults = await this.idealistaAdapter.search(criteria);
+        const enriched = idealistaResults.map(r => ({
+          ...r,
+          portalSource: 'Idealista.it (Apify)',
+          isPrivate: r.ownerType === 'private',
+          isMultiagency: false
+        }));
+        allResults.push(...enriched);
+        console.log(`[CLIENT-SCRAPING] Idealista.it: found ${idealistaResults.length} properties for zone ${zone || 'Milano'}`);
+      } catch (error) {
+        console.error(`[CLIENT-SCRAPING] Idealista.it scraping failed for zone ${zone}:`, error);
+      }
     }
+
+    // Add multi-agency properties from database (shared_properties)
+    console.log(`[CLIENT-SCRAPING] Fetching multi-agency properties from database...`);
+    const multiAgencyProperties = await this.getMultiAgencyPropertiesForClient(buyer);
+    allResults.push(...multiAgencyProperties);
+    console.log(`[CLIENT-SCRAPING] Added ${multiAgencyProperties.length} multi-agency properties from database`)
 
     // Deduplicate by externalId + portalSource
     const uniqueResults = this.deduplicateResults(allResults);
 
-    // Classify properties (private/multiagency/single-agency) for Casafari results
-    const classifiedResults = buyerRating >= 4 
-      ? this.classifyProperties(uniqueResults)
-      : uniqueResults;
+    // Classify properties (private/multiagency/single-agency) for all results
+    const classifiedResults = this.classifyProperties(uniqueResults);
 
     // Calculate match score for each result based on buyer criteria
     const scoredResults = classifiedResults.map(result => ({
