@@ -245,13 +245,6 @@ export class UltraMsgClient {
       const correlationId = randomUUID();
       console.log('[ULTRAMSG] Correlation ID generato:', correlationId);
       
-      // Invia messaggio tramite UltraMsg con il correlation ID come referenceId
-      const ultraMsgResponse = await this.sendMessage(phone, message, undefined, correlationId);
-      
-      if (!ultraMsgResponse.sent) {
-        throw new Error(`Errore nell'invio del messaggio: ${ultraMsgResponse.error || 'Unknown error'}`);
-      }
-      
       // Genera riassunto con AI se il messaggio è lungo
       let summary: string;
       if (message.length > 100) {
@@ -265,7 +258,7 @@ export class UltraMsgClient {
         summary = message.length > 50 ? `${message.substring(0, 47)}...` : message;
       }
       
-      // Prepara i dati per il database con correlation ID e campi di tracking
+      // STEP 1: Crea il record PRIMA di inviare (risolve race condition con webhook)
       const communicationData: InsertCommunication = {
         clientId,
         type: 'whatsapp',
@@ -282,13 +275,41 @@ export class UltraMsgClient {
         deliveryStatus: 'pending'
       };
       
-      console.log('[ULTRAMSG] Salvando comunicazione con parametri:', communicationData);
-      
-      // Salva nel database
+      console.log('[ULTRAMSG] Creando comunicazione PRIMA dell\'invio per evitare race condition');
       const communication = await storage.createCommunication(communicationData);
+      console.log('[ULTRAMSG] Comunicazione pre-creata con ID:', communication.id, 'correlationId:', correlationId);
       
-      console.log('[ULTRAMSG] Comunicazione salvata con ID:', `${communication.id} propertyId: ${communication.propertyId} correlationId: ${correlationId}`);
+      // STEP 2: Ora invia il messaggio con il correlation ID come referenceId
+      const ultraMsgResponse = await this.sendMessage(phone, message, undefined, correlationId);
       
+      if (!ultraMsgResponse.sent) {
+        // Se l'invio fallisce, aggiorna lo stato a failed
+        await storage.updateCommunication(communication.id, {
+          deliveryStatus: 'failed',
+          status: 'failed'
+        });
+        throw new Error(`Errore nell'invio del messaggio: ${ultraMsgResponse.error || 'Unknown error'}`);
+      }
+      
+      // STEP 3: Aggiorna con externalId dalla risposta API se disponibile
+      // Non sovrascrivere deliveryStatus se il webhook ha già aggiornato a 'delivered'
+      if (ultraMsgResponse.id) {
+        const currentComm = await storage.getCommunication(communication.id);
+        const updateData: Partial<InsertCommunication> = {
+          externalId: ultraMsgResponse.id
+        };
+        
+        // Solo aggiorna deliveryStatus se non è già 'delivered' (evita race con webhook)
+        if (currentComm && currentComm.deliveryStatus !== 'delivered') {
+          updateData.deliveryStatus = 'sent';
+        }
+        
+        await storage.updateCommunication(communication.id, updateData);
+        console.log('[ULTRAMSG] Comunicazione aggiornata con externalId:', ultraMsgResponse.id, 
+          'deliveryStatus:', currentComm?.deliveryStatus === 'delivered' ? 'already delivered (preserved)' : 'sent');
+      }
+      
+      console.log('[ULTRAMSG] ✅ Messaggio inviato e comunicazione tracciata - ID:', communication.id);
       return communication;
     } catch (error) {
       console.error('Errore nell\'invio e registrazione del messaggio WhatsApp:', error);
@@ -561,12 +582,35 @@ export class UltraMsgClient {
       // Estrai l'ID univoco del messaggio da UltraMsg
       const messageId = webhookData.data?.id || webhookData.id || webhookData.external_id;
       
-      // Verifica se questo messaggio è già stato registrato (usando l'ID esterno)
+      // Estrai il correlation ID (referenceId) se presente nel webhook
+      const correlationId = webhookData.referenceId || webhookData.data?.referenceId || null;
+      console.log(`[ULTRAMSG-DEDUP] MessageID: ${messageId}, CorrelationID: ${correlationId}, Event: ${webhookData.event_type}`);
+      
+      // STEP 1: Verifica per externalId (deduplicazione tra webhook duplicati)
       if (messageId) {
         const existingMessage = await storage.getCommunicationByExternalId(String(messageId));
         if (existingMessage) {
-          console.log(`[ULTRAMSG] ⏭️ Messaggio duplicato con ID ${messageId} già esistente (evento: ${webhookData.event_type}), ignorato`);
+          console.log(`[ULTRAMSG-DEDUP] ⏭️ Messaggio duplicato con externalId ${messageId} già esistente, ignorato`);
           return existingMessage;
+        }
+      }
+      
+      // STEP 2: Verifica per correlationId (deduplicazione app vs webhook)
+      if (correlationId) {
+        const existingByCorrelation = await storage.getCommunicationByCorrelationId(correlationId);
+        if (existingByCorrelation) {
+          console.log(`[ULTRAMSG-DEDUP] ✅ Trovata comunicazione esistente con correlationId ${correlationId}, aggiornamento invece di duplicazione`);
+          
+          // Aggiorna SOLO i campi di delivery, NON cambiare source (rimane 'app')
+          // Questo è un webhook di conferma, non un nuovo messaggio
+          const updatedComm = await storage.updateCommunication(existingByCorrelation.id, {
+            externalId: messageId || existingByCorrelation.externalId,
+            deliveryStatus: 'delivered'
+            // NON cambiare source - rimane 'app' perché il messaggio è stato inviato dall'app
+          });
+          
+          console.log(`[ULTRAMSG-DEDUP] ✅ Comunicazione ${existingByCorrelation.id} confermata come delivered (source rimane '${existingByCorrelation.source}')`);
+          return updatedComm || existingByCorrelation;
         }
       }
 
@@ -659,7 +703,7 @@ export class UltraMsgClient {
       
       // Prepara i dati per il database (diversi per inbound vs outbound)
       const communicationData: InsertCommunication = isFromMe ? {
-        // Messaggio in USCITA (inviato dal cellulare)
+        // Messaggio in USCITA (inviato dal cellulare, non dall'app)
         clientId: client!.id,
         type: 'whatsapp',
         subject: `Messaggio WhatsApp a ${phone}`,
@@ -671,7 +715,9 @@ export class UltraMsgClient {
         status: 'completed',
         propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
         responseToId: null,
-        externalId: messageId || `outbound-${phone}-${Date.now()}`
+        externalId: messageId || `outbound-${phone}-${Date.now()}`,
+        source: 'phone', // Inviato dal telefono, non dall'app
+        deliveryStatus: 'delivered'
       } : {
         // Messaggio in ENTRATA (ricevuto dal cliente)
         clientId: client!.id,
@@ -685,7 +731,9 @@ export class UltraMsgClient {
         status: 'pending',
         propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
         responseToId: lastOutboundComm?.id || null,
-        externalId: messageId || `inbound-${phone}-${Date.now()}`
+        externalId: messageId || `inbound-${phone}-${Date.now()}`,
+        source: 'webhook',
+        deliveryStatus: 'received' // Inbound = received, non delivered
       };
       
       // Salva nel database

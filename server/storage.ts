@@ -96,6 +96,7 @@ export interface IStorage {
   deleteCommunication(id: number): Promise<boolean>;
   getClientsWithoutRecentCommunication(days: number, minRating: number): Promise<ClientWithDetails[]>;
   getCommunicationByExternalId(externalId: string): Promise<Communication | undefined>;
+  getCommunicationByCorrelationId(correlationId: string): Promise<Communication | undefined>;
   
   // Task methods
   getTask(id: number): Promise<Task | undefined>;
@@ -1089,6 +1090,12 @@ export class MemStorage implements IStorage {
     );
   }
   
+  async getCommunicationByCorrelationId(correlationId: string): Promise<Communication | undefined> {
+    return Array.from(this.communicationStore.values()).find(
+      comm => comm.correlationId === correlationId
+    );
+  }
+  
   async getCommunications(filters?: { type?: string; status?: string }): Promise<Communication[]> {
     let communications = Array.from(this.communicationStore.values());
     
@@ -1660,6 +1667,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(communications.externalId, externalId));
     return communication;
   }
+  
+  async getCommunicationByCorrelationId(correlationId: string): Promise<Communication | undefined> {
+    const [communication] = await db
+      .select()
+      .from(communications)
+      .where(eq(communications.correlationId, correlationId));
+    return communication;
+  }
+  
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id));
