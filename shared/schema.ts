@@ -310,8 +310,16 @@ export const communications = pgTable("communications", {
   needsResponse: boolean("needs_response").default(false), // per messaggi in entrata non risposti
   respondedAt: timestamp("responded_at"), // timestamp quando è stata data una risposta
   createdAt: timestamp("created_at").defaultNow(),
-  externalId: text("external_id") // ID esterno (es. ID messaggio WhatsApp)
-});
+  externalId: text("external_id"), // ID esterno (es. ID messaggio WhatsApp)
+  correlationId: text("correlation_id"), // UUID locale per deduplicazione
+  source: text("source"), // "app", "webhook", "phone" - origine della comunicazione
+  deliveryStatus: text("delivery_status") // "pending", "sent", "delivered", "failed" - stato di consegna
+}, (table) => ({
+  // Index su correlationId per deduplicazione veloce
+  correlationIdIdx: index("communications_correlation_id_idx").on(table.correlationId),
+  // Index su externalId per ricerca veloce
+  externalIdIdx: index("communications_external_id_idx").on(table.externalId)
+}));
 
 // Associazioni tra messaggi e immobili
 export const communicationProperties = pgTable("communication_properties", {
