@@ -328,6 +328,38 @@ export default function ClientDetailPage() {
     }
   };
   
+  // Toggle favorite status for a shared property
+  const handleToggleFavorite = async (propertyId: number, currentFavoriteStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/shared-properties/${propertyId}/favorite`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isFavorite: !currentFavoriteStatus })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Errore durante l'aggiornamento dei preferiti");
+      }
+      
+      // Refetch saved scraped properties to show updated favorite status
+      await refetchSavedScrapedProperties();
+      
+      toast({
+        title: currentFavoriteStatus ? "Rimosso dai preferiti" : "Aggiunto ai preferiti",
+        description: "Le preferenze sono state aggiornate",
+      });
+    } catch (error: any) {
+      console.error("Errore nel toggle dei preferiti:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore durante l'aggiornamento",
+        variant: "destructive"
+      });
+    }
+  };
+  
   // Format appointment status
   const getAppointmentStatusBadge = (status: string | null) => {
     if (!status) return null;
@@ -1655,9 +1687,9 @@ export default function ClientDetailPage() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {savedScrapedProperties.map((property, idx) => {
-                      const bgColor = property.classification === 'private' ? 'bg-green-50' :
+                      const bgColor = property.classification === 'single-agency' ? 'bg-red-50' :
                                      property.classification === 'multiagency' ? 'bg-yellow-50' :
-                                     property.classification === 'single-agency' ? 'bg-red-50' :
+                                     property.classification === 'private' ? 'bg-green-50' :
                                      '';
                       return (
                       <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className={`overflow-hidden ${bgColor}`} data-testid={`card-property-${idx}`}>
@@ -1673,6 +1705,17 @@ export default function ClientDetailPage() {
                               <i className="fas fa-building text-4xl"></i>
                             </div>
                           )}
+                          <div className="absolute top-2 left-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full"
+                              onClick={() => handleToggleFavorite(property.id, property.isFavorite || false)}
+                              data-testid={`button-favorite-${idx}`}
+                            >
+                              <i className={`${property.isFavorite ? 'fas' : 'far'} fa-heart text-red-500`}></i>
+                            </Button>
+                          </div>
                           <div className="absolute top-2 right-2">
                             <Badge className="bg-primary-900/80 text-white">
                               € {property.price?.toLocaleString() || "N/D"}

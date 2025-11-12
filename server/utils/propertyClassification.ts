@@ -79,13 +79,14 @@ function getAllAgencyNames(property: SharedProperty): string[] {
  * Computes the classification of a shared property
  * 
  * @param property - The shared property to classify
- * @returns "multiagency" if property has 2+ distinct non-private agencies, "private" otherwise
+ * @returns Classification based on agency distribution
  * 
  * Classification Logic:
- * - "multiagency": At least 2 distinct agencies, none are private sellers
- * - "private": Single agency, private seller, or no agencies
+ * - "private": Has private seller (with or without agencies) OR no agencies
+ * - "multiagency": 2+ distinct non-private agencies
+ * - "single-agency": Exactly 1 non-private agency
  */
-export function computeClassification(property: SharedProperty): 'multiagency' | 'private' {
+export function computeClassification(property: SharedProperty): 'single-agency' | 'multiagency' | 'private' {
   const agencyNames = getAllAgencyNames(property);
   
   if (agencyNames.length === 0) {
@@ -112,6 +113,11 @@ export function computeClassification(property: SharedProperty): 'multiagency' |
     return 'multiagency';
   }
   
+  // Single non-private agency
+  if (uniqueNames.length === 1) {
+    return 'single-agency';
+  }
+  
   return 'private';
 }
 
@@ -120,7 +126,7 @@ export function computeClassification(property: SharedProperty): 'multiagency' |
  */
 export function enrichWithClassification<T extends SharedProperty>(
   property: T
-): T & { classification: 'multiagency' | 'private' } {
+): T & { classification: 'single-agency' | 'multiagency' | 'private' } {
   return {
     ...property,
     classification: computeClassification(property)
@@ -132,6 +138,6 @@ export function enrichWithClassification<T extends SharedProperty>(
  */
 export function enrichArrayWithClassification<T extends SharedProperty>(
   properties: T[]
-): Array<T & { classification: 'multiagency' | 'private' }> {
+): Array<T & { classification: 'single-agency' | 'multiagency' | 'private' }> {
   return properties.map(enrichWithClassification);
 }

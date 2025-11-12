@@ -15,6 +15,18 @@ import { SimplifiedSharedPropertyCard } from "@/components/properties/Simplified
 
 const ITEMS_PER_PAGE = 50;
 
+// Type for shared properties with classification added by backend
+type Agency = {
+  name: string;
+  link: string;
+  sourcePropertyId?: number;
+};
+
+type SharedPropertyWithClassification = SharedProperty & {
+  classification: 'single-agency' | 'multiagency' | 'private';
+  agencies: Agency[] | null;
+};
+
 function getStageColor(stage: string) {
   switch (stage) {
     case "address_found":
@@ -140,7 +152,7 @@ export default function SharedPropertiesPage() {
   });
 
   // Fetch shared properties (all or multi-agency only)
-  const { data: sharedProperties, isLoading, isError } = useQuery({
+  const { data: sharedProperties, isLoading, isError } = useQuery<SharedPropertyWithClassification[]>({
     queryKey: [filters.multiAgencyOnly ? '/api/scraped-properties/multi-agency' : '/api/shared-properties', filters],
     queryFn: async () => {
       try {
@@ -153,7 +165,7 @@ export default function SharedPropertiesPage() {
           if (!response.ok) {
             throw new Error('Errore nel caricamento delle proprietà multi-agency');
           }
-          return response.json() as Promise<SharedProperty[]>;
+          return response.json() as Promise<SharedPropertyWithClassification[]>;
         } else {
           // Fetch all shared properties with stage/search filters
           const queryParams = new URLSearchParams();
@@ -165,7 +177,7 @@ export default function SharedPropertiesPage() {
           if (!response.ok) {
             throw new Error('Errore nel caricamento delle proprietà condivise');
           }
-          return response.json() as Promise<SharedProperty[]>;
+          return response.json() as Promise<SharedPropertyWithClassification[]>;
         }
       } catch (error) {
         console.error("Errore nel caricamento delle proprietà:", error);
@@ -217,10 +229,6 @@ export default function SharedPropertiesPage() {
     }
     
     return sharedProperties.filter(property => {
-      // Backend returns 'multiagency' or 'private', map 'single-agency' to 'private' for now
-      if (filters.classification === 'single-agency') {
-        return property.classification === 'private';
-      }
       return property.classification === filters.classification;
     });
   }, [sharedProperties, filters.classification]);

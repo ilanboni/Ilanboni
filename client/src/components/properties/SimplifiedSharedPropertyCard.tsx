@@ -40,7 +40,7 @@ interface SharedProperty {
   size?: number | null;
   price?: number | null;
   type?: string | null;
-  classification?: 'multiagency' | 'private';
+  classification?: 'single-agency' | 'multiagency' | 'private';
   isFavorite?: boolean | null;
   agencies?: Agency[] | null;
   agency1Name?: string | null;
@@ -103,6 +103,14 @@ export function SimplifiedSharedPropertyCard({
 
   // Get color coding based on classification
   const getClassificationBadge = () => {
+    if (property.classification === 'single-agency') {
+      return (
+        <Badge className="bg-red-500 hover:bg-red-600 text-white" data-testid={`badge-single-agency-${property.id}`}>
+          🔴 Agenzia Singola
+        </Badge>
+      );
+    }
+    
     if (property.classification === 'multiagency') {
       return (
         <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white" data-testid={`badge-multiagency-${property.id}`}>
