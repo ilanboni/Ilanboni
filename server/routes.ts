@@ -2801,6 +2801,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Errore durante l'acquisizione della proprietà condivisa" });
     }
   });
+
+  // Geocode shared properties without GPS coordinates
+  app.post("/api/shared-properties/geocode-batch", async (req: Request, res: Response) => {
+    try {
+      const { limit = 50 } = req.body;
+      
+      // Import geocoding service
+      const { geocodingService } = await import('./services/geocodingService');
+      
+      // Find properties without GPS coordinates
+      const propertiesWithoutCoords = await db
+        .select()
+        .from(sharedProperties)
+        .where(isNull(sharedProperties.location))
+        .limit(Math.min(limit, 100)); // Max 100 per request
+
+      if (propertiesWithoutCoords.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: 'No properties need geocoding',
+          geocoded: 0,
+          total: 0
+        });
+      }
+
+      console.log(`[GEOCODING-BATCH] Starting geocoding for ${propertiesWithoutCoords.length} properties...`);
+      let geocodedCount = 0;
+
+      for (const property of propertiesWithoutCoords) {
+        try {
+          // Skip if no address
+          if (!property.address || !property.city) {
+            continue;
+          }
+
+          // Geocode using the service
+          const coords = await geocodingService.geocodeAddress(property.address, property.city);
+          
+          if (coords) {
+            // Update property with geocoded coordinates in JSONB format
+            await db.update(sharedProperties)
+              .set({
+                location: { lat: parseFloat(coords.lat), lng: parseFloat(coords.lng) },
+                updatedAt: new Date()
+              })
+              .where(eq(sharedProperties.id, property.id));
+            
+            geocodedCount++;
+            console.log(`[GEOCODING-BATCH] ✓ Geocoded #${property.id}: ${property.address}`);
+          }
+        } catch (error) {
+          console.error(`[GEOCODING-BATCH] Failed to geocode property #${property.id}:`, error);
+        }
+      }
+
+      console.log(`[GEOCODING-BATCH] Successfully geocoded ${geocodedCount}/${propertiesWithoutCoords.length} properties`);
+      
+      res.json({ 
+        success: true, 
+        message: `Geocoded ${geocodedCount} properties`,
+        geocoded: geocodedCount,
+        total: propertiesWithoutCoords.length
+      });
+    } catch (error) {
+      console.error('[GEOCODING-BATCH] Error:', error);
+      res.status(500).json({ error: 'Errore durante il geocoding batch' });
+    }
+  });
   
   // Toggle favorite status for a shared property
   app.patch("/api/shared-properties/:id/favorite", async (req: Request, res: Response) => {
