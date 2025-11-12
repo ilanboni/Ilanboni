@@ -613,9 +613,36 @@ export class UltraMsgClient {
           return updatedComm || existingByCorrelation;
         }
       }
-
-      // Estrai il contenuto del messaggio (gestisce diversi formati)
+      
+      // STEP 2.5: WORKAROUND - UltraMsg non ritorna referenceId nei webhook!
+      // Verifica per contenuto + tempo (ultimi 30 secondi) per messaggi outbound
+      // Questo cattura i messaggi inviati dall'app che arrivano via webhook senza correlationId
       const messageContent = webhookData.body || webhookData.text || webhookData.content || webhookData.message || '';
+      if (isFromMe && messageContent && client) {
+        // Cerca messaggi outbound recenti (ultimi 30 sec) con stesso contenuto e cliente
+        const thirtySecondsAgo = new Date(Date.now() - 30000);
+        const recentMessages = await storage.getCommunications();
+        const matchingRecent = recentMessages.find(comm => 
+          comm.clientId === client.id &&
+          comm.direction === 'outbound' &&
+          comm.type === 'whatsapp' &&
+          comm.content === messageContent &&
+          comm.createdAt && new Date(comm.createdAt) > thirtySecondsAgo
+        );
+        
+        if (matchingRecent) {
+          console.log(`[ULTRAMSG-DEDUP] ✅ Trovato messaggio recente con stesso contenuto (ID: ${matchingRecent.id}), è probabile duplicato webhook - aggiornamento`);
+          
+          const updatedComm = await storage.updateCommunication(matchingRecent.id, {
+            externalId: messageId || matchingRecent.externalId,
+            deliveryStatus: 'delivered'
+          });
+          
+          console.log(`[ULTRAMSG-DEDUP] ✅ Messaggio ${matchingRecent.id} confermato come delivered via content matching`);
+          return updatedComm || matchingRecent;
+        }
+      }
+
       console.log("[ULTRAMSG] Contenuto del messaggio:", messageContent);
       
       // Genera riassunto con AI se il messaggio è lungo
