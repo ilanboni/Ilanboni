@@ -2543,6 +2543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get multi-agency scraped properties near Duomo (5km radius)
   app.get("/api/scraped-properties/multi-agency", async (req: Request, res: Response) => {
     try {
+      const { isFavorite } = req.query;
       const DUOMO_LAT = 45.464203;
       const DUOMO_LON = 9.191383;
       const RADIUS_METERS = 5000; // 5km radius
@@ -2575,7 +2576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allSharedProperties = await db.select().from(sharedProperties);
       
       // Filter for multi-agency (2+ UNIQUE agencies) and within 5km of Duomo
-      const multiAgencyNearDuomo = allSharedProperties.filter(property => {
+      let multiAgencyNearDuomo = allSharedProperties.filter(property => {
         // Check if property has agencies array
         const agencies = property.agencies as any[];
         if (!agencies || !Array.isArray(agencies) || agencies.length === 0) {
@@ -2608,6 +2609,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         return distance <= RADIUS_METERS;
       });
+      
+      // Apply favorite filter if requested
+      if (isFavorite === 'true') {
+        multiAgencyNearDuomo = multiAgencyNearDuomo.filter(property => property.isFavorite === true);
+        console.log(`[MULTI-AGENCY] Filtered to ${multiAgencyNearDuomo.length} favorite properties`);
+      }
       
       // Sort by most agencies first, then by distance
       multiAgencyNearDuomo.sort((a, b) => {
