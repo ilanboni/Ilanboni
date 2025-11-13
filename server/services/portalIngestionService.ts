@@ -180,7 +180,17 @@ export class PortalIngestionService {
     }
   }
 
-  private async importListing(portalId: string, listing: PropertyListing): Promise<void> {
+  /**
+   * Import a single property listing (public API for external use)
+   * Returns { updated: true } if updated, { updated: false } if inserted
+   */
+  async importProperty(listing: PropertyListing, scrapedForClientId?: number): Promise<{ updated: boolean }> {
+    const portalId = listing.source || 'apify';
+    const wasUpdate = await this.importListing(portalId, listing, scrapedForClientId);
+    return { updated: wasUpdate };
+  }
+
+  private async importListing(portalId: string, listing: PropertyListing, scrapedForClientId?: number): Promise<boolean> {
     const now = new Date();
     
     const existing = await db
@@ -211,7 +221,9 @@ export class PortalIngestionService {
         .where(eq(properties.id, existing[0].id));
       
       console.log(`[INGESTION] Updated existing property: ${listing.externalId}`);
+      return true; // was an update
     } else {
+      // @ts-ignore - TypeScript overload resolution issue
       const inserted = await db.insert(properties).values({
         address: listing.address,
         city: listing.city,
@@ -269,6 +281,8 @@ export class PortalIngestionService {
           })
           .catch(err => console.error('[INGESTION] Geocode failed:', err));
       }
+      
+      return false; // was an insert
     }
   }
 

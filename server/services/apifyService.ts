@@ -4,11 +4,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface ApifyScraperConfig {
-  searchUrls: string[];
+  searchUrls?: string[];
   maxItems?: number;
   proxyConfiguration?: {
     useApifyProxy: boolean;
     apifyProxyGroups?: string[];
+  };
+  filters?: {
+    propertyType?: string;
+    priceMin?: number;
+    priceMax?: number;
+    surfaceMin?: number;
+    surfaceMax?: number;
+    rooms?: number;
+    bathrooms?: number;
   };
 }
 
@@ -25,10 +34,10 @@ export class ApifyService {
    * Scrapes Immobiliare.it using Apify actor
    */
   async scrapeImmobiliare(config: ApifyScraperConfig): Promise<PropertyListing[]> {
-    console.log(`[APIFY] Starting scrape with ${config.searchUrls.length} URLs`);
+    console.log(`[APIFY] Starting scrape with config:`, JSON.stringify(config, null, 2));
     
     // New actor format: igolaizola/immobiliare-it-scraper
-    const input = {
+    const input: any = {
       municipality: 'milano',
       category: 'vendita',
       maxItems: config.maxItems || 1000,
@@ -37,6 +46,12 @@ export class ApifyService {
         apifyProxyGroups: ['RESIDENTIAL']
       }
     };
+
+    // Add filters if provided
+    if (config.filters) {
+      input.filters = config.filters;
+      console.log('[APIFY] Using filters:', config.filters);
+    }
 
     try {
       // Run the actor
@@ -71,24 +86,61 @@ export class ApifyService {
    */
   async scrapeAllMilano(): Promise<PropertyListing[]> {
     console.log('[APIFY] 🔍 Starting complete Milano scrape...');
-    
-    // Multiple search URLs with Milano-specific zones (Centro Storico, Porta Venezia, etc.)
-    const searchUrls = [
-      // Centro Storico (Duomo area - id: 10100)
-      'https://www.immobiliare.it/vendita-case/milano/centro-storico-10100/',
-      // Porta Venezia / Indipendenza
-      'https://www.immobiliare.it/vendita-case/milano/porta-venezia-10101/',
-      // Brera
-      'https://www.immobiliare.it/vendita-case/milano/brera-10102/',
-      // Porta Romana / Cadore
-      'https://www.immobiliare.it/vendita-case/milano/porta-romana-10109/',
-      // Generic Milano fallback
-      'https://www.immobiliare.it/vendita-case/milano/'
-    ];
 
     return this.scrapeImmobiliare({
-      searchUrls,
-      maxItems: 2000, // Max per URL
+      maxItems: 5000, // Increase to get more coverage
+      proxyConfiguration: {
+        useApifyProxy: true,
+        apifyProxyGroups: ['RESIDENTIAL']
+      }
+    });
+  }
+
+  /**
+   * Scrapes properties for a specific buyer based on their criteria
+   * This ensures we find ALL relevant properties, not just the first 2000
+   */
+  async scrapeForBuyer(buyerCriteria: {
+    propertyType?: string;
+    minSize?: number;
+    maxPrice?: number;
+    rooms?: number;
+    bathrooms?: number;
+  }): Promise<PropertyListing[]> {
+    console.log('[APIFY] 🎯 Starting targeted scrape for buyer criteria:', buyerCriteria);
+
+    const filters: any = {};
+
+    // Map propertyType (penthouse -> attico)
+    if (buyerCriteria.propertyType) {
+      const typeMap: Record<string, string> = {
+        'penthouse': 'attico',
+        'apartment': 'appartamento',
+        'house': 'villa',
+        'office': 'ufficio'
+      };
+      filters.propertyType = typeMap[buyerCriteria.propertyType.toLowerCase()] || buyerCriteria.propertyType;
+    }
+
+    if (buyerCriteria.maxPrice) {
+      filters.priceMax = buyerCriteria.maxPrice;
+    }
+
+    if (buyerCriteria.minSize) {
+      filters.surfaceMin = buyerCriteria.minSize;
+    }
+
+    if (buyerCriteria.rooms) {
+      filters.rooms = buyerCriteria.rooms;
+    }
+
+    if (buyerCriteria.bathrooms) {
+      filters.bathrooms = buyerCriteria.bathrooms;
+    }
+
+    return this.scrapeImmobiliare({
+      maxItems: 3000, // Higher limit for targeted searches
+      filters: Object.keys(filters).length > 0 ? filters : undefined,
       proxyConfiguration: {
         useApifyProxy: true,
         apifyProxyGroups: ['RESIDENTIAL']
