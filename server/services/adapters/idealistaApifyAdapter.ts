@@ -38,6 +38,16 @@ export class IdealistaApifyAdapter implements PortalAdapter {
         }
       };
 
+      // Add price filter if specified
+      if (criteria.maxPrice) {
+        input['maxPrice'] = criteria.maxPrice;
+      }
+
+      // Add size filter if specified  
+      if (criteria.minSize) {
+        input['minSurface'] = criteria.minSize;
+      }
+
       console.log(`[IDEALISTA-APIFY] Input for igolaizola actor:`, JSON.stringify(input, null, 2));
 
       const run = await this.client.actor('igolaizola/idealista-scraper').call(input);
