@@ -26,6 +26,7 @@ The application features a modern full-stack architecture.
     - **Natural Language Processing (NLP)**: AI-driven processing of client property requests, extracting structured filters.
     - **Automated Property Ingestion**: Architecture for automatic import from real estate portals, utilizing the Casafari API.
     - **Property Deduplication**: Consolidates all duplicate listings into single cards regardless of agency, using normalized agency names and address/price grouping.
+    - **Private Properties Section**: Dedicated page (`/properties/private`) for viewing properties sold directly by private owners (non-agencies) within 4km radius of Milan's Duomo. Features multi-layered filtering: ownerType validation, Apify source verification (Immobiliare.it/Idealista.it), geographic filtering using Haversine distance calculation from Duomo coordinates (45.464204, 9.191383), optional phone number filter, portal-specific filtering, text search, and multi-criteria sorting. Implements performance optimization with useMemo for filtered/sorted results, robust coordinate validation (handling null/undefined/empty/NaN), and awaited query invalidation for real-time UI updates.
     - **WhatsApp Webhook Diagnostic Tool**: A page to verify and configure UltraMsg webhook for automatic message synchronization.
 
 ## External Dependencies

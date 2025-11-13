@@ -22,6 +22,7 @@ import NewPropertyPage from "@/pages/properties/new";
 import SharedPropertiesPage from "@/pages/properties/shared/index";
 import SharedPropertyDetailPage from "@/pages/properties/shared/[id]";
 import NewSharedPropertyPage from "@/pages/properties/shared/new";
+import PrivatePropertiesPage from "@/pages/properties/private/index";
 import SimpleNewClientPage from "@/pages/clients/simple-new";
 import DirectNewClientPage from "@/pages/clients/direct-new";
 import AppointmentsPage from "@/pages/appointments/index";
@@ -72,6 +73,7 @@ function Router() {
       <Route path="/properties/shared" component={SharedPropertiesPage} />
       <Route path="/properties/shared/new" component={NewSharedPropertyPage} />
       <Route path="/properties/shared/:id" component={SharedPropertyDetailPage} />
+      <Route path="/properties/private" component={PrivatePropertiesPage} />
       {/* Rotta edit rimossa perché ora utilizziamo il dialog modale */}
       <Route path="/properties/:id" component={PropertyDetailPage} />
       <Route path="/appointments" component={AppointmentsPage} />

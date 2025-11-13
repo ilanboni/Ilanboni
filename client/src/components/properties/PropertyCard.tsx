@@ -170,7 +170,7 @@ export default function PropertyCard({
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="text-center p-3 bg-gray-50 rounded-lg">
             <div className="text-sm text-gray-500 mb-1">Prezzo</div>
-            <div className="text-lg font-bold">{formatCurrency(property.price)}</div>
+            <div className="text-lg font-bold" data-testid={`property-price-${property.id}`}>{formatCurrency(property.price)}</div>
           </div>
           
           <div className="text-center p-3 bg-gray-50 rounded-lg">

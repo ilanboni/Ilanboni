@@ -67,6 +67,7 @@ export default function Sidebar({ className }: SidebarProps) {
         <SidebarLink to="/clients/nl-request" icon="fas fa-wand-magic-sparkles">Nuova Richiesta AI</SidebarLink>
         <SidebarLink to="/properties" icon="fas fa-building">Immobili</SidebarLink>
         <SidebarLink to="/properties/shared" icon="fas fa-copy">Duplicati Multi-Agency</SidebarLink>
+        <SidebarLink to="/properties/private" icon="fas fa-user">Privati</SidebarLink>
         <SidebarLink to="/appointments" icon="fas fa-calendar-alt">Appuntamenti</SidebarLink>
         <SidebarLink to="/appointment-confirmations" icon="fas fa-calendar-check">Conferme Appuntamenti</SidebarLink>
         <SidebarLink to="/calendar" icon="fas fa-calendar">Calendario</SidebarLink>
