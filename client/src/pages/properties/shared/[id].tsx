@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { queryClient } from "@/lib/queryClient";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
@@ -785,32 +786,35 @@ export default function SharedPropertyDetailsPage() {
         <div>
           {/* Schede per le diverse funzionalità */}
           <Tabs defaultValue="activities" className="w-full mb-6">
-            <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 w-full gap-2">
-              <TabsTrigger value="activities">
-                Attività Acquisizione
-              </TabsTrigger>
-              <TabsTrigger value="attachments">
-                Documenti
-              </TabsTrigger>
-              <TabsTrigger value="pipeline">
-                Pipeline
-              </TabsTrigger>
-              <TabsTrigger value="matching">
-                Potenziali interessati
-              </TabsTrigger>
-              <TabsTrigger value="tasks">
-                Attività
-              </TabsTrigger>
-              <TabsTrigger value="notes">
-                Note
-              </TabsTrigger>
-              <TabsTrigger value="interested-clients">
-                Clienti Interessati
-              </TabsTrigger>
-              <TabsTrigger value="interactions">
-                Cronologia Azioni
-              </TabsTrigger>
-            </TabsList>
+            <ScrollArea className="w-full mb-4">
+              <TabsList className="inline-flex w-max min-w-full h-auto p-1 gap-1">
+                <TabsTrigger value="activities" className="min-w-[140px] whitespace-nowrap" aria-label="Attività di acquisizione proprietà">
+                  Attività Acquisizione
+                </TabsTrigger>
+                <TabsTrigger value="attachments" className="min-w-[120px] whitespace-nowrap" aria-label="Documenti della proprietà">
+                  Documenti
+                </TabsTrigger>
+                <TabsTrigger value="pipeline" className="min-w-[100px] whitespace-nowrap" aria-label="Pipeline di acquisizione">
+                  Pipeline
+                </TabsTrigger>
+                <TabsTrigger value="matching" className="min-w-[140px] whitespace-nowrap" aria-label="Clienti potenzialmente interessati">
+                  Potenziali interessati
+                </TabsTrigger>
+                <TabsTrigger value="tasks" className="min-w-[100px] whitespace-nowrap" aria-label="Attività generali">
+                  Attività
+                </TabsTrigger>
+                <TabsTrigger value="notes" className="min-w-[80px] whitespace-nowrap" aria-label="Note sulla proprietà">
+                  Note
+                </TabsTrigger>
+                <TabsTrigger value="interested-clients" className="min-w-[140px] whitespace-nowrap" aria-label="Clienti interessati alla proprietà">
+                  Clienti Interessati
+                </TabsTrigger>
+                <TabsTrigger value="interactions" className="min-w-[140px] whitespace-nowrap" aria-label="Cronologia delle azioni">
+                  Cronologia Azioni
+                </TabsTrigger>
+              </TabsList>
+              <ScrollBar orientation="horizontal" className="h-2.5" />
+            </ScrollArea>
             
             <TabsContent value="activities">
               <PropertyActivitiesTab sharedPropertyId={property.id} />
