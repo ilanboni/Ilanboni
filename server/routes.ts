@@ -4630,9 +4630,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Dati acquirente non trovati" });
       }
 
-      // Respond immediately with confirmation
-      res.json({
+      // Create scraping job
+      const job = await storage.createScrapingJob({
+        clientId,
+        status: 'queued',
+        buyerCriteria: {
+          propertyType: buyer.propertyType || undefined,
+          minSize: buyer.minSize || undefined,
+          maxPrice: buyer.maxPrice || undefined,
+          rooms: buyer.rooms || undefined,
+          bathrooms: buyer.bathrooms || undefined
+        }
+      });
+
+      // Respond immediately with job ID
+      res.status(202).json({
         success: true,
+        jobId: job.id,
         message: `Scraping avviato per ${buyer.propertyType || 'immobile'} (max €${buyer.maxPrice?.toLocaleString()}, min ${buyer.minSize}m²). Ci vorranno circa 2-3 minuti.`,
         buyerCriteria: {
           propertyType: buyer.propertyType,
@@ -4646,6 +4660,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Execute scraping in background (fire-and-forget)
       setImmediate(async () => {
         try {
+          // Update job status to running
+          await storage.updateScrapingJob(job.id, { status: 'running' });
+
           const { getApifyService } = await import('./services/apifyService');
           const { ingestionService } = await import('./services/portalIngestionService');
           const apifyService = getApifyService();
@@ -4695,9 +4712,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
+          // Update job status to completed
+          await storage.updateScrapingJob(job.id, {
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            results: {
+              totalFetched: listings.length,
+              imported,
+              updated,
+              failed,
+              errors: errors.length > 0 ? errors : undefined
+            }
+          });
+
           console.log(`[BUYER-SCRAPE] Background task completed: ${listings.length} total, ${imported} new, ${updated} updated`);
         } catch (bgError) {
           console.error('[BUYER-SCRAPE] Background task failed:', bgError);
+          // Update job status to failed
+          await storage.updateScrapingJob(job.id, {
+            status: 'failed',
+            completedAt: new Date().toISOString(),
+            results: {
+              error: bgError instanceof Error ? bgError.message : 'Unknown error'
+            }
+          });
         }
       });
 
@@ -4705,6 +4743,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('[POST /api/apify/scrape-for-buyer]', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : 'Scraping failed' 
+      });
+    }
+  });
+
+  // Get scraping job status
+  app.get("/api/scraping-jobs/:id", async (req: Request, res: Response) => {
+    try {
+      const jobId = parseInt(req.params.id);
+      if (isNaN(jobId)) {
+        return res.status(400).json({ error: "ID job non valido" });
+      }
+
+      const job = await storage.getScrapingJob(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job non trovato" });
+      }
+
+      res.json(job);
+    } catch (error) {
+      console.error('[GET /api/scraping-jobs/:id]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to fetch job' 
       });
     }
   });
