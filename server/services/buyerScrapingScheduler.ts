@@ -57,7 +57,6 @@ export class BuyerScrapingScheduler {
 
       if (activeBuyers.length === 0) {
         console.log('[BUYER-SCRAPING-SCHEDULER] ℹ️ Nessun buyer attivo da processare');
-        this.isRunning = false;
         return;
       }
 
