@@ -15,6 +15,7 @@ import {
   calendarEvents, type CalendarEvent, type InsertCalendarEvent,
   propertyActivities, type PropertyActivity, type InsertPropertyActivity,
   propertyAttachments, type PropertyAttachment, type InsertPropertyAttachment,
+  scrapingJobs, type ScrapingJob, type InsertScrapingJob,
   type ClientWithDetails, type PropertyWithDetails, 
   type SharedPropertyWithDetails
 } from "@shared/schema";
@@ -144,6 +145,11 @@ export interface IStorage {
   // Matching methods
   matchPropertiesForBuyer(buyerId: number): Promise<Property[]>;
   matchBuyersForProperty(propertyId: number): Promise<Client[]>;
+  
+  // Scraping jobs methods
+  getScrapingJob(id: number): Promise<ScrapingJob | undefined>;
+  createScrapingJob(job: InsertScrapingJob): Promise<ScrapingJob>;
+  updateScrapingJob(id: number, data: Partial<InsertScrapingJob>): Promise<ScrapingJob | undefined>;
 }
 
 // In-memory storage implementation
@@ -3064,6 +3070,30 @@ export class DatabaseStorage implements IStorage {
 
   async getClientCommunicationsTimeline(clientId: number): Promise<Communication[]> {
     return await this.getCommunicationsByClientId(clientId);
+  }
+
+  // Scraping jobs methods
+  async getScrapingJob(id: number): Promise<ScrapingJob | undefined> {
+    const result = await db
+      .select()
+      .from(scrapingJobs)
+      .where(eq(scrapingJobs.id, id))
+      .limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async createScrapingJob(job: InsertScrapingJob): Promise<ScrapingJob> {
+    const result = await db.insert(scrapingJobs).values(job).returning();
+    return result[0];
+  }
+
+  async updateScrapingJob(id: number, data: Partial<InsertScrapingJob>): Promise<ScrapingJob | undefined> {
+    const result = await db
+      .update(scrapingJobs)
+      .set(data)
+      .where(eq(scrapingJobs.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
   }
 }
 

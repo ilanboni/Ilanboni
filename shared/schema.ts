@@ -79,6 +79,18 @@ export const buyers = pgTable("buyers", {
   garden: boolean("garden").default(false)
 });
 
+// Scraping jobs (for async scraping status tracking)
+export const scrapingJobs = pgTable("scraping_jobs", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  status: text("status").notNull().default('queued'), // 'queued', 'running', 'completed', 'failed'
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  error: text("error"), // error message if failed
+  resultsCount: integer("results_count").default(0), // number of properties found
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
 // Sellers (extends clients)
 export const sellers = pgTable("sellers", {
   id: serial("id").primaryKey(),
@@ -730,3 +742,10 @@ export const insertPropertyAttachmentSchema = createInsertSchema(propertyAttachm
 
 export type PropertyAttachment = typeof propertyAttachments.$inferSelect;
 export type InsertPropertyAttachment = z.infer<typeof insertPropertyAttachmentSchema>;
+
+// Scraping jobs schema
+export const insertScrapingJobSchema = createInsertSchema(scrapingJobs)
+  .omit({ id: true, createdAt: true });
+
+export type ScrapingJob = typeof scrapingJobs.$inferSelect;
+export type InsertScrapingJob = z.infer<typeof insertScrapingJobSchema>;

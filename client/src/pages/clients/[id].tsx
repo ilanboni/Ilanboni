@@ -70,8 +70,20 @@ export default function ClientDetailPage() {
   const [showScrapingAlert, setShowScrapingAlert] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const scrapingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Mutation per scraping mirato
+  // Cleanup scraping timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scrapingTimeoutRef.current) {
+        clearTimeout(scrapingTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // TODO: Replace 3-minute timer with proper job ID + polling for accurate job status
+  // Current MVP approach: estimate 3 minutes for scraping completion
+  // Future improvement: return jobId from POST, poll /api/scraping-jobs/:id until done
   const scrapingMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/apify/scrape-for-buyer/${id}`, {
@@ -89,6 +101,24 @@ export default function ClientDetailPage() {
         title: "Scraping avviato",
         description: data.message || "Lo scraping è stato avviato con successo. Ci vorranno circa 2-3 minuti.",
       });
+      
+      // Auto-refresh after 3 minutes (estimated scraping duration)
+      // Note: This is a timer-based MVP solution, not accurate job status tracking
+      scrapingTimeoutRef.current = setTimeout(() => {
+        setShowScrapingAlert(false);
+        scrapingTimeoutRef.current = null;
+        // Invalidate and refetch properties to show new results
+        queryClient.invalidateQueries({
+          queryKey: [`/api/clients/${id}/matching-properties`]
+        });
+        queryClient.invalidateQueries({
+          queryKey: [`/api/clients/${id}/saved-scraped-properties`]
+        });
+        toast({
+          title: "Scraping completato",
+          description: "Gli immobili sono stati aggiornati. Controlla la sezione 'Immobili da inviare'.",
+        });
+      }, 3 * 60 * 1000); // 3 minutes
     },
     onError: (error: Error) => {
       toast({
@@ -542,11 +572,11 @@ export default function ClientDetailPage() {
                     <Button 
                       variant="outline"
                       onClick={() => scrapingMutation.mutate()}
-                      disabled={scrapingMutation.isPending}
+                      disabled={scrapingMutation.isPending || showScrapingAlert}
                       className="gap-2 border-orange-600 text-orange-600 hover:bg-orange-50 disabled:opacity-50"
                       data-testid="button-scraping-mirato"
                     >
-                      {scrapingMutation.isPending ? (
+                      {(scrapingMutation.isPending || showScrapingAlert) ? (
                         <>
                           <i className="fas fa-spinner fa-spin"></i>
                           <span>In corso...</span>
