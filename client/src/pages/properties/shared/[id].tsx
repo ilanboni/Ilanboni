@@ -23,6 +23,8 @@ import SharedPropertyMatchingBuyers from "@/components/properties/SharedProperty
 import PropertyInterestedClients from "@/components/properties/PropertyInterestedClients";
 import PropertyPipeline from "@/components/properties/PropertyPipeline";
 import PropertyInteractionsHistory from "@/components/properties/PropertyInteractionsHistory";
+import PropertyActivitiesTab from "@/components/properties/PropertyActivitiesTab";
+import PropertyAttachmentsTab from "@/components/properties/PropertyAttachmentsTab";
 
 function getStageColor(stage: string) {
   switch (stage) {
@@ -782,8 +784,17 @@ export default function SharedPropertyDetailsPage() {
         
         <div>
           {/* Schede per le diverse funzionalità */}
-          <Tabs defaultValue="matching" className="w-full mb-6">
-            <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 w-full gap-2">
+          <Tabs defaultValue="activities" className="w-full mb-6">
+            <TabsList className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 w-full gap-2">
+              <TabsTrigger value="activities">
+                Attività Acquisizione
+              </TabsTrigger>
+              <TabsTrigger value="attachments">
+                Documenti
+              </TabsTrigger>
+              <TabsTrigger value="pipeline">
+                Pipeline
+              </TabsTrigger>
               <TabsTrigger value="matching">
                 Potenziali interessati
               </TabsTrigger>
@@ -796,14 +807,23 @@ export default function SharedPropertyDetailsPage() {
               <TabsTrigger value="interested-clients">
                 Clienti Interessati
               </TabsTrigger>
-              <TabsTrigger value="pipeline">
-                Pipeline
-              </TabsTrigger>
               <TabsTrigger value="interactions">
                 Cronologia Azioni
               </TabsTrigger>
             </TabsList>
             
+            <TabsContent value="activities">
+              <PropertyActivitiesTab sharedPropertyId={property.id} />
+            </TabsContent>
+
+            <TabsContent value="attachments">
+              <PropertyAttachmentsTab sharedPropertyId={property.id} />
+            </TabsContent>
+
+            <TabsContent value="pipeline">
+              <PropertyPipeline propertyId={property.id} />
+            </TabsContent>
+
             <TabsContent value="matching">
               <SharedPropertyMatchingBuyers 
                 sharedPropertyId={property.id} 
@@ -821,10 +841,6 @@ export default function SharedPropertyDetailsPage() {
 
             <TabsContent value="interested-clients">
               <PropertyInterestedClients propertyId={property.id} />
-            </TabsContent>
-
-            <TabsContent value="pipeline">
-              <PropertyPipeline propertyId={property.id} />
             </TabsContent>
 
             <TabsContent value="interactions">

@@ -13,6 +13,8 @@ import {
   immobiliareEmails, type ImmobiliareEmail, type InsertImmobiliareEmail,
   propertySent, type PropertySent, type InsertPropertySent,
   calendarEvents, type CalendarEvent, type InsertCalendarEvent,
+  propertyActivities, type PropertyActivity, type InsertPropertyActivity,
+  propertyAttachments, type PropertyAttachment, type InsertPropertyAttachment,
   type ClientWithDetails, type PropertyWithDetails, 
   type SharedPropertyWithDetails
 } from "@shared/schema";
@@ -113,6 +115,19 @@ export interface IStorage {
   getSharedPropertyNotes(sharedPropertyId: number): Promise<SharedPropertyNote[]>;
   createSharedPropertyNote(note: InsertSharedPropertyNote): Promise<SharedPropertyNote>;
   deleteSharedPropertyNote(noteId: number): Promise<boolean>;
+  
+  // Property activities methods
+  getPropertyActivities(sharedPropertyId: number): Promise<PropertyActivity[]>;
+  getPropertyActivity(id: number): Promise<PropertyActivity | undefined>;
+  createPropertyActivity(activity: InsertPropertyActivity): Promise<PropertyActivity>;
+  updatePropertyActivity(id: number, data: Partial<InsertPropertyActivity>): Promise<PropertyActivity | undefined>;
+  deletePropertyActivity(id: number): Promise<boolean>;
+  
+  // Property attachments methods
+  getPropertyAttachments(sharedPropertyId: number): Promise<PropertyAttachment[]>;
+  getPropertyAttachment(id: number): Promise<PropertyAttachment | undefined>;
+  createPropertyAttachment(attachment: InsertPropertyAttachment): Promise<PropertyAttachment>;
+  deletePropertyAttachment(id: number): Promise<boolean>;
   
   // Client conversation task methods
   findClientConversationTask(clientId: number): Promise<Task | undefined>;

@@ -58,6 +58,7 @@ import geocodeRouter from "./routes/geocode";
 import { registerAIAssistantRoutes } from "./routes/aiAssistant";
 import virtualAssistantRouter from "./routes/virtualAssistant";
 import mailMergeRouter from "./routes/mailMerge";
+import propertyManagementRouter from "./routes/propertyManagement";
 import whatsappRemindersRouter from "./routes/whatsappReminders";
 import { manualWebhookHandler } from "./routes/manualWebhook";
 import diagnosticWebhookRouter from "./diagnostic-webhook";
@@ -120,6 +121,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Registra le route per il mail merge
   app.use('/api/mail-merge', mailMergeRouter);
+  
+  // Registra le route per la gestione proprietà (attività e allegati)
+  app.use('/api', propertyManagementRouter);
   
   // Registra le route per i promemoria WhatsApp
   app.use('/api/whatsapp', whatsappRemindersRouter);

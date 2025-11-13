@@ -689,3 +689,44 @@ export const insertDailyGoalSchema = createInsertSchema(dailyGoals)
 
 export type DailyGoal = typeof dailyGoals.$inferSelect;
 export type InsertDailyGoal = z.infer<typeof insertDailyGoalSchema>;
+
+// Tabella per tracciare le attività custom per le proprietà condivise
+export const propertyActivities = pgTable("property_activities", {
+  id: serial("id").primaryKey(),
+  sharedPropertyId: integer("shared_property_id").notNull().references(() => sharedProperties.id),
+  type: text("type").notNull(), // "phone_call", "site_visit", "email_sent", "document_request", "negotiation", "custom"
+  title: text("title").notNull(),
+  description: text("description"),
+  activityDate: timestamp("activity_date").notNull(), // data/ora dell'attività
+  status: text("status").default("pending").notNull(), // "pending", "completed", "cancelled"
+  completedAt: timestamp("completed_at"),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const insertPropertyActivitySchema = createInsertSchema(propertyActivities)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export type PropertyActivity = typeof propertyActivities.$inferSelect;
+export type InsertPropertyActivity = z.infer<typeof insertPropertyActivitySchema>;
+
+// Tabella per gli allegati delle proprietà condivise
+export const propertyAttachments = pgTable("property_attachments", {
+  id: serial("id").primaryKey(),
+  sharedPropertyId: integer("shared_property_id").notNull().references(() => sharedProperties.id),
+  category: text("category").notNull(), // "visura", "planimetria", "foto", "contratto", "altro"
+  filename: text("filename").notNull(), // nome file originale
+  filepath: text("filepath").notNull(), // percorso del file sul server
+  filesize: integer("filesize"), // dimensione in bytes
+  mimetype: text("mimetype"), // tipo MIME del file
+  notes: text("notes"), // note opzionali sull'allegato
+  uploadedBy: integer("uploaded_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const insertPropertyAttachmentSchema = createInsertSchema(propertyAttachments)
+  .omit({ id: true, createdAt: true });
+
+export type PropertyAttachment = typeof propertyAttachments.$inferSelect;
+export type InsertPropertyAttachment = z.infer<typeof insertPropertyAttachmentSchema>;
