@@ -21,7 +21,8 @@ import { deduplicationScheduler } from "./services/deduplicationScheduler";
 // Importa il service per l'ingestion multi-portale
 import { ingestionService } from "./services/portalIngestionService";
 import { IdealistaAdapter } from "./services/adapters/idealistaAdapter";
-import { ImmobiliarePlaywrightAdapter } from "./services/adapters/immobiliarePlaywrightAdapter";
+// DISABLED: Playwright adapter lacks agency/private classification data (uses only Apify)
+// import { ImmobiliarePlaywrightAdapter } from "./services/adapters/immobiliarePlaywrightAdapter";
 // Importa lo scheduler per l'ingestion automatica
 import { ingestionScheduler } from "./services/ingestionScheduler";
 
@@ -303,7 +304,8 @@ async function pollWhatsAppMessages() {
     
     // Registra gli adapter per l'ingestion multi-portale
     ingestionService.registerAdapter(new IdealistaAdapter());
-    ingestionService.registerAdapter(new ImmobiliarePlaywrightAdapter());
+    // DISABLED: Immobiliare Playwright adapter (using Apify only for accurate classification)
+    // ingestionService.registerAdapter(new ImmobiliarePlaywrightAdapter());
     console.log('[INGESTION] Adapters registered successfully (Playwright-based)');
     
     // Avvia lo scheduler per i follow-up automatici (verifica ogni ora = 60 minuti)
