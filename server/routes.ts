@@ -4630,69 +4630,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Dati acquirente non trovati" });
       }
 
-      const { getApifyService } = await import('./services/apifyService');
-      const { ingestionService } = await import('./services/portalIngestionService');
-      const apifyService = getApifyService();
-
-      // Scrape with buyer's specific criteria
-      const listings = await apifyService.scrapeForBuyer({
-        propertyType: buyer.propertyType || undefined,
-        minSize: buyer.minSize || undefined,
-        maxPrice: buyer.maxPrice || undefined,
-        rooms: buyer.rooms || undefined,
-        bathrooms: buyer.bathrooms || undefined
-      });
-
-      console.log(`[BUYER-SCRAPE] Found ${listings.length} listings matching buyer criteria`);
-
-      // Import into database
-      let imported = 0;
-      let updated = 0;
-      let failed = 0;
-      const errors: any[] = [];
-
-      for (const listing of listings) {
-        try {
-          const result = await ingestionService.importProperty(listing, clientId);
-          if (result.updated) updated++;
-          else imported++;
-        } catch (error) {
-          failed++;
-          errors.push({
-            url: listing.url,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-        }
-      }
-
-      console.log(`[BUYER-SCRAPE] Import complete: ${imported} imported, ${updated} updated, ${failed} failed`);
-
-      // Trigger deduplication scan
-      if (imported > 0 || updated > 0) {
-        try {
-          console.log('[BUYER-SCRAPE] Triggering deduplication scan...');
-          const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
-          await runDeduplicationScan();
-          console.log('[BUYER-SCRAPE] Deduplication completed');
-        } catch (dedupError) {
-          console.error('[BUYER-SCRAPE] Deduplication failed:', dedupError);
-        }
-      }
-
+      // Respond immediately with confirmation
       res.json({
         success: true,
+        message: `Scraping avviato per ${buyer.propertyType || 'immobile'} (max €${buyer.maxPrice?.toLocaleString()}, min ${buyer.minSize}m²). Ci vorranno circa 2-3 minuti.`,
         buyerCriteria: {
           propertyType: buyer.propertyType,
           minSize: buyer.minSize,
           maxPrice: buyer.maxPrice,
           rooms: buyer.rooms,
           bathrooms: buyer.bathrooms
-        },
-        totalFetched: listings.length,
-        imported,
-        updated,
-        failed,
-        errors: errors.slice(0, 10)
+        }
+      });
+
+      // Execute scraping in background (fire-and-forget)
+      setImmediate(async () => {
+        try {
+          const { getApifyService } = await import('./services/apifyService');
+          const { ingestionService } = await import('./services/portalIngestionService');
+          const apifyService = getApifyService();
+
+          // Scrape with buyer's specific criteria
+          const listings = await apifyService.scrapeForBuyer({
+            propertyType: buyer.propertyType || undefined,
+            minSize: buyer.minSize || undefined,
+            maxPrice: buyer.maxPrice || undefined,
+            rooms: buyer.rooms || undefined,
+            bathrooms: buyer.bathrooms || undefined
+          });
+
+          console.log(`[BUYER-SCRAPE] Found ${listings.length} listings matching buyer criteria`);
+
+          // Import into database
+          let imported = 0;
+          let updated = 0;
+          let failed = 0;
+          const errors: any[] = [];
+
+          for (const listing of listings) {
+            try {
+              const result = await ingestionService.importProperty(listing, clientId);
+              if (result.updated) updated++;
+              else imported++;
+            } catch (error) {
+              failed++;
+              errors.push({
+                url: listing.url,
+                error: error instanceof Error ? error.message : 'Unknown error'
+              });
+            }
+          }
+
+          console.log(`[BUYER-SCRAPE] Import complete: ${imported} imported, ${updated} updated, ${failed} failed`);
+
+          // Trigger deduplication scan
+          if (imported > 0 || updated > 0) {
+            try {
+              console.log('[BUYER-SCRAPE] Triggering deduplication scan...');
+              const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
+              await runDeduplicationScan();
+              console.log('[BUYER-SCRAPE] Deduplication completed');
+            } catch (dedupError) {
+              console.error('[BUYER-SCRAPE] Deduplication failed:', dedupError);
+            }
+          }
+
+          console.log(`[BUYER-SCRAPE] Background task completed: ${listings.length} total, ${imported} new, ${updated} updated`);
+        } catch (bgError) {
+          console.error('[BUYER-SCRAPE] Background task failed:', bgError);
+        }
       });
 
     } catch (error) {
