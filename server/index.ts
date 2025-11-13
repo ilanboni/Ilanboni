@@ -25,6 +25,8 @@ import { IdealistaAdapter } from "./services/adapters/idealistaAdapter";
 // import { ImmobiliarePlaywrightAdapter } from "./services/adapters/immobiliarePlaywrightAdapter";
 // Importa lo scheduler per l'ingestion automatica
 import { ingestionScheduler } from "./services/ingestionScheduler";
+// Importa lo scheduler per lo scraping automatico dei buyer
+import { buyerScrapingScheduler } from "./services/buyerScrapingScheduler";
 
 // Configura l'agente virtuale (impostazione di default, può essere cambiato tramite API)
 if (process.env.ENABLE_VIRTUAL_AGENT === undefined) {
@@ -317,5 +319,8 @@ async function pollWhatsAppMessages() {
     // Avvia lo scheduler per l'ingestion automatica (verifica ogni giorno)
     ingestionScheduler.start();
     console.log('[INGESTION] Scheduler avviato con successo');
+    
+    // Avvia lo scheduler per lo scraping automatico dei buyer (Martedì e Venerdì alle 2:00 AM)
+    buyerScrapingScheduler.start();
   });
 })();
