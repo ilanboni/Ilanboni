@@ -67,23 +67,11 @@ export default function ClientDetailPage() {
   const [detectedProperties, setDetectedProperties] = useState<{ id: number; address: string }[]>([]);
   const [conversationThread, setConversationThread] = useState("");
   const [communicationsView, setCommunicationsView] = useState<"chat" | "table">("chat");
-  const [showScrapingAlert, setShowScrapingAlert] = useState(false);
+  const [scrapingJobId, setScrapingJobId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const scrapingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Cleanup scraping timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (scrapingTimeoutRef.current) {
-        clearTimeout(scrapingTimeoutRef.current);
-      }
-    };
-  }, []);
-  
-  // TODO: Replace 3-minute timer with proper job ID + polling for accurate job status
-  // Current MVP approach: estimate 3 minutes for scraping completion
-  // Future improvement: return jobId from POST, poll /api/scraping-jobs/:id until done
+  // Start scraping mutation
   const scrapingMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/apify/scrape-for-buyer/${id}`, {
@@ -96,29 +84,11 @@ export default function ClientDetailPage() {
       return response.json();
     },
     onSuccess: (data) => {
-      setShowScrapingAlert(true);
+      setScrapingJobId(data.jobId);
       toast({
         title: "Scraping avviato",
         description: data.message || "Lo scraping è stato avviato con successo. Ci vorranno circa 2-3 minuti.",
       });
-      
-      // Auto-refresh after 3 minutes (estimated scraping duration)
-      // Note: This is a timer-based MVP solution, not accurate job status tracking
-      scrapingTimeoutRef.current = setTimeout(() => {
-        setShowScrapingAlert(false);
-        scrapingTimeoutRef.current = null;
-        // Invalidate and refetch properties to show new results
-        queryClient.invalidateQueries({
-          queryKey: [`/api/clients/${id}/matching-properties`]
-        });
-        queryClient.invalidateQueries({
-          queryKey: [`/api/clients/${id}/saved-scraped-properties`]
-        });
-        toast({
-          title: "Scraping completato",
-          description: "Gli immobili sono stati aggiornati. Controlla la sezione 'Immobili da inviare'.",
-        });
-      }, 3 * 60 * 1000); // 3 minutes
     },
     onError: (error: Error) => {
       toast({
@@ -128,6 +98,41 @@ export default function ClientDetailPage() {
       });
     },
   });
+
+  // Poll scraping job status
+  const { data: scrapingJob } = useQuery({
+    queryKey: [`/api/scraping-jobs/${scrapingJobId}`],
+    enabled: scrapingJobId !== null,
+    refetchInterval: (query) => {
+      const data = query.state.data as any;
+      // Poll every 3 seconds while running, stop when completed/failed
+      return data?.status === 'running' || data?.status === 'queued' ? 3000 : false;
+    },
+  });
+
+  // Handle job completion
+  useEffect(() => {
+    if (scrapingJob?.status === 'completed') {
+      setScrapingJobId(null);
+      queryClient.invalidateQueries({
+        queryKey: [`/api/clients/${id}/matching-properties`]
+      });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/clients/${id}/saved-scraped-properties`]
+      });
+      toast({
+        title: "Scraping completato",
+        description: `Trovati ${scrapingJob.results?.totalFetched || 0} annunci, ${scrapingJob.results?.imported || 0} importati. Controlla la sezione 'Immobili da inviare'.`,
+      });
+    } else if (scrapingJob?.status === 'failed') {
+      setScrapingJobId(null);
+      toast({
+        title: "Scraping fallito",
+        description: scrapingJob.results?.error || "Errore durante lo scraping",
+        variant: "destructive",
+      });
+    }
+  }, [scrapingJob?.status]);
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
@@ -572,11 +577,11 @@ export default function ClientDetailPage() {
                     <Button 
                       variant="outline"
                       onClick={() => scrapingMutation.mutate()}
-                      disabled={scrapingMutation.isPending || showScrapingAlert}
+                      disabled={scrapingMutation.isPending || scrapingJobId !== null}
                       className="gap-2 border-orange-600 text-orange-600 hover:bg-orange-50 disabled:opacity-50"
                       data-testid="button-scraping-mirato"
                     >
-                      {(scrapingMutation.isPending || showScrapingAlert) ? (
+                      {(scrapingMutation.isPending || scrapingJobId !== null) ? (
                         <>
                           <i className="fas fa-spinner fa-spin"></i>
                           <span>In corso...</span>
@@ -720,20 +725,23 @@ export default function ClientDetailPage() {
           </div>
         </div>
         
-        {showScrapingAlert && (
+        {scrapingJobId !== null && scrapingJob && (
           <Alert className="bg-orange-50 border-orange-200">
             <Search className="h-4 w-4 text-orange-600" />
             <AlertDescription className="flex items-center justify-between">
               <div>
-                <strong>Scraping in corso</strong>
+                <strong>
+                  {scrapingJob.status === 'queued' && 'Scraping in coda...'}
+                  {scrapingJob.status === 'running' && 'Scraping in corso...'}
+                </strong>
                 <p className="text-sm mt-1">
-                  Lo scraping dei portali può richiedere 2-3 minuti. Al termine, clicca "Svuota cache" per vedere i nuovi immobili.
+                  Lo scraping dei portali può richiedere 2-3 minuti. Riceverai una notifica al termine.
                 </p>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={() => setShowScrapingAlert(false)}
+                onClick={() => setScrapingJobId(null)}
                 className="hover:bg-orange-100"
               >
                 ✕
