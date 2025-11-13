@@ -298,6 +298,116 @@ export class ApifyService {
       throw error;
     }
   }
+
+  /**
+   * Scrape specific listings by their direct URLs using azzouzana actor
+   * Use this for targeted scraping of missing/specific properties
+   */
+  async scrapeSpecificListings(urls: string[]): Promise<PropertyListing[]> {
+    if (!urls || urls.length === 0) {
+      console.warn('[APIFY-SPECIFIC] No URLs provided');
+      return [];
+    }
+
+    console.log(`[APIFY-SPECIFIC] 🎯 Scraping ${urls.length} specific listings...`);
+    
+    const actorId = 'azzouzana/immobiliare-it-listing-page-scraper-by-items-urls';
+    
+    try {
+      // azzouzana expects startUrls as array of objects with url property
+      const startUrls = urls.map(url => ({ url }));
+      
+      const run = await this.client.actor(actorId).call({ startUrls });
+      console.log(`[APIFY-SPECIFIC] Run completed: ${run.id}`);
+
+      const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
+      console.log(`[APIFY-SPECIFIC] Fetched ${items.length} items`);
+
+      if (items.length > 0) {
+        console.log('[APIFY-SPECIFIC] Sample keys:', Object.keys(items[0]));
+      }
+
+      return this.transformAzzouzanaResults(items);
+    } catch (error) {
+      console.error('[APIFY-SPECIFIC] ❌ Scraping failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Transform azzouzana actor results to PropertyListing format
+   */
+  private transformAzzouzanaResults(items: any[]): PropertyListing[] {
+    return items
+      .map((item, idx): PropertyListing | null => {
+        try {
+          // Match externalId from URL with or without trailing slash
+          const urlMatch = item.url?.match(/\/annunci\/(\d+)/);
+          const externalId = urlMatch ? urlMatch[1] : String(Date.now() + idx);
+
+          let price = 0;
+          if (item.price) {
+            const priceMatch = String(item.price).match(/[\d.,]+/);
+            if (priceMatch) {
+              price = parseInt(priceMatch[0].replace(/[.,]/g, ''));
+            }
+          }
+
+          let size = 0;
+          if (item.surface || item.size) {
+            const sizeMatch = String(item.surface || item.size).match(/\d+/);
+            if (sizeMatch) {
+              size = parseInt(sizeMatch[0]);
+            }
+          }
+
+          const contacts = item.contacts || {};
+          const advertiser = contacts.advertiser || item.advertiser || {};
+          const agencyName = advertiser.name || contacts.agencyName || contacts.agency || null;
+          const isPrivate = !agencyName || advertiser.type === 'private';
+
+          const listing: PropertyListing = {
+            externalId,
+            title: item.title || item.description?.substring(0, 100) || 'Senza titolo',
+            address: item.location?.address || item.address || 'Indirizzo non disponibile',
+            city: item.location?.city || item.city || 'Milano',
+            price,
+            size,
+            bedrooms: item.rooms || item.bedrooms,
+            bathrooms: item.bathrooms,
+            floor: item.floor,
+            type: this.parsePropertyType(item.propertyType || item.type),
+            url: item.url || `https://www.immobiliare.it/annunci/${externalId}/`,
+            description: item.description || item.title || '',
+            latitude: item.location?.coordinates?.lat || item.coordinates?.lat || null,
+            longitude: item.location?.coordinates?.lng || item.coordinates?.lng || null,
+            source: 'apify',
+            ownerType: isPrivate ? 'private' : 'agency',
+            agencyName: !isPrivate ? agencyName : null,
+            ownerName: isPrivate ? (advertiser.name || contacts.name || null) : null,
+            ownerPhone: isPrivate ? (contacts.phone || contacts.phoneNumber || null) : null,
+            ownerEmail: isPrivate ? (contacts.email || null) : null
+          };
+          return listing;
+        } catch (error) {
+          console.error(`[APIFY-SPECIFIC] ❌ Transform error item ${idx}:`, error);
+          return null;
+        }
+      })
+      .filter((listing): listing is PropertyListing => listing !== null);
+  }
+
+  private parsePropertyType(type?: string): 'apartment' | 'house' | 'villa' | 'penthouse' | 'loft' | 'studio' {
+    const lowerType = type?.toLowerCase() || '';
+    
+    if (lowerType.includes('attico') || lowerType.includes('penthouse')) return 'penthouse';
+    if (lowerType.includes('villa')) return 'villa';
+    if (lowerType.includes('loft')) return 'loft';
+    if (lowerType.includes('studio') || lowerType.includes('monolocale')) return 'studio';
+    if (lowerType.includes('casa') || lowerType.includes('house')) return 'house';
+    
+    return 'apartment';
+  }
 }
 
 // Singleton instance
