@@ -8,10 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Building, Filter, MapPin, Plus, User, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Building, Filter, MapPin, Plus, User, ChevronLeft, ChevronRight, Star, RefreshCw, Map, List } from "lucide-react";
 import { SharedProperty } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { SimplifiedSharedPropertyCard } from "@/components/properties/SimplifiedSharedPropertyCard";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -64,6 +67,7 @@ function getStageLabel(stage: string) {
 export default function SharedPropertiesPage() {
   const [, setLocation] = useLocation();
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [filters, setFilters] = useState<{ 
     stage?: string; 
     search?: string; 
@@ -242,6 +246,45 @@ export default function SharedPropertiesPage() {
 
   const totalPages = Math.ceil((filteredProperties?.length || 0) / ITEMS_PER_PAGE);
 
+  // Function to refresh data
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/scraped-properties/multi-agency'] });
+    toast({
+      title: "Aggiornamento in corso",
+      description: "Ricaricamento delle proprietà..."
+    });
+  };
+
+  // Create custom marker icons based on number of agencies
+  const createCustomIcon = (agencyCount: number) => {
+    const color = agencyCount >= 3 ? '#f59e0b' : agencyCount === 2 ? '#eab308' : '#ef4444';
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `
+        <div style="
+          background-color: ${color};
+          color: white;
+          border: 2px solid white;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 14px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        ">
+          ${agencyCount}
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+  };
+
   if (isError) {
     return (
       <div className="container py-8">
@@ -257,9 +300,29 @@ export default function SharedPropertiesPage() {
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Proprietà Condivise</h1>
-        <Button onClick={() => setLocation("/properties/shared/new")}>
-          <Plus className="mr-2 h-4 w-4" /> Nuova proprietà condivisa
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh}
+            data-testid="button-refresh"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" /> Aggiorna
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+            data-testid="button-toggle-view"
+          >
+            {viewMode === 'list' ? (
+              <><Map className="mr-2 h-4 w-4" /> Mappa</>
+            ) : (
+              <><List className="mr-2 h-4 w-4" /> Lista</>
+            )}
+          </Button>
+          <Button onClick={() => setLocation("/properties/shared/new")}>
+            <Plus className="mr-2 h-4 w-4" /> Nuova proprietà condivisa
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -403,7 +466,107 @@ export default function SharedPropertiesPage() {
             </Card>
           ))}
         </div>
+      ) : viewMode === 'map' ? (
+        // Map View
+        <>
+          {(!filteredProperties || filteredProperties.length === 0) ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-md p-6 text-center">
+              <p className="text-gray-600 mb-2">Nessuna proprietà da mostrare sulla mappa</p>
+            </div>
+          ) : (
+            <>
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                <p className="text-sm text-blue-800">
+                  🗺️ Vista Mappa - {filteredProperties.filter(p => {
+                    const loc = p.location as any;
+                    if (!loc || typeof loc !== 'object') return false;
+                    const hasLat = typeof loc.lat === 'number' || typeof loc.lat === 'string';
+                    const hasLng = typeof loc.lng === 'number' || typeof loc.lng === 'string' || 
+                                   typeof loc.lon === 'number' || typeof loc.lon === 'string';
+                    return hasLat && hasLng;
+                  }).length} proprietà con coordinate GPS
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  I marker mostrano il numero di agenzie che gestiscono ogni immobile
+                </p>
+              </div>
+              <div className="h-[600px] rounded-lg overflow-hidden border-2 border-gray-200">
+                <MapContainer
+                  center={[45.4642, 9.19]} // Centro Milano
+                  zoom={12}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  {filteredProperties
+                    .filter(property => {
+                      const loc = property.location as any;
+                      if (!loc || typeof loc !== 'object') return false;
+                      const hasLat = typeof loc.lat === 'number' || typeof loc.lat === 'string';
+                      const hasLng = typeof loc.lng === 'number' || typeof loc.lng === 'string' || 
+                                     typeof loc.lon === 'number' || typeof loc.lon === 'string';
+                      return hasLat && hasLng;
+                    })
+                    .map((property) => {
+                      const loc = property.location as any;
+                      const lat = typeof loc.lat === 'string' ? parseFloat(loc.lat) : loc.lat;
+                      
+                      // Backend might use 'lon' or 'lng' for longitude
+                      const rawLng = loc.lng !== undefined ? loc.lng : loc.lon;
+                      const lng = typeof rawLng === 'string' ? parseFloat(rawLng) : rawLng;
+                      
+                      // Skip if coordinates are invalid
+                      if (isNaN(lat) || isNaN(lng)) {
+                        console.warn(`Property ${property.id} has invalid coordinates:`, { lat, lng });
+                        return null;
+                      }
+                      
+                      const agencyCount = property.agencies?.length || 1;
+                      return (
+                        <Marker
+                          key={property.id}
+                          position={[lat, lng]}
+                          icon={createCustomIcon(agencyCount)}
+                        >
+                          <Popup>
+                            <div className="min-w-[250px]">
+                              <h3 className="font-bold text-sm mb-2">{property.address}</h3>
+                              <div className="space-y-1 text-xs">
+                                <p><strong>Prezzo:</strong> €{property.price?.toLocaleString()}</p>
+                                {property.size && <p><strong>Superficie:</strong> {property.size}m²</p>}
+                                <p><strong>Agenzie:</strong> {agencyCount}</p>
+                                {property.agencies && property.agencies.length > 0 && (
+                                  <div className="mt-2">
+                                    <p className="font-semibold">Gestito da:</p>
+                                    <ul className="list-disc list-inside">
+                                      {property.agencies.map((agency, idx) => (
+                                        <li key={idx} className="text-xs">{agency.name}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                <Button
+                                  size="sm"
+                                  className="w-full mt-2"
+                                  onClick={() => setLocation(`/properties/shared/${property.id}`)}
+                                >
+                                  Vedi dettagli
+                                </Button>
+                              </div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      );
+                    })}
+                </MapContainer>
+              </div>
+            </>
+          )}
+        </>
       ) : (
+        // List View
         <>
           {(!paginatedProperties || paginatedProperties.length === 0) ? (
             <div className="bg-gray-50 border border-gray-200 rounded-md p-6 text-center">
