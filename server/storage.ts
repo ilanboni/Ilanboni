@@ -148,6 +148,7 @@ export interface IStorage {
   
   // Scraping jobs methods
   getScrapingJob(id: number): Promise<ScrapingJob | undefined>;
+  getAllScrapingJobs(): Promise<ScrapingJob[]>;
   createScrapingJob(job: InsertScrapingJob): Promise<ScrapingJob>;
   updateScrapingJob(id: number, data: Partial<InsertScrapingJob>): Promise<ScrapingJob | undefined>;
 }
@@ -3080,6 +3081,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(scrapingJobs.id, id))
       .limit(1);
     return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getAllScrapingJobs(): Promise<ScrapingJob[]> {
+    return await db.select().from(scrapingJobs);
   }
 
   async createScrapingJob(job: InsertScrapingJob): Promise<ScrapingJob> {

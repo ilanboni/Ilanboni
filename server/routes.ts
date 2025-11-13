@@ -4644,6 +4644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Respond immediately with job ID
+      // Il job resta in stato "queued" e verrà processato dal ScrapingJobWorker
       res.status(202).json({
         success: true,
         jobId: job.id,
@@ -4656,88 +4657,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bathrooms: buyer.bathrooms
         }
       });
-
-      // Execute scraping in background (fire-and-forget)
-      setImmediate(async () => {
-        try {
-          // Update job status to running
-          await storage.updateScrapingJob(job.id, { status: 'running' });
-
-          const { getApifyService } = await import('./services/apifyService');
-          const { ingestionService } = await import('./services/portalIngestionService');
-          const apifyService = getApifyService();
-
-          // Scrape with buyer's specific criteria
-          const listings = await apifyService.scrapeForBuyer({
-            propertyType: buyer.propertyType || undefined,
-            minSize: buyer.minSize || undefined,
-            maxPrice: buyer.maxPrice || undefined,
-            rooms: buyer.rooms || undefined,
-            bathrooms: buyer.bathrooms || undefined
-          });
-
-          console.log(`[BUYER-SCRAPE] Found ${listings.length} listings matching buyer criteria`);
-
-          // Import into database
-          let imported = 0;
-          let updated = 0;
-          let failed = 0;
-          const errors: any[] = [];
-
-          for (const listing of listings) {
-            try {
-              const result = await ingestionService.importProperty(listing, clientId);
-              if (result.updated) updated++;
-              else imported++;
-            } catch (error) {
-              failed++;
-              errors.push({
-                url: listing.url,
-                error: error instanceof Error ? error.message : 'Unknown error'
-              });
-            }
-          }
-
-          console.log(`[BUYER-SCRAPE] Import complete: ${imported} imported, ${updated} updated, ${failed} failed`);
-
-          // Trigger deduplication scan
-          if (imported > 0 || updated > 0) {
-            try {
-              console.log('[BUYER-SCRAPE] Triggering deduplication scan...');
-              const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
-              await runDeduplicationScan();
-              console.log('[BUYER-SCRAPE] Deduplication completed');
-            } catch (dedupError) {
-              console.error('[BUYER-SCRAPE] Deduplication failed:', dedupError);
-            }
-          }
-
-          // Update job status to completed
-          await storage.updateScrapingJob(job.id, {
-            status: 'completed',
-            completedAt: new Date(),
-            results: {
-              totalFetched: listings.length,
-              imported,
-              updated,
-              failed,
-              errors: errors.length > 0 ? errors : undefined
-            }
-          });
-
-          console.log(`[BUYER-SCRAPE] Background task completed: ${listings.length} total, ${imported} new, ${updated} updated`);
-        } catch (bgError) {
-          console.error('[BUYER-SCRAPE] Background task failed:', bgError);
-          // Update job status to failed
-          await storage.updateScrapingJob(job.id, {
-            status: 'failed',
-            completedAt: new Date(),
-            results: {
-              error: bgError instanceof Error ? bgError.message : 'Unknown error'
-            }
-          });
-        }
-      });
+      
+      // Il job verrà processato automaticamente dal worker (polling ogni 30s)
+      console.log(`[POST /api/apify/scrape-for-buyer/${clientId}] ✅ Job #${job.id} creato e in coda per il worker`);
 
     } catch (error) {
       console.error('[POST /api/apify/scrape-for-buyer]', error);

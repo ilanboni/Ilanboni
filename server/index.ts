@@ -27,6 +27,9 @@ import { IdealistaAdapter } from "./services/adapters/idealistaAdapter";
 import { ingestionScheduler } from "./services/ingestionScheduler";
 // Importa lo scheduler per lo scraping completo di Milano (ottimizzato)
 import { fullCityScrapingScheduler } from "./services/buyerScrapingScheduler";
+// Importa il worker per l'esecuzione persistente dei job di scraping
+import { getScrapingJobWorker } from "./services/scrapingJobWorker";
+import { storage } from "./storage";
 
 // Configura l'agente virtuale (impostazione di default, può essere cambiato tramite API)
 if (process.env.ENABLE_VIRTUAL_AGENT === undefined) {
@@ -323,5 +326,11 @@ async function pollWhatsAppMessages() {
     // Avvia lo scheduler per lo scraping COMPLETO di Milano (Martedì e Venerdì alle 2:00 AM)
     // Sistema ottimizzato: 1 scraping completo invece di N scraping per buyer
     fullCityScrapingScheduler.start();
+    
+    // Avvia il worker per l'esecuzione persistente dei job di scraping
+    // Questo worker controlla periodicamente i job in coda e li esegue
+    // Risolve il problema dei setImmediate che si perdono ai restart
+    const scrapingWorker = getScrapingJobWorker(storage);
+    scrapingWorker.start();
   });
 })();
