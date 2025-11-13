@@ -1,7 +1,7 @@
 import * as cron from 'node-cron';
 import { db } from '../db';
 import { buyers, scrapingJobs } from '../../shared/schema';
-import { eq, isNotNull } from 'drizzle-orm';
+import { eq, isNotNull, desc } from 'drizzle-orm';
 
 export class BuyerScrapingScheduler {
   private scheduledTask: ReturnType<typeof cron.schedule> | null = null;
@@ -66,16 +66,16 @@ export class BuyerScrapingScheduler {
         try {
           // Verifica se c'è già un job completato con successo nelle ultime 24 ore
           const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-          const recentSuccessfulJobs = await db
+          const recentJobs = await db
             .select()
             .from(scrapingJobs)
             .where(
               eq(scrapingJobs.clientId, buyer.clientId)
             )
-            .orderBy(scrapingJobs.createdAt)
+            .orderBy(desc(scrapingJobs.createdAt))
             .limit(5);
 
-          const hasRecentSuccess = recentSuccessfulJobs.some(
+          const hasRecentSuccess = recentJobs.some(
             job => job.status === 'completed' && new Date(job.createdAt) > last24h
           );
 
@@ -83,6 +83,9 @@ export class BuyerScrapingScheduler {
             console.log(`[BUYER-SCRAPING-SCHEDULER] ⏭️ Skip buyer ${buyer.clientId}: job completato nelle ultime 24h`);
             continue;
           }
+          
+          // Log per debugging dedup logic
+          console.log(`[BUYER-SCRAPING-SCHEDULER] Creating job for buyer ${buyer.clientId} (recent jobs: ${recentJobs.length}, last status: ${recentJobs[0]?.status || 'none'})`);
 
           // Crea il job
           const buyerCriteria = {
