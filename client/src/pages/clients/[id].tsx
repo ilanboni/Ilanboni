@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, Building } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { MapPin, Building, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Card, 
   CardContent, 
@@ -66,8 +67,37 @@ export default function ClientDetailPage() {
   const [detectedProperties, setDetectedProperties] = useState<{ id: number; address: string }[]>([]);
   const [conversationThread, setConversationThread] = useState("");
   const [communicationsView, setCommunicationsView] = useState<"chat" | "table">("chat");
+  const [showScrapingAlert, setShowScrapingAlert] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Mutation per scraping mirato
+  const scrapingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/apify/scrape-for-buyer/${id}`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Errore durante lo scraping');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setShowScrapingAlert(true);
+      toast({
+        title: "Scraping avviato",
+        description: data.message || "Lo scraping è stato avviato con successo. Ci vorranno circa 2-3 minuti.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
@@ -505,6 +535,37 @@ export default function ClientDetailPage() {
               <span>Svuota cache</span>
             </Button>
             
+            {client?.type === 'buyer' && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      onClick={() => scrapingMutation.mutate()}
+                      disabled={scrapingMutation.isPending}
+                      className="gap-2 border-orange-600 text-orange-600 hover:bg-orange-50 disabled:opacity-50"
+                      data-testid="button-scraping-mirato"
+                    >
+                      {scrapingMutation.isPending ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin"></i>
+                          <span>In corso...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-4 w-4" />
+                          <span>Scraping Mirato</span>
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Cerca nuovi immobili sui portali usando i criteri AI di questo buyer</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            
             <Button 
               variant="outline"
               asChild
@@ -628,6 +689,28 @@ export default function ClientDetailPage() {
             </Button>
           </div>
         </div>
+        
+        {showScrapingAlert && (
+          <Alert className="bg-orange-50 border-orange-200">
+            <Search className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="flex items-center justify-between">
+              <div>
+                <strong>Scraping in corso</strong>
+                <p className="text-sm mt-1">
+                  Lo scraping dei portali può richiedere 2-3 minuti. Al termine, clicca "Svuota cache" per vedere i nuovi immobili.
+                </p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowScrapingAlert(false)}
+                className="hover:bg-orange-100"
+              >
+                ✕
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="w-full overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
