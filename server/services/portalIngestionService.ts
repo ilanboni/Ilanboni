@@ -21,6 +21,9 @@ export interface PropertyListing {
   longitude?: number;
   ownerType?: 'agency' | 'private';
   agencyName?: string;
+  ownerName?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
   source?: string;
 }
 
@@ -197,6 +200,11 @@ export class PortalIngestionService {
         .set({
           price: listing.price,
           description: listing.description,
+          ownerType: listing.ownerType,
+          agencyName: listing.agencyName,
+          ownerName: listing.ownerName,
+          ownerPhone: listing.ownerPhone,
+          ownerEmail: listing.ownerEmail,
           lastSeenAt: now,
           updatedAt: now
         })
@@ -215,7 +223,10 @@ export class PortalIngestionService {
         floor: listing.floor,
         description: listing.description,
         portal: portalId,
-        agencyName: listing.agencyName, // Nome reale dell'agenzia estratto da Casafari
+        agencyName: listing.agencyName,
+        ownerName: listing.ownerName,
+        ownerPhone: listing.ownerPhone,
+        ownerEmail: listing.ownerEmail,
         externalId: listing.externalId,
         url: listing.url,
         source: listing.source || `scraper-${portalId}`,
@@ -228,7 +239,7 @@ export class PortalIngestionService {
         lastSeenAt: now,
         isOwned: false,
         isShared: false,
-        status: 'available', // CRITICAL FIX: Include in deduplication scan
+        status: 'available',
         geocodeStatus: listing.latitude && listing.longitude ? 'success' : 'pending',
         ownerType: listing.ownerType || 'private'
       }).returning();

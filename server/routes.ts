@@ -4427,6 +4427,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Diagnostic: Scrape sample and save raw JSON for field structure inspection
+  app.post("/api/apify/diagnostic-scrape", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/apify/diagnostic-scrape] 🔍 Starting diagnostic scrape...');
+      
+      const { getApifyService } = await import('./services/apifyService');
+      const apifyService = getApifyService();
+      
+      const result = await apifyService.diagnosticScrape();
+      
+      res.json({
+        success: true,
+        message: `Diagnostic scrape completed. ${result.sampleCount} items saved to ${result.rawPath}`,
+        filePath: result.rawPath,
+        sampleCount: result.sampleCount
+      });
+    } catch (error) {
+      console.error('[POST /api/apify/diagnostic-scrape]', error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : 'Diagnostic scrape failed' 
+      });
+    }
+  });
+
   // Manual trigger: Scrape all Milano with Playwright (replaces broken Apify)
   app.post("/api/apify/scrape-milano", async (req: Request, res: Response) => {
     try {

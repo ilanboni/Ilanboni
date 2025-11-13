@@ -1,5 +1,7 @@
 import { ApifyClient } from 'apify-client';
 import type { PropertyListing } from './portalIngestionService';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface ApifyScraperConfig {
   searchUrls: string[];
@@ -165,8 +167,36 @@ export class ApifyService {
           ? `${address}, ${postalCode}` 
           : address;
 
-        // Agency info from analytics or contacts
-        const agencyName = analytics.agencyName || contacts.agencyName || 'Unknown';
+        // Owner type classification with robust fallbacks
+        const advertiserType = (analytics.advertiser || '').toLowerCase().trim();
+        
+        // Determine if private seller
+        // Priority: 1) analytics.advertiser==='privato' 2) no agencyId in contacts 3) fallback to agency
+        let isPrivate = advertiserType === 'privato';
+        if (!advertiserType && !contacts.agencyId && !analytics.agencyName) {
+          // If advertiser is missing but there's no agency info, assume private
+          isPrivate = true;
+        }
+        
+        const ownerType = isPrivate ? 'private' : 'agency';
+
+        // Agency info (only for agencies)
+        const agencyName = !isPrivate ? (analytics.agencyName || contacts.agencyName || null) : null;
+
+        // Owner contact info (only for private sellers)
+        let ownerPhone = null;
+        let ownerName = null;
+        let ownerEmail = null;
+        if (isPrivate) {
+          // Extract phone from contacts.phones array
+          if (contacts.phones && contacts.phones.length > 0) {
+            ownerPhone = contacts.phones[0].num || null;
+          }
+          // Try to get owner name from available fields
+          ownerName = analytics.advertiserName || null;
+          // Email might be in contacts if available
+          ownerEmail = contacts.email || null;
+        }
 
         // URL construction
         const url = `https://www.immobiliare.it/annunci/${externalId}/`;
@@ -194,8 +224,11 @@ export class ApifyService {
           imageUrls,
           latitude,
           longitude,
-          ownerType: agencyName && agencyName !== 'Unknown' ? 'agency' : 'private',
+          ownerType,
           agencyName,
+          ownerName,
+          ownerPhone,
+          ownerEmail,
           source: 'apify'
         } as PropertyListing;
       });
@@ -212,6 +245,57 @@ export class ApifyService {
     } catch (error) {
       console.error('[APIFY] ❌ Connection test failed:', error);
       return false;
+    }
+  }
+
+  /**
+   * Diagnostic: Scrape a small sample and save raw JSON for inspection
+   * This helps us understand the actual field structure from Apify
+   */
+  async diagnosticScrape(): Promise<{ rawPath: string; sampleCount: number }> {
+    console.log('[APIFY-DIAGNOSTIC] Starting diagnostic scrape...');
+    
+    const input = {
+      municipality: 'milano',
+      category: 'vendita',
+      maxItems: 20, // Small sample
+      proxyConfiguration: {
+        useApifyProxy: true,
+        apifyProxyGroups: ['RESIDENTIAL']
+      }
+    };
+
+    try {
+      const run = await this.client.actor(this.actorId).call(input);
+      console.log(`[APIFY-DIAGNOSTIC] Run completed: ${run.id}`);
+
+      const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
+      console.log(`[APIFY-DIAGNOSTIC] Fetched ${items.length} items`);
+
+      // Save raw data to file for inspection
+      const timestamp = Date.now();
+      const uploadDir = path.join(process.cwd(), 'uploads', 'apify');
+      
+      // Create directory if it doesn't exist
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const rawPath = path.join(uploadDir, `raw-${timestamp}.json`);
+      fs.writeFileSync(rawPath, JSON.stringify(items, null, 2), 'utf-8');
+      
+      console.log(`[APIFY-DIAGNOSTIC] ✅ Raw data saved to: ${rawPath}`);
+      console.log(`[APIFY-DIAGNOSTIC] Sample item keys:`, items.length > 0 ? Object.keys(items[0]) : []);
+      
+      // Log first item structure for quick review
+      if (items.length > 0) {
+        console.log('[APIFY-DIAGNOSTIC] First item structure:', JSON.stringify(items[0], null, 2).substring(0, 1000) + '...');
+      }
+
+      return { rawPath, sampleCount: items.length };
+    } catch (error) {
+      console.error('[APIFY-DIAGNOSTIC] ❌ Diagnostic scrape failed:', error);
+      throw error;
     }
   }
 }
