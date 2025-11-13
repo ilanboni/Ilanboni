@@ -265,7 +265,8 @@ class DeduplicationScheduler {
 }
 
 // Esporta un'istanza singleton dello scheduler
+// TEMPORARILY DISABLED: deduplication blocks server startup on large datasets
 export const deduplicationScheduler = new DeduplicationScheduler({
   intervalDays: parseInt(process.env.DEDUP_SCAN_INTERVAL_DAYS || '7'),
-  enabled: process.env.DEDUP_SCHEDULER_ENABLED !== 'false'
+  enabled: false  // Temporarily disabled - was: process.env.DEDUP_SCHEDULER_ENABLED !== 'false'
 });

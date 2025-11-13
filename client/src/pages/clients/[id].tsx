@@ -74,22 +74,16 @@ export default function ClientDetailPage() {
   // Mutation per scraping mirato
   const scrapingMutation = useMutation({
     mutationFn: async () => {
-      console.log('[SCRAPING] Starting mutation for client', id);
       const response = await fetch(`/api/apify/scrape-for-buyer/${id}`, {
         method: 'POST',
       });
-      console.log('[SCRAPING] Response status:', response.status);
       if (!response.ok) {
         const error = await response.json();
-        console.log('[SCRAPING] Error response:', error);
         throw new Error(error.error || 'Errore durante lo scraping');
       }
-      const data = await response.json();
-      console.log('[SCRAPING] Success data:', data);
-      return data;
+      return response.json();
     },
     onSuccess: (data) => {
-      console.log('[SCRAPING] onSuccess callback, data:', data);
       setShowScrapingAlert(true);
       toast({
         title: "Scraping avviato",
@@ -97,7 +91,6 @@ export default function ClientDetailPage() {
       });
     },
     onError: (error: Error) => {
-      console.log('[SCRAPING] onError callback, error:', error);
       toast({
         title: "Errore",
         description: error.message,
