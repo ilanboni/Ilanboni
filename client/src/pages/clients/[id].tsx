@@ -68,6 +68,7 @@ export default function ClientDetailPage() {
   const [conversationThread, setConversationThread] = useState("");
   const [communicationsView, setCommunicationsView] = useState<"chat" | "table">("chat");
   const [scrapingJobId, setScrapingJobId] = useState<number | null>(null);
+  const [showScrapingAlert, setShowScrapingAlert] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -85,6 +86,7 @@ export default function ClientDetailPage() {
     },
     onSuccess: (data) => {
       setScrapingJobId(data.jobId);
+      setShowScrapingAlert(true);
       toast({
         title: "Scraping avviato",
         description: data.message || "Lo scraping è stato avviato con successo. Ci vorranno circa 2-3 minuti.",
@@ -114,6 +116,7 @@ export default function ClientDetailPage() {
   useEffect(() => {
     if (scrapingJob?.status === 'completed') {
       setScrapingJobId(null);
+      setShowScrapingAlert(false);
       queryClient.invalidateQueries({
         queryKey: [`/api/clients/${id}/matching-properties`]
       });
@@ -126,6 +129,7 @@ export default function ClientDetailPage() {
       });
     } else if (scrapingJob?.status === 'failed') {
       setScrapingJobId(null);
+      setShowScrapingAlert(false);
       toast({
         title: "Scraping fallito",
         description: scrapingJob.results?.error || "Errore durante lo scraping",
@@ -725,7 +729,7 @@ export default function ClientDetailPage() {
           </div>
         </div>
         
-        {scrapingJobId !== null && scrapingJob && (
+        {showScrapingAlert && scrapingJob && (
           <Alert className="bg-orange-50 border-orange-200">
             <Search className="h-4 w-4 text-orange-600" />
             <AlertDescription className="flex items-center justify-between">
@@ -741,7 +745,7 @@ export default function ClientDetailPage() {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={() => setScrapingJobId(null)}
+                onClick={() => setShowScrapingAlert(false)}
                 className="hover:bg-orange-100"
               >
                 ✕

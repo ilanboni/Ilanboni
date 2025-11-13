@@ -4715,7 +4715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update job status to completed
           await storage.updateScrapingJob(job.id, {
             status: 'completed',
-            completedAt: new Date().toISOString(),
+            completedAt: new Date(),
             results: {
               totalFetched: listings.length,
               imported,
@@ -4731,7 +4731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update job status to failed
           await storage.updateScrapingJob(job.id, {
             status: 'failed',
-            completedAt: new Date().toISOString(),
+            completedAt: new Date(),
             results: {
               error: bgError instanceof Error ? bgError.message : 'Unknown error'
             }

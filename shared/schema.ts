@@ -84,12 +84,17 @@ export const scrapingJobs = pgTable("scraping_jobs", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").notNull().references(() => clients.id),
   status: text("status").notNull().default('queued'), // 'queued', 'running', 'completed', 'failed'
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  error: text("error"), // error message if failed
-  resultsCount: integer("results_count").default(0), // number of properties found
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  buyerCriteria: jsonb("buyer_criteria"), // Criteri usati per lo scraping
+  results: jsonb("results"), // { totalFetched, imported, updated, failed, errors }
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at")
 });
+
+export const insertScrapingJobSchema = createInsertSchema(scrapingJobs)
+  .omit({ id: true, createdAt: true });
+
+export type ScrapingJob = typeof scrapingJobs.$inferSelect;
+export type InsertScrapingJob = z.infer<typeof insertScrapingJobSchema>;
 
 // Sellers (extends clients)
 export const sellers = pgTable("sellers", {
@@ -742,10 +747,3 @@ export const insertPropertyAttachmentSchema = createInsertSchema(propertyAttachm
 
 export type PropertyAttachment = typeof propertyAttachments.$inferSelect;
 export type InsertPropertyAttachment = z.infer<typeof insertPropertyAttachmentSchema>;
-
-// Scraping jobs schema
-export const insertScrapingJobSchema = createInsertSchema(scrapingJobs)
-  .omit({ id: true, createdAt: true });
-
-export type ScrapingJob = typeof scrapingJobs.$inferSelect;
-export type InsertScrapingJob = z.infer<typeof insertScrapingJobSchema>;
