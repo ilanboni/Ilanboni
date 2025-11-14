@@ -1988,9 +1988,10 @@ export default function ClientDetailPage() {
                           )}
                         </CardContent>
                       </Card>
-                      );
+                      )
                     })}
                   </div>
+                  </>
                 )}
               </CardContent>
             </Card>
