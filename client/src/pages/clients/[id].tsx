@@ -98,8 +98,18 @@ export default function ClientDetailPage() {
       return response.json();
     },
     onSuccess: (data) => {
+      // Log data received for debugging
+      console.info('[CERCA-IMMOBILI] Ricevuti dati:', {
+        total: data.total,
+        propertiesCount: data.properties?.length || 0,
+        hasProperties: !!data.properties && data.properties.length > 0
+      });
+      
       // Update cache directly with full response object
       queryClient.setQueryData(['/api/properties/for-buyer', id], data);
+      
+      // Switch to matching properties tab to show results immediately
+      setActiveTab("matching-properties");
       
       toast({
         title: "Ricerca completata",
@@ -107,6 +117,7 @@ export default function ClientDetailPage() {
       });
     },
     onError: (error: Error) => {
+      console.error('[CERCA-IMMOBILI] Errore:', error);
       toast({
         title: "Errore",
         description: error.message,
