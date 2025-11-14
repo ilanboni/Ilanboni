@@ -1738,7 +1738,8 @@ export default function ClientDetailPage() {
                         </CardContent>
                       </Card>
                     ))}
-                  </div>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1810,8 +1811,30 @@ export default function ClientDetailPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {savedScrapedProperties.map((property, idx) => {
+                  <>
+                    {/* Legenda colori */}
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">
+                        <i className="fas fa-info-circle mr-1"></i> Legenda Colori
+                      </p>
+                      <div className="flex flex-wrap gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-red-50 border border-red-200 rounded"></div>
+                          <span className="text-gray-700">Una sola agenzia</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-yellow-50 border border-yellow-200 rounded"></div>
+                          <span className="text-gray-700">Più agenzie</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-green-50 border border-green-200 rounded"></div>
+                          <span className="text-gray-700">Privato (con o senza agenzie)</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {savedScrapedProperties.map((property, idx) => {
                       const bgColor = property.classification === 'single-agency' ? 'bg-red-50' :
                                      property.classification === 'multiagency' ? 'bg-yellow-50' :
                                      property.classification === 'private' ? 'bg-green-50' :

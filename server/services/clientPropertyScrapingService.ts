@@ -443,19 +443,20 @@ export class ClientPropertyScrapingService {
       }
       
       // Classify based on composition
+      // Priorità: Privato > Multi-agenzia > Singola agenzia
       let classification: PropertyClassification;
-      if (hasPrivate && agencies.size === 0) {
-        // Only private listings
+      if (hasPrivate) {
+        // Proprietà con almeno un privato → Verde (anche se ci sono agenzie)
         classification = 'private';
-        privateCount += groupProperties.length;
-      } else if (hasPrivate || agencies.size > 1) {
-        // Mixed (private + agency) or multiple agencies
+        privateCount++;
+      } else if (agencies.size > 1) {
+        // Più agenzie (senza privati) → Giallo
         classification = 'multiagency';
-        multiagencyCount += groupProperties.length;
+        multiagencyCount++;
       } else {
-        // Single agency only
+        // Una sola agenzia → Rosso
         classification = 'single-agency';
-        singleAgencyCount += groupProperties.length;
+        singleAgencyCount++;
       }
       
       // Consolidate duplicates (both multi-agency AND single-agency with multiple listings)
