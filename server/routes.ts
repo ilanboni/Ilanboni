@@ -1748,37 +1748,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Endpoint per ottenere gli immobili che corrispondono alle preferenze di un cliente acquirente
-  app.get("/api/clients/:id/matching-properties", async (req: Request, res: Response) => {
-    try {
-      const clientId = parseInt(req.params.id);
-      if (isNaN(clientId)) {
-        return res.status(400).json({ error: "ID cliente non valido" });
-      }
-      
-      const client = await storage.getClient(clientId);
-      if (!client) {
-        return res.status(404).json({ error: "Cliente non trovato" });
-      }
-      
-      if (client.type !== 'buyer') {
-        return res.status(400).json({ error: "Solo i clienti compratori hanno matching properties" });
-      }
-      
-      const buyer = await storage.getBuyerByClientId(clientId);
-      if (!buyer) {
-        return res.status(404).json({ error: "Dati acquirente non trovati" });
-      }
-      
-      // Recupera immobili che corrispondono alle preferenze
-      const matchingProperties = await storage.matchPropertiesForBuyer(buyer.id);
-      res.json(matchingProperties);
-    } catch (error) {
-      console.error(`[GET /api/clients/${req.params.id}/matching-properties]`, error);
-      res.status(500).json({ error: "Errore durante il recupero degli immobili compatibili" });
-    }
-  });
-  
   // Endpoint per ottenere le proprietà condivise che corrispondono alle preferenze di un cliente
   app.get("/api/clients/:id/matching-shared-properties", async (req: Request, res: Response) => {
     try {
@@ -4614,15 +4583,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Targeted scraping for a specific buyer's criteria
-  app.post("/api/apify/scrape-for-buyer/:clientId", async (req: Request, res: Response) => {
+  // Get properties matching buyer's criteria (filters from database instead of scraping)
+  app.get("/api/properties/for-buyer/:clientId", async (req: Request, res: Response) => {
     try {
       const clientId = parseInt(req.params.clientId);
       if (isNaN(clientId)) {
         return res.status(400).json({ error: "ID cliente non valido" });
       }
 
-      console.log(`[POST /api/apify/scrape-for-buyer/${clientId}] 🎯 Starting targeted scrape...`);
+      console.log(`[GET /api/properties/for-buyer/${clientId}] 🔍 Filtering properties from database...`);
 
       // Get buyer criteria
       const buyer = await storage.getBuyerByClientId(clientId);
@@ -4630,41 +4599,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Dati acquirente non trovati" });
       }
 
-      // Create scraping job
-      const job = await storage.createScrapingJob({
-        clientId,
-        status: 'queued',
-        buyerCriteria: {
-          propertyType: buyer.propertyType || undefined,
-          minSize: buyer.minSize || undefined,
-          maxPrice: buyer.maxPrice || undefined,
-          rooms: buyer.rooms || undefined,
-          bathrooms: buyer.bathrooms || undefined
-        }
-      });
+      // Get all available properties from database
+      const allProperties = await storage.getProperties();
+      console.log(`[GET /api/properties/for-buyer/${clientId}] 📊 Trovati ${allProperties.length} immobili totali nel database`);
 
-      // Respond immediately with job ID
-      // Il job resta in stato "queued" e verrà processato dal ScrapingJobWorker
-      res.status(202).json({
+      // Import matching logic
+      const { isPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+
+      // Filter properties using matching logic
+      const matchingProperties = allProperties.filter(property => 
+        isPropertyMatchingBuyerCriteria(property, buyer)
+      );
+
+      console.log(`[GET /api/properties/for-buyer/${clientId}] ✅ ${matchingProperties.length} immobili corrispondono ai criteri del buyer`);
+
+      res.json({
         success: true,
-        jobId: job.id,
-        message: `Scraping avviato per ${buyer.propertyType || 'immobile'} (max €${buyer.maxPrice?.toLocaleString()}, min ${buyer.minSize}m²). Ci vorranno circa 2-3 minuti.`,
+        total: matchingProperties.length,
+        properties: matchingProperties,
         buyerCriteria: {
           propertyType: buyer.propertyType,
           minSize: buyer.minSize,
           maxPrice: buyer.maxPrice,
           rooms: buyer.rooms,
-          bathrooms: buyer.bathrooms
+          bathrooms: buyer.bathrooms,
+          searchArea: buyer.searchArea ? 'defined' : 'not defined'
         }
       });
-      
-      // Il job verrà processato automaticamente dal worker (polling ogni 30s)
-      console.log(`[POST /api/apify/scrape-for-buyer/${clientId}] ✅ Job #${job.id} creato e in coda per il worker`);
 
     } catch (error) {
-      console.error('[POST /api/apify/scrape-for-buyer]', error);
+      console.error('[GET /api/properties/for-buyer]', error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : 'Scraping failed' 
+        error: error instanceof Error ? error.message : 'Failed to filter properties' 
+      });
+    }
+  });
+
+  // Get dataset status (last scraping info)
+  app.get("/api/apify/dataset-status", async (req: Request, res: Response) => {
+    try {
+      console.log(`[GET /api/apify/dataset-status] 📊 Checking dataset freshness...`);
+
+      // Get the most recently updated property to determine last scraping date
+      const allProperties = await storage.getAllProperties();
+      
+      if (allProperties.length === 0) {
+        return res.json({
+          totalProperties: 0,
+          lastScrapingDate: null,
+          daysSinceLastScraping: null,
+          status: 'empty',
+          message: 'Nessun immobile nel database. Esegui uno scraping completo.'
+        });
+      }
+
+      // Find the most recent updatedAt timestamp
+      const mostRecentProperty = allProperties.reduce((latest, current) => {
+        const currentDate = new Date(current.updatedAt || current.createdAt);
+        const latestDate = new Date(latest.updatedAt || latest.createdAt);
+        return currentDate > latestDate ? current : latest;
+      });
+
+      const lastScrapingDate = new Date(mostRecentProperty.updatedAt || mostRecentProperty.createdAt);
+      const now = new Date();
+      const daysSinceLastScraping = Math.floor((now.getTime() - lastScrapingDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Determine status based on age
+      let status: 'fresh' | 'stale' | 'very_stale';
+      if (daysSinceLastScraping <= 2) {
+        status = 'fresh';
+      } else if (daysSinceLastScraping <= 7) {
+        status = 'stale';
+      } else {
+        status = 'very_stale';
+      }
+
+      console.log(`[GET /api/apify/dataset-status] ✅ Dataset: ${allProperties.length} immobili, ultimo aggiornamento ${daysSinceLastScraping} giorni fa`);
+
+      res.json({
+        totalProperties: allProperties.length,
+        lastScrapingDate: lastScrapingDate.toISOString(),
+        daysSinceLastScraping,
+        status,
+        message: daysSinceLastScraping === 0 
+          ? 'Dataset aggiornato oggi' 
+          : `Ultimo aggiornamento ${daysSinceLastScraping} giorn${daysSinceLastScraping === 1 ? 'o' : 'i'} fa`
+      });
+
+    } catch (error) {
+      console.error('[GET /api/apify/dataset-status]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to check dataset status' 
       });
     }
   });

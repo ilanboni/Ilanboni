@@ -53,6 +53,21 @@ import {
   type Task
 } from "@shared/schema";
 
+// Type for the matching properties API response
+interface MatchingPropertiesResponse {
+  success: boolean;
+  total: number;
+  properties: any[]; // Array of property objects
+  buyerCriteria?: {
+    propertyType?: string;
+    minSize?: number;
+    maxPrice?: number;
+    rooms?: number;
+    bathrooms?: number;
+    searchArea?: string;
+  };
+}
+
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id);
@@ -67,29 +82,28 @@ export default function ClientDetailPage() {
   const [detectedProperties, setDetectedProperties] = useState<{ id: number; address: string }[]>([]);
   const [conversationThread, setConversationThread] = useState("");
   const [communicationsView, setCommunicationsView] = useState<"chat" | "table">("chat");
-  const [scrapingJobId, setScrapingJobId] = useState<number | null>(null);
-  const [showScrapingAlert, setShowScrapingAlert] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Start scraping mutation
-  const scrapingMutation = useMutation({
+  // Filter properties from database mutation (instant, no scraping)
+  const filterPropertiesMutation = useMutation<MatchingPropertiesResponse>({
     mutationFn: async () => {
-      const response = await fetch(`/api/apify/scrape-for-buyer/${id}`, {
-        method: 'POST',
+      const response = await fetch(`/api/properties/for-buyer/${id}`, {
+        method: 'GET',
       });
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Errore durante lo scraping');
+        throw new Error(error.error || 'Errore durante il filtraggio');
       }
       return response.json();
     },
     onSuccess: (data) => {
-      setScrapingJobId(data.jobId);
-      setShowScrapingAlert(true);
+      // Update cache directly with full response object
+      queryClient.setQueryData(['/api/properties/for-buyer', id], data);
+      
       toast({
-        title: "Scraping avviato",
-        description: data.message || "Lo scraping è stato avviato con successo. Ci vorranno circa 2-3 minuti.",
+        title: "Ricerca completata",
+        description: `Trovati ${data.total} immobili corrispondenti ai criteri del buyer nel database.`,
       });
     },
     onError: (error: Error) => {
@@ -100,43 +114,6 @@ export default function ClientDetailPage() {
       });
     },
   });
-
-  // Poll scraping job status
-  const { data: scrapingJob } = useQuery({
-    queryKey: [`/api/scraping-jobs/${scrapingJobId}`],
-    enabled: scrapingJobId !== null,
-    refetchInterval: (query) => {
-      const data = query.state.data as any;
-      // Poll every 3 seconds while running, stop when completed/failed
-      return data?.status === 'running' || data?.status === 'queued' ? 3000 : false;
-    },
-  });
-
-  // Handle job completion
-  useEffect(() => {
-    if (scrapingJob?.status === 'completed') {
-      setScrapingJobId(null);
-      setShowScrapingAlert(false);
-      queryClient.invalidateQueries({
-        queryKey: [`/api/clients/${id}/matching-properties`]
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`/api/clients/${id}/saved-scraped-properties`]
-      });
-      toast({
-        title: "Scraping completato",
-        description: `Trovati ${scrapingJob.results?.totalFetched || 0} annunci, ${scrapingJob.results?.imported || 0} importati. Controlla la sezione 'Immobili da inviare'.`,
-      });
-    } else if (scrapingJob?.status === 'failed') {
-      setScrapingJobId(null);
-      setShowScrapingAlert(false);
-      toast({
-        title: "Scraping fallito",
-        description: scrapingJob.results?.error || "Errore durante lo scraping",
-        variant: "destructive",
-      });
-    }
-  }, [scrapingJob?.status]);
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
@@ -169,8 +146,8 @@ export default function ClientDetailPage() {
   });
   
   // Fetch matching properties (per client compratori)
-  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
-    queryKey: [`/api/clients/${id}/matching-properties`],
+  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery<MatchingPropertiesResponse>({
+    queryKey: ['/api/properties/for-buyer', id],
     enabled: !isNaN(id) && client?.type === "buyer",
   });
   
@@ -550,7 +527,7 @@ export default function ClientDetailPage() {
               onClick={() => {
                 // Invalida tutte le cache correlate per forzare il refresh completo
                 queryClient.invalidateQueries({
-                  queryKey: [`/api/clients/${id}/matching-properties`]
+                  queryKey: ['/api/properties/for-buyer', id]
                 });
                 queryClient.invalidateQueries({
                   queryKey: [`/api/clients/${id}/scraped-properties`]
@@ -560,7 +537,7 @@ export default function ClientDetailPage() {
                 });
                 // Forza il refetch immediato
                 queryClient.refetchQueries({
-                  queryKey: [`/api/clients/${id}/matching-properties`]
+                  queryKey: ['/api/properties/for-buyer', id]
                 });
                 
                 toast({
@@ -580,26 +557,26 @@ export default function ClientDetailPage() {
                   <TooltipTrigger asChild>
                     <Button 
                       variant="outline"
-                      onClick={() => scrapingMutation.mutate()}
-                      disabled={scrapingMutation.isPending || scrapingJobId !== null}
+                      onClick={() => filterPropertiesMutation.mutate()}
+                      disabled={filterPropertiesMutation.isPending}
                       className="gap-2 border-orange-600 text-orange-600 hover:bg-orange-50 disabled:opacity-50"
-                      data-testid="button-scraping-mirato"
+                      data-testid="button-cerca-immobili"
                     >
-                      {(scrapingMutation.isPending || scrapingJobId !== null) ? (
+                      {filterPropertiesMutation.isPending ? (
                         <>
                           <i className="fas fa-spinner fa-spin"></i>
-                          <span>In corso...</span>
+                          <span>Ricerca in corso...</span>
                         </>
                       ) : (
                         <>
                           <Search className="h-4 w-4" />
-                          <span>Scraping Mirato</span>
+                          <span>Cerca Immobili</span>
                         </>
                       )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Cerca nuovi immobili sui portali usando i criteri AI di questo buyer</p>
+                    <p>Filtra gli immobili del database usando i criteri di questo buyer</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -728,31 +705,6 @@ export default function ClientDetailPage() {
             </Button>
           </div>
         </div>
-        
-        {showScrapingAlert && scrapingJob && (
-          <Alert className="bg-orange-50 border-orange-200">
-            <Search className="h-4 w-4 text-orange-600" />
-            <AlertDescription className="flex items-center justify-between">
-              <div>
-                <strong>
-                  {scrapingJob.status === 'queued' && 'Scraping in coda...'}
-                  {scrapingJob.status === 'running' && 'Scraping in corso...'}
-                </strong>
-                <p className="text-sm mt-1">
-                  Lo scraping dei portali può richiedere 2-3 minuti. Riceverai una notifica al termine.
-                </p>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowScrapingAlert(false)}
-                className="hover:bg-orange-100"
-              >
-                ✕
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
         
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="w-full overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
@@ -1655,7 +1607,7 @@ export default function ClientDetailPage() {
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                   </div>
-                ) : !matchingProperties || matchingProperties.length === 0 ? (
+                ) : !matchingProperties?.properties || matchingProperties.properties.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
                       <i className="fas fa-home"></i>
@@ -1667,7 +1619,7 @@ export default function ClientDetailPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {matchingProperties.map((property) => (
+                    {(matchingProperties.properties ?? []).map((property) => (
                       <Card key={property.id} className="overflow-hidden">
                         <div className="aspect-video relative bg-gray-100">
                           {property.images && property.images.length > 0 ? (
