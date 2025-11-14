@@ -1588,7 +1588,14 @@ export default function ClientDetailPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
-                  <CardTitle>Immobili Compatibili</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    Immobili Compatibili
+                    {matchingProperties?.total && matchingProperties.total > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {matchingProperties.total} immobili
+                      </Badge>
+                    )}
+                  </CardTitle>
                   <CardDescription>Immobili che corrispondono alle preferenze del cliente</CardDescription>
                 </div>
                 <Button 
@@ -1618,8 +1625,15 @@ export default function ClientDetailPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {(matchingProperties.properties ?? []).map((property) => (
+                  <>
+                    {matchingProperties.total > 3 && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center gap-2 text-sm text-blue-800">
+                        <i className="fas fa-info-circle"></i>
+                        <span>Scorri verso il basso per vedere tutti i {matchingProperties.total} immobili trovati</span>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {(matchingProperties.properties ?? []).map((property) => (
                       <Card key={property.id} className="overflow-hidden">
                         <div className="aspect-video relative bg-gray-100">
                           {property.images && property.images.length > 0 ? (
@@ -1691,6 +1705,7 @@ export default function ClientDetailPage() {
                       </Card>
                     ))}
                   </div>
+                  </>
                 )}
               </CardContent>
             </Card>
