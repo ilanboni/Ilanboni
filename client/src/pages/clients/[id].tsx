@@ -1738,8 +1738,7 @@ export default function ClientDetailPage() {
                         </CardContent>
                       </Card>
                     ))}
-                    </div>
-                  </>
+                  </div>
                 )}
               </CardContent>
             </Card>
