@@ -1621,6 +1621,19 @@ export default function ClientDetailPage() {
                 </Button>
               </CardHeader>
               <CardContent>
+                {(() => {
+                  // Debug logging
+                  console.info('[MATCHING-PROPERTIES-RENDER]', {
+                    isLoading: isMatchingPropertiesLoading,
+                    hasData: !!matchingProperties,
+                    total: matchingProperties?.total,
+                    propertiesExists: !!matchingProperties?.properties,
+                    propertiesLength: matchingProperties?.properties?.length,
+                    propertiesIsArray: Array.isArray(matchingProperties?.properties),
+                    fullData: matchingProperties
+                  });
+                  return null;
+                })()}
                 {isMatchingPropertiesLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -1634,6 +1647,9 @@ export default function ClientDetailPage() {
                     <p>
                       Non ci sono immobili che corrispondono alle preferenze del cliente.
                     </p>
+                    <div className="mt-4 text-xs text-gray-400">
+                      Debug: total={matchingProperties?.total}, properties.length={matchingProperties?.properties?.length}
+                    </div>
                   </div>
                 ) : (
                   <>
