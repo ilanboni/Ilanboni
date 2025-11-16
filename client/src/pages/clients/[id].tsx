@@ -1661,7 +1661,9 @@ export default function ClientDetailPage() {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {(matchingProperties.properties ?? []).map((property) => (
-                      <Card key={property.id} className="overflow-hidden">
+                      <Card key={property.id} className={`overflow-hidden ${
+                        property.isMultiagency ? 'bg-yellow-50 border-yellow-200' : ''
+                      }`}>
                         <div className="aspect-video relative bg-gray-100">
                           {property.images && property.images.length > 0 ? (
                             <img 
@@ -1682,17 +1684,24 @@ export default function ClientDetailPage() {
                         </div>
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start">
-                            <div>
+                            <div className="flex-1">
                               <h3 className="font-semibold text-lg line-clamp-1">
                                 <Link href={`/properties/${property.id}`} className="hover:text-primary-600">
                                   {property.title}
                                 </Link>
                               </h3>
                               <p className="text-sm text-gray-600 line-clamp-1">{property.address}</p>
+                              <div className="flex gap-1 mt-1 flex-wrap">
+                                <Badge variant={property.status === "available" ? "success" : "outline"}>
+                                  {property.status === "available" ? "Disponibile" : property.status}
+                                </Badge>
+                                {property.isMultiagency && (
+                                  <Badge className="bg-yellow-600 text-white text-xs">
+                                    <i className="fas fa-copy mr-1"></i>Pluricondiviso
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
-                            <Badge variant={property.status === "available" ? "success" : "outline"}>
-                              {property.status === "available" ? "Disponibile" : property.status}
-                            </Badge>
                           </div>
                           
                           <div className="flex justify-between mt-3 text-sm">
