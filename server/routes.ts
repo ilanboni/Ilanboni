@@ -4636,7 +4636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: sp.description || null,
         link: null,
         imageUrl: sp.photos ? (sp.photos as string[])[0] : null,
-        propertyType: null,
+        propertyType: sp.type || null,
         condition: null,
         heating: null,
         energyClass: null,
@@ -4666,7 +4666,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
       
       const allProperties = [...normalProperties, ...sharedPropertiesConverted];
-      console.log(`[GET /api/properties/for-buyer/${clientId}] 📊 Trovati ${normalProperties.length} immobili normali + ${sharedPropertiesConverted.length} pluricondivisi = ${allProperties.length} totali`);
+      
+      const sharedPenthouses = sharedPropertiesConverted.filter(p => p.propertyType === 'penthouse');
+      console.log(`[GET /api/properties/for-buyer/${clientId}] 📊 Trovati ${normalProperties.length} immobili normali + ${sharedPropertiesConverted.length} pluricondivisi (${sharedPenthouses.length} penthouses) = ${allProperties.length} totali`);
+      console.log(`[GET /api/properties/for-buyer/${clientId}] 🎯 Buyer cerca tipo: ${buyer.propertyType}`);
 
       // Import matching logic
       const { isPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
