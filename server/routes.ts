@@ -16,6 +16,7 @@ import {
   insertContactSchema,
   insertMatchSchema,
   insertClientRequestSchema,
+  insertPropertyActivitySchema,
   clients,
   buyers,
   properties,
@@ -32,12 +33,14 @@ import {
   contacts,
   matches,
   clientRequests,
+  propertyActivities,
   type PropertySent,
   type AppointmentConfirmation,
   type PropertyVisit,
   type Contact,
   type Match,
-  type ClientRequest
+  type ClientRequest,
+  type PropertyActivity
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, like, isNotNull, ne, isNull } from "drizzle-orm";
