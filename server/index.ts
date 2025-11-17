@@ -313,8 +313,9 @@ async function pollWhatsAppMessages() {
     // ingestionService.registerAdapter(new ImmobiliarePlaywrightAdapter());
     console.log('[INGESTION] Adapters registered successfully (Playwright-based)');
     
-    // Avvia lo scheduler per i follow-up automatici (verifica ogni ora = 60 minuti)
-    startFollowUpScheduler(60);
+    // DISABILITATO: Avvia lo scheduler per i follow-up automatici (verifica ogni ora = 60 minuti)
+    // Commentato per sicurezza - evita creazione automatica di task follow-up
+    // startFollowUpScheduler(60);
     
     // Avvia lo scheduler per la deduplicazione automatica (verifica ogni 7 giorni)
     deduplicationScheduler.start();
