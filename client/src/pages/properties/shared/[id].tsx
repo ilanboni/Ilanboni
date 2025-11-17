@@ -361,6 +361,8 @@ export default function SharedPropertyDetailsPage() {
   });
 
   // Fetch all buyers for sending property
+  const TEST_PHONE_NUMBER = '393407992052'; // Ilan Boni - solo numero di test autorizzato
+  
   const { data: buyersForSend = [] } = useQuery({
     queryKey: ['/api/clients'],
     queryFn: async () => {
@@ -368,7 +370,16 @@ export default function SharedPropertyDetailsPage() {
       if (!response.ok) {
         throw new Error('Errore nel caricamento dei clienti');
       }
-      return response.json();
+      const allBuyers = await response.json();
+      
+      // SAFETY FILTER: Only show test client (Ilan Boni)
+      const testBuyers = allBuyers.filter((buyer: any) => buyer.phone === TEST_PHONE_NUMBER);
+      
+      if (testBuyers.length === 0) {
+        console.warn('[SEND-DIALOG] Nessun cliente di test trovato con numero:', TEST_PHONE_NUMBER);
+      }
+      
+      return testBuyers;
     },
     enabled: isSendDialogOpen // Only fetch when dialog is open
   });
@@ -933,6 +944,15 @@ export default function SharedPropertyDetailsPage() {
                         Personalizza il messaggio e scegli quali annunci inviare al cliente.
                       </DialogDescription>
                     </DialogHeader>
+                    
+                    {/* Safety Warning */}
+                    <Alert className="bg-yellow-50 border-yellow-200">
+                      <AlertCircle className="h-4 w-4 text-yellow-600" />
+                      <AlertTitle className="text-yellow-800">Modalità Test</AlertTitle>
+                      <AlertDescription className="text-yellow-700">
+                        Per sicurezza, i messaggi WhatsApp possono essere inviati solo al numero di test: <strong>393407992052</strong> (Ilan Boni)
+                      </AlertDescription>
+                    </Alert>
                     
                     <div className="space-y-5 py-4">
                       {/* Client Selection */}
