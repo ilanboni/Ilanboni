@@ -2925,6 +2925,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Errore durante l'operazione" });
     }
   });
+
+  // Send shared property to client (creates both communication and property activity)
+  app.post("/api/shared-properties/:id/send-to-client", async (req: Request, res: Response) => {
+    try {
+      const sharedPropertyId = parseInt(req.params.id);
+      if (isNaN(sharedPropertyId)) {
+        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
+      }
+
+      const { clientId, messageType, notes } = req.body;
+      if (!clientId || typeof clientId !== 'number') {
+        return res.status(400).json({ error: "Campo 'clientId' richiesto (number)" });
+      }
+
+      // Recupera la proprietà condivisa
+      const sharedProperty = await storage.getSharedProperty(sharedPropertyId);
+      if (!sharedProperty) {
+        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
+      }
+
+      // Cerca prima nella tabella buyers (perché matching-buyers restituisce buyer IDs)
+      const [buyer] = await db.select().from(buyers).where(eq(buyers.id, clientId)).limit(1);
+      let actualClientId = clientId;
+      
+      if (buyer) {
+        // Se è un buyer ID, usa il clientId del buyer
+        actualClientId = buyer.clientId;
+        console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Buyer ID ${clientId} -> Client ID ${actualClientId}`);
+      }
+
+      // Recupera il client
+      const [client] = await db.select().from(clients).where(eq(clients.id, actualClientId)).limit(1);
+      if (!client) {
+        return res.status(404).json({ error: "Cliente non trovato" });
+      }
+
+      const now = new Date();
+      const clientName = `${client.firstName} ${client.lastName}`;
+      const propertyAddress = sharedProperty.address;
+
+      // Crea la communication per il cliente
+      const communicationSubject = `Immobile inviato: ${propertyAddress}`;
+      const communicationContent = notes || `Immobile condiviso inviato al cliente ${clientName}${messageType ? ` (${messageType})` : ''}`;
+      
+      const [newCommunication] = await db
+        .insert(communications)
+        .values({
+          clientId: actualClientId,
+          sharedPropertyId: sharedPropertyId,
+          type: 'property_sent',
+          subject: communicationSubject,
+          content: communicationContent,
+          direction: 'outbound',
+          status: 'completed',
+          createdAt: now
+        })
+        .returning();
+
+      console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Communication created:`, newCommunication.id);
+
+      // Crea la property activity per l'immobile
+      const activityTitle = `Inviato a ${clientName}`;
+      const activityDescription = `Immobile condiviso inviato al cliente ${clientName}${messageType ? ` (${messageType})` : ''}${notes ? `. Note: ${notes}` : ''}`;
+
+      const [newActivity] = await db
+        .insert(propertyActivities)
+        .values({
+          sharedPropertyId: sharedPropertyId,
+          type: 'email_sent',
+          title: activityTitle,
+          description: activityDescription,
+          activityDate: now,
+          status: 'completed',
+          completedAt: now
+        })
+        .returning();
+
+      console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Property activity created:`, newActivity.id);
+
+      // Opzionalmente, crea anche un record in propertySent per il tracking
+      if (messageType) {
+        await db
+          .insert(propertySent)
+          .values({
+            clientId: actualClientId,
+            sharedPropertyId: sharedPropertyId,
+            messageType: messageType,
+            messageContent: communicationContent,
+            sentAt: now
+          });
+        
+        console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] PropertySent record created`);
+      }
+
+      res.json({
+        success: true,
+        communication: newCommunication,
+        activity: newActivity,
+        message: "Immobile inviato con successo. Attività create su cliente e immobile."
+      });
+    } catch (error) {
+      console.error(`[POST /api/shared-properties/${req.params.id}/send-to-client]`, error);
+      res.status(500).json({ error: "Errore durante l'invio dell'immobile al cliente" });
+    }
+  });
   
   // Endpoint per trovare clienti potenziali per una proprietà condivisa
   app.get("/api/shared-properties/:id/matching-buyers", async (req: Request, res: Response) => {

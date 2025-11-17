@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, ArrowLeft, CalendarRange, Edit, ExternalLink, MapPin, Phone, Trash, User, UserPlus } from "lucide-react";
+import { AlertCircle, ArrowLeft, CalendarRange, Edit, ExternalLink, MapPin, Phone, Trash, User, UserPlus, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -14,6 +14,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { queryClient } from "@/lib/queryClient";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InsertSharedProperty, SharedProperty } from "@shared/schema";
 import { SharedPropertyForm } from "@/components/properties/SharedPropertyForm";
 import { SharedPropertySimpleForm } from "@/components/properties/SharedPropertySimpleForm";
@@ -106,6 +108,9 @@ export default function SharedPropertyDetailsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isAcquireDialogOpen, setIsAcquireDialogOpen] = useState(false);
   const [isIgnoreDialogOpen, setIsIgnoreDialogOpen] = useState(false);
+  const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [sendNotes, setSendNotes] = useState("");
   
   // Fetch shared property details
   const { data: property, isLoading, isError, error } = useQuery({
@@ -282,6 +287,44 @@ export default function SharedPropertyDetailsPage() {
       });
     }
   });
+
+  // Send to client mutation
+  const sendToClientMutation = useMutation({
+    mutationFn: async ({ clientId, notes }: { clientId: number; notes?: string }) => {
+      return apiRequest(`/api/shared-properties/${params.id}/send-to-client`, {
+        method: 'POST',
+        data: { 
+          clientId, 
+          messageType: 'informal',
+          notes 
+        }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties', params.id] });
+      toast({
+        title: "Immobile inviato",
+        description: "L'immobile è stato inviato al cliente. Le attività sono state create automaticamente.",
+      });
+      setIsSendDialogOpen(false);
+      setSelectedClientId(null);
+      setSendNotes("");
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: error?.message || "Si è verificato un errore durante l'invio dell'immobile.",
+      });
+    }
+  });
+
+  // Fetch matching buyers for sending property
+  const { data: buyersForSend = [] } = useQuery({
+    queryKey: ['/api/shared-properties', params.id, 'matching-buyers'],
+    enabled: isSendDialogOpen // Only fetch when dialog is open
+  });
   
   const handleUpdate = (data: InsertSharedProperty) => {
     console.log("Dati completi da inviare per modifica:", data);
@@ -329,6 +372,21 @@ export default function SharedPropertyDetailsPage() {
   const handleIgnore = () => {
     ignoreMutation.mutate();
     setIsIgnoreDialogOpen(false);
+  };
+
+  const handleSendToClient = () => {
+    if (!selectedClientId) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Seleziona un cliente prima di inviare l'immobile.",
+      });
+      return;
+    }
+    sendToClientMutation.mutate({ 
+      clientId: selectedClientId, 
+      notes: sendNotes || undefined 
+    });
   };
   
   if (isLoading) {
@@ -753,32 +811,115 @@ export default function SharedPropertyDetailsPage() {
                 </Dialog>
               </div>
               
-              {!property.isAcquired && (
-                <Dialog open={isAcquireDialogOpen} onOpenChange={setIsAcquireDialogOpen}>
+              <div className="flex gap-2">
+                {!property.isAcquired && (
+                  <Dialog open={isAcquireDialogOpen} onOpenChange={setIsAcquireDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Acquisici immobile
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Conferma acquisizione</DialogTitle>
+                        <DialogDescription>
+                          Acquisendo questa proprietà, verrà creata nel tuo portfolio di immobili. Vuoi procedere?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAcquireDialogOpen(false)}>
+                          Annulla
+                        </Button>
+                        <Button onClick={handleAcquire} disabled={acquireMutation.isPending}>
+                          {acquireMutation.isPending ? "Acquisizione..." : "Acquisisci"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
+                <Dialog open={isSendDialogOpen} onOpenChange={setIsSendDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Acquisici immobile
+                    <Button variant="default" data-testid="button-send-to-client">
+                      <Send className="h-4 w-4 mr-2" />
+                      Invia a Cliente
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Conferma acquisizione</DialogTitle>
+                      <DialogTitle>Invia immobile a cliente</DialogTitle>
                       <DialogDescription>
-                        Acquisendo questa proprietà, verrà creata nel tuo portfolio di immobili. Vuoi procedere?
+                        Seleziona il cliente a cui vuoi inviare questo immobile. Verranno create automaticamente le attività su cliente e immobile.
                       </DialogDescription>
                     </DialogHeader>
+                    
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="client-select">Cliente</Label>
+                        <Select
+                          value={selectedClientId?.toString() || ""}
+                          onValueChange={(value) => setSelectedClientId(parseInt(value))}
+                        >
+                          <SelectTrigger id="client-select" data-testid="select-client">
+                            <SelectValue placeholder="Seleziona un cliente" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {buyersForSend && buyersForSend.length > 0 ? (
+                              buyersForSend.map((buyer: any) => (
+                                <SelectItem 
+                                  key={buyer.id} 
+                                  value={buyer.id.toString()}
+                                  data-testid={`client-option-${buyer.id}`}
+                                >
+                                  {buyer.firstName} {buyer.lastName}
+                                  {buyer.matchPercentage && ` (${buyer.matchPercentage}% match)`}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-clients" disabled>
+                                Nessun cliente compatibile trovato
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="send-notes">Note (opzionale)</Label>
+                        <Textarea
+                          id="send-notes"
+                          placeholder="Aggiungi note sull'invio..."
+                          value={sendNotes}
+                          onChange={(e) => setSendNotes(e.target.value)}
+                          rows={3}
+                          data-testid="textarea-send-notes"
+                        />
+                      </div>
+                    </div>
+
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsAcquireDialogOpen(false)}>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setIsSendDialogOpen(false);
+                          setSelectedClientId(null);
+                          setSendNotes("");
+                        }}
+                      >
                         Annulla
                       </Button>
-                      <Button onClick={handleAcquire} disabled={acquireMutation.isPending}>
-                        {acquireMutation.isPending ? "Acquisizione..." : "Acquisisci"}
+                      <Button 
+                        onClick={handleSendToClient} 
+                        disabled={sendToClientMutation.isPending || !selectedClientId}
+                        data-testid="button-confirm-send"
+                      >
+                        {sendToClientMutation.isPending ? "Invio..." : "Invia"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              )}
+              </div>
             </CardFooter>
           </Card>
         </div>
