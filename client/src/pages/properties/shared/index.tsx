@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Building, Filter, MapPin, Plus, User, ChevronLeft, ChevronRight, Star, RefreshCw, Map, List } from "lucide-react";
+import { Building, Filter, MapPin, Plus, User, ChevronLeft, ChevronRight, Star, RefreshCw, Map, List, ScanSearch } from "lucide-react";
 import { SharedProperty } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { SimplifiedSharedPropertyCard } from "@/components/properties/SimplifiedSharedPropertyCard";
@@ -103,6 +103,50 @@ export default function SharedPropertiesPage() {
         variant: "destructive"
       });
     }
+  });
+
+  // Mutation for running deduplication scan
+  const scanDuplicatesMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/run/scan', {
+        method: 'POST',
+      });
+    },
+    onSuccess: (response: any) => {
+      // Backend wraps result in { success: true, data: result }
+      if (!response.success) {
+        // Handle backend failure explicitly
+        toast({
+          title: "Errore nella scansione",
+          description: response.message || "La scansione non è riuscita",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (response.data) {
+        const result = response.data;
+        toast({
+          title: "Scansione completata",
+          description: `Trovati ${result.clustersFound || 0} gruppi di immobili duplicati. ${result.sharedPropertiesCreated || 0} nuove proprietà condivise create.`,
+        });
+        // Invalidate queries only on confirmed success
+        queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/scraped-properties/multi-agency'] });
+      } else {
+        toast({
+          title: "Scansione completata",
+          description: "Scansione eseguita ma nessun nuovo risultato",
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Impossibile eseguire la scansione duplicati",
+        variant: "destructive",
+      });
+    },
   });
 
   // Mutation for toggling favorite status
@@ -307,6 +351,19 @@ export default function SharedPropertiesPage() {
             data-testid="button-refresh"
           >
             <RefreshCw className="mr-2 h-4 w-4" /> Aggiorna
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => scanDuplicatesMutation.mutate()}
+            disabled={scanDuplicatesMutation.isPending}
+            data-testid="button-scan-duplicates"
+            className="border-orange-600 text-orange-600 hover:bg-orange-50"
+          >
+            {scanDuplicatesMutation.isPending ? (
+              <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Scansione...</>
+            ) : (
+              <><ScanSearch className="mr-2 h-4 w-4" /> Scansiona Duplicati</>
+            )}
           </Button>
           <Button 
             variant="outline" 
