@@ -151,11 +151,40 @@ export default function SharedPropertyDetailsPage() {
   const { data: agencyLinks = [], isLoading: isLoadingLinks } = useQuery({
     queryKey: ['/api/shared-properties', params.id, 'agency-links'],
     queryFn: async () => {
-      if (!property?.agencies || !Array.isArray(property.agencies) || property.agencies.length === 0) {
+      // Build agencies array from old fields if new field is empty (backward compatibility)
+      let agenciesArray = property?.agencies;
+      
+      if (!agenciesArray || !Array.isArray(agenciesArray) || agenciesArray.length === 0) {
+        // Fallback to old agency fields
+        agenciesArray = [];
+        if (property?.agency1Name || property?.agency1Link) {
+          agenciesArray.push({
+            name: property.agency1Name || '',
+            link: property.agency1Link || '',
+            sourcePropertyId: null
+          });
+        }
+        if (property?.agency2Name || property?.agency2Link) {
+          agenciesArray.push({
+            name: property.agency2Name || '',
+            link: property.agency2Link || '',
+            sourcePropertyId: null
+          });
+        }
+        if (property?.agency3Name || property?.agency3Link) {
+          agenciesArray.push({
+            name: property.agency3Name || '',
+            link: property.agency3Link || '',
+            sourcePropertyId: null
+          });
+        }
+      }
+      
+      if (agenciesArray.length === 0) {
         return [];
       }
       
-      console.log('[AGENCY-LINKS] Fetching links for', property.agencies.length, 'agencies');
+      console.log('[AGENCY-LINKS] Fetching links for', agenciesArray.length, 'agencies');
       
       try {
         // Use batch endpoint to fetch all URLs in one request
@@ -163,7 +192,7 @@ export default function SharedPropertyDetailsPage() {
         if (!response.ok) {
           console.log('[AGENCY-LINKS] Batch fetch failed, falling back to agencies data');
           // Fallback: use data from agencies field
-          return property.agencies.map((agency: any) => ({
+          return agenciesArray.map((agency: any) => ({
             ...agency,
             url: agency.link || '',
             isPrivate: isPrivateAgency(agency.name, agency.link || '')
@@ -175,14 +204,14 @@ export default function SharedPropertyDetailsPage() {
       } catch (error) {
         console.error('[AGENCY-LINKS] Error fetching agency links:', error);
         // Fallback to agencies data
-        return property.agencies.map((agency: any) => ({
+        return agenciesArray.map((agency: any) => ({
           ...agency,
           url: agency.link || '',
           isPrivate: isPrivateAgency(agency.name, agency.link || '')
         }));
       }
     },
-    enabled: !!property && !!property.agencies && Array.isArray(property.agencies) && property.agencies.length > 0,
+    enabled: !!property,
     staleTime: 5 * 60 * 1000 // Cache for 5 minutes
   });
   
