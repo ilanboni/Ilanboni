@@ -239,6 +239,7 @@ async function comparePropertyImages(prop1: Property, prop2: Property): Promise<
 
 /**
  * Crea una chiave bucket basata su prezzo e coordinate geografiche
+ * con overlap sia geografico che di prezzo per evitare di perdere duplicati
  */
 function getBucketKey(prop: Property): string[] {
   const buckets: string[] = [];
@@ -246,23 +247,31 @@ function getBucketKey(prop: Property): string[] {
   // Fascia di prezzo (50k intervalli con overlap)
   const PRICE_BUCKET_SIZE = 50000;
   const priceBucket = Math.floor((prop.price || 0) / PRICE_BUCKET_SIZE);
+  const priceBuckets = [priceBucket - 1, priceBucket, priceBucket + 1];
   
   // Coordinate geografiche arrotondate (0.01 gradi ≈ 1km)
-  // Se non disponibili, usa un bucket generico
-  let geoBucket = 'no-coords';
+  // Con overlap geografico per non perdere match ai confini
   if (prop.latitude && prop.longitude) {
-    const latBucket = Math.floor(Number(prop.latitude) * 100); // 0.01 gradi
+    const latBucket = Math.floor(Number(prop.latitude) * 100);
     const lonBucket = Math.floor(Number(prop.longitude) * 100);
-    geoBucket = `${latBucket},${lonBucket}`;
+    
+    // Crea griglia 3x3 di bucket geografici adiacenti (con overlap)
+    for (const latOffset of [-1, 0, 1]) {
+      for (const lonOffset of [-1, 0, 1]) {
+        const geoBucket = `${latBucket + latOffset},${lonBucket + lonOffset}`;
+        
+        // Combina ogni bucket geografico con ogni fascia prezzo
+        for (const price of priceBuckets) {
+          buckets.push(`${geoBucket}:${price}`);
+        }
+      }
+    }
+  } else {
+    // Se non ci sono coordinate, usa bucket generico con overlap prezzo
+    for (const price of priceBuckets) {
+      buckets.push(`no-coords:${price}`);
+    }
   }
-  
-  // Bucket principale
-  buckets.push(`${geoBucket}:${priceBucket}`);
-  
-  // Bucket adiacenti per overlap (evita di perdere match ai confini)
-  // +/- 1 fascia prezzo
-  buckets.push(`${geoBucket}:${priceBucket - 1}`);
-  buckets.push(`${geoBucket}:${priceBucket + 1}`);
   
   return buckets;
 }
