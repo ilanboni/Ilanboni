@@ -238,57 +238,117 @@ async function comparePropertyImages(prop1: Property, prop2: Property): Promise<
 }
 
 /**
- * Trova i cluster di immobili duplicati
+ * Crea una chiave bucket basata su prezzo e coordinate geografiche
+ */
+function getBucketKey(prop: Property): string[] {
+  const buckets: string[] = [];
+  
+  // Fascia di prezzo (50k intervalli con overlap)
+  const PRICE_BUCKET_SIZE = 50000;
+  const priceBucket = Math.floor((prop.price || 0) / PRICE_BUCKET_SIZE);
+  
+  // Coordinate geografiche arrotondate (0.01 gradi ≈ 1km)
+  // Se non disponibili, usa un bucket generico
+  let geoBucket = 'no-coords';
+  if (prop.latitude && prop.longitude) {
+    const latBucket = Math.floor(Number(prop.latitude) * 100); // 0.01 gradi
+    const lonBucket = Math.floor(Number(prop.longitude) * 100);
+    geoBucket = `${latBucket},${lonBucket}`;
+  }
+  
+  // Bucket principale
+  buckets.push(`${geoBucket}:${priceBucket}`);
+  
+  // Bucket adiacenti per overlap (evita di perdere match ai confini)
+  // +/- 1 fascia prezzo
+  buckets.push(`${geoBucket}:${priceBucket - 1}`);
+  buckets.push(`${geoBucket}:${priceBucket + 1}`);
+  
+  return buckets;
+}
+
+/**
+ * Trova i cluster di immobili duplicati usando bucketing per performance
  */
 export async function findPropertyClusters(properties: Property[]): Promise<PropertyCluster[]> {
   const clusters: Map<number, Property[]> = new Map();
   const propertyToCluster: Map<number, number> = new Map();
   let clusterIndex = 0;
   
-  console.log(`[PropertyDedup] Analisi ${properties.length} immobili...`);
+  console.log(`[PropertyDedup] Analisi ${properties.length} immobili con bucketing ottimizzato...`);
   
-  for (let i = 0; i < properties.length; i++) {
-    for (let j = i + 1; j < properties.length; j++) {
-      const prop1 = properties[i];
-      const prop2 = properties[j];
-      
-      const { score, reasons } = calculatePropertySimilarity(prop1, prop2);
-      
-      const hasSimilarImages = await comparePropertyImages(prop1, prop2);
-      
-      const isMatch = score >= 70 || hasSimilarImages;
-      
-      if (isMatch) {
-        console.log(`[PropertyDedup] Match trovato: #${prop1.id} <-> #${prop2.id} (score: ${score.toFixed(0)}%, foto: ${hasSimilarImages})`);
+  // Fase 1: Raggruppa proprietà in bucket
+  const buckets: Map<string, Property[]> = new Map();
+  for (const prop of properties) {
+    const bucketKeys = getBucketKey(prop);
+    for (const key of bucketKeys) {
+      if (!buckets.has(key)) {
+        buckets.set(key, []);
+      }
+      buckets.get(key)!.push(prop);
+    }
+  }
+  
+  console.log(`[PropertyDedup] Create ${buckets.size} bucket geografici/prezzo`);
+  
+  // Fase 2: Confronta solo proprietà nello stesso bucket
+  const comparedPairs = new Set<string>();
+  let totalComparisons = 0;
+  
+  for (const [bucketKey, bucketProps] of Array.from(buckets.entries())) {
+    for (let i = 0; i < bucketProps.length; i++) {
+      for (let j = i + 1; j < bucketProps.length; j++) {
+        const prop1 = bucketProps[i];
+        const prop2 = bucketProps[j];
         
-        const cluster1 = propertyToCluster.get(prop1.id);
-        const cluster2 = propertyToCluster.get(prop2.id);
+        // Evita confronti duplicati (una proprietà può essere in più bucket)
+        const pairKey = prop1.id < prop2.id ? `${prop1.id}-${prop2.id}` : `${prop2.id}-${prop1.id}`;
+        if (comparedPairs.has(pairKey)) continue;
+        comparedPairs.add(pairKey);
+        totalComparisons++;
         
-        if (cluster1 !== undefined && cluster2 !== undefined) {
-          if (cluster1 !== cluster2) {
-            const arr2 = clusters.get(cluster2)!;
-            const arr1 = clusters.get(cluster1)!;
-            arr2.forEach(p => {
-              arr1.push(p);
-              propertyToCluster.set(p.id, cluster1);
-            });
-            clusters.delete(cluster2);
+        const { score, reasons } = calculatePropertySimilarity(prop1, prop2);
+        
+        const hasSimilarImages = await comparePropertyImages(prop1, prop2);
+        
+        const isMatch = score >= 70 || hasSimilarImages;
+        
+        if (isMatch) {
+          console.log(`[PropertyDedup] Match trovato: #${prop1.id} <-> #${prop2.id} (score: ${score.toFixed(0)}%, foto: ${hasSimilarImages})`);
+          
+          const cluster1 = propertyToCluster.get(prop1.id);
+          const cluster2 = propertyToCluster.get(prop2.id);
+          
+          if (cluster1 !== undefined && cluster2 !== undefined) {
+            if (cluster1 !== cluster2) {
+              const arr2 = clusters.get(cluster2)!;
+              const arr1 = clusters.get(cluster1)!;
+              arr2.forEach(p => {
+                arr1.push(p);
+                propertyToCluster.set(p.id, cluster1);
+              });
+              clusters.delete(cluster2);
+            }
+          } else if (cluster1 !== undefined) {
+            clusters.get(cluster1)!.push(prop2);
+            propertyToCluster.set(prop2.id, cluster1);
+          } else if (cluster2 !== undefined) {
+            clusters.get(cluster2)!.push(prop1);
+            propertyToCluster.set(prop1.id, cluster2);
+          } else {
+            clusters.set(clusterIndex, [prop1, prop2]);
+            propertyToCluster.set(prop1.id, clusterIndex);
+            propertyToCluster.set(prop2.id, clusterIndex);
+            clusterIndex++;
           }
-        } else if (cluster1 !== undefined) {
-          clusters.get(cluster1)!.push(prop2);
-          propertyToCluster.set(prop2.id, cluster1);
-        } else if (cluster2 !== undefined) {
-          clusters.get(cluster2)!.push(prop1);
-          propertyToCluster.set(prop1.id, cluster2);
-        } else {
-          clusters.set(clusterIndex, [prop1, prop2]);
-          propertyToCluster.set(prop1.id, clusterIndex);
-          propertyToCluster.set(prop2.id, clusterIndex);
-          clusterIndex++;
         }
       }
     }
   }
+  
+  console.log(`[PropertyDedup] Completati ${totalComparisons} confronti (vs ${(properties.length * (properties.length - 1)) / 2} senza bucketing)`);
+  const reductionPercent = ((1 - (totalComparisons / ((properties.length * (properties.length - 1)) / 2))) * 100).toFixed(1);
+  console.log(`[PropertyDedup] Riduzione confronti: ${reductionPercent}%`);
   
   const result: PropertyCluster[] = [];
   
