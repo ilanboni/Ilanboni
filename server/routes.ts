@@ -2516,7 +2516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get multi-agency scraped properties near Duomo (5km radius)
   app.get("/api/scraped-properties/multi-agency", async (req: Request, res: Response) => {
     try {
-      const { isFavorite } = req.query;
+      const { isFavorite, search, stage } = req.query;
       const DUOMO_LAT = 45.464203;
       const DUOMO_LON = 9.191383;
       const RADIUS_METERS = 5000; // 5km radius
@@ -2587,6 +2587,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isFavorite === 'true') {
         multiAgencyNearDuomo = multiAgencyNearDuomo.filter(property => property.isFavorite === true);
         console.log(`[MULTI-AGENCY] Filtered to ${multiAgencyNearDuomo.length} favorite properties`);
+      }
+      
+      // Apply stage filter if requested
+      if (stage && stage !== 'all') {
+        multiAgencyNearDuomo = multiAgencyNearDuomo.filter(property => property.stage === stage);
+        console.log(`[MULTI-AGENCY] Filtered to ${multiAgencyNearDuomo.length} properties with stage "${stage}"`);
+      }
+      
+      // Apply search filter if requested
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        multiAgencyNearDuomo = multiAgencyNearDuomo.filter(property => {
+          const addressMatch = property.address?.toLowerCase().includes(searchLower);
+          const cityMatch = property.city?.toLowerCase().includes(searchLower);
+          const ownerNameMatch = property.ownerName?.toLowerCase().includes(searchLower);
+          return addressMatch || cityMatch || ownerNameMatch;
+        });
+        console.log(`[MULTI-AGENCY] Filtered to ${multiAgencyNearDuomo.length} properties matching search "${search}"`);
       }
       
       // Sort by most agencies first, then by distance

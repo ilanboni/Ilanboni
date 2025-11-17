@@ -208,6 +208,8 @@ export default function SharedPropertiesPage() {
           // Fetch multi-agency properties near Duomo
           const queryParams = new URLSearchParams();
           if (filters.isFavorite) queryParams.set('isFavorite', 'true');
+          if (filters.search) queryParams.set('search', filters.search);
+          if (filters.stage) queryParams.set('stage', filters.stage);
           
           const response = await fetch(`/api/scraped-properties/multi-agency?${queryParams}`);
           if (!response.ok) {
@@ -253,10 +255,7 @@ export default function SharedPropertiesPage() {
     setCurrentPage(1); // Reset to first page
     setFilters(prev => ({ 
       ...prev, 
-      multiAgencyOnly: !prev.multiAgencyOnly,
-      // Reset stage/search when switching to multi-agency
-      stage: !prev.multiAgencyOnly ? undefined : prev.stage,
-      search: !prev.multiAgencyOnly ? undefined : prev.search
+      multiAgencyOnly: !prev.multiAgencyOnly
     }));
   };
 
@@ -390,9 +389,9 @@ export default function SharedPropertiesPage() {
               placeholder="Cerca per indirizzo, città o proprietario" 
               defaultValue={filters.search} 
               className="flex-1"
-              disabled={filters.multiAgencyOnly}
+              data-testid="input-search"
             />
-            <Button type="submit" disabled={filters.multiAgencyOnly}>Cerca</Button>
+            <Button type="submit" data-testid="button-search">Cerca</Button>
           </form>
         </div>
         <div className="w-full md:w-48">
@@ -433,7 +432,6 @@ export default function SharedPropertiesPage() {
           <Select 
             value={filters.stage || 'all'} 
             onValueChange={handleStageFilter}
-            disabled={filters.multiAgencyOnly}
           >
             <SelectTrigger>
               <div className="flex items-center">
