@@ -752,7 +752,12 @@ export type InsertPropertyAttachment = z.infer<typeof insertPropertyAttachmentSc
 export const sendPropertyToClientSchema = z.object({
   clientId: z.number().int().positive(),
   messageType: z.string().optional(),
-  notes: z.string().optional()
+  message: z.string().optional(),
+  agencyLinks: z.array(z.object({
+    name: z.string(),
+    url: z.string()
+  })).optional(),
+  notes: z.string().optional() // Keep for backward compatibility
 });
 
 export type SendPropertyToClientRequest = z.infer<typeof sendPropertyToClientSchema>;

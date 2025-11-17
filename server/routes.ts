@@ -2944,7 +2944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { clientId, messageType, notes } = validationResult.data;
+      const { clientId, messageType, message, agencyLinks, notes } = validationResult.data;
 
       // Recupera la proprietà condivisa
       const sharedProperty = await storage.getSharedProperty(sharedPropertyId);
@@ -2971,62 +2971,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Cliente non trovato" });
       }
 
+      if (!client.phone) {
+        return res.status(400).json({ error: "Cliente non ha un numero di telefono configurato" });
+      }
+
       const now = new Date();
       const clientName = `${client.firstName} ${client.lastName}`;
       const propertyAddress = sharedProperty.address;
 
+      // Build WhatsApp message with agency links
+      let whatsappMessage = '';
+      let communicationContent = '';
+      
+      if (message && agencyLinks && agencyLinks.length > 0) {
+        // New format: custom message + selected agency links
+        whatsappMessage = message;
+        agencyLinks.forEach(link => {
+          whatsappMessage += `\n\n*${link.name}:* ${link.url}`;
+        });
+        communicationContent = whatsappMessage;
+      } else if (notes) {
+        // Backward compatibility: old format with notes
+        whatsappMessage = notes;
+        communicationContent = notes;
+      } else {
+        // Fallback
+        whatsappMessage = `Immobile in ${propertyAddress}`;
+        communicationContent = `Immobile condiviso inviato al cliente ${clientName}`;
+      }
+
+      // Send WhatsApp message
+      let whatsappSuccess = false;
+      let whatsappError = null;
+      
+      if (messageType === 'whatsapp') {
+        try {
+          const { sendWhatsAppMessage } = await import('./lib/ultramsgApi.js');
+          console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Sending WhatsApp to ${client.phone}`);
+          
+          await sendWhatsAppMessage(client.phone, whatsappMessage);
+          whatsappSuccess = true;
+          console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] WhatsApp sent successfully`);
+        } catch (error: any) {
+          whatsappError = error.message;
+          console.error(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] WhatsApp error:`, error);
+        }
+      }
+
       // Crea la communication per il cliente usando storage layer
       const communicationSubject = `Immobile inviato: ${propertyAddress}`;
-      const communicationContent = notes || `Immobile condiviso inviato al cliente ${clientName}${messageType ? ` (${messageType})` : ''}`;
       
       const newCommunication = await storage.createCommunication({
         clientId: actualClientId,
         sharedPropertyId: sharedPropertyId,
-        type: 'property_sent',
+        type: 'whatsapp',
         subject: communicationSubject,
         content: communicationContent,
         direction: 'outbound',
-        status: 'completed'
+        status: whatsappSuccess ? 'completed' : 'failed'
       });
 
       console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Communication created:`, newCommunication.id);
 
       // Crea la property activity per l'immobile usando storage layer
-      const activityTitle = `Inviato a ${clientName}`;
-      const activityDescription = `Immobile condiviso inviato al cliente ${clientName}${messageType ? ` (${messageType})` : ''}${notes ? `. Note: ${notes}` : ''}`;
+      const activityTitle = `Inviato a ${clientName} via WhatsApp`;
+      const activityDescription = whatsappSuccess 
+        ? `Immobile inviato con successo a ${clientName} via WhatsApp`
+        : `Tentativo di invio WhatsApp a ${clientName} (${whatsappError || 'errore sconosciuto'})`;
 
       const newActivity = await storage.createPropertyActivity({
         sharedPropertyId: sharedPropertyId,
-        type: 'email_sent',
+        type: 'whatsapp_sent',
         title: activityTitle,
         description: activityDescription,
         activityDate: now,
-        status: 'completed',
-        completedAt: now
+        status: whatsappSuccess ? 'completed' : 'failed',
+        completedAt: whatsappSuccess ? now : null
       });
 
       console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Property activity created:`, newActivity.id);
 
-      // Opzionalmente, crea anche un record in propertySent per il tracking
-      if (messageType) {
-        await db
-          .insert(propertySent)
-          .values({
-            clientId: actualClientId,
-            sharedPropertyId: sharedPropertyId,
-            messageType: messageType,
-            messageContent: communicationContent,
-            sentAt: now
-          });
-        
-        console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] PropertySent record created`);
+      // Crea record in propertySent per il tracking
+      await db
+        .insert(propertySent)
+        .values({
+          clientId: actualClientId,
+          sharedPropertyId: sharedPropertyId,
+          messageType: messageType || 'whatsapp',
+          messageContent: communicationContent,
+          sentAt: now
+        });
+      
+      console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] PropertySent record created`);
+
+      if (!whatsappSuccess && messageType === 'whatsapp') {
+        return res.status(500).json({ 
+          error: "Errore durante l'invio WhatsApp",
+          details: whatsappError,
+          communication: newCommunication,
+          activity: newActivity
+        });
       }
 
       res.json({
         success: true,
+        whatsappSent: whatsappSuccess,
         communication: newCommunication,
         activity: newActivity,
-        message: "Immobile inviato con successo. Attività create su cliente e immobile."
+        message: whatsappSuccess 
+          ? "Messaggio WhatsApp inviato con successo!"
+          : "Attività create. Messaggio WhatsApp non inviato."
       });
     } catch (error) {
       console.error(`[POST /api/shared-properties/${req.params.id}/send-to-client]`, error);

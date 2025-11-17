@@ -110,7 +110,8 @@ export default function SharedPropertyDetailsPage() {
   const [isIgnoreDialogOpen, setIsIgnoreDialogOpen] = useState(false);
   const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-  const [sendNotes, setSendNotes] = useState("");
+  const [sendMessage, setSendMessage] = useState("");
+  const [selectedAgencyIndices, setSelectedAgencyIndices] = useState<number[]>([]);
   
   // Fetch shared property details
   const { data: property, isLoading, isError, error } = useQuery({
@@ -319,13 +320,22 @@ export default function SharedPropertyDetailsPage() {
 
   // Send to client mutation
   const sendToClientMutation = useMutation({
-    mutationFn: async ({ clientId, notes }: { clientId: number; notes?: string }) => {
+    mutationFn: async ({ 
+      clientId, 
+      message, 
+      agencyLinks 
+    }: { 
+      clientId: number; 
+      message: string; 
+      agencyLinks: Array<{name: string; url: string}>;
+    }) => {
       return apiRequest(`/api/shared-properties/${params.id}/send-to-client`, {
         method: 'POST',
         data: { 
           clientId, 
-          messageType: 'informal',
-          notes 
+          message,
+          agencyLinks,
+          messageType: 'whatsapp'
         }
       });
     },
@@ -333,12 +343,13 @@ export default function SharedPropertyDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
       queryClient.invalidateQueries({ queryKey: ['/api/shared-properties', params.id] });
       toast({
-        title: "Immobile inviato",
-        description: "L'immobile è stato inviato al cliente. Le attività sono state create automaticamente.",
+        title: "Messaggio WhatsApp inviato!",
+        description: "L'immobile è stato inviato al cliente via WhatsApp.",
       });
       setIsSendDialogOpen(false);
       setSelectedClientId(null);
-      setSendNotes("");
+      setSendMessage("");
+      setSelectedAgencyIndices([]);
     },
     onError: (error: any) => {
       toast({
@@ -419,9 +430,35 @@ export default function SharedPropertyDetailsPage() {
       });
       return;
     }
+    
+    if (!sendMessage.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Scrivi un messaggio da inviare al cliente.",
+      });
+      return;
+    }
+    
+    if (selectedAgencyIndices.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Seleziona almeno un annuncio da inviare.",
+      });
+      return;
+    }
+    
+    // Build selected agency links
+    const selectedLinks = selectedAgencyIndices.map(index => ({
+      name: agencyLinks[index].name,
+      url: agencyLinks[index].url
+    }));
+    
     sendToClientMutation.mutate({ 
       clientId: selectedClientId, 
-      notes: sendNotes || undefined 
+      message: sendMessage,
+      agencyLinks: selectedLinks
     });
   };
   
@@ -875,24 +912,32 @@ export default function SharedPropertyDetailsPage() {
                   </Dialog>
                 )}
 
-                <Dialog open={isSendDialogOpen} onOpenChange={setIsSendDialogOpen}>
+                <Dialog open={isSendDialogOpen} onOpenChange={(open) => {
+                  setIsSendDialogOpen(open);
+                  if (!open) {
+                    setSelectedClientId(null);
+                    setSendMessage("");
+                    setSelectedAgencyIndices([]);
+                  }
+                }}>
                   <DialogTrigger asChild>
                     <Button variant="default" data-testid="button-send-to-client">
                       <Send className="h-4 w-4 mr-2" />
                       Invia a Cliente
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-md">
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Invia immobile a cliente</DialogTitle>
+                      <DialogTitle>Invia immobile via WhatsApp</DialogTitle>
                       <DialogDescription>
-                        Seleziona il cliente a cui vuoi inviare questo immobile. Verranno create automaticamente le attività su cliente e immobile.
+                        Personalizza il messaggio e scegli quali annunci inviare al cliente.
                       </DialogDescription>
                     </DialogHeader>
                     
-                    <div className="space-y-4 py-4">
+                    <div className="space-y-5 py-4">
+                      {/* Client Selection */}
                       <div className="space-y-2">
-                        <Label htmlFor="client-select">Cliente</Label>
+                        <Label htmlFor="client-select">Cliente *</Label>
                         <Select
                           value={selectedClientId?.toString() || ""}
                           onValueChange={(value) => setSelectedClientId(parseInt(value))}
@@ -909,29 +954,85 @@ export default function SharedPropertyDetailsPage() {
                                   data-testid={`client-option-${buyer.id}`}
                                 >
                                   {buyer.firstName} {buyer.lastName}
-                                  {buyer.matchPercentage && ` (${buyer.matchPercentage}% match)`}
                                 </SelectItem>
                               ))
                             ) : (
                               <SelectItem value="no-clients" disabled>
-                                Nessun cliente compatibile trovato
+                                Nessun cliente trovato
                               </SelectItem>
                             )}
                           </SelectContent>
                         </Select>
                       </div>
 
+                      {/* Agency Selection */}
                       <div className="space-y-2">
-                        <Label htmlFor="send-notes">Note (opzionale)</Label>
-                        <Textarea
-                          id="send-notes"
-                          placeholder="Aggiungi note sull'invio..."
-                          value={sendNotes}
-                          onChange={(e) => setSendNotes(e.target.value)}
-                          rows={3}
-                          data-testid="textarea-send-notes"
-                        />
+                        <Label>Annunci da inviare *</Label>
+                        <div className="space-y-2 border rounded-lg p-3 bg-gray-50">
+                          {agencyLinks.map((link, index) => (
+                            <div key={index} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`agency-${index}`}
+                                checked={selectedAgencyIndices.includes(index)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAgencyIndices([...selectedAgencyIndices, index]);
+                                  } else {
+                                    setSelectedAgencyIndices(selectedAgencyIndices.filter(i => i !== index));
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                data-testid={`checkbox-agency-${index}`}
+                              />
+                              <label htmlFor={`agency-${index}`} className="text-sm flex-1 cursor-pointer">
+                                <span className="font-medium">{link.name}</span>
+                                {link.isPrivate && (
+                                  <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                                    Privato
+                                  </span>
+                                )}
+                              </label>
+                            </div>
+                          ))}
+                          {agencyLinks.length === 0 && (
+                            <p className="text-sm text-gray-500">Nessun annuncio disponibile</p>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Message */}
+                      <div className="space-y-2">
+                        <Label htmlFor="send-message">Messaggio WhatsApp *</Label>
+                        <Textarea
+                          id="send-message"
+                          placeholder="Es: Ciao! Ho trovato questo immobile che potrebbe interessarti..."
+                          value={sendMessage}
+                          onChange={(e) => setSendMessage(e.target.value)}
+                          rows={4}
+                          className="resize-none"
+                          data-testid="textarea-send-message"
+                        />
+                        <p className="text-xs text-gray-500">
+                          I link degli annunci verranno aggiunti automaticamente alla fine del messaggio
+                        </p>
+                      </div>
+
+                      {/* Preview */}
+                      {sendMessage.trim() && selectedAgencyIndices.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Anteprima messaggio</Label>
+                          <div className="border rounded-lg p-3 bg-green-50 text-sm whitespace-pre-wrap">
+                            {sendMessage}
+                            
+                            {selectedAgencyIndices.map((index, i) => (
+                              <div key={i} className="mt-2">
+                                <strong>{agencyLinks[index].name}:</strong> {agencyLinks[index].url}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <DialogFooter>
@@ -940,17 +1041,23 @@ export default function SharedPropertyDetailsPage() {
                         onClick={() => {
                           setIsSendDialogOpen(false);
                           setSelectedClientId(null);
-                          setSendNotes("");
+                          setSendMessage("");
+                          setSelectedAgencyIndices([]);
                         }}
                       >
                         Annulla
                       </Button>
                       <Button 
                         onClick={handleSendToClient} 
-                        disabled={sendToClientMutation.isPending || !selectedClientId}
+                        disabled={
+                          sendToClientMutation.isPending || 
+                          !selectedClientId || 
+                          !sendMessage.trim() ||
+                          selectedAgencyIndices.length === 0
+                        }
                         data-testid="button-confirm-send"
                       >
-                        {sendToClientMutation.isPending ? "Invio..." : "Invia"}
+                        {sendToClientMutation.isPending ? "Invio..." : "Invia WhatsApp"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
