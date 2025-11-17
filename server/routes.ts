@@ -2986,10 +2986,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let communicationContent = '';
       
       if (message && agencyLinks && agencyLinks.length > 0) {
-        // New format: custom message + selected agency links
+        // New format: custom message + selected agency links (only URLs)
         whatsappMessage = message;
         agencyLinks.forEach(link => {
-          whatsappMessage += `\n\n*${link.name}:* ${link.url}`;
+          whatsappMessage += `\n\n${link.url}`;
         });
         communicationContent = whatsappMessage;
       } else if (notes) {

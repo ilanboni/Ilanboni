@@ -1052,7 +1052,7 @@ export default function SharedPropertyDetailsPage() {
                             
                             {selectedAgencyIndices.map((index, i) => (
                               <div key={i} className="mt-2">
-                                <strong>{agencyLinks[index].name}:</strong> {agencyLinks[index].url}
+                                {agencyLinks[index].url}
                               </div>
                             ))}
                           </div>
