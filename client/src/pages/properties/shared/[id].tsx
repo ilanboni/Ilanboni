@@ -349,9 +349,16 @@ export default function SharedPropertyDetailsPage() {
     }
   });
 
-  // Fetch matching buyers for sending property
+  // Fetch all buyers for sending property
   const { data: buyersForSend = [] } = useQuery({
-    queryKey: ['/api/shared-properties', params.id, 'matching-buyers'],
+    queryKey: ['/api/clients'],
+    queryFn: async () => {
+      const response = await fetch('/api/clients?type=buyer');
+      if (!response.ok) {
+        throw new Error('Errore nel caricamento dei clienti');
+      }
+      return response.json();
+    },
     enabled: isSendDialogOpen // Only fetch when dialog is open
   });
   
