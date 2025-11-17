@@ -82,6 +82,7 @@ export default function ClientDetailPage() {
   const [detectedProperties, setDetectedProperties] = useState<{ id: number; address: string }[]>([]);
   const [conversationThread, setConversationThread] = useState("");
   const [communicationsView, setCommunicationsView] = useState<"chat" | "table">("chat");
+  const [showOnlyPrivateProperties, setShowOnlyPrivateProperties] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -1609,16 +1610,28 @@ export default function ClientDetailPage() {
                   </CardTitle>
                   <CardDescription>Immobili che corrispondono alle preferenze del cliente</CardDescription>
                 </div>
-                <Button 
-                  variant="outline"
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href={`/clients/${id}/search`}>
-                    <i className="fas fa-search"></i>
-                    <span>Ricerca Avanzata</span>
-                  </Link>
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant={showOnlyPrivateProperties ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowOnlyPrivateProperties(!showOnlyPrivateProperties)}
+                    className="gap-2"
+                  >
+                    <i className="fas fa-user"></i>
+                    <span>Solo Privati</span>
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    asChild
+                  >
+                    <Link href={`/clients/${id}/search`}>
+                      <i className="fas fa-search"></i>
+                      <span>Ricerca Avanzata</span>
+                    </Link>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {(() => {
@@ -1660,7 +1673,9 @@ export default function ClientDetailPage() {
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {(matchingProperties.properties ?? []).map((property) => (
+                      {(matchingProperties.properties ?? [])
+                        .filter(property => !showOnlyPrivateProperties || property.ownerType === 'private')
+                        .map((property) => (
                       <Card key={property.id} className={`overflow-hidden ${
                         property.isMultiagency ? 'bg-yellow-50 border-yellow-200' : ''
                       }`}>
