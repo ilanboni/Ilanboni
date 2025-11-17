@@ -10832,7 +10832,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           const batch = sharedPropsToInsert.slice(i, i + SHARED_BATCH_SIZE);
           const result = await db.insert(sharedProperties)
             .values(batch)
-            .onConflictDoNothing({ target: sharedProperties.propertyId });
+            .onConflictDoNothing({ target: [sharedProperties.address, sharedProperties.price] });
           sharedPropertiesCreated += result.rowCount || 0;
           console.log(`[Scan] Batch ${Math.floor(i/SHARED_BATCH_SIZE) + 1}/${Math.ceil(sharedPropsToInsert.length/SHARED_BATCH_SIZE)}: inserite ${result.rowCount || 0} proprietà`);
         }
