@@ -3464,12 +3464,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Proprietà condivisa non trovata" });
       }
       
-      if (!sharedProperty.agencies || !Array.isArray(sharedProperty.agencies)) {
+      // Build agencies array from old fields if new field is empty (backward compatibility)
+      let agenciesArray = sharedProperty.agencies;
+      
+      if (!agenciesArray || !Array.isArray(agenciesArray) || agenciesArray.length === 0) {
+        // Fallback to old agency fields
+        agenciesArray = [];
+        if (sharedProperty.agency1Name || sharedProperty.agency1Link) {
+          agenciesArray.push({
+            name: sharedProperty.agency1Name || '',
+            link: sharedProperty.agency1Link || '',
+            sourcePropertyId: null
+          });
+        }
+        if (sharedProperty.agency2Name || sharedProperty.agency2Link) {
+          agenciesArray.push({
+            name: sharedProperty.agency2Name || '',
+            link: sharedProperty.agency2Link || '',
+            sourcePropertyId: null
+          });
+        }
+        if (sharedProperty.agency3Name || sharedProperty.agency3Link) {
+          agenciesArray.push({
+            name: sharedProperty.agency3Name || '',
+            link: sharedProperty.agency3Link || '',
+            sourcePropertyId: null
+          });
+        }
+      }
+      
+      if (agenciesArray.length === 0) {
         return res.json([]);
       }
       
       // Extract and normalize sourcePropertyIds from agencies
-      const sourcePropertyIds = sharedProperty.agencies
+      const sourcePropertyIds = agenciesArray
         .filter((agency: any) => agency.sourcePropertyId)
         .map((agency: any) => {
           const id = agency.sourcePropertyId;
@@ -3482,7 +3511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (uniqueIds.length === 0) {
         // Return agencies with existing link data
-        const agencyLinks = sharedProperty.agencies.map((agency: any) => ({
+        const agencyLinks = agenciesArray.map((agency: any) => ({
           ...agency,
           url: agency.link || '',
           isPrivate: false
@@ -3514,7 +3543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Map agencies to include URLs from properties
-      const agencyLinks = sharedProperty.agencies.map((agency: any) => {
+      const agencyLinks = agenciesArray.map((agency: any) => {
         // Normalize sourcePropertyId to number for Map lookup
         const sourceId = agency.sourcePropertyId;
         const numericId = typeof sourceId === 'number' ? sourceId : parseInt(String(sourceId));
