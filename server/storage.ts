@@ -20,7 +20,7 @@ import {
   type SharedPropertyWithDetails
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, lt, and, or, gte, lte, like, not, isNull, inArray, SQL, sql } from "drizzle-orm";
+import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql } from "drizzle-orm";
 import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
 
 // Storage interface with CRUD methods for all entities
@@ -69,7 +69,7 @@ export interface IStorage {
   // Shared property methods
   getSharedProperty(id: number): Promise<SharedProperty | undefined>;
   getSharedPropertyByPropertyId(propertyId: number): Promise<SharedProperty | undefined>;
-  getSharedProperties(filters?: { stage?: string; search?: string }): Promise<SharedProperty[]>;
+  getSharedProperties(filters?: { stage?: string; search?: string; isFavorite?: boolean }): Promise<SharedProperty[]>;
   getSharedPropertyWithDetails(id: number): Promise<SharedPropertyWithDetails | undefined>;
   createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty>;
   updateSharedProperty(id: number, data: Partial<InsertSharedProperty>): Promise<SharedProperty | undefined>;
@@ -1413,7 +1413,7 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getSharedProperties(filters?: { stage?: string; search?: string }): Promise<SharedProperty[]> {
+  async getSharedProperties(filters?: { stage?: string; search?: string; isFavorite?: boolean }): Promise<SharedProperty[]> {
     let sharedProperties = Array.from(this.sharedPropertyStore.values());
     
     if (filters) {
@@ -1428,6 +1428,10 @@ export class MemStorage implements IStorage {
           (sp.city && sp.city.toLowerCase().includes(searchTerm)) ||
           (sp.ownerName && sp.ownerName.toLowerCase().includes(searchTerm))
         );
+      }
+      
+      if (filters.isFavorite !== undefined) {
+        sharedProperties = sharedProperties.filter(sp => sp.isFavorite === filters.isFavorite);
       }
     }
     
@@ -2189,7 +2193,7 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async getSharedProperties(filters?: { stage?: string; search?: string }): Promise<SharedProperty[]> {
+  async getSharedProperties(filters?: { stage?: string; search?: string; isFavorite?: boolean }): Promise<SharedProperty[]> {
     let query = db.select().from(sharedProperties);
     
     const conditions: SQL[] = [];
@@ -2206,11 +2210,15 @@ export class DatabaseStorage implements IStorage {
         const search = `%${filters.search}%`;
         conditions.push(
           or(
-            like(sharedProperties.address, search),
-            like(sharedProperties.city, search),
-            like(sharedProperties.ownerName, search)
+            ilike(sharedProperties.address, search),
+            ilike(sharedProperties.city, search),
+            ilike(sharedProperties.ownerName, search)
           )
         );
+      }
+      
+      if (filters.isFavorite !== undefined) {
+        conditions.push(eq(sharedProperties.isFavorite, filters.isFavorite));
       }
     }
     
