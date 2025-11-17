@@ -747,3 +747,12 @@ export const insertPropertyAttachmentSchema = createInsertSchema(propertyAttachm
 
 export type PropertyAttachment = typeof propertyAttachments.$inferSelect;
 export type InsertPropertyAttachment = z.infer<typeof insertPropertyAttachmentSchema>;
+
+// Schema per validazione request body "send property to client"
+export const sendPropertyToClientSchema = z.object({
+  clientId: z.number().int().positive(),
+  messageType: z.string().optional(),
+  notes: z.string().optional()
+});
+
+export type SendPropertyToClientRequest = z.infer<typeof sendPropertyToClientSchema>;

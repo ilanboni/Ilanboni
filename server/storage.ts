@@ -165,6 +165,7 @@ export class MemStorage implements IStorage {
   private taskStore: Map<number, Task>;
   private communicationStore: Map<number, Communication>;
   private marketInsightStore: Map<number, MarketInsight>;
+  private propertyActivityStore: Map<number, PropertyActivity>;
   
   private userIdCounter: number;
   private clientIdCounter: number;
@@ -176,6 +177,7 @@ export class MemStorage implements IStorage {
   private taskIdCounter: number;
   private communicationIdCounter: number;
   private marketInsightIdCounter: number;
+  private propertyActivityIdCounter: number;
   
   constructor() {
     this.userStore = new Map();
@@ -188,6 +190,7 @@ export class MemStorage implements IStorage {
     this.taskStore = new Map();
     this.communicationStore = new Map();
     this.marketInsightStore = new Map();
+    this.propertyActivityStore = new Map();
     
     this.userIdCounter = 1;
     this.clientIdCounter = 1;
@@ -199,6 +202,7 @@ export class MemStorage implements IStorage {
     this.taskIdCounter = 1;
     this.communicationIdCounter = 1;
     this.marketInsightIdCounter = 1;
+    this.propertyActivityIdCounter = 1;
     
     // Add some initial data for testing
     this.initializeData();
@@ -1199,6 +1203,18 @@ export class MemStorage implements IStorage {
   
   async deleteCommunication(id: number): Promise<boolean> {
     return this.communicationStore.delete(id);
+  }
+  
+  async createPropertyActivity(activity: InsertPropertyActivity): Promise<PropertyActivity> {
+    const id = this.propertyActivityIdCounter++;
+    const newActivity: PropertyActivity = {
+      ...activity,
+      id,
+      createdAt: new Date()
+    };
+    
+    this.propertyActivityStore.set(id, newActivity);
+    return newActivity;
   }
   
   async getClientsWithoutRecentCommunication(days: number, minRating: number): Promise<ClientWithDetails[]> {
@@ -2495,6 +2511,11 @@ export class DatabaseStorage implements IStorage {
   async deleteCommunication(id: number): Promise<boolean> {
     const result = await db.delete(communications).where(eq(communications.id, id)).returning();
     return result.length > 0;
+  }
+  
+  async createPropertyActivity(activity: InsertPropertyActivity): Promise<PropertyActivity> {
+    const result = await db.insert(propertyActivities).values(activity).returning();
+    return result[0];
   }
 
   async getClientsWithoutRecentCommunication(days: number, minRating: number): Promise<ClientWithDetails[]> {

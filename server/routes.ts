@@ -17,6 +17,7 @@ import {
   insertMatchSchema,
   insertClientRequestSchema,
   insertPropertyActivitySchema,
+  sendPropertyToClientSchema,
   clients,
   buyers,
   properties,
@@ -2934,10 +2935,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID proprietà condivisa non valido" });
       }
 
-      const { clientId, messageType, notes } = req.body;
-      if (!clientId || typeof clientId !== 'number') {
-        return res.status(400).json({ error: "Campo 'clientId' richiesto (number)" });
+      // Validate request body with Zod schema
+      const validationResult = sendPropertyToClientSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Dati non validi", 
+          details: validationResult.error.flatten() 
+        });
       }
+
+      const { clientId, messageType, notes } = validationResult.data;
 
       // Recupera la proprietà condivisa
       const sharedProperty = await storage.getSharedProperty(sharedPropertyId);
@@ -2946,17 +2953,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Cerca prima nella tabella buyers (perché matching-buyers restituisce buyer IDs)
-      const [buyer] = await db.select().from(buyers).where(eq(buyers.id, clientId)).limit(1);
+      const buyer = await storage.getBuyer(clientId);
       let actualClientId = clientId;
       
       if (buyer) {
         // Se è un buyer ID, usa il clientId del buyer
+        if (!buyer.clientId) {
+          return res.status(400).json({ error: "Buyer non ha un clientId associato" });
+        }
         actualClientId = buyer.clientId;
         console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Buyer ID ${clientId} -> Client ID ${actualClientId}`);
       }
 
       // Recupera il client
-      const [client] = await db.select().from(clients).where(eq(clients.id, actualClientId)).limit(1);
+      const client = await storage.getClient(actualClientId);
       if (!client) {
         return res.status(404).json({ error: "Cliente non trovato" });
       }
@@ -2965,42 +2975,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientName = `${client.firstName} ${client.lastName}`;
       const propertyAddress = sharedProperty.address;
 
-      // Crea la communication per il cliente
+      // Crea la communication per il cliente usando storage layer
       const communicationSubject = `Immobile inviato: ${propertyAddress}`;
       const communicationContent = notes || `Immobile condiviso inviato al cliente ${clientName}${messageType ? ` (${messageType})` : ''}`;
       
-      const [newCommunication] = await db
-        .insert(communications)
-        .values({
-          clientId: actualClientId,
-          sharedPropertyId: sharedPropertyId,
-          type: 'property_sent',
-          subject: communicationSubject,
-          content: communicationContent,
-          direction: 'outbound',
-          status: 'completed',
-          createdAt: now
-        })
-        .returning();
+      const newCommunication = await storage.createCommunication({
+        clientId: actualClientId,
+        sharedPropertyId: sharedPropertyId,
+        type: 'property_sent',
+        subject: communicationSubject,
+        content: communicationContent,
+        direction: 'outbound',
+        status: 'completed'
+      });
 
       console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Communication created:`, newCommunication.id);
 
-      // Crea la property activity per l'immobile
+      // Crea la property activity per l'immobile usando storage layer
       const activityTitle = `Inviato a ${clientName}`;
       const activityDescription = `Immobile condiviso inviato al cliente ${clientName}${messageType ? ` (${messageType})` : ''}${notes ? `. Note: ${notes}` : ''}`;
 
-      const [newActivity] = await db
-        .insert(propertyActivities)
-        .values({
-          sharedPropertyId: sharedPropertyId,
-          type: 'email_sent',
-          title: activityTitle,
-          description: activityDescription,
-          activityDate: now,
-          status: 'completed',
-          completedAt: now
-        })
-        .returning();
+      const newActivity = await storage.createPropertyActivity({
+        sharedPropertyId: sharedPropertyId,
+        type: 'email_sent',
+        title: activityTitle,
+        description: activityDescription,
+        activityDate: now,
+        status: 'completed',
+        completedAt: now
+      });
 
       console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Property activity created:`, newActivity.id);
 
