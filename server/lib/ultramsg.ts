@@ -664,6 +664,14 @@ export class UltraMsgClient {
         .filter((comm: any) => comm.direction === "outbound")
         .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())[0];
       
+      // Log per tracciamento immobili
+      if (lastOutboundComm?.sharedPropertyId) {
+        console.log(`[ULTRAMSG-CORRELATION] Immobile condiviso trovato da ultima comunicazione: sharedPropertyId=${lastOutboundComm.sharedPropertyId}`);
+      }
+      if (lastOutboundComm?.propertyId) {
+        console.log(`[ULTRAMSG-CORRELATION] Immobile trovato da ultima comunicazione: propertyId=${lastOutboundComm.propertyId}`);
+      }
+      
       // Se non c'è comunicazione outbound, prova a dedurre l'immobile dal contenuto
       let deducedPropertyId: number | null = null;
       if (!lastOutboundComm?.propertyId) {
@@ -741,6 +749,7 @@ export class UltraMsgClient {
         needsResponse: false,
         status: 'completed',
         propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
+        sharedPropertyId: lastOutboundComm?.sharedPropertyId || null,
         responseToId: null,
         externalId: messageId || `outbound-${phone}-${Date.now()}`,
         source: 'phone', // Inviato dal telefono, non dall'app
@@ -757,6 +766,7 @@ export class UltraMsgClient {
         needsResponse: true,
         status: 'pending',
         propertyId: lastOutboundComm?.propertyId || deducedPropertyId || null,
+        sharedPropertyId: lastOutboundComm?.sharedPropertyId || null,
         responseToId: lastOutboundComm?.id || null,
         externalId: messageId || `inbound-${phone}-${Date.now()}`,
         source: 'webhook',
