@@ -4631,12 +4631,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rooms: sp.rooms || null,
         bathrooms: sp.bathrooms || null,
         floor: sp.floor || null,
+        location: sp.location,
         latitude: sp.location ? (sp.location as any).lat : null,
         longitude: sp.location ? (sp.location as any).lng : null,
         description: sp.description || null,
         link: null,
         imageUrl: sp.photos ? (sp.photos as string[])[0] : null,
-        propertyType: sp.type || null,
+        type: sp.type || null,
+        status: sp.status ?? 'available',
         condition: null,
         heating: null,
         energyClass: null,
@@ -4667,9 +4669,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const allProperties = [...normalProperties, ...sharedPropertiesConverted];
       
-      const sharedPenthouses = sharedPropertiesConverted.filter(p => p.propertyType === 'penthouse');
-      console.log(`[GET /api/properties/for-buyer/${clientId}] 📊 Trovati ${normalProperties.length} immobili normali + ${sharedPropertiesConverted.length} pluricondivisi (${sharedPenthouses.length} penthouses) = ${allProperties.length} totali`);
-      console.log(`[GET /api/properties/for-buyer/${clientId}] 🎯 Buyer cerca tipo: ${buyer.propertyType}`);
+      const sharedPenthouses = sharedPropertiesConverted.filter(p => p.type === 'penthouse');
+      console.log(`[GET /api/properties/for-buyer/${clientId}] DEBUG: Found ${normalProperties.length} normal + ${sharedPropertiesConverted.length} shared (${sharedPenthouses.length} penthouses) = ${allProperties.length} total`);
+      console.log(`[GET /api/properties/for-buyer/${clientId}] DEBUG: Buyer seeks type: ${buyer.propertyType}`);
 
       // Import matching logic
       const { isPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
@@ -4679,7 +4681,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isPropertyMatchingBuyerCriteria(property, buyer)
       );
 
-      console.log(`[GET /api/properties/for-buyer/${clientId}] ✅ ${matchingProperties.length} immobili corrispondono ai criteri del buyer`);
+      const sharedMatched = matchingProperties.filter(p => p.isSharedProperty);
+      console.log(`[GET /api/properties/for-buyer/${clientId}] ✅ ${matchingProperties.length} immobili corrispondono ai criteri del buyer (${sharedMatched.length} shared, ${matchingProperties.length - sharedMatched.length} normal)`);
 
       res.json({
         success: true,
