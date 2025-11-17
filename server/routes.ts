@@ -3063,6 +3063,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Property activity created:`, newActivity.id);
 
+      // Crea un task per il cliente (apparirà in "Note e Attività")
+      const taskTitle = `WhatsApp inviato: ${propertyAddress}`;
+      const taskDescription = `Inviato immobile via WhatsApp: ${propertyAddress}`;
+      
+      const newTask = await storage.createTask({
+        clientId: actualClientId,
+        type: 'other',
+        title: taskTitle,
+        description: taskDescription,
+        status: 'completed',
+        priority: 'medium',
+        dueDate: now,
+        completedAt: now
+      });
+
+      console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Task created:`, newTask.id);
+
       // Crea record in propertySent per il tracking
       await db
         .insert(propertySent)
