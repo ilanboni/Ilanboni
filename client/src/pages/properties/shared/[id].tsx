@@ -342,6 +342,7 @@ export default function SharedPropertyDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/communications'] });
       queryClient.invalidateQueries({ queryKey: ['/api/shared-properties', params.id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/shared-properties/${params.id}/activities`] });
       toast({
         title: "Messaggio WhatsApp inviato!",
         description: "L'immobile è stato inviato al cliente via WhatsApp.",
