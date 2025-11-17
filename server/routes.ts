@@ -4617,9 +4617,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Dati acquirente non trovati" });
       }
 
-      // Get all available properties from database
-      const allProperties = await storage.getProperties();
-      console.log(`[GET /api/properties/for-buyer/${clientId}] 📊 Trovati ${allProperties.length} immobili totali nel database`);
+      // Get all available properties from database (both tables)
+      const normalProperties = await storage.getProperties();
+      const sharedPropertiesRaw = await db.select().from(sharedProperties);
+      
+      // Convert shared properties to Property format and mark them
+      const sharedPropertiesConverted = sharedPropertiesRaw.map(sp => ({
+        id: sp.id,
+        address: sp.address,
+        city: sp.city || null,
+        price: sp.price,
+        size: sp.size || null,
+        rooms: sp.rooms || null,
+        bathrooms: sp.bathrooms || null,
+        floor: sp.floor || null,
+        latitude: sp.location ? (sp.location as any).lat : null,
+        longitude: sp.location ? (sp.location as any).lng : null,
+        description: sp.description || null,
+        link: null,
+        imageUrl: sp.photos ? (sp.photos as string[])[0] : null,
+        propertyType: null,
+        condition: null,
+        heating: null,
+        energyClass: null,
+        expenses: null,
+        availability: null,
+        reference: null,
+        cadastralIncome: null,
+        buildingFloors: null,
+        parking: null,
+        elevator: null,
+        balcony: null,
+        terrace: null,
+        garden: null,
+        furnished: null,
+        agencyId: null,
+        agencyName: null,
+        ownerType: sp.ownerType || null,
+        ownerName: sp.ownerName || null,
+        ownerPhone: sp.ownerPhone || null,
+        ownerEmail: sp.ownerEmail || null,
+        portal: null,
+        externalId: null,
+        createdAt: sp.createdAt,
+        updatedAt: sp.updatedAt,
+        isSharedProperty: true,
+        sharedPropertyId: sp.id
+      }));
+      
+      const allProperties = [...normalProperties, ...sharedPropertiesConverted];
+      console.log(`[GET /api/properties/for-buyer/${clientId}] 📊 Trovati ${normalProperties.length} immobili normali + ${sharedPropertiesConverted.length} pluricondivisi = ${allProperties.length} totali`);
 
       // Import matching logic
       const { isPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
