@@ -10785,92 +10785,115 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
 
       console.log(`[Scan] Deduplicazione completata: ${result.clustersFound} cluster trovati`);
 
-      // Aggiorna i flag isMultiagency e exclusivityHint nel database
-      let propertiesUpdated = 0;
-      let sharedPropertiesCreated = 0;
+      // Prepara tutte le proprietà condivise da inserire (duplicate saranno ignorate dal DB)
+      console.log('[Scan] Preparazione proprietà condivise da inserire...');
+      const sharedPropsToInsert = [];
 
       for (const cluster of result.clusters) {
-        // Per cluster multiagency (2+ immobili duplicati), crea una scheda in shared_properties
         if (cluster.isMultiagency && cluster.properties.length >= 2) {
           const firstProperty = cluster.properties[0];
           
-          // Prepara oggetti agenzie completi con name, link, sourcePropertyId
-          const agencies = cluster.properties.map(p => {
-            const agencyName = p.agencyName || p.portal || 'Agenzia Sconosciuta';
-            console.log(`[Scan] Property #${p.id}: agencyName="${p.agencyName}", portal="${p.portal}", final="${agencyName}"`);
-            return {
-              name: agencyName,
-              link: p.externalLink || '',
-              sourcePropertyId: p.id
-            };
+          const agencies = cluster.properties.map(p => ({
+            name: p.agencyName || p.portal || 'Agenzia Sconosciuta',
+            link: p.externalLink || '',
+            sourcePropertyId: p.id
+          }));
+          
+          sharedPropsToInsert.push({
+            propertyId: firstProperty.id,
+            address: firstProperty.address,
+            city: firstProperty.city || 'Milano',
+            size: firstProperty.size,
+            price: firstProperty.price,
+            type: firstProperty.type,
+            floor: firstProperty.floor || null,
+            location: firstProperty.location,
+            agencies: agencies,
+            rating: 4,
+            stage: 'result',
+            stageResult: 'multiagency',
+            isAcquired: false,
+            matchBuyers: true,
+            ownerName: firstProperty.ownerName || null,
+            ownerPhone: firstProperty.ownerPhone || null,
+            ownerEmail: firstProperty.ownerEmail || null,
+            ownerNotes: `Immobile pluricondiviso rilevato automaticamente. Match score: ${cluster.matchScore.toFixed(0)}%. Motivi: ${cluster.matchReasons.join(', ')}`
           });
-          
-          // Verifica se esiste già una shared property per questo cluster
-          const existingShared = await db
-            .select()
-            .from(sharedProperties)
-            .where(eq(sharedProperties.propertyId, firstProperty.id));
-          
-          if (existingShared.length === 0) {
-            // Crea nuova scheda proprietà condivisa
-            await db.insert(sharedProperties).values({
-              propertyId: firstProperty.id,
-              address: firstProperty.address,
-              city: firstProperty.city || 'Milano',
-              size: firstProperty.size,
-              price: firstProperty.price,
-              type: firstProperty.type,
-              floor: firstProperty.floor || null,
-              location: firstProperty.location,
-              agencies: agencies, // JSONB array con agenzie complete (name, link, sourcePropertyId)
-              rating: 4, // Alto perché è pluricondiviso
-              stage: 'result',
-              stageResult: 'multiagency',
-              isAcquired: false,
-              matchBuyers: true, // Abilita matching con compratori
-              ownerName: firstProperty.ownerName || null,
-              ownerPhone: firstProperty.ownerPhone || null,
-              ownerEmail: firstProperty.ownerEmail || null,
-              ownerNotes: `Immobile pluricondiviso rilevato automaticamente. Match score: ${cluster.matchScore.toFixed(0)}%. Motivi: ${cluster.matchReasons.join(', ')}`
-            });
-            
-            sharedPropertiesCreated++;
-            console.log(`[Scan] ✅ Creata scheda proprietà condivisa per cluster: ${firstProperty.address} (${cluster.properties.length} immobili duplicati)`);
-          } else {
-            console.log(`[Scan] ⏭️ Scheda proprietà condivisa già esistente per: ${firstProperty.address}`);
-          }
-        }
-        
-        // Aggiorna i flag per tutti gli immobili nel cluster
-        for (const property of cluster.properties) {
-          await db
-            .update(properties)
-            .set({
-              isMultiagency: cluster.isMultiagency,
-              exclusivityHint: cluster.exclusivityHint,
-              updatedAt: new Date()
-            })
-            .where(eq(properties.id, property.id));
-
-          propertiesUpdated++;
-          
-          console.log(
-            `[Scan] Aggiornato immobile #${property.id}: ` +
-            `isMultiagency=${cluster.isMultiagency}, ` +
-            `exclusivityHint=${cluster.exclusivityHint}, ` +
-            `clusterSize=${cluster.clusterSize}, ` +
-            `matchScore=${cluster.matchScore.toFixed(0)}%`
-          );
         }
       }
 
-      // Resetta i flag per gli immobili che non sono in nessun cluster
-      const clusterPropertyIds = result.clusters.flatMap(c => c.properties.map(p => p.id));
-      const nonClusteredProperties = allProperties.filter(p => !clusterPropertyIds.includes(p.id));
+      // Inserimento in batch da 100 con ON CONFLICT DO NOTHING
+      let sharedPropertiesCreated = 0;
+      if (sharedPropsToInsert.length > 0) {
+        console.log(`[Scan] Inserimento ${sharedPropsToInsert.length} proprietà condivise in batch da 100...`);
+        const SHARED_BATCH_SIZE = 100;
+        
+        for (let i = 0; i < sharedPropsToInsert.length; i += SHARED_BATCH_SIZE) {
+          const batch = sharedPropsToInsert.slice(i, i + SHARED_BATCH_SIZE);
+          const result = await db.insert(sharedProperties)
+            .values(batch)
+            .onConflictDoNothing({ target: sharedProperties.propertyId });
+          sharedPropertiesCreated += result.rowCount || 0;
+          console.log(`[Scan] Batch ${Math.floor(i/SHARED_BATCH_SIZE) + 1}/${Math.ceil(sharedPropsToInsert.length/SHARED_BATCH_SIZE)}: inserite ${result.rowCount || 0} proprietà`);
+        }
+        console.log(`[Scan] ✅ Create ${sharedPropertiesCreated} nuove proprietà condivise`);
+      }
 
-      for (const property of nonClusteredProperties) {
-        // Solo se i flag sono già impostati, li resettiamo
-        if (property.isMultiagency || property.exclusivityHint) {
+      // Aggiorna flag properties in batch (dividi in gruppi da 100 per evitare query troppo grandi)
+      console.log('[Scan] Aggiornamento flag properties in batch...');
+      const BATCH_SIZE = 100;
+      let propertiesUpdated = 0;
+      
+      // Raggruppa properties per tipo di update
+      const multiagencyIds = [];
+      const exclusiveIds = [];
+      
+      for (const cluster of result.clusters) {
+        const propertyIds = cluster.properties.map(p => p.id);
+        if (cluster.isMultiagency) {
+          multiagencyIds.push(...propertyIds);
+        } else if (cluster.exclusivityHint) {
+          exclusiveIds.push(...propertyIds);
+        }
+      }
+      
+      // Update multiagency properties in batch
+      for (let i = 0; i < multiagencyIds.length; i += BATCH_SIZE) {
+        const batch = multiagencyIds.slice(i, i + BATCH_SIZE);
+        await db
+          .update(properties)
+          .set({
+            isMultiagency: true,
+            exclusivityHint: false,
+            updatedAt: new Date()
+          })
+          .where(sql`${properties.id} IN (${sql.join(batch.map(id => sql`${id}`), sql`, `)})`);
+        propertiesUpdated += batch.length;
+      }
+      
+      // Update exclusive properties in batch
+      for (let i = 0; i < exclusiveIds.length; i += BATCH_SIZE) {
+        const batch = exclusiveIds.slice(i, i + BATCH_SIZE);
+        await db
+          .update(properties)
+          .set({
+            isMultiagency: false,
+            exclusivityHint: true,
+            updatedAt: new Date()
+          })
+          .where(sql`${properties.id} IN (${sql.join(batch.map(id => sql`${id}`), sql`, `)})`);
+        propertiesUpdated += batch.length;
+      }
+
+      // Resetta flag per properties non in nessun cluster (batch)
+      const clusterPropertyIds = result.clusters.flatMap(c => c.properties.map(p => p.id));
+      const nonClusteredIds = allProperties
+        .filter(p => !clusterPropertyIds.includes(p.id) && (p.isMultiagency || p.exclusivityHint))
+        .map(p => p.id);
+      
+      if (nonClusteredIds.length > 0) {
+        for (let i = 0; i < nonClusteredIds.length; i += BATCH_SIZE) {
+          const batch = nonClusteredIds.slice(i, i + BATCH_SIZE);
           await db
             .update(properties)
             .set({
@@ -10878,12 +10901,12 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
               exclusivityHint: false,
               updatedAt: new Date()
             })
-            .where(eq(properties.id, property.id));
-
-          propertiesUpdated++;
-          console.log(`[Scan] Resettato immobile #${property.id}: nessun cluster trovato`);
+            .where(sql`${properties.id} IN (${sql.join(batch.map(id => sql`${id}`), sql`, `)})`);
+          propertiesUpdated += batch.length;
         }
       }
+      
+      console.log(`[Scan] ✅ Aggiornati ${propertiesUpdated} immobili con nuovi flag`);
 
       res.json({ 
         ok: true, 
