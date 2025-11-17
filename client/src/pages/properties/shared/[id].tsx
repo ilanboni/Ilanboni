@@ -360,26 +360,31 @@ export default function SharedPropertyDetailsPage() {
     }
   });
 
-  // Fetch all buyers for sending property
+  // Fetch test client for sending property
   const TEST_PHONE_NUMBER = '393407992052'; // Ilan Boni - solo numero di test autorizzato
   
   const { data: buyersForSend = [] } = useQuery({
-    queryKey: ['/api/clients'],
+    queryKey: ['/api/clients', 'test-only'],
     queryFn: async () => {
-      const response = await fetch('/api/clients?type=buyer');
+      const response = await fetch('/api/clients');
       if (!response.ok) {
         throw new Error('Errore nel caricamento dei clienti');
       }
-      const allBuyers = await response.json();
+      const allClients = await response.json();
       
-      // SAFETY FILTER: Only show test client (Ilan Boni)
-      const testBuyers = allBuyers.filter((buyer: any) => buyer.phone === TEST_PHONE_NUMBER);
+      // SAFETY FILTER: Only show test client (Ilan Boni) with matching phone number
+      const testClient = allClients.filter((client: any) => 
+        client.phone === TEST_PHONE_NUMBER && client.type === 'buyer'
+      );
       
-      if (testBuyers.length === 0) {
+      if (testClient.length === 0) {
         console.warn('[SEND-DIALOG] Nessun cliente di test trovato con numero:', TEST_PHONE_NUMBER);
+        console.warn('[SEND-DIALOG] Cercato phone:', TEST_PHONE_NUMBER);
+      } else {
+        console.log('[SEND-DIALOG] Cliente di test trovato:', testClient[0]);
       }
       
-      return testBuyers;
+      return testClient;
     },
     enabled: isSendDialogOpen // Only fetch when dialog is open
   });

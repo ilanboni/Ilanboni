@@ -2952,21 +2952,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Proprietà condivisa non trovata" });
       }
 
-      // Cerca prima nella tabella buyers (perché matching-buyers restituisce buyer IDs)
-      const buyer = await storage.getBuyer(clientId);
+      // Cerca prima se è un client ID diretto (nuovo comportamento)
+      let client = await storage.getClient(clientId);
       let actualClientId = clientId;
       
-      if (buyer) {
-        // Se è un buyer ID, usa il clientId del buyer
-        if (!buyer.clientId) {
-          return res.status(400).json({ error: "Buyer non ha un clientId associato" });
+      // Se non trovato come client, prova a vedere se è un buyer ID (backward compatibility)
+      if (!client) {
+        const buyer = await storage.getBuyer(clientId);
+        if (buyer && buyer.clientId) {
+          actualClientId = buyer.clientId;
+          client = await storage.getClient(actualClientId);
+          console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Buyer ID ${clientId} -> Client ID ${actualClientId}`);
         }
-        actualClientId = buyer.clientId;
-        console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Buyer ID ${clientId} -> Client ID ${actualClientId}`);
+      } else {
+        console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Using direct Client ID ${clientId}`);
       }
 
-      // Recupera il client
-      const client = await storage.getClient(actualClientId);
+      // Verifica che il client esista
       if (!client) {
         return res.status(404).json({ error: "Cliente non trovato" });
       }
