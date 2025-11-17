@@ -3030,14 +3030,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Crea la communication per il cliente usando storage layer
-      const communicationSubject = `Immobile inviato: ${propertyAddress}`;
+      const communicationSubject = `WhatsApp inviato`;
+      const communicationDescription = `Inviato immobile via WhatsApp: ${propertyAddress}`;
       
       const newCommunication = await storage.createCommunication({
         clientId: actualClientId,
         sharedPropertyId: sharedPropertyId,
         type: 'whatsapp',
         subject: communicationSubject,
-        content: communicationContent,
+        content: communicationDescription,
         direction: 'outbound',
         status: whatsappSuccess ? 'completed' : 'failed'
       });
