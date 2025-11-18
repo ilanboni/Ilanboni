@@ -1,26 +1,24 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { type PropertyWithDetails } from "@shared/schema";
-import PropertyCard from "@/components/properties/PropertyCard";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiRequest } from "@/lib/queryClient";
-import { Plus, Search, Phone, MapPin, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { MapPin, Plus, RefreshCw, Map, List, Star, Phone, Trash2 } from "lucide-react";
+import { type PropertyWithDetails } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { Helmet } from "react-helmet";
-import { queryClient } from "@/lib/queryClient";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+
+const ITEMS_PER_PAGE = 50;
 
 // Coordinate del Duomo di Milano
 const DUOMO_LAT = 45.464204;
@@ -40,23 +38,127 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
+// Create custom marker icon for private properties
+const createPrivateMarker = () => {
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `
+      <div style="
+        background-color: #10b981;
+        color: white;
+        border: 2px solid white;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      ">
+        P
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+  });
+};
+
 export default function PrivatePropertiesPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
-  // State for filtering
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortOrder, setSortOrder] = useState("newest");
-  const [onlyWithPhone, setOnlyWithPhone] = useState(false);
-  const [portalFilter, setPortalFilter] = useState<string>("all");
+  // View mode and pagination
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [currentPage, setCurrentPage] = useState(1);
   
-  // Fetch properties usando il default fetcher configurato (apiRequest)
+  // State for filtering
+  const [filters, setFilters] = useState<{
+    search?: string;
+    sortOrder?: string;
+    onlyWithPhone?: boolean;
+    portalFilter?: string;
+    isFavorite?: boolean;
+  }>({
+    sortOrder: "newest",
+    onlyWithPhone: false,
+    portalFilter: "all",
+    isFavorite: false
+  });
+  
+  // Fetch all properties
   const { data: allProperties, isLoading, isError, refetch } = useQuery<PropertyWithDetails[]>({
     queryKey: ['/api/properties']
   });
+
+  // Mutation for toggling favorite status
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async ({ propertyId, isFavorite }: { propertyId: number; isFavorite: boolean }) => {
+      return await apiRequest(`/api/properties/${propertyId}/favorite`, {
+        method: 'PATCH',
+        data: { isFavorite }
+      });
+    },
+    onMutate: async ({ propertyId, isFavorite }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/properties'] });
+      const previousData = queryClient.getQueryData(['/api/properties']);
+      
+      queryClient.setQueryData(['/api/properties'], (old: any[]) => {
+        return old?.map(prop => 
+          prop.id === propertyId ? { ...prop, isFavorite } : prop
+        ) || old;
+      });
+      
+      return { previousData };
+    },
+    onError: (error, variables, context) => {
+      if (context) {
+        queryClient.setQueryData(['/api/properties'], context.previousData);
+      }
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato preferito",
+        variant: "destructive"
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Aggiornato",
+        description: "Lo stato preferito è stato modificato"
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+    }
+  });
+  
+  // Mutation for deleting property
+  const deleteMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      return await apiRequest(`/api/properties/${propertyId}`, {
+        method: 'DELETE'
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Proprietà eliminata",
+        description: "La proprietà è stata eliminata con successo"
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare la proprietà",
+        variant: "destructive"
+      });
+    }
+  });
   
   // Filter and sort properties with memoization for performance
-  const sortedProperties = useMemo(() => {
+  const filteredProperties = useMemo(() => {
     // Filter properties
     const filtered = allProperties?.filter((property: PropertyWithDetails) => {
       // Filtro 1: Solo privati
@@ -68,7 +170,6 @@ export default function PrivatePropertiesPage() {
       }
       
       // Filtro 3: Raggio 4km dal Duomo di Milano
-      // Validazione esplicita delle coordinate per evitare NaN e accettare zero
       if (property.latitude === null || property.latitude === undefined || 
           property.longitude === null || property.longitude === undefined ||
           property.latitude === '' || property.longitude === '') {
@@ -78,42 +179,43 @@ export default function PrivatePropertiesPage() {
       const lat = parseFloat(property.latitude);
       const lng = parseFloat(property.longitude);
       
-      // Rifiuta esplicitamente NaN
       if (isNaN(lat) || isNaN(lng)) {
         return false;
       }
       
       const distance = calculateDistance(DUOMO_LAT, DUOMO_LNG, lat, lng);
       
-      // Rifiuta distanze NaN o oltre il raggio
       if (isNaN(distance) || distance > RADIUS_KM) {
         return false;
       }
       
       // Filtro 4: Solo con telefono (opzionale)
-      if (onlyWithPhone && !property.ownerPhone) return false;
+      if (filters.onlyWithPhone && !property.ownerPhone) return false;
       
       // Filtro 5: Portale specifico
-      if (portalFilter !== 'all') {
-        if (portalFilter === 'immobiliare' && property.source !== 'scraper-immobiliare') return false;
-        if (portalFilter === 'idealista' && property.source !== 'scraper-idealista') return false;
+      if (filters.portalFilter && filters.portalFilter !== 'all') {
+        if (filters.portalFilter === 'immobiliare' && property.source !== 'apify' && property.source !== 'scraper-immobiliare') return false;
+        if (filters.portalFilter === 'idealista' && property.source !== 'scraper-idealista') return false;
       }
       
       // Filtro 6: Ricerca testuale
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+      if (filters.search) {
+        const query = filters.search.toLowerCase();
         const addressMatch = property.address?.toLowerCase().includes(query);
         const cityMatch = property.city?.toLowerCase().includes(query);
         const descMatch = property.description?.toLowerCase().includes(query);
         if (!addressMatch && !cityMatch && !descMatch) return false;
       }
+
+      // Filtro 7: Solo preferiti
+      if (filters.isFavorite && !property.isFavorite) return false;
       
       return true;
     }) || [];
     
     // Sort properties
     return [...filtered].sort((a, b) => {
-      switch (sortOrder) {
+      switch (filters.sortOrder) {
         case 'newest':
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
         case 'oldest':
@@ -126,84 +228,46 @@ export default function PrivatePropertiesPage() {
           return 0;
       }
     });
-  }, [allProperties, searchQuery, sortOrder, onlyWithPhone, portalFilter]);
+  }, [allProperties, filters]);
+
+  // Paginate properties
+  const paginatedProperties = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredProperties.slice(startIndex, endIndex);
+  }, [filteredProperties, currentPage]);
+
+  const totalPages = Math.ceil((filteredProperties?.length || 0) / ITEMS_PER_PAGE);
   
-  // Calcola statistiche con memoization
+  // Calcola statistiche
   const stats = useMemo(() => ({
-    total: sortedProperties.length,
-    withPhone: sortedProperties.filter(p => p.ownerPhone).length,
-    immobiliare: sortedProperties.filter(p => p.source === 'scraper-immobiliare').length,
-    idealista: sortedProperties.filter(p => p.source === 'scraper-idealista').length,
-  }), [sortedProperties]);
+    total: filteredProperties.length,
+    withPhone: filteredProperties.filter(p => p.ownerPhone).length,
+    immobiliare: filteredProperties.filter(p => p.source === 'apify' || p.source === 'scraper-immobiliare').length,
+    idealista: filteredProperties.filter(p => p.source === 'scraper-idealista').length,
+    favorites: filteredProperties.filter(p => p.isFavorite).length,
+  }), [filteredProperties]);
   
-  // Handle property actions
-  const handleViewProperty = (property: PropertyWithDetails) => {
-    navigate(`/properties/${property.id}`);
+  // Function to refresh data
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+    toast({
+      title: "Aggiornamento in corso",
+      description: "Ricaricamento delle proprietà..."
+    });
   };
-  
-  const handleEditProperty = (property: PropertyWithDetails) => {
-    navigate(`/properties/${property.id}?edit=true`);
-  };
-  
-  const handleDeleteProperty = async (property: PropertyWithDetails) => {
-    if (!confirm(`Sei sicuro di voler eliminare l'immobile in ${property.address}?`)) return;
-    
-    try {
-      await apiRequest(`/api/properties/${property.id}`, {
-        method: 'DELETE'
-      });
-      
-      toast({
-        description: `Immobile eliminato con successo.`,
-      });
-      
-      await queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-    } catch (error) {
-      toast({
-        description: "Si è verificato un errore durante l'eliminazione dell'immobile.",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  const handleSendToClients = async (property: PropertyWithDetails) => {
-    try {
-      await apiRequest(`/api/properties/${property.id}/match`, {
-        method: 'POST',
-        data: null
-      });
-      
-      toast({
-        description: "L'immobile è stato inviato ai clienti interessati.",
-      });
-      
-      await queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-    } catch (error) {
-      toast({
-        description: "Si è verificato un errore durante l'invio dell'immobile ai clienti.",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  // Empty state
-  const EmptyState = () => (
-    <div className="text-center py-10">
-      <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-        <i className="fas fa-user text-gray-400 text-xl"></i>
+
+  if (isError) {
+    return (
+      <div className="container py-8">
+        <h1 className="text-3xl font-bold mb-6">Proprietà Private</h1>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-800">
+          Si è verificato un errore nel caricamento delle proprietà private.
+        </div>
       </div>
-      <h3 className="text-lg font-medium text-gray-900">Nessuna proprietà privata trovata</h3>
-      <p className="mt-1 text-sm text-gray-500">
-        {searchQuery 
-          ? "Nessuna proprietà corrisponde ai criteri di ricerca." 
-          : "Non ci sono proprietà private entro 4km dal Duomo di Milano."}
-      </p>
-      <p className="mt-2 text-xs text-gray-400">
-        Le proprietà vengono importate automaticamente da Immobiliare.it e Idealista.it
-      </p>
-    </div>
-  );
-  
+    );
+  }
+
   return (
     <>
       <Helmet>
@@ -211,122 +275,362 @@ export default function PrivatePropertiesPage() {
         <meta name="description" content="Visualizza le proprietà in vendita direttamente dai privati entro 4km dal Duomo di Milano." />
       </Helmet>
       
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-heading font-bold text-gray-900">Proprietà Private</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Immobili venduti direttamente dai proprietari entro 4km dal Duomo di Milano
-          </p>
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant="secondary" className="text-xs">
-              <MapPin className="h-3 w-3 mr-1" />
-              Raggio {RADIUS_KM}km dal Duomo
-            </Badge>
+      <div className="container py-8">
+        {/* Page Header */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Proprietà Private</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Immobili venduti direttamente dai proprietari entro {RADIUS_KM}km dal Duomo di Milano
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh}
+              data-testid="button-refresh"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" /> Aggiorna
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+              data-testid="button-toggle-view"
+            >
+              {viewMode === 'list' ? (
+                <><Map className="mr-2 h-4 w-4" /> Mappa</>
+              ) : (
+                <><List className="mr-2 h-4 w-4" /> Lista</>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Badges */}
+        <div className="flex items-center gap-2 mb-4">
+          <Badge variant="secondary" className="text-xs">
+            <MapPin className="h-3 w-3 mr-1" />
+            Raggio {RADIUS_KM}km dal Duomo
+          </Badge>
+          <Badge variant="outline" className="text-xs">
+            {stats.total} immobili
+          </Badge>
+          {stats.withPhone > 0 && (
             <Badge variant="outline" className="text-xs">
-              {stats.total} immobili
+              <Phone className="h-3 w-3 mr-1" />
+              {stats.withPhone} con telefono
             </Badge>
-            {stats.withPhone > 0 && (
-              <Badge variant="outline" className="text-xs">
-                <Phone className="h-3 w-3 mr-1" />
-                {stats.withPhone} con telefono
-              </Badge>
-            )}
-          </div>
+          )}
+          {stats.favorites > 0 && (
+            <Badge variant="outline" className="text-xs">
+              <Star className="h-3 w-3 mr-1 fill-yellow-400" />
+              {stats.favorites} preferiti
+            </Badge>
+          )}
         </div>
-        <div className="mt-4 sm:mt-0 flex gap-2">
-          <Button onClick={() => refetch()} variant="outline" size="sm" data-testid="button-refresh">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Aggiorna
-          </Button>
-        </div>
-      </div>
-      
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-        <div className="flex flex-col gap-4">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Cerca per indirizzo, città, descrizione..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-              data-testid="input-search"
-            />
-          </div>
-          
-          {/* Filter Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="phone-filter" 
-                checked={onlyWithPhone}
-                onCheckedChange={setOnlyWithPhone}
-                data-testid="switch-phone-filter"
+        
+        {/* Filters */}
+        <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+          <div className="flex flex-col gap-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Input
+                placeholder="Cerca per indirizzo, città, descrizione..."
+                value={filters.search || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                className="w-full"
+                data-testid="input-search"
               />
-              <Label htmlFor="phone-filter" className="text-sm cursor-pointer">
-                Solo con telefono ({stats.withPhone})
-              </Label>
             </div>
             
-            <Select value={portalFilter} onValueChange={setPortalFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-portal">
-                <SelectValue placeholder="Portale" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti i portali</SelectItem>
-                <SelectItem value="immobiliare">Immobiliare.it ({stats.immobiliare})</SelectItem>
-                <SelectItem value="idealista">Idealista.it ({stats.idealista})</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className="w-[180px]" data-testid="select-sort">
-                <SelectValue placeholder="Ordina per" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Più recenti</SelectItem>
-                <SelectItem value="oldest">Più vecchi</SelectItem>
-                <SelectItem value="price-low">Prezzo: basso-alto</SelectItem>
-                <SelectItem value="price-high">Prezzo: alto-basso</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Filter Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="phone-filter" 
+                  checked={filters.onlyWithPhone}
+                  onCheckedChange={(checked) => {
+                    setCurrentPage(1);
+                    setFilters(prev => ({ ...prev, onlyWithPhone: checked }));
+                  }}
+                  data-testid="switch-phone-filter"
+                />
+                <Label htmlFor="phone-filter" className="text-sm cursor-pointer">
+                  Solo con telefono ({stats.withPhone})
+                </Label>
+              </div>
+              
+              <Select 
+                value={filters.portalFilter} 
+                onValueChange={(value) => {
+                  setCurrentPage(1);
+                  setFilters(prev => ({ ...prev, portalFilter: value }));
+                }}
+              >
+                <SelectTrigger className="w-[180px]" data-testid="select-portal">
+                  <SelectValue placeholder="Portale" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti i portali</SelectItem>
+                  <SelectItem value="immobiliare">Immobiliare.it ({stats.immobiliare})</SelectItem>
+                  <SelectItem value="idealista">Idealista.it ({stats.idealista})</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select 
+                value={filters.sortOrder} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, sortOrder: value }))}
+              >
+                <SelectTrigger className="w-[180px]" data-testid="select-sort">
+                  <SelectValue placeholder="Ordina per" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Più recenti</SelectItem>
+                  <SelectItem value="oldest">Più vecchi</SelectItem>
+                  <SelectItem value="price-low">Prezzo: basso-alto</SelectItem>
+                  <SelectItem value="price-high">Prezzo: alto-basso</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button 
+                variant={filters.isFavorite ? "default" : "outline"}
+                onClick={() => {
+                  setCurrentPage(1);
+                  setFilters(prev => ({ ...prev, isFavorite: !prev.isFavorite }));
+                }}
+                className="w-full sm:w-auto"
+                data-testid="button-toggle-favorites"
+              >
+                <Star className={`mr-2 h-4 w-4 ${filters.isFavorite ? 'fill-yellow-400' : ''}`} />
+                Solo preferiti
+              </Button>
+            </div>
           </div>
         </div>
+        
+        {/* Content */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-96" />
+            ))}
+          </div>
+        ) : viewMode === 'map' ? (
+          // Map View
+          <>
+            {filteredProperties.length === 0 ? (
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-6 text-center">
+                <p className="text-gray-600 mb-2">Nessuna proprietà da mostrare sulla mappa</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                  <p className="text-sm text-blue-800">
+                    🗺️ Vista Mappa - {filteredProperties.length} proprietà private con coordinate GPS
+                  </p>
+                </div>
+                <div className="h-[600px] rounded-lg overflow-hidden border-2 border-gray-200">
+                  <MapContainer
+                    center={[DUOMO_LAT, DUOMO_LNG]}
+                    zoom={13}
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    {filteredProperties.map((property) => {
+                      const lat = parseFloat(property.latitude);
+                      const lng = parseFloat(property.longitude);
+                      
+                      if (isNaN(lat) || isNaN(lng)) return null;
+                      
+                      return (
+                        <Marker
+                          key={property.id}
+                          position={[lat, lng]}
+                          icon={createPrivateMarker()}
+                        >
+                          <Popup>
+                            <div className="min-w-[250px]">
+                              <h3 className="font-semibold text-sm mb-1">{property.address}</h3>
+                              <p className="text-xs text-gray-600 mb-2">{property.city}</p>
+                              {property.price && (
+                                <p className="text-sm font-bold text-green-600 mb-2">
+                                  €{property.price.toLocaleString()}
+                                </p>
+                              )}
+                              {property.ownerPhone && (
+                                <p className="text-xs text-gray-700 mb-2">
+                                  <Phone className="inline h-3 w-3 mr-1" />
+                                  {property.ownerPhone}
+                                </p>
+                              )}
+                              <div className="flex gap-2 mt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigate(`/properties/${property.id}`)}
+                                >
+                                  Dettagli
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant={property.isFavorite ? "default" : "outline"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavoriteMutation.mutate({ 
+                                      propertyId: property.id, 
+                                      isFavorite: !property.isFavorite 
+                                    });
+                                  }}
+                                >
+                                  <Star className={`h-3 w-3 ${property.isFavorite ? 'fill-yellow-400' : ''}`} />
+                                </Button>
+                              </div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      );
+                    })}
+                  </MapContainer>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          // List View
+          <>
+            {filteredProperties.length === 0 ? (
+              <div className="text-center py-10">
+                <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <MapPin className="text-gray-400 h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">Nessuna proprietà privata trovata</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {filters.search 
+                    ? "Nessuna proprietà corrisponde ai criteri di ricerca." 
+                    : "Non ci sono proprietà private entro 4km dal Duomo di Milano."}
+                </p>
+                <p className="mt-2 text-xs text-gray-400">
+                  Le proprietà vengono importate automaticamente da Immobiliare.it e Idealista.it
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {paginatedProperties.map((property) => (
+                    <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-base">{property.address}</CardTitle>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavoriteMutation.mutate({ 
+                                propertyId: property.id, 
+                                isFavorite: !property.isFavorite 
+                              });
+                            }}
+                          >
+                            <Star className={`h-4 w-4 ${property.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+                          </Button>
+                        </div>
+                        <CardDescription>{property.city}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {property.price && (
+                          <div className="text-lg font-bold text-green-600">
+                            €{property.price.toLocaleString()}
+                          </div>
+                        )}
+                        <div className="flex gap-2 flex-wrap">
+                          {property.size && (
+                            <Badge variant="outline" className="text-xs">
+                              {property.size}m²
+                            </Badge>
+                          )}
+                          {property.rooms && (
+                            <Badge variant="outline" className="text-xs">
+                              {property.rooms} locali
+                            </Badge>
+                          )}
+                          {property.ownerPhone && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Phone className="h-3 w-3 mr-1" />
+                              Telefono
+                            </Badge>
+                          )}
+                        </div>
+                        {property.ownerPhone && (
+                          <div className="text-sm text-gray-700">
+                            📱 {property.ownerPhone}
+                          </div>
+                        )}
+                        {property.source && (
+                          <div className="text-xs text-gray-500">
+                            Fonte: {property.source === 'apify' ? 'Immobiliare.it' : property.source}
+                          </div>
+                        )}
+                      </CardContent>
+                      <CardFooter className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => navigate(`/properties/${property.id}`)}
+                        >
+                          Dettagli
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Eliminare "${property.address}"?`)) {
+                              deleteMutation.mutate(property.id);
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-6">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Precedente
+                    </Button>
+                    <span className="text-sm text-gray-600">
+                      Pagina {currentPage} di {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Successiva
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
       </div>
-      
-      {/* Properties Grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-96" />
-          ))}
-        </div>
-      ) : isError ? (
-        <div className="text-center py-10">
-          <p className="text-red-600">Errore nel caricamento delle proprietà.</p>
-          <Button onClick={() => refetch()} className="mt-4">
-            Riprova
-          </Button>
-        </div>
-      ) : sortedProperties.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sortedProperties.map((property) => (
-            <PropertyCard
-              key={property.id}
-              property={property}
-              onView={() => handleViewProperty(property)}
-              onEdit={() => handleEditProperty(property)}
-              onDelete={() => handleDeleteProperty(property)}
-              onSendToClients={() => handleSendToClients(property)}
-            />
-          ))}
-        </div>
-      )}
     </>
   );
 }

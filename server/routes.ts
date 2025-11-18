@@ -2915,6 +2915,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Toggle favorite status for a regular property
+  app.patch("/api/properties/:id/favorite", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "ID proprietà non valido" });
+      }
+      
+      const { isFavorite } = req.body;
+      if (typeof isFavorite !== 'boolean') {
+        return res.status(400).json({ error: "Campo 'isFavorite' richiesto (boolean)" });
+      }
+      
+      const property = await storage.getProperty(id);
+      if (!property) {
+        return res.status(404).json({ error: "Proprietà non trovata" });
+      }
+      
+      const updated = await storage.updateProperty(id, { isFavorite });
+      if (!updated) {
+        return res.status(500).json({ error: "Errore durante l'aggiornamento" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error(`[PATCH /api/properties/${req.params.id}/favorite]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento dello stato preferito" });
+    }
+  });
+
   // Ignore a shared property
   app.patch("/api/shared-properties/:id/ignore", async (req: Request, res: Response) => {
     try {
