@@ -1,5 +1,6 @@
 import { ApifyClient } from 'apify-client';
 import type { PortalAdapter, PropertyListing, SearchCriteria } from '../portalIngestionService';
+import { classifyFromApifyIdealista } from '../../lib/ownerClassification';
 
 const IDEALISTA_BASE_URL = 'https://www.idealista.it';
 const REQUEST_DELAY_MS = 5000; // Apify needs time to complete
@@ -138,11 +139,13 @@ export class IdealistaApifyAdapter implements PortalAdapter {
           const latitude = rawLat ? (typeof rawLat === 'number' ? rawLat : parseFloat(String(rawLat))) : undefined;
           const longitude = rawLng ? (typeof rawLng === 'number' ? rawLng : parseFloat(String(rawLng))) : undefined;
           
-          // Get contact/agency info
-          const contact = item.contact || '';
-          const isPrivate = contact.toLowerCase().includes('privat') || 
-                          contact.toLowerCase().includes('propri') ||
-                          contact.toLowerCase().includes('particular');
+          // Classify owner type using shared helper
+          const classification = classifyFromApifyIdealista(item);
+          
+          // Log classification for debugging (only for private or low confidence)
+          if (classification.ownerType === 'private' || classification.confidence !== 'high') {
+            console.log(`[IDEALISTA-CLASSIFY] ID ${propertyId}: ${classification.ownerType} (${classification.confidence}) - ${classification.reasoning}`);
+          }
           
           if (url && price > 0) {
             listings.push({
@@ -158,8 +161,8 @@ export class IdealistaApifyAdapter implements PortalAdapter {
               description: item.description || '',
               latitude: latitude && !isNaN(latitude) ? latitude : undefined,
               longitude: longitude && !isNaN(longitude) ? longitude : undefined,
-              ownerType: isPrivate ? 'private' : 'agency',
-              agencyName: isPrivate ? undefined : (contact || undefined)
+              ownerType: classification.ownerType,
+              agencyName: classification.agencyName || undefined
             });
           }
         } catch (itemError) {

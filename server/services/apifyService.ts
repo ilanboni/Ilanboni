@@ -2,6 +2,7 @@ import { ApifyClient } from 'apify-client';
 import type { PropertyListing } from './portalIngestionService';
 import * as fs from 'fs';
 import * as path from 'path';
+import { classifyFromApifyImmobiliare } from '../lib/ownerClassification';
 
 export interface ApifyScraperConfig {
   searchUrls?: string[];
@@ -219,36 +220,29 @@ export class ApifyService {
           ? `${address}, ${postalCode}` 
           : address;
 
-        // Owner type classification with robust fallbacks
-        const advertiserType = (analytics.advertiser || '').toLowerCase().trim();
+        // Owner type classification using shared helper
+        const classification = classifyFromApifyImmobiliare(item);
+        const ownerType = classification.ownerType;
+        const agencyName = classification.agencyName;
         
-        // Determine if private seller
-        // Priority: 1) analytics.advertiser==='privato' 2) no agencyId in contacts 3) fallback to agency
-        let isPrivate = advertiserType === 'privato';
-        if (!advertiserType && !contacts.agencyId && !analytics.agencyName) {
-          // If advertiser is missing but there's no agency info, assume private
-          isPrivate = true;
+        // Log classification for debugging (only for non-agency or low confidence)
+        if (ownerType === 'private' || classification.confidence !== 'high') {
+          console.log(`[APIFY-CLASSIFY] ID ${externalId}: ${ownerType} (${classification.confidence}) - ${classification.reasoning}`);
         }
-        
-        const ownerType = isPrivate ? 'private' : 'agency';
 
-        // Agency info (only for agencies)
-        const agencyName = !isPrivate ? (analytics.agencyName || contacts.agencyName || null) : null;
-
-        // Owner contact info (only for private sellers)
+        // Owner contact info (extract for all types, but prioritize for private sellers)
         let ownerPhone = null;
         let ownerName = null;
         let ownerEmail = null;
-        if (isPrivate) {
-          // Extract phone from contacts.phones array
-          if (contacts.phones && contacts.phones.length > 0) {
-            ownerPhone = contacts.phones[0].num || null;
-          }
-          // Try to get owner name from available fields
-          ownerName = analytics.advertiserName || null;
-          // Email might be in contacts if available
-          ownerEmail = contacts.email || null;
+        
+        // Extract phone from contacts.phones array
+        if (contacts.phones && contacts.phones.length > 0) {
+          ownerPhone = contacts.phones[0].num || null;
         }
+        // Owner/Advertiser name
+        ownerName = analytics.advertiserName || null;
+        // Email might be in contacts if available
+        ownerEmail = contacts.email || null;
 
         // URL construction
         const url = `https://www.immobiliare.it/annunci/${externalId}/`;

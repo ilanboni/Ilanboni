@@ -1,5 +1,6 @@
 import { ApifyClient } from 'apify-client';
 import type { PortalAdapter, PropertyListing, SearchCriteria } from '../portalIngestionService';
+import { classifyFromApifyImmobiliare } from '../../lib/ownerClassification';
 
 const IMMOBILIARE_BASE_URL = 'https://www.immobiliare.it';
 const REQUEST_DELAY_MS = 5000; // Apify needs time to complete
@@ -151,13 +152,13 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
           const latitude = rawLat ? (typeof rawLat === 'number' ? rawLat : parseFloat(String(rawLat))) : undefined;
           const longitude = rawLng ? (typeof rawLng === 'number' ? rawLng : parseFloat(String(rawLng))) : undefined;
           
-          // Get advertiser info (agency or private)
-          const advertiserType = item.analytics?.advertiser?.type || item.advertiserType || 'agency';
-          const advertiserName = item.analytics?.advertiser?.name || item.advertiserName || '';
+          // Classify owner type using shared helper
+          const classification = classifyFromApifyImmobiliare(item);
           
-          const isPrivate = advertiserType === 'private' || advertiserType === 'owner' || 
-                          advertiserName.toLowerCase().includes('privat') ||
-                          advertiserName.toLowerCase().includes('proprietario');
+          // Log classification for debugging (only for private or low confidence)
+          if (classification.ownerType === 'private' || classification.confidence !== 'high') {
+            console.log(`[IMMOBILIARE-CLASSIFY] ID ${propertyId}: ${classification.ownerType} (${classification.confidence}) - ${classification.reasoning}`);
+          }
           
           if (url && price > 0) {
             listings.push({
@@ -173,8 +174,8 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
               description: item.description || '',
               latitude: latitude && !isNaN(latitude) ? latitude : undefined,
               longitude: longitude && !isNaN(longitude) ? longitude : undefined,
-              ownerType: isPrivate ? 'private' : 'agency',
-              agencyName: isPrivate ? undefined : advertiserName || undefined
+              ownerType: classification.ownerType,
+              agencyName: classification.agencyName || undefined
             });
           }
         } catch (itemError) {
