@@ -20,7 +20,7 @@ The application features a modern full-stack architecture.
     - **Private Properties Section**: A dedicated UI for managing properties sold directly by private owners, featuring map/list views, favorites, and comprehensive filtering. Utilizes a classification system for accurate owner type detection, leveraging multiple signals and providing confidence scores.
 - **Feature Specifications**:
     - **Client Management**: Detailed client profiles with AI-extracted preferences.
-    - **Property Management**: Comprehensive listings, external import, and multi-agency property identification with refined deduplication.
+    - **Property Management**: Comprehensive listings with detailed property pages showing description, external links, and owner contact information (name, phone, email). Features external import and multi-agency property identification with refined deduplication. Property detail pages include dedicated sections for owner details when available, with clickable phone and email links for direct contact.
     - **Communication**: Integrated WhatsApp and email tracking with AI-powered response generation and automated reminders, including a WhatsApp Web-style chat interface.
     - **Appointment Management**: Google Calendar synchronization, automated follow-ups, and conflict prevention.
     - **Task Automation**: AI-generated follow-up tasks, prioritized dashboards, and automated workflows for property acquisition, including a multi-agency property acquisition workflow with a 5-stage pipeline visualization.
