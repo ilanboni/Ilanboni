@@ -163,17 +163,39 @@ export function classifyOwnerType(input: ClassificationInput): ClassificationRes
     };
   }
 
-  // Priority 5: Check agency keywords (weaker signal)
+  // Priority 5: Check agency keywords
   const agencyMatches = AGENCY_KEYWORDS.filter(keyword =>
     textToCheck.includes(keyword.toLowerCase())
   );
 
+  // For Idealista (no agencyId): detect agencies by keywords alone if strong signal
+  if (agencyMatches.length >= 2) {
+    // Multiple agency keywords = strong signal (e.g. "REload Agency Milano")
+    return {
+      ownerType: 'agency',
+      agencyName: null, // Extract from description later if needed
+      confidence: 'high',
+      reasoning: `Multiple agency keywords found: ${agencyMatches.join(', ')}`
+    };
+  }
+  
   if (agencyMatches.length > 0 && hasAgencyId) {
     return {
       ownerType: 'agency',
       agencyName: input.analytics?.agencyName || input.contacts?.agencyName || null,
       confidence: 'medium',
       reasoning: `Agency keywords + agencyId present: ${agencyMatches.join(', ')}`
+    };
+  }
+  
+  // Single agency keyword without other signals = medium confidence
+  if (agencyMatches.length === 1 && textToCheck.length > 500) {
+    // Long description with "agenzia"/"immobiliare" likely agency
+    return {
+      ownerType: 'agency',
+      agencyName: null,
+      confidence: 'medium',
+      reasoning: `Agency keyword in detailed description: ${agencyMatches[0]}`
     };
   }
 
