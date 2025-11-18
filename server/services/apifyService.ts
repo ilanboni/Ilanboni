@@ -2,7 +2,7 @@ import { ApifyClient } from 'apify-client';
 import type { PropertyListing } from './portalIngestionService';
 import * as fs from 'fs';
 import * as path from 'path';
-import { classifyFromApifyImmobiliare } from '../lib/ownerClassification';
+import { classifyFromApifyImmobiliare, classifyFromApifyIdealista } from '../lib/ownerClassification';
 
 export interface ApifyScraperConfig {
   searchUrls?: string[];
@@ -82,19 +82,181 @@ export class ApifyService {
   }
 
   /**
-   * Scrapes all properties in Milano (complete automation)
-   * Uses geographic center (Duomo: 45.464, 9.190) with specific zones
+   * Scrapes Idealista.it using Apify actor
    */
-  async scrapeAllMilano(): Promise<PropertyListing[]> {
-    console.log('[APIFY] 🔍 Starting complete Milano scrape...');
-
-    return this.scrapeImmobiliare({
-      maxItems: 20000, // Increased from 5000 to get better coverage of Milano listings
+  async scrapeIdealista(config: { maxItems?: number } = {}): Promise<PropertyListing[]> {
+    console.log(`[APIFY-IDEALISTA] Starting scrape...`);
+    
+    const idealistaActorId = 'igolaizola/idealista-scraper';
+    
+    const input = {
+      location: 'Milano',
+      maxItems: config.maxItems || 1000,
+      propertyType: 'homes',
+      operation: 'sale',
       proxyConfiguration: {
         useApifyProxy: true,
         apifyProxyGroups: ['RESIDENTIAL']
       }
-    });
+    };
+
+    try {
+      const run = await this.client.actor(idealistaActorId).call(input);
+      console.log(`[APIFY-IDEALISTA] Actor run completed: ${run.id}`);
+
+      const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
+      console.log(`[APIFY-IDEALISTA] Fetched ${items.length} items from dataset`);
+
+      if (items.length > 0) {
+        console.log('[APIFY-IDEALISTA] Sample item keys:', Object.keys(items[0]));
+      }
+
+      const listings = this.transformIdealistaResults(items);
+      console.log(`[APIFY-IDEALISTA] Transformed ${listings.length} listings`);
+
+      return listings;
+    } catch (error) {
+      console.error('[APIFY-IDEALISTA] Scraping failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Transform Idealista Apify data to PropertyListing format
+   */
+  private transformIdealistaResults(items: any[]): PropertyListing[] {
+    console.log(`[APIFY-IDEALISTA] Processing ${items.length} raw items...`);
+
+    return items
+      .filter(item => {
+        if (!item || !item.url) {
+          return false;
+        }
+        return true;
+      })
+      .map((item): PropertyListing => {
+        const price = item.price || 0;
+        const size = item.size || 0;
+        const rooms = item.rooms;
+        const address = item.address || 'Indirizzo non disponibile';
+        const url = item.url || '';
+        const propertyId = item.propertyCode || item.id || '';
+        
+        const rawLat = item.latitude || item.lat;
+        const rawLng = item.longitude || item.lng || item.lon;
+        
+        const latitude = rawLat ? (typeof rawLat === 'number' ? rawLat : parseFloat(String(rawLat))) : undefined;
+        const longitude = rawLng ? (typeof rawLng === 'number' ? rawLng : parseFloat(String(rawLng))) : undefined;
+        
+        const classification = classifyFromApifyIdealista(item);
+        
+        if (classification.ownerType === 'private' || classification.confidence !== 'high') {
+          console.log(`[APIFY-IDEALISTA-CLASSIFY] ID ${propertyId}: ${classification.ownerType} (${classification.confidence}) - ${classification.reasoning}`);
+        }
+        
+        // Extract owner contact info from Idealista data
+        // Idealista format may have: item.contact, item.advertiser, item.phone, item.email
+        let ownerPhone: string | undefined = undefined;
+        let ownerName: string | undefined = undefined;
+        let ownerEmail: string | undefined = undefined;
+        
+        // Normalize phone number: keep country code (+39), remove only separators
+        if (item.phone) {
+          const phoneStr = String(item.phone).trim();
+          // Remove spaces, dots, dashes, but keep +
+          ownerPhone = phoneStr.replace(/[\s\.\-\(\)]/g, '');
+        } else if (item.contact && typeof item.contact === 'string') {
+          // Extract phone number from contact field preserving country code
+          const phoneMatch = item.contact.match(/(\+?\d{1,3})?[\s\.\-]?(\d[\d\s\.\-]{6,})/);
+          if (phoneMatch) {
+            // Normalize: remove separators but keep +
+            ownerPhone = phoneMatch[0].replace(/[\s\.\-\(\)]/g, '');
+          }
+        }
+        
+        // Extract owner/advertiser name
+        if (item.advertiser) {
+          ownerName = String(item.advertiser).trim();
+        } else if (item.advertiserName) {
+          ownerName = String(item.advertiserName).trim();
+        }
+        
+        // Extract email if available
+        if (item.email) {
+          ownerEmail = String(item.email).trim();
+        }
+        
+        // Extract images from Idealista
+        const images = item.images || item.photos || [];
+        const imageUrls = Array.isArray(images) 
+          ? images.map((img: any) => typeof img === 'string' ? img : (img.url || img.src || '')).filter((url: string) => url).slice(0, 10)
+          : [];
+        
+        return {
+          externalId: propertyId,
+          title: item.title || item.description || `Appartamento - ${address}`,
+          address: address,
+          city: 'Milano',
+          price: price,
+          size: size,
+          bedrooms: rooms,
+          bathrooms: item.bathrooms || undefined,
+          floor: item.floor || undefined,
+          type: 'apartment',
+          url: url,
+          description: item.description || '',
+          latitude: latitude && !isNaN(latitude) ? latitude : undefined,
+          longitude: longitude && !isNaN(longitude) ? longitude : undefined,
+          ownerType: classification.ownerType,
+          agencyName: classification.agencyName ?? undefined, // Convert null to undefined
+          ownerName: ownerName,
+          ownerPhone: ownerPhone,
+          ownerEmail: ownerEmail,
+          imageUrls: imageUrls,
+          source: 'apify'
+        };
+      });
+  }
+
+  /**
+   * Scrapes all properties in Milano from BOTH Immobiliare.it and Idealista.it
+   * Uses geographic center (Duomo: 45.464, 9.190) with specific zones
+   */
+  async scrapeAllMilano(): Promise<PropertyListing[]> {
+    console.log('[APIFY] 🔍 Starting complete Milano scrape from BOTH portals...');
+
+    const results: PropertyListing[] = [];
+    
+    // Scrape Immobiliare.it
+    try {
+      console.log('[APIFY] 📡 Scraping Immobiliare.it...');
+      const immobiliareListings = await this.scrapeImmobiliare({
+        maxItems: 20000,
+        proxyConfiguration: {
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL']
+        }
+      });
+      console.log(`[APIFY] ✅ Immobiliare.it: ${immobiliareListings.length} listings`);
+      results.push(...immobiliareListings);
+    } catch (error) {
+      console.error('[APIFY] ❌ Immobiliare.it scraping failed:', error);
+    }
+    
+    // Scrape Idealista.it
+    try {
+      console.log('[APIFY] 📡 Scraping Idealista.it...');
+      const idealistaListings = await this.scrapeIdealista({
+        maxItems: 10000
+      });
+      console.log(`[APIFY] ✅ Idealista.it: ${idealistaListings.length} listings`);
+      results.push(...idealistaListings);
+    } catch (error) {
+      console.error('[APIFY] ❌ Idealista.it scraping failed:', error);
+    }
+    
+    console.log(`[APIFY] 🎉 Total listings from both portals: ${results.length}`);
+    return results;
   }
 
   /**
