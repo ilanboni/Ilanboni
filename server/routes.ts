@@ -285,6 +285,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Configuration endpoint - espone la modalità WhatsApp al frontend
+  app.get("/api/config", (req: Request, res: Response) => {
+    const whatsappMode = process.env.WHATSAPP_MODE || 'test';
+    const testPhoneNumber = '393407992052'; // Ilan Boni
+    
+    res.json({
+      whatsapp: {
+        mode: whatsappMode, // 'test' o 'prod'
+        testPhoneNumber: testPhoneNumber
+      }
+    });
+  });
+
   // ===== NEW SECRETARY CRM/CMS API =====
 
   // GET /api/today - Dashboard: task prioritari del giorno
