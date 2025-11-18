@@ -60,8 +60,10 @@ export class ApifyService {
       console.log(`[APIFY] Actor run completed: ${run.id}`);
       console.log(`[APIFY] Dataset: https://console.apify.com/storage/datasets/${run.defaultDatasetId}`);
 
-      // Fetch results from dataset
-      const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
+      // Fetch ALL results from dataset (not just first page)
+      const { items } = await this.client.dataset(run.defaultDatasetId).listItems({
+        limit: 999999  // Get all items
+      });
       console.log(`[APIFY] Fetched ${items.length} items from dataset`);
 
       // Debug: Log first item structure
@@ -104,7 +106,10 @@ export class ApifyService {
       const run = await this.client.actor(idealistaActorId).call(input);
       console.log(`[APIFY-IDEALISTA] Actor run completed: ${run.id}`);
 
-      const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
+      // Fetch ALL items from dataset (not just first page)
+      const { items } = await this.client.dataset(run.defaultDatasetId).listItems({
+        limit: 999999  // Get all items
+      });
       console.log(`[APIFY-IDEALISTA] Fetched ${items.length} items from dataset`);
 
       if (items.length > 0) {

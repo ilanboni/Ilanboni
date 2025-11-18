@@ -463,7 +463,7 @@ export class ScrapingJobWorker {
             ownerName: listing.ownerName,
             ownerPhone: listing.ownerPhone,
             ownerEmail: listing.ownerEmail,
-            source: 'apify'
+            source: portal  // Use portal name: 'immobiliare' or 'idealista'
           });
 
           results.imported++;
