@@ -203,7 +203,7 @@ export default function SentToClientsHistory({ sharedPropertyId }: SentToClients
                 </div>
 
                 {/* Stato del reinvio */}
-                {!sent.clientResponseReceived && sent.resendScheduled && sent.resendAt && (
+                {!sent.clientResponseReceived && sent.resendScheduled && sent.resendAt && new Date(sent.resendAt).toString() !== 'Invalid Date' && (
                   <div className="flex items-center gap-2 text-sm text-blue-600">
                     <RefreshCw className="h-3 w-3" />
                     <span>
@@ -225,7 +225,7 @@ export default function SentToClientsHistory({ sharedPropertyId }: SentToClients
                       <div className="text-sm text-blue-800">
                         "{sent.responseContent}"
                       </div>
-                      {sent.responseReceivedAt && (
+                      {sent.responseReceivedAt && new Date(sent.responseReceivedAt).toString() !== 'Invalid Date' && (
                         <div className="text-xs text-blue-600 mt-1">
                           {format(new Date(sent.responseReceivedAt), 'dd MMM yyyy • HH:mm', { locale: it })}
                         </div>
