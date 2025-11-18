@@ -82,11 +82,16 @@ export const buyers = pgTable("buyers", {
 // Scraping jobs (for async scraping status tracking)
 export const scrapingJobs = pgTable("scraping_jobs", {
   id: serial("id").primaryKey(),
-  clientId: integer("client_id").notNull().references(() => clients.id),
+  clientId: integer("client_id").references(() => clients.id), // Nullable for full-city jobs
+  jobType: text("job_type").notNull().default('buyer'), // 'buyer' | 'full-city'
   status: text("status").notNull().default('queued'), // 'queued', 'running', 'completed', 'failed'
-  buyerCriteria: jsonb("buyer_criteria"), // Criteri usati per lo scraping
-  results: jsonb("results"), // { totalFetched, imported, updated, failed, errors }
+  buyerCriteria: jsonb("buyer_criteria"), // Criteri usati per lo scraping (for buyer jobs)
+  config: jsonb("config"), // { maxItems, portals: ['immobiliare', 'idealista'] }
+  checkpoint: jsonb("checkpoint"), // { portal, offset, apifyRunIds: {}, completedPortals: [] }
+  results: jsonb("results"), // { totalFetched, imported, updated, failed, errors, portalResults: {} }
+  errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at")
 });
 
