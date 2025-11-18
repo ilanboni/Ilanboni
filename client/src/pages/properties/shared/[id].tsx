@@ -28,6 +28,7 @@ import PropertyPipeline from "@/components/properties/PropertyPipeline";
 import PropertyInteractionsHistory from "@/components/properties/PropertyInteractionsHistory";
 import PropertyActivitiesTab from "@/components/properties/PropertyActivitiesTab";
 import PropertyAttachmentsTab from "@/components/properties/PropertyAttachmentsTab";
+import SentToClientsHistory from "@/components/properties/SentToClientsHistory";
 
 function getStageColor(stage: string) {
   switch (stage) {
@@ -1167,6 +1168,9 @@ export default function SharedPropertyDetailsPage() {
                 <TabsTrigger value="interested-clients" className="min-w-[140px] whitespace-nowrap" aria-label="Clienti interessati alla proprietà">
                   Clienti Interessati
                 </TabsTrigger>
+                <TabsTrigger value="sent-to-clients" className="min-w-[140px] whitespace-nowrap" aria-label="Clienti che hanno ricevuto questo immobile">
+                  Inviato a Clienti
+                </TabsTrigger>
                 <TabsTrigger value="interactions" className="min-w-[140px] whitespace-nowrap" aria-label="Cronologia delle azioni">
                   Cronologia Azioni
                 </TabsTrigger>
@@ -1203,6 +1207,10 @@ export default function SharedPropertyDetailsPage() {
 
             <TabsContent value="interested-clients">
               <PropertyInterestedClients propertyId={property.id} />
+            </TabsContent>
+
+            <TabsContent value="sent-to-clients">
+              <SentToClientsHistory sharedPropertyId={property.id} />
             </TabsContent>
 
             <TabsContent value="interactions">

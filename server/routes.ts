@@ -7901,6 +7901,46 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
     }
   });
 
+  // Recupera i clienti a cui è stato inviato un immobile condiviso
+  app.get("/api/shared-properties/:id/sent-to-clients", async (req: Request, res: Response) => {
+    try {
+      const sharedPropertyId = parseInt(req.params.id);
+      console.log(`[API] Recupero clienti per immobile condiviso ${sharedPropertyId}`);
+      
+      const sentToClients = await db
+        .select({
+          id: propertySent.id,
+          clientId: propertySent.clientId,
+          sentAt: propertySent.sentAt,
+          messageType: propertySent.messageType,
+          messageContent: propertySent.messageContent,
+          clientResponseReceived: propertySent.clientResponseReceived,
+          responseContent: propertySent.responseContent,
+          responseSentiment: propertySent.responseSentiment,
+          responseAnalysis: propertySent.responseAnalysis,
+          responseReceivedAt: propertySent.responseReceivedAt,
+          resendScheduled: propertySent.resendScheduled,
+          resendAt: propertySent.resendAt,
+          // Dati del cliente
+          clientFirstName: clients.firstName,
+          clientLastName: clients.lastName,
+          clientPhone: clients.phone,
+          clientEmail: clients.email,
+          clientType: clients.type,
+        })
+        .from(propertySent)
+        .innerJoin(clients, eq(propertySent.clientId, clients.id))
+        .where(eq(propertySent.sharedPropertyId, sharedPropertyId))
+        .orderBy(desc(propertySent.sentAt));
+
+      console.log(`[API] Trovati ${sentToClients.length} clienti per immobile condiviso ${sharedPropertyId}`);
+      res.json(sentToClients);
+    } catch (error) {
+      console.error("Errore nel recupero dei clienti:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
   // API per le conferme appuntamenti
   app.get("/api/appointment-confirmations", async (req: Request, res: Response) => {
     try {
