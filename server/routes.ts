@@ -4682,6 +4682,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Backfill: Reclassify existing properties using heuristics
+  app.post("/api/apify/backfill-classification", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/apify/backfill-classification] 🔄 Starting classification backfill...');
+      
+      // Find all properties from Apify currently classified as agencies
+      const agencyProperties = await db
+        .select()
+        .from(properties)
+        .where(
+          and(
+            eq(properties.source, 'apify'),
+            eq(properties.ownerType, 'agency')
+          )
+        );
+      
+      console.log(`[BACKFILL] Found ${agencyProperties.length} agency properties to review`);
+      
+      let reclassified = 0;
+      const privateKeywords = [
+        'privat', 'proprietario', 'particolare', 'vendita diretta',
+        'no agenzie', 'no agenzia', 'direttamente', 'propri'
+      ];
+      
+      for (const property of agencyProperties) {
+        const agencyName = (property.agencyName || '').toLowerCase();
+        
+        // Check if agency name suggests this is actually a private seller
+        const isLikelyPrivate = privateKeywords.some(keyword => 
+          agencyName.includes(keyword)
+        );
+        
+        if (isLikelyPrivate) {
+          console.log(`[BACKFILL] Reclassifying property ${property.id} as private (agency was: "${property.agencyName}")`);
+          
+          // Update to private owner type
+          await db
+            .update(properties)
+            .set({
+              ownerType: 'private',
+              ownerName: property.agencyName, // Move agency name to owner name
+              agencyName: null, // Clear agency name
+              updatedAt: new Date()
+            })
+            .where(eq(properties.id, property.id));
+          
+          reclassified++;
+        }
+      }
+      
+      console.log(`[BACKFILL] ✅ Completed: ${reclassified} properties reclassified as private`);
+      
+      res.json({
+        success: true,
+        totalReviewed: agencyProperties.length,
+        reclassified: reclassified,
+        message: `Reclassified ${reclassified} properties from agency to private based on heuristics`
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/apify/backfill-classification]', error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : 'Backfill failed' 
+      });
+    }
+  });
+
   // Manual trigger: Scrape all Milano with Playwright (replaces broken Apify)
   app.post("/api/apify/scrape-milano", async (req: Request, res: Response) => {
     try {
