@@ -112,6 +112,7 @@ export default function SharedPropertyDetailsPage() {
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [sendMessage, setSendMessage] = useState("");
   const [selectedAgencyIndices, setSelectedAgencyIndices] = useState<number[]>([]);
+  const [prodModeConfirmed, setProdModeConfirmed] = useState(false);
   
   // Fetch shared property details
   const { data: property, isLoading, isError, error } = useQuery({
@@ -351,6 +352,7 @@ export default function SharedPropertyDetailsPage() {
       setSelectedClientId(null);
       setSendMessage("");
       setSelectedAgencyIndices([]);
+      setProdModeConfirmed(false);
     },
     onError: (error: any) => {
       toast({
@@ -361,11 +363,24 @@ export default function SharedPropertyDetailsPage() {
     }
   });
 
-  // Fetch test client for sending property
-  const TEST_PHONE_NUMBER = '393407992052'; // Ilan Boni - solo numero di test autorizzato
+  // Fetch WhatsApp configuration
+  const { data: whatsappConfig } = useQuery({
+    queryKey: ['/api/config'],
+    queryFn: async () => {
+      const response = await fetch('/api/config');
+      if (!response.ok) {
+        throw new Error('Errore nel caricamento della configurazione');
+      }
+      return response.json();
+    }
+  });
+
+  const isTestMode = whatsappConfig?.whatsapp?.mode === 'test';
+  const TEST_PHONE_NUMBER = whatsappConfig?.whatsapp?.testPhoneNumber || '393407992052';
   
+  // Fetch clients for sending property - filtered by mode
   const { data: buyersForSend = [] } = useQuery({
-    queryKey: ['/api/clients', 'test-only'],
+    queryKey: ['/api/clients', isTestMode ? 'test-only' : 'all-buyers'],
     queryFn: async () => {
       const response = await fetch('/api/clients');
       if (!response.ok) {
@@ -373,19 +388,25 @@ export default function SharedPropertyDetailsPage() {
       }
       const allClients = await response.json();
       
-      // SAFETY FILTER: Only show test client (Ilan Boni) with matching phone number
-      const testClient = allClients.filter((client: any) => 
-        client.phone === TEST_PHONE_NUMBER && client.type === 'buyer'
-      );
-      
-      if (testClient.length === 0) {
-        console.warn('[SEND-DIALOG] Nessun cliente di test trovato con numero:', TEST_PHONE_NUMBER);
-        console.warn('[SEND-DIALOG] Cercato phone:', TEST_PHONE_NUMBER);
+      if (isTestMode) {
+        // TEST MODE: Only show test client (Ilan Boni)
+        const testClient = allClients.filter((client: any) => 
+          client.phone === TEST_PHONE_NUMBER && client.type === 'buyer'
+        );
+        
+        if (testClient.length === 0) {
+          console.warn('[SEND-DIALOG] Nessun cliente di test trovato con numero:', TEST_PHONE_NUMBER);
+        } else {
+          console.log('[SEND-DIALOG] MODALITÀ TEST - Cliente di test trovato:', testClient[0]);
+        }
+        
+        return testClient;
       } else {
-        console.log('[SEND-DIALOG] Cliente di test trovato:', testClient[0]);
+        // PRODUCTION MODE: Show all buyers
+        const buyers = allClients.filter((client: any) => client.type === 'buyer');
+        console.log('[SEND-DIALOG] MODALITÀ PRODUZIONE - Caricati', buyers.length, 'clienti');
+        return buyers;
       }
-      
-      return testClient;
     },
     enabled: isSendDialogOpen // Only fetch when dialog is open
   });
@@ -935,6 +956,7 @@ export default function SharedPropertyDetailsPage() {
                     setSelectedClientId(null);
                     setSendMessage("");
                     setSelectedAgencyIndices([]);
+                    setProdModeConfirmed(false);
                   }
                 }}>
                   <DialogTrigger asChild>
@@ -951,14 +973,38 @@ export default function SharedPropertyDetailsPage() {
                       </DialogDescription>
                     </DialogHeader>
                     
-                    {/* Safety Warning */}
-                    <Alert className="bg-yellow-50 border-yellow-200">
-                      <AlertCircle className="h-4 w-4 text-yellow-600" />
-                      <AlertTitle className="text-yellow-800">Modalità Test</AlertTitle>
-                      <AlertDescription className="text-yellow-700">
-                        Per sicurezza, i messaggi WhatsApp possono essere inviati solo al numero di test: <strong>393407992052</strong> (Ilan Boni)
-                      </AlertDescription>
-                    </Alert>
+                    {/* Safety Warning - Mode-Aware */}
+                    {isTestMode ? (
+                      <Alert className="bg-yellow-50 border-yellow-200">
+                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        <AlertTitle className="text-yellow-800">Modalità Test</AlertTitle>
+                        <AlertDescription className="text-yellow-700">
+                          Per sicurezza, i messaggi WhatsApp possono essere inviati solo al numero di test: <strong>{TEST_PHONE_NUMBER}</strong> (Ilan Boni)
+                        </AlertDescription>
+                      </Alert>
+                    ) : (
+                      <Alert className="bg-orange-50 border-orange-300">
+                        <AlertCircle className="h-4 w-4 text-orange-600" />
+                        <AlertTitle className="text-orange-900">⚠️ Modalità Produzione</AlertTitle>
+                        <AlertDescription className="text-orange-800">
+                          <div className="space-y-2">
+                            <p className="font-semibold">Stai per inviare un WhatsApp reale a un cliente!</p>
+                            <div className="flex items-start space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="prod-confirm"
+                                checked={prodModeConfirmed}
+                                onChange={(e) => setProdModeConfirmed(e.target.checked)}
+                                className="mt-1 h-4 w-4 rounded border-orange-300"
+                              />
+                              <label htmlFor="prod-confirm" className="text-sm cursor-pointer">
+                                Confermo di voler inviare questo messaggio al cliente selezionato. Ho verificato il numero di telefono e il contenuto del messaggio.
+                              </label>
+                            </div>
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     
                     <div className="space-y-5 py-4">
                       {/* Client Selection */}
@@ -1069,6 +1115,7 @@ export default function SharedPropertyDetailsPage() {
                           setSelectedClientId(null);
                           setSendMessage("");
                           setSelectedAgencyIndices([]);
+                          setProdModeConfirmed(false);
                         }}
                       >
                         Annulla
@@ -1079,7 +1126,8 @@ export default function SharedPropertyDetailsPage() {
                           sendToClientMutation.isPending || 
                           !selectedClientId || 
                           !sendMessage.trim() ||
-                          selectedAgencyIndices.length === 0
+                          selectedAgencyIndices.length === 0 ||
+                          (!isTestMode && !prodModeConfirmed)
                         }
                         data-testid="button-confirm-send"
                       >
