@@ -695,6 +695,54 @@ export default function PropertyDetailPage() {
                       {property?.description || "Nessuna descrizione disponibile."}
                     </div>
                   </div>
+                  
+                  {/* Dettagli Proprietario - mostra solo se almeno un campo è presente */}
+                  {(property?.ownerName || property?.ownerPhone || property?.ownerEmail) && (
+                    <div className="mt-6 pt-6 border-t">
+                      <div className="text-sm text-gray-500 mb-3 font-semibold">Dettagli Proprietario</div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {property?.ownerName && (
+                          <div className="flex items-center gap-2">
+                            <i className="fas fa-user text-gray-400 w-5"></i>
+                            <div>
+                              <div className="text-xs text-gray-500">Nome</div>
+                              <div className="font-medium">{property.ownerName}</div>
+                            </div>
+                          </div>
+                        )}
+                        {property?.ownerPhone && (
+                          <div className="flex items-center gap-2">
+                            <i className="fas fa-phone text-gray-400 w-5"></i>
+                            <div>
+                              <div className="text-xs text-gray-500">Telefono</div>
+                              <a 
+                                href={`tel:${property.ownerPhone}`} 
+                                className="font-medium text-blue-600 hover:underline"
+                                data-testid="link-owner-phone"
+                              >
+                                {property.ownerPhone}
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                        {property?.ownerEmail && (
+                          <div className="flex items-center gap-2">
+                            <i className="fas fa-envelope text-gray-400 w-5"></i>
+                            <div>
+                              <div className="text-xs text-gray-500">Email</div>
+                              <a 
+                                href={`mailto:${property.ownerEmail}`} 
+                                className="font-medium text-blue-600 hover:underline"
+                                data-testid="link-owner-email"
+                              >
+                                {property.ownerEmail}
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               
