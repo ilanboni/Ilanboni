@@ -51,7 +51,7 @@ export class ScrapingJobWorker {
   private isRunning = false;
   private pollInterval: NodeJS.Timeout | null = null;
   private readonly POLL_INTERVAL_MS = 30000; // 30 secondi
-  private readonly STALE_JOB_MINUTES = 10; // Job "running" più vecchi di 10 minuti sono considerati stale
+  private readonly STALE_JOB_MINUTES = 30; // Job "running" più vecchi di 30 minuti sono considerati stale
 
   constructor(storage: IStorage) {
     this.storage = storage;
@@ -85,14 +85,16 @@ export class ScrapingJobWorker {
   /**
    * All'avvio, trova i job "running" vecchi e marcali come failed
    * (probabilmente persi durante un restart del server)
+   * CRITICAL FIX: usa startedAt invece di createdAt per evitare di marcare job long-running legittimi come stale
    */
   private async cleanupStaleJobs() {
     try {
       const allJobs = await this.storage.getAllScrapingJobs();
       const staleJobs = allJobs.filter((job: ScrapingJob) => {
         if (job.status !== 'running') return false;
+        if (!job.startedAt) return false; // Skip se non ha startedAt (non dovrebbe mai accadere)
         
-        const ageMinutes = (Date.now() - new Date(job.createdAt).getTime()) / (1000 * 60);
+        const ageMinutes = (Date.now() - new Date(job.startedAt).getTime()) / (1000 * 60);
         return ageMinutes > this.STALE_JOB_MINUTES;
       });
 
@@ -172,12 +174,18 @@ export class ScrapingJobWorker {
     } catch (error) {
       console.error(`[SCRAPING-WORKER] ❌ Job #${job.id} fallito:`, error);
       
-      // Marca job come fallito
-      await this.storage.updateScrapingJob(job.id, {
-        status: 'failed',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        completedAt: new Date()
-      });
+      // CRITICAL FIX: Wrap DB update in try-catch to prevent stuck jobs
+      try {
+        await this.storage.updateScrapingJob(job.id, {
+          status: 'failed',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          completedAt: new Date()
+        });
+      } catch (updateError) {
+        console.error(`[SCRAPING-WORKER] ⚠️ CRITICAL: Failed to mark job #${job.id} as failed in DB:`, updateError);
+        console.error(`[SCRAPING-WORKER] ⚠️ Job #${job.id} may be stuck in 'running' state - manual intervention required`);
+        // TODO: Send alert to monitoring system
+      }
     }
   }
 
@@ -477,13 +485,33 @@ export class ScrapingJobWorker {
   }
 
   /**
-   * Salva checkpoint nel database
+   * Salva checkpoint nel database con retry logic (CRITICAL per resume capability)
    */
   private async saveCheckpoint(jobId: number, checkpoint: JobCheckpoint, results: JobResults) {
-    await this.storage.updateScrapingJob(jobId, {
-      checkpoint: checkpoint as any,
-      results: results as any
-    });
+    const MAX_RETRIES = 3;
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await this.storage.updateScrapingJob(jobId, {
+          checkpoint: checkpoint as any,
+          results: results as any
+        });
+        return; // Success
+        
+      } catch (error) {
+        console.error(`[SCRAPING-WORKER] ⚠️ Failed to save checkpoint (attempt ${attempt}/${MAX_RETRIES}):`, error);
+        
+        if (attempt === MAX_RETRIES) {
+          console.error(`[SCRAPING-WORKER] ❌ CRITICAL: Failed to save checkpoint after ${MAX_RETRIES} attempts - job may be lost on restart`);
+          throw new Error(`Failed to save checkpoint after ${MAX_RETRIES} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+        
+        // Exponential backoff before retry (1s, 2s, 4s)
+        const delayMs = 1000 * Math.pow(2, attempt - 1);
+        console.log(`[SCRAPING-WORKER] 🔄 Retrying checkpoint save in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
   }
 }
 
