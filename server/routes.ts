@@ -3093,7 +3093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: taskTitle,
         description: taskDescription,
         status: 'completed',
-        priority: 'medium',
+        priority: 50, // medium priority (0-100 scale)
         dueDate: now,
         completedAt: now
       });
@@ -6202,7 +6202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "pending",
         dueDate: date,
         assignedTo: 1,
-        priority: "high"
+        priority: 75 // high priority (0-100 scale)
       };
 
       const [newTask] = await db
@@ -8069,7 +8069,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
               title: `Verifica conferma appuntamento - ${confirmation.lastName}`,
               description: `Verificare se il cliente ha confermato l'appuntamento del ${confirmation.appointmentDate}`,
               dueDate: feedbackDate.toISOString(),
-              priority: "medium",
+              priority: 50, // medium priority (0-100 scale)
               status: "pending",
               clientId: targetClient.id,
               linkedEntityType: "communication",
@@ -8216,7 +8216,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
         title: `Visita immobile - ${confirmation.propertyAddress}`,
         description: `Visita effettuata il ${new Date(confirmation.appointmentDate).toLocaleDateString('it-IT')} con esito: ${outcome.toUpperCase()}. ${notes ? 'Note: ' + notes : ''}`,
         dueDate: new Date().toISOString(),
-        priority: outcome === 'positive' ? 'high' : 'medium',
+        priority: outcome === 'positive' ? 75 : 50, // high (75) or medium (50) based on outcome
         status: "completed",
         clientId: confirmation.clientId,
         linkedEntityType: "property_visit",
@@ -8232,7 +8232,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
           title: `Visita cliente - ${confirmation.firstName} ${confirmation.lastName}`,
           description: `Visita effettuata il ${new Date(confirmation.appointmentDate).toLocaleDateString('it-IT')} da ${confirmation.firstName} ${confirmation.lastName} con esito: ${outcome.toUpperCase()}. ${notes ? 'Note: ' + notes : ''}`,
           dueDate: new Date().toISOString(),
-          priority: outcome === 'positive' ? 'high' : 'medium',
+          priority: outcome === 'positive' ? 75 : 50, // high (75) or medium (50) based on outcome
           status: "completed",
           propertyId: confirmation.propertyId,
           sharedPropertyId: confirmation.sharedPropertyId,
@@ -8253,7 +8253,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
           title: `Follow-up cliente interessato - ${confirmation.firstName} ${confirmation.lastName}`,
           description: `Il cliente ha mostrato interesse per l'immobile in ${confirmation.propertyAddress}. Contattare per verificare se desidera procedere.`,
           dueDate: followUpDate.toISOString(),
-          priority: "high",
+          priority: 75, // high priority (0-100 scale)
           status: "pending",
           clientId: confirmation.clientId,
           linkedEntityType: "property_visit",
@@ -8826,7 +8826,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
           description: `Visita all'immobile in ${targetProperty.address} fissata per ${confirmation.appointmentDate}`,
           type: "visit",
           status: "pending",
-          priority: "medium",
+          priority: 50, // medium priority (0-100 scale)
           dueDate: visitDate.toISOString(),
           clientId: newClient.id,
           propertyId: targetProperty.id,
@@ -8847,7 +8847,7 @@ async function createFollowUpTask(propertySentRecord: PropertySent, sentiment: s
           description: `Raccogliere feedback dalla visita all'immobile in ${targetProperty.address}`,
           type: "follow-up",
           status: "pending", 
-          priority: "high",
+          priority: 75, // high priority (0-100 scale)
           dueDate: feedbackDate.toISOString(),
           clientId: newClient.id,
           propertyId: targetProperty.id,
