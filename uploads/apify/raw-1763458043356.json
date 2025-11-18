@@ -1,0 +1,5385 @@
+[
+  {
+    "id": 115348087,
+    "uuid": "7117d629-f67b-593d-9118-99af7c1dbbc6",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1762344030,
+    "creationDate": 1728914539,
+    "enabled": true,
+    "analytics": {
+      "price": "739350",
+      "priceRange": "oltre 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Corvetto, Rogoredo",
+      "microzone": "Corvetto",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "1",
+      "heating": "Centralizzato",
+      "numBedrooms": "3",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Nuovo / In costruzione",
+      "adVisibility": "sky",
+      "agencyName": "Gabetti Agency SpA - Frazionamenti e Cantieri",
+      "agencyId": "144077",
+      "otherFeatures": [
+        "cancello elettrico",
+        "fibra ottica",
+        "videocitofono",
+        "porta blindata",
+        "balcone",
+        "terrazzo",
+        "impianto tv centralizzato",
+        "esposizione doppia"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 147,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "4",
+      "bathrooms": "2",
+      "floor": "1",
+      "lift": true,
+      "balcony": true,
+      "terrace": true
+    },
+    "price": {
+      "value": "€ 739,350",
+      "raw": 739350,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4351,
+        "longitude": 9.2083,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd3x1q"
+      },
+      "zipcode": "20139",
+      "street": "VIA CORTINA D' AMPEZZO, 21",
+      "macrozone": {
+        "id": 10320,
+        "name": "Corvetto, Rogoredo"
+      },
+      "microzone": {
+        "id": 10340,
+        "name": "Corvetto"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745767858/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745767858/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745767796/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745767796/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798670763/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798670763/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745767846/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745767846/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745767866/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745767866/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745767806/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745767806/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745767822/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745767822/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745767836/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745767836/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775136/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775136/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775144/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775144/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775156/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775156/xxl.jpg",
+          "label": "Scala"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775164/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775164/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775184/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775184/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775200/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775200/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775216/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775216/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775234/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775234/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775264/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775264/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775280/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775280/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775296/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775296/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775312/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775312/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775346/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775346/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775370/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775370/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775406/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775406/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1745775432/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1745775432/xxl.jpg",
+          "label": "Ingresso"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798663315/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798663315/xxl.jpg",
+          "label": "Altro"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/115474252/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/115474252/xxl.jpg",
+          "label": "Apt 5"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390289743737"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 144077,
+      "agencyUuid": "739dd870-1885-5274-8600-74a48be4083e"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 124704055,
+    "uuid": "dd846883-26a0-5693-80ab-5af75e17a1f7",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1763458532,
+    "creationDate": 1760530583,
+    "enabled": true,
+    "analytics": {
+      "price": "420000",
+      "priceRange": "300.001 - 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Ripamonti, Vigentino",
+      "microzone": "Vigentino - Fatima",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "5",
+      "heating": "Autonomo",
+      "numBedrooms": "2",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "Re Casa",
+      "agencyId": "462587",
+      "otherFeatures": [
+        "cancello elettrico",
+        "fibra ottica",
+        "videocitofono",
+        "impianto di allarme",
+        "porta blindata",
+        "accesso per disabili",
+        "armadio a muro",
+        "terrazzo",
+        "impianto tv centralizzato",
+        "arredato",
+        "cantina",
+        "esposizione doppia"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 90,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "3",
+      "bathrooms": "2",
+      "floor": "5",
+      "lift": true,
+      "terrace": true,
+      "furnished": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 420,000",
+      "raw": 420000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.429,
+        "longitude": 9.2022,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd3qhg"
+      },
+      "zipcode": "20141",
+      "street": "Via Giuseppe Ripamonti, 234",
+      "macrozone": {
+        "id": 10293,
+        "name": "Ripamonti, Vigentino"
+      },
+      "microzone": {
+        "id": 10339,
+        "name": "Vigentino - Fatima"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169551/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169551/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169903/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169903/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169761/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169761/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169801/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169801/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169727/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169727/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169591/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169591/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169633/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169633/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169701/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169701/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169857/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169857/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819170135/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819170135/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169943/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169943/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819169981/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819169981/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819170003/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819170003/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819170031/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819170031/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819170061/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819170061/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819170081/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819170081/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819170111/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819170111/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819170183/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819170183/xxl.jpg",
+          "label": "Facciata"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/118906315/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118906315/xxl.jpg",
+          "label": "Planimetria appartamento"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118906307/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118906307/xxl.jpg",
+          "label": "Planimetria box"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118906309/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118906309/xxl.jpg",
+          "label": "Planimetria cantina"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390287364624"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 462587,
+      "agencyUuid": "faa20662-2e32-57c6-875a-e16761c2bcce"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 124704663,
+    "uuid": "546b15aa-8b4f-5b7e-9b3c-f65caef4ff18",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1763403160,
+    "creationDate": 1760114329,
+    "enabled": true,
+    "analytics": {
+      "price": "450000",
+      "priceRange": "300.001 - 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Ripamonti, Vigentino",
+      "microzone": "Vigentino - Fatima",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "1",
+      "heating": "Autonomo",
+      "numBedrooms": "2",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "Re Casa",
+      "agencyId": "462587",
+      "otherFeatures": [
+        "cancello elettrico",
+        "fibra ottica",
+        "videocitofono",
+        "porta blindata",
+        "accesso per disabili",
+        "armadio a muro",
+        "impianto tv centralizzato",
+        "cantina",
+        "esposizione doppia"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 110,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "3",
+      "bathrooms": "1",
+      "floor": "1",
+      "lift": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 450,000",
+      "raw": 450000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4299,
+        "longitude": 9.2021,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd3qkb"
+      },
+      "zipcode": "20141",
+      "street": "Via Giuseppe Ripamonti, 218",
+      "macrozone": {
+        "id": 10293,
+        "name": "Ripamonti, Vigentino"
+      },
+      "microzone": {
+        "id": 10339,
+        "name": "Vigentino - Fatima"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182857/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182857/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182669/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182669/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182483/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182483/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182363/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182363/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182605/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182605/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182771/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182771/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182749/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182749/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182827/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182827/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182975/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182975/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182795/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182795/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182693/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182693/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182633/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182633/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182717/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182717/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182465/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182465/xxl.jpg",
+          "label": "Corridoio"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182503/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182503/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182523/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182523/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182541/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182541/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182563/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182563/xxl.jpg",
+          "label": "Cabina armadio"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182581/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182581/xxl.jpg",
+          "label": "Cabina armadio"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182397/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182397/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182421/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182421/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1819182449/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1819182449/xxl.jpg",
+          "label": "Camera da letto"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/118906775/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118906775/xxl.jpg",
+          "label": "Planimetria"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390287364624"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 462587,
+      "agencyUuid": "faa20662-2e32-57c6-875a-e16761c2bcce"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 116128813,
+    "uuid": "215b8795-4327-57cf-a996-18c52aa8f166",
+    "rty": "ad",
+    "title": "Project",
+    "lastModified": 1758119514,
+    "creationDate": 1731574825,
+    "enabled": true,
+    "analytics": {
+      "price": "349500",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Uptown, Cascina Merlata, Viale Certosa",
+      "microzone": "Uptown - Mind - Cascina Merlata",
+      "typology": "Progetto",
+      "category": "Nuove costruzioni",
+      "contract": "vendita",
+      "heating": "Centralizzato",
+      "advertiser": "agenzia",
+      "propertyStatus": "Nuovo / In costruzione",
+      "adVisibility": "sky",
+      "agencyName": "Bliss Milano",
+      "agencyId": "439495",
+      "otherFeatures": [
+        "accesso per disabili",
+        "parcheggio bici"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": true
+    },
+    "topology": {
+      "typology": {
+        "id": 112,
+        "name": "Project"
+      },
+      "category": {
+        "id": 27,
+        "name": "New builds"
+      },
+      "surface": {
+        "size": 60,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "2-4",
+      "bathrooms": null,
+      "floor": null,
+      "lift": null
+    },
+    "price": {
+      "value": "from € 349,500",
+      "raw": 349500,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.5095,
+        "longitude": 9.1021,
+        "visibilityType": "exact_location",
+        "geoHash": "u0n6zhgb"
+      },
+      "zipcode": null,
+      "street": "Via Pier Paolo Pasolini",
+      "macrozone": {
+        "id": 10064,
+        "name": "Uptown, Cascina Merlata, Viale Certosa"
+      },
+      "microzone": {
+        "id": 14458,
+        "name": "Uptown - Mind - Cascina Merlata"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": true
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129267/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129267/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129283/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129283/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129383/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129383/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129407/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129407/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129325/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129325/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129335/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129335/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129341/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129341/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129343/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129343/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129353/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129353/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129359/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129359/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129365/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129365/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129373/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129373/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129391/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129391/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129395/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129395/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129403/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129403/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129315/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129315/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129421/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129421/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129275/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129275/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129437/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129437/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129453/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129453/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129291/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129291/xxl.jpg",
+          "label": "Zona"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129467/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129467/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129487/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129487/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129497/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129497/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129505/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129505/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129515/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129515/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129523/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129523/xxl.jpg",
+          "label": "Piscina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129531/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129531/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129299/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129299/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1607129309/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1607129309/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881565/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881565/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881573/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881573/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881577/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881577/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881585/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881585/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881595/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881595/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881611/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881611/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881617/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881617/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881621/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881621/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881627/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881627/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881645/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881645/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881657/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881657/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881667/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881667/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1610881671/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1610881671/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1783057817/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1783057817/xxl.jpg",
+          "label": "Planimetria"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390259649137"
+        }
+      ],
+      "bookVisitsEnabled": false,
+      "priceProposalEnabled": false,
+      "agencyId": 439495,
+      "agencyUuid": "f6fa3c6a-d564-5857-b396-3036ef3bfbee"
+    },
+    "isUnread": false,
+    "subProperties": {
+      "count": 14
+    }
+  },
+  {
+    "id": 119378299,
+    "uuid": "8f169835-28c8-509c-b242-87ba95fc2a33",
+    "rty": "ad",
+    "title": "Project",
+    "lastModified": 1762854304,
+    "creationDate": 1742825859,
+    "enabled": true,
+    "analytics": {
+      "price": "365000",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Uptown, Cascina Merlata, Viale Certosa",
+      "microzone": "Uptown - Mind - Cascina Merlata",
+      "typology": "Progetto",
+      "category": "Nuove costruzioni",
+      "contract": "vendita",
+      "heating": "Centralizzato",
+      "advertiser": "agenzia",
+      "propertyStatus": "Nuovo / In costruzione",
+      "adVisibility": "sky",
+      "agencyName": "Inspire Milano",
+      "agencyId": "454397",
+      "otherFeatures": [
+        "accesso per disabili",
+        "parcheggio bici"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": true
+    },
+    "topology": {
+      "typology": {
+        "id": 112,
+        "name": "Project"
+      },
+      "category": {
+        "id": 27,
+        "name": "New builds"
+      },
+      "surface": {
+        "size": 71,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "2-4",
+      "bathrooms": null,
+      "floor": null,
+      "lift": null
+    },
+    "price": {
+      "value": "from € 365,000",
+      "raw": 365000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.5131,
+        "longitude": 9.1028,
+        "visibilityType": "exact_location",
+        "geoHash": "u0n6zjkm"
+      },
+      "zipcode": null,
+      "street": "Via Pier Paolo Pasolini",
+      "macrozone": {
+        "id": 10064,
+        "name": "Uptown, Cascina Merlata, Viale Certosa"
+      },
+      "microzone": {
+        "id": 14458,
+        "name": "Uptown - Mind - Cascina Merlata"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": true
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793922535/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793922535/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679116930/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679116930/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679116732/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679116732/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679116782/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679116782/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679116832/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679116832/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679116878/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679116878/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679116984/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679116984/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117030/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117030/xxl.jpg",
+          "label": "Ingresso"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117070/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117070/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117114/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117114/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117164/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117164/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117204/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117204/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117254/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117254/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117298/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117298/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117338/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117338/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117374/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117374/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117404/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117404/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117448/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117448/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117486/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117486/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117546/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117546/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117592/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117592/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117658/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117658/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679117714/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679117714/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679116644/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679116644/xxl.jpg",
+          "label": "Zona"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1679116692/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1679116692/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793925747/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793925747/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793925839/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793925839/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1796340865/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1796340865/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793925913/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793925913/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793926049/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793926049/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793926163/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793926163/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793926291/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793926291/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793926377/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793926377/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793926443/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793926443/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793926519/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793926519/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793926585/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793926585/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812415613/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812415613/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812415635/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812415635/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812415659/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812415659/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812415697/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812415697/xxl.jpg",
+          "label": "Planimetria"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "tel1",
+          "num": "+3902880001213"
+        }
+      ],
+      "bookVisitsEnabled": false,
+      "priceProposalEnabled": false,
+      "agencyId": 454397,
+      "agencyUuid": "e6695d7d-7b08-5826-b6dc-b981d2815c52"
+    },
+    "isUnread": false,
+    "subProperties": {
+      "count": 15
+    }
+  },
+  {
+    "id": 114922193,
+    "uuid": "0d0714da-eadc-5dec-bbf2-b97cf1773150",
+    "rty": "ad",
+    "title": "Project",
+    "lastModified": 1760713960,
+    "creationDate": 1727684464,
+    "enabled": true,
+    "analytics": {
+      "price": "276000",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Bisceglie, Baggio, Olmi",
+      "microzone": "Bisceglie",
+      "typology": "Progetto",
+      "category": "Nuove costruzioni",
+      "contract": "vendita",
+      "heating": "Autonomo",
+      "advertiser": "agenzia",
+      "propertyStatus": "Nuovo / In costruzione",
+      "adVisibility": "sky",
+      "agencyName": "Ten Milano",
+      "agencyId": "437797",
+      "otherFeatures": [
+        "accesso per disabili",
+        "parcheggio bici"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": true
+    },
+    "topology": {
+      "typology": {
+        "id": 112,
+        "name": "Project"
+      },
+      "category": {
+        "id": 27,
+        "name": "New builds"
+      },
+      "surface": {
+        "size": 55,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "2-4",
+      "bathrooms": null,
+      "floor": null,
+      "lift": null
+    },
+    "price": {
+      "value": "from € 276,000",
+      "raw": 276000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4595,
+        "longitude": 9.1087,
+        "visibilityType": "exact_location",
+        "geoHash": "u0n6x78u"
+      },
+      "zipcode": null,
+      "street": "Via Sella Nuova, 10",
+      "macrozone": {
+        "id": 10292,
+        "name": "Bisceglie, Baggio, Olmi"
+      },
+      "microzone": {
+        "id": 10316,
+        "name": "Bisceglie"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": true
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477729/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477729/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477673/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477673/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477703/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477703/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477757/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477757/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477789/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477789/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477819/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477819/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477845/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477845/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477875/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477875/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477895/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477895/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477913/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477913/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477943/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477943/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584477977/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584477977/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584478007/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584478007/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584478035/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584478035/xxl.jpg",
+          "label": "Dettagli"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584478065/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584478065/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479105/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479105/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479121/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479121/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479137/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479137/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479157/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479157/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479199/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479199/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479233/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479233/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479265/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479265/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479287/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479287/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479315/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479315/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1584479337/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1584479337/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1723874364/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1723874364/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1734124588/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1734124588/xxl.jpg",
+          "label": "Planimetria"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390259648976"
+        }
+      ],
+      "bookVisitsEnabled": false,
+      "priceProposalEnabled": false,
+      "agencyId": 437797,
+      "agencyUuid": "2b074875-3c67-5793-a73a-738a511a76de"
+    },
+    "isUnread": false,
+    "subProperties": {
+      "count": 16
+    }
+  },
+  {
+    "id": 121232008,
+    "uuid": "9be86fcc-2295-513e-8a2a-e8ac7b8ae0cf",
+    "rty": "ad",
+    "title": "Project",
+    "lastModified": 1762165369,
+    "creationDate": 1749473062,
+    "enabled": true,
+    "analytics": {
+      "price": "368000",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Abbiategrasso, Chiesa Rossa",
+      "microzone": "Pezzotti - Meda",
+      "typology": "Progetto",
+      "category": "Nuove costruzioni",
+      "contract": "vendita",
+      "heating": "Centralizzato",
+      "advertiser": "agenzia",
+      "propertyStatus": "Nuovo / In costruzione",
+      "adVisibility": "sky",
+      "agencyName": "Ideim S.r.l.",
+      "agencyId": "441251",
+      "otherFeatures": [
+        "accesso per disabili",
+        "parcheggio bici"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": true
+    },
+    "topology": {
+      "typology": {
+        "id": 112,
+        "name": "Project"
+      },
+      "category": {
+        "id": 27,
+        "name": "New builds"
+      },
+      "surface": {
+        "size": 62,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "2-4",
+      "bathrooms": null,
+      "floor": null,
+      "lift": null
+    },
+    "price": {
+      "value": "from € 368,000",
+      "raw": 368000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4393,
+        "longitude": 9.1795,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd2zur"
+      },
+      "zipcode": null,
+      "street": "Via Giulio Carcano, 6",
+      "macrozone": {
+        "id": 10068,
+        "name": "Abbiategrasso, Chiesa Rossa"
+      },
+      "microzone": {
+        "id": 10330,
+        "name": "Pezzotti - Meda"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": true
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727364826/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727364826/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727364796/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727364796/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727364652/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727364652/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727364760/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727364760/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727364736/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727364736/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727364692/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727364692/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727364876/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727364876/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727364920/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727364920/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365058/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365058/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1728396686/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1728396686/xxl.jpg",
+          "label": "Terreno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1728396712/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1728396712/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1740111926/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1740111926/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1728157128/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1728157128/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727366170/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727366170/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1730898440/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1730898440/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727366126/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727366126/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365944/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365944/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365728/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365728/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365698/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365698/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365762/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365762/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365800/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365800/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365820/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365820/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365846/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365846/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365878/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365878/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365910/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365910/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727365980/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727365980/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727366028/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727366028/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1727366080/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1727366080/xxl.jpg",
+          "label": "Camera da letto"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390259649371"
+        }
+      ],
+      "bookVisitsEnabled": false,
+      "priceProposalEnabled": false,
+      "agencyId": 441251,
+      "agencyUuid": "768f706a-8096-52db-a968-fd8e08cfd2eb"
+    },
+    "isUnread": false,
+    "subProperties": {
+      "count": 16
+    }
+  },
+  {
+    "id": 121138714,
+    "uuid": "e25ce7ba-9f3e-5303-990e-d50a6bb752de",
+    "rty": "ad",
+    "title": "Project",
+    "lastModified": 1762946772,
+    "creationDate": 1749123610,
+    "enabled": true,
+    "analytics": {
+      "price": "185000",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Cenisio, Sarpi, Isola",
+      "microzone": "Cenisio",
+      "typology": "Progetto",
+      "category": "Nuove costruzioni",
+      "contract": "vendita",
+      "heating": "Centralizzato",
+      "advertiser": "agenzia",
+      "propertyStatus": "Nuovo / In costruzione",
+      "adVisibility": "sky",
+      "agencyName": "CENISIO 68",
+      "agencyId": "458352",
+      "otherFeatures": [
+        "parcheggio bici"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": true
+    },
+    "topology": {
+      "typology": {
+        "id": 112,
+        "name": "Project"
+      },
+      "category": {
+        "id": 27,
+        "name": "New builds"
+      },
+      "surface": {
+        "size": 24,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "1-3",
+      "bathrooms": null,
+      "floor": null,
+      "lift": null
+    },
+    "price": {
+      "value": "from € 185,000",
+      "raw": 185000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.488,
+        "longitude": 9.1597,
+        "visibilityType": "exact_location",
+        "geoHash": "u0ndb2vf"
+      },
+      "zipcode": null,
+      "street": "Via Cenisio, 68",
+      "macrozone": {
+        "id": 10054,
+        "name": "Cenisio, Sarpi, Isola"
+      },
+      "microzone": {
+        "id": 12805,
+        "name": "Cenisio"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": true
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798106589/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798106589/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1816125253/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1816125253/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1729066354/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1729066354/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1729066370/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1729066370/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1729066380/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1729066380/xxl.jpg",
+          "label": "Monolocale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1729066346/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1729066346/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1729066330/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1729066330/xxl.jpg",
+          "label": "Ingresso"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1729066316/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1729066316/xxl.jpg",
+          "label": "Ingresso"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1729066320/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1729066320/xxl.jpg",
+          "label": "Ascensori"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1729901894/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1729901894/xxl.jpg",
+          "label": "Altro"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "tel1",
+          "num": "+393927715600"
+        }
+      ],
+      "bookVisitsEnabled": false,
+      "priceProposalEnabled": false,
+      "agencyId": 458352,
+      "agencyUuid": "5011351f-6411-5b41-bfc6-fb5fb7c0b8e5"
+    },
+    "isUnread": false,
+    "subProperties": {
+      "count": 20
+    }
+  },
+  {
+    "id": 123475333,
+    "uuid": "19ae2851-5917-5789-a6e3-b91e44e6aeac",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1762338571,
+    "creationDate": 1759139409,
+    "enabled": true,
+    "analytics": {
+      "price": "350000",
+      "priceRange": "300.001 - 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Corvetto, Rogoredo",
+      "microzone": "Corvetto",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "2",
+      "heating": "Centralizzato",
+      "numBedrooms": "1",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "Archimedia 360",
+      "agencyId": "441403",
+      "otherFeatures": [
+        "cancello elettrico",
+        "fibra ottica",
+        "porta blindata",
+        "accesso per disabili",
+        "armadio a muro",
+        "terrazzo",
+        "impianto tv centralizzato",
+        "parzialmente arredato",
+        "esposizione esterna"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 55,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "2",
+      "bathrooms": "1",
+      "floor": "2",
+      "lift": true,
+      "terrace": true,
+      "furnished": true
+    },
+    "price": {
+      "value": "€ 350,000",
+      "raw": 350000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4396,
+        "longitude": 9.2067,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd9800"
+      },
+      "zipcode": "20139",
+      "street": "Viale Ortles, 54/A",
+      "macrozone": {
+        "id": 10320,
+        "name": "Corvetto, Rogoredo"
+      },
+      "microzone": {
+        "id": 10340,
+        "name": "Corvetto"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1811474261/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1811474261/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686703/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686703/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686733/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686733/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686747/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686747/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686767/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686767/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686791/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686791/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686809/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686809/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686831/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686831/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686861/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686861/xxl.jpg",
+          "label": "Corridoio"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686875/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686875/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686885/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686885/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686901/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686901/xxl.jpg",
+          "label": "Disimpegno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686913/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686913/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686931/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686931/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686945/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686945/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686959/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686959/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686977/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686977/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789686991/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789686991/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789687011/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789687011/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789687029/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789687029/xxl.jpg",
+          "label": "Mappa"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789687043/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789687043/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1789687055/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1789687055/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1811474351/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1811474351/xxl.jpg",
+          "label": "Altro"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/117263957/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/117263957/xxl.jpg",
+          "label": "Planimetria_Rasterizzata_Unit_2E"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+3903321604796"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 441403,
+      "agencyUuid": "a42b9ea5-29cf-5a77-919c-8fc70c9b3fac"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 124617127,
+    "uuid": "359642a6-bb06-5778-875d-83e4c82079c3",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1763117734,
+    "creationDate": 1758718086,
+    "enabled": true,
+    "analytics": {
+      "price": "450000",
+      "priceRange": "300.001 - 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Forlanini",
+      "microzone": "Quartiere Forlanini",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "1",
+      "heating": "Centralizzato",
+      "numBedrooms": "2",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "Sofimm Real Estate",
+      "agencyId": "380111",
+      "otherFeatures": [
+        "fibra ottica",
+        "videocitofono",
+        "porta blindata",
+        "terrazzo",
+        "impianto tv centralizzato",
+        "cantina",
+        "esposizione interna"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 95,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "3",
+      "bathrooms": "2",
+      "floor": "1",
+      "lift": true,
+      "terrace": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 450,000",
+      "raw": 450000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4595,
+        "longitude": 9.2394,
+        "visibilityType": "exact_location",
+        "geoHash": "u0ndd5xu"
+      },
+      "zipcode": "20100",
+      "street": "Via Marco Bruto, 15",
+      "macrozone": {
+        "id": 10294,
+        "name": "Forlanini"
+      },
+      "microzone": {
+        "id": 12660,
+        "name": "Quartiere Forlanini"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023021/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023021/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023025/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023025/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023031/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023031/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023033/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023033/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023037/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023037/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023041/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023041/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023043/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023043/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023047/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023047/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023049/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023049/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023053/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023053/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023057/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023057/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023061/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023061/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023065/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023065/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023067/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023067/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023073/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023073/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023081/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023081/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023085/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023085/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023089/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023089/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023093/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023093/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023097/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023097/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023101/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023101/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023103/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023103/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023109/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023109/xxl.jpg",
+          "label": "Piscina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023113/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023113/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023117/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023117/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023121/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023121/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1817023123/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1817023123/xxl.jpg",
+          "label": "Cortile interno"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/118751255/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118751255/xxl.jpg",
+          "label": "Planimetria"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118751283/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118751283/xxl.jpg",
+          "label": "Planimetria"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390259646584"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 380111,
+      "agencyUuid": "a77b8553-067d-535d-ac92-36e4b420610f"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 123820733,
+    "uuid": "fa8f0815-964f-5b0e-9362-bbbc2aa96d8a",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1761126911,
+    "creationDate": 1757602707,
+    "enabled": true,
+    "analytics": {
+      "price": "640000",
+      "priceRange": "oltre 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Solari, Washington",
+      "microzone": "Solari",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "1",
+      "heating": "Centralizzato",
+      "numBedrooms": "2",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "Sofimm Real Estate",
+      "agencyId": "380111",
+      "otherFeatures": [
+        "fibra ottica",
+        "porta blindata",
+        "impianto tv centralizzato",
+        "cantina",
+        "esposizione interna"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 100,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "3",
+      "bathrooms": "2",
+      "floor": "1",
+      "lift": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 640,000",
+      "raw": 640000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4534,
+        "longitude": 9.1566,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd86e9"
+      },
+      "zipcode": "20100",
+      "street": "Via Montecatini, 13",
+      "macrozone": {
+        "id": 10056,
+        "name": "Solari, Washington"
+      },
+      "microzone": {
+        "id": 10279,
+        "name": "Solari"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798051315/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798051315/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092501/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092501/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092505/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092505/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092511/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092511/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092513/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092513/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092519/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092519/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092521/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092521/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092525/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092525/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092529/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092529/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092531/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092531/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092533/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092533/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092537/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092537/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092541/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092541/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092543/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092543/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092545/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092545/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092553/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092553/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092555/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092555/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092557/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092557/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092565/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092565/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092567/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092567/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092569/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092569/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092573/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092573/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092577/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092577/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092579/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092579/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092581/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092581/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092585/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092585/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092589/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092589/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092595/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092595/xxl.jpg"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1798092597/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1798092597/xxl.jpg"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/117638627/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/117638627/xxl.jpg",
+          "label": "Planimetria Montecatini 13"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390259646584"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 380111,
+      "agencyUuid": "a77b8553-067d-535d-ac92-36e4b420610f"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 120849792,
+    "uuid": "617ca8e7-426b-569e-8f7b-dd05de6bd92d",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1762426474,
+    "creationDate": 1748259603,
+    "enabled": true,
+    "analytics": {
+      "price": "1795000",
+      "priceRange": "oltre 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Cenisio, Sarpi, Isola",
+      "microzone": "Isola",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "4",
+      "heating": "Autonomo",
+      "numBedrooms": "3",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "Sofimm Real Estate",
+      "agencyId": "380111",
+      "otherFeatures": [
+        "fibra ottica",
+        "videocitofono",
+        "impianto di allarme",
+        "porta blindata",
+        "armadio a muro",
+        "balcone",
+        "impianto tv centralizzato",
+        "parzialmente arredato",
+        "cantina",
+        "esposizione doppia"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 170,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": true,
+      "rooms": "5",
+      "bathrooms": "3",
+      "floor": "4",
+      "lift": true,
+      "balcony": true,
+      "furnished": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 1,795,000",
+      "raw": 1795000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4864,
+        "longitude": 9.1887,
+        "visibilityType": "exact_location",
+        "geoHash": "u0ndc0e1"
+      },
+      "zipcode": "20100",
+      "street": "Via Federico Confalonieri, 1/A",
+      "macrozone": {
+        "id": 10054,
+        "name": "Cenisio, Sarpi, Isola"
+      },
+      "microzone": {
+        "id": 10295,
+        "name": "Isola"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252017/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252017/xxl.jpg",
+          "label": "Zona"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252019/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252019/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252023/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252023/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252029/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252029/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252031/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252031/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252035/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252035/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252039/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252039/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252041/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252041/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252047/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252047/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252049/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252049/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252053/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252053/xxl.jpg",
+          "label": "Corridoio"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252057/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252057/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252061/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252061/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252063/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252063/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252065/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252065/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252069/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252069/xxl.jpg",
+          "label": "Scala"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252073/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252073/xxl.jpg",
+          "label": "Ufficio"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252077/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252077/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252081/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252081/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252085/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252085/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252089/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252089/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252095/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252095/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252099/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252099/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252105/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252105/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252111/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252111/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252113/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252113/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252117/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252117/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252123/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252123/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252125/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252125/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252129/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252129/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252133/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252133/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252137/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252137/xxl.jpg",
+          "label": "Zona"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807252143/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807252143/xxl.jpg",
+          "label": "Zona"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/118177819/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118177819/xxl.jpg",
+          "label": "piano 4 render"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118177869/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118177869/xxl.jpg",
+          "label": "piano 5 render"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118177813/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118177813/xxl.jpg",
+          "label": "piano 4 render"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118177815/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118177815/xxl.jpg",
+          "label": "piano 5 render"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390259646584"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 380111,
+      "agencyUuid": "a77b8553-067d-535d-ac92-36e4b420610f"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 123898973,
+    "uuid": "054169d2-1f23-5159-b265-d72f42bb876b",
+    "rty": "ad",
+    "title": "Penthouse - Attic",
+    "lastModified": 1761747033,
+    "creationDate": 1760608959,
+    "enabled": true,
+    "analytics": {
+      "price": "1680000",
+      "priceRange": "oltre 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Centro",
+      "microzone": "Carrobbio",
+      "typology": "Attico - Mansarda",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "4",
+      "heating": "Autonomo",
+      "numBedrooms": "2",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Buono / Abitabile",
+      "adVisibility": "sky",
+      "agencyName": "Gussetti Immobiliare",
+      "agencyId": "102642",
+      "otherFeatures": [
+        "cancello elettrico",
+        "fibra ottica",
+        "videocitofono",
+        "impianto di allarme",
+        "porta blindata",
+        "armadio a muro",
+        "balcone",
+        "terrazzo",
+        "impianto tv centralizzato",
+        "parzialmente arredato",
+        "esposizione doppia"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 5,
+        "name": "Penthouse - Attic"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 200,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": true,
+      "rooms": "4",
+      "bathrooms": "2",
+      "floor": "4",
+      "lift": true,
+      "balcony": true,
+      "terrace": true,
+      "furnished": true
+    },
+    "price": {
+      "value": "€ 1,680,000",
+      "raw": 1680000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4584,
+        "longitude": 9.1868,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd953w"
+      },
+      "zipcode": "20123",
+      "street": "Via Disciplini, 4",
+      "macrozone": {
+        "id": 10046,
+        "name": "Centro"
+      },
+      "microzone": {
+        "id": 12630,
+        "name": "Carrobbio"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799836111/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799836111/xxl.jpg",
+          "label": "Zona"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799838217/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799838217/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799844039/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799844039/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799841929/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799841929/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799841283/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799841283/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842475/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842475/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799837001/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799837001/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799841815/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799841815/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799841383/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799841383/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842017/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842017/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799843993/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799843993/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842955/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842955/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799841699/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799841699/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842381/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842381/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842217/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842217/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799853773/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799853773/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799853697/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799853697/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842141/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842141/xxl.jpg",
+          "label": "Interno appartamento"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799843227/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799843227/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842571/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842571/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842653/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842653/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799843917/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799843917/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799843121/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799843121/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799843671/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799843671/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1799842737/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1799842737/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807185667/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807185667/xxl.jpg",
+          "label": "Interno palazzo"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/117709301/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/117709301/xxl.jpg",
+          "label": "IMG_6686"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390235406544"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 102642,
+      "agencyUuid": "dd23d2f2-2086-57da-a55c-b656019b84dc"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 122093650,
+    "uuid": "ece0c721-1913-5b4a-9a8e-e216caa0e467",
+    "rty": "ad",
+    "title": "Project",
+    "lastModified": 1757874889,
+    "creationDate": 1752749669,
+    "enabled": true,
+    "analytics": {
+      "price": "159000",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Uptown, Cascina Merlata, Viale Certosa",
+      "microzone": "Certosa",
+      "typology": "Progetto",
+      "category": "Nuove costruzioni",
+      "contract": "vendita",
+      "heating": "Centralizzato",
+      "advertiser": "agenzia",
+      "propertyStatus": "Nuovo / In costruzione",
+      "adVisibility": "sky",
+      "agencyName": "GDC12",
+      "agencyId": "460406",
+      "otherFeatures": [
+        "accesso per disabili",
+        "parcheggio bici"
+      ],
+      "viewType": [
+        "monti"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": true
+    },
+    "topology": {
+      "typology": {
+        "id": 112,
+        "name": "Project"
+      },
+      "category": {
+        "id": 27,
+        "name": "New builds"
+      },
+      "surface": {
+        "size": 38,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "1-3",
+      "bathrooms": null,
+      "floor": null,
+      "lift": null
+    },
+    "price": {
+      "value": "from € 159,000",
+      "raw": 159000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.495,
+        "longitude": 9.1346,
+        "visibilityType": "exact_location",
+        "geoHash": "u0n6zf5e"
+      },
+      "zipcode": null,
+      "street": "Via Giovanni della Casa, 12",
+      "macrozone": {
+        "id": 10064,
+        "name": "Uptown, Cascina Merlata, Viale Certosa"
+      },
+      "microzone": {
+        "id": 10302,
+        "name": "Certosa"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": true
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754207212/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754207212/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754207220/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754207220/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754207244/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754207244/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754207234/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754207234/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206728/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206728/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206686/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206686/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206706/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206706/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206660/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206660/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206624/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206624/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754207248/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754207248/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206632/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206632/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206672/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206672/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206628/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206628/xxl.jpg",
+          "label": "Altro"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206620/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206620/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754206646/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754206646/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754209900/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754209900/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1754209962/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1754209962/xxl.jpg",
+          "label": "Altro"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "tel1",
+          "num": "+393495663680"
+        }
+      ],
+      "bookVisitsEnabled": false,
+      "priceProposalEnabled": false,
+      "agencyId": 460406,
+      "agencyUuid": "4541b903-b3ae-51b8-94ce-e9416790fe56"
+    },
+    "isUnread": false,
+    "subProperties": {
+      "count": 10
+    }
+  },
+  {
+    "id": 124210723,
+    "uuid": "163ff613-f51f-5b6c-a640-f7375269df5b",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1761739812,
+    "creationDate": 1761738842,
+    "enabled": true,
+    "analytics": {
+      "price": "380000",
+      "priceRange": "300.001 - 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Bicocca, Niguarda",
+      "microzone": "Ca' Granda",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "8",
+      "heating": "Centralizzato",
+      "numBedrooms": "2",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "Glo Value Real Estate Srl",
+      "agencyId": "411630",
+      "otherFeatures": [
+        "videocitofono",
+        "porta blindata",
+        "accesso per disabili",
+        "balcone",
+        "impianto tv singolo",
+        "parzialmente arredato",
+        "cantina",
+        "esposizione interna"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 110,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "3",
+      "bathrooms": "2",
+      "floor": "8",
+      "lift": true,
+      "balcony": true,
+      "furnished": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 380,000",
+      "raw": 380000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.5069,
+        "longitude": 9.194,
+        "visibilityType": "exact_location",
+        "geoHash": "u0ndchqb"
+      },
+      "zipcode": "20162",
+      "street": "Via Michele De Angelis, 10",
+      "macrozone": {
+        "id": 10071,
+        "name": "Bicocca, Niguarda"
+      },
+      "microzone": {
+        "id": 12634,
+        "name": "Ca' Granda"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807099999/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807099999/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807099925/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807099925/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100129/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100129/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100385/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100385/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100021/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100021/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100351/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100351/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100233/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100233/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100145/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100145/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807099979/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807099979/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100047/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100047/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100089/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100089/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100071/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100071/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100169/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100169/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100205/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100205/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100261/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100261/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100321/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100321/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1807100411/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1807100411/xxl.jpg",
+          "label": "Cortile interno"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/118052203/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118052203/xxl.jpg",
+          "label": "Screenshot 2025-10-29 alle 11.22.23"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390259646704"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 411630,
+      "agencyUuid": "8d3d6d9e-3c59-5947-a3fc-2b941ad43c96"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 121962836,
+    "uuid": "bdde96dd-6ab1-551c-bc2e-d7d320ce9d75",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1759528168,
+    "creationDate": 1752236883,
+    "enabled": true,
+    "analytics": {
+      "price": "1580000",
+      "priceRange": "oltre 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Quadronno, Palestro, Guastalla",
+      "microzone": "Quadronno - Crocetta",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "4",
+      "heating": "Centralizzato",
+      "numBedrooms": "3",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Da ristrutturare",
+      "adVisibility": "sky",
+      "agencyName": "Gussetti Immobiliare",
+      "agencyId": "102642",
+      "otherFeatures": [
+        "cancello elettrico",
+        "fibra ottica",
+        "videocitofono",
+        "impianto di allarme",
+        "porta blindata",
+        "accesso per disabili",
+        "balcone",
+        "impianto tv centralizzato",
+        "cantina",
+        "esposizione doppia"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 204,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": true,
+      "rooms": "4",
+      "bathrooms": "2",
+      "floor": "4",
+      "lift": true,
+      "balcony": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 1,580,000",
+      "raw": 1580000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4553,
+        "longitude": 9.1966,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd96bu"
+      },
+      "zipcode": "20122",
+      "street": "Corso di Porta Romana, 108",
+      "macrozone": {
+        "id": 10050,
+        "name": "Quadronno, Palestro, Guastalla"
+      },
+      "microzone": {
+        "id": 12633,
+        "name": "Quadronno - Crocetta"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750512628/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750512628/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750512910/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750512910/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750512950/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750512950/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750512992/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750512992/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515356/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515356/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750513164/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750513164/xxl.jpg",
+          "label": "Portineria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750513192/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750513192/xxl.jpg",
+          "label": "Portineria"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750513910/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750513910/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750513742/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750513742/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750513820/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750513820/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750513774/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750513774/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750513864/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750513864/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515198/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515198/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515278/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515278/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515316/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515316/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515242/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515242/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515404/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515404/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515444/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515444/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515492/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515492/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515528/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515528/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515560/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515560/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515590/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515590/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515616/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515616/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515640/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515640/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515656/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515656/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515670/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515670/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1750515688/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1750515688/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1793097541/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1793097541/xxl.jpg",
+          "label": "Altro"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/115649494/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/115649494/xxl.jpg",
+          "label": "IMG_4621"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390235406544"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 102642,
+      "agencyUuid": "dd23d2f2-2086-57da-a55c-b656019b84dc"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 122709362,
+    "uuid": "bae25c85-7b91-5112-b016-6408c5d11e87",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1762186543,
+    "creationDate": 1756240267,
+    "enabled": true,
+    "analytics": {
+      "price": "699000",
+      "priceRange": "oltre 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Garibaldi, Moscova, Porta Nuova",
+      "microzone": "Moscova",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "1",
+      "heating": "Autonomo",
+      "numBedrooms": "1",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Buono / Abitabile",
+      "adVisibility": "sky",
+      "agencyName": "Immobiliare Italia Real Estate - Brera",
+      "agencyId": "38834",
+      "otherFeatures": [
+        "caminetto",
+        "fibra ottica",
+        "videocitofono",
+        "porta blindata",
+        "armadio a muro",
+        "balcone",
+        "impianto tv centralizzato",
+        "arredato",
+        "esposizione esterna"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 65,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": true,
+      "rooms": "2",
+      "bathrooms": "1",
+      "floor": "1",
+      "lift": true,
+      "balcony": true,
+      "furnished": true
+    },
+    "price": {
+      "value": "€ 699,000",
+      "raw": 699000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": "749000",
+      "discount": "6.7"
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4777,
+        "longitude": 9.185,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd9nbq"
+      },
+      "zipcode": "20121",
+      "street": "Via della Moscova, 52",
+      "macrozone": {
+        "id": 10053,
+        "name": "Garibaldi, Moscova, Porta Nuova"
+      },
+      "microzone": {
+        "id": 10263,
+        "name": "Moscova"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024050/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024050/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024094/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024094/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024076/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024076/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024068/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024068/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024060/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024060/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024082/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024082/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024086/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024086/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024092/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024092/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024036/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024036/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024038/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024038/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024040/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024040/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024042/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024042/xxl.jpg",
+          "label": "Ingresso"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024032/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024032/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1777024030/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1777024030/xxl.jpg",
+          "label": "Bagno"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/116458248/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/116458248/xxl.jpg",
+          "label": "MX-2614N_20241016_093855(1) 1"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390235405739"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 38834,
+      "agencyUuid": "a6a007d3-a412-5d04-bb87-cae589f6b244"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 124419399,
+    "uuid": "4c41751c-c1f1-5935-bf2b-23c463f4b0bc",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1763461045,
+    "creationDate": 1762432057,
+    "enabled": true,
+    "analytics": {
+      "price": "912000",
+      "priceRange": "oltre 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Fiera, Sempione, City Life, Portello",
+      "microzone": "Portello - Parco Vittoria",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "7",
+      "heating": "Autonomo",
+      "numBedrooms": "3",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "M3M Mediazione Immobiliare",
+      "agencyId": "233943",
+      "otherFeatures": [
+        "fibra ottica",
+        "videocitofono",
+        "porta blindata",
+        "accesso per disabili",
+        "balcone",
+        "terrazzo",
+        "impianto tv centralizzato",
+        "cantina",
+        "esposizione doppia"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 137,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": true,
+      "rooms": "4",
+      "bathrooms": "2",
+      "floor": "7",
+      "lift": true,
+      "balcony": true,
+      "terrace": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 912,000",
+      "raw": 912000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4888,
+        "longitude": 9.1477,
+        "visibilityType": "exact_location",
+        "geoHash": "u0ndb0vp"
+      },
+      "zipcode": "20149",
+      "street": "Via Vico Magistretti, 3",
+      "macrozone": {
+        "id": 10055,
+        "name": "Fiera, Sempione, City Life, Portello"
+      },
+      "microzone": {
+        "id": 10272,
+        "name": "Portello - Parco Vittoria"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": true,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213675/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213675/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213689/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213689/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213645/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213645/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213663/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213663/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213705/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213705/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213767/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213767/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213755/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213755/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213719/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213719/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213737/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213737/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213791/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213791/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213803/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213803/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213823/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213823/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213843/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213843/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213861/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213861/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213877/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213877/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213893/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213893/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213905/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213905/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213925/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213925/xxl.jpg",
+          "label": "Disimpegno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213937/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213937/xxl.jpg",
+          "label": "Disimpegno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213955/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213955/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213967/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213967/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213985/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213985/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812213997/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812213997/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214013/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214013/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214025/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214025/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214035/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214035/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214055/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214055/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214067/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214067/xxl.jpg",
+          "label": "Terrazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214085/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214085/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214103/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214103/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214115/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214115/xxl.jpg",
+          "label": "Corridoio"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214129/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214129/xxl.jpg",
+          "label": "Ingresso"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214153/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214153/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214161/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214161/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214173/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214173/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214183/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214183/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214195/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214195/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1812214203/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1812214203/xxl.jpg",
+          "label": "Disimpegno"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/118351947/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118351947/xxl.jpg",
+          "label": "plan quotata 1"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118352659/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118352659/xxl.jpg",
+          "label": "plan quotata 1"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390235406921"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 233943,
+      "agencyUuid": "6252a6db-7ff1-5bfc-8008-8f4cdec0ab1c"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 124196925,
+    "uuid": "5613f990-92e5-57a0-85ae-c12a6e291457",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1761692556,
+    "creationDate": 1761692158,
+    "enabled": true,
+    "analytics": {
+      "price": "428000",
+      "priceRange": "300.001 - 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Cimiano, Crescenzago, Adriano",
+      "microzone": "Crescenzago",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": null,
+      "heating": "Autonomo",
+      "numBedrooms": "2",
+      "elevator": false,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "Studio 2R Immobiliare",
+      "agencyId": "105634",
+      "otherFeatures": [
+        "cancello elettrico",
+        "fibra ottica",
+        "videocitofono",
+        "porta blindata",
+        "impianto tv singolo",
+        "esposizione doppia"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 95,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "5",
+      "bathrooms": "2",
+      "floor": null,
+      "lift": false
+    },
+    "price": {
+      "value": "€ 428,000",
+      "raw": 428000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.505,
+        "longitude": 9.2418,
+        "visibilityType": "exact_location",
+        "geoHash": "u0ndf7ct"
+      },
+      "zipcode": "20132",
+      "street": "Via Padova, 236",
+      "macrozone": {
+        "id": 10295,
+        "name": "Cimiano, Crescenzago, Adriano"
+      },
+      "microzone": {
+        "id": 11405,
+        "name": "Crescenzago"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781781/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781781/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781787/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781787/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781863/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781863/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781871/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781871/xxl.jpg",
+          "label": "Vista"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781877/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781877/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781967/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781967/xxl.jpg",
+          "label": "Interno non residenziale"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781795/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781795/xxl.jpg",
+          "label": "Zona"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781801/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781801/xxl.jpg",
+          "label": "Cantina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781805/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781805/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781819/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781819/xxl.jpg",
+          "label": "Scala"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781933/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781933/xxl.jpg",
+          "label": "Zona"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781823/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781823/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781833/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781833/xxl.jpg",
+          "label": "Interno palazzo"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781911/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781911/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781955/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781955/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781841/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781841/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781761/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781761/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781919/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781919/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781885/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781885/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781893/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781893/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781957/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781957/xxl.jpg",
+          "label": "Disimpegno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781899/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781899/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781969/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781969/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781901/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781901/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781937/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781937/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781905/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781905/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781939/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781939/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781909/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781909/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781945/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781945/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781915/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781915/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781949/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781949/xxl.jpg",
+          "label": "Box auto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781917/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781917/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781953/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781953/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781845/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781845/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781767/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781767/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781931/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781931/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781925/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781925/xxl.jpg",
+          "label": "Giardino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781927/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781927/xxl.jpg",
+          "label": "Cortile interno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781773/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781773/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781813/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781813/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781943/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781943/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781959/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781959/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781963/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781963/xxl.jpg",
+          "label": "Cantina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781973/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781973/xxl.jpg",
+          "label": "Stanza non arredata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781977/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781977/xxl.jpg",
+          "label": "Magazzino"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781979/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781979/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781987/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781987/xxl.jpg",
+          "label": "Box auto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1806781983/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1806781983/xxl.jpg",
+          "label": "Bagno"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/118037711/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118037711/xxl.jpg",
+          "label": "B1"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118037715/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118037715/xxl.jpg",
+          "label": "B1"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118037717/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118037717/xxl.jpg",
+          "label": "PRIMO PIANO"
+        },
+        {
+          "sd": "https://pic.im-cdn.it/plan/118037719/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/118037719/xxl.jpg",
+          "label": "PIANO TERRA"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390287361655"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 105634,
+      "agencyUuid": "6b1b220a-e13c-5b14-a2c0-fa5780312269"
+    },
+    "isUnread": false,
+    "subProperties": null
+  },
+  {
+    "id": 118724123,
+    "uuid": "1bab09a7-2dca-5794-a31c-198748e9a267",
+    "rty": "ad",
+    "title": "Apartment",
+    "lastModified": 1756804079,
+    "creationDate": 1618921598,
+    "enabled": true,
+    "analytics": {
+      "price": "399000",
+      "priceRange": "300.001 - 500.000 &euro;",
+      "country": "Italia",
+      "region": "Lombardia",
+      "province": "Milan",
+      "macrozone": "Porta Vittoria, Lodi",
+      "microzone": "Lodi - Brenta",
+      "typology": "Appartamento",
+      "category": "Residenziale",
+      "contract": "vendita",
+      "floor": "1",
+      "heating": "Autonomo",
+      "numBedrooms": "1",
+      "elevator": true,
+      "advertiser": "agenzia",
+      "propertyStatus": "Ottimo / Ristrutturato",
+      "adVisibility": "sky",
+      "agencyName": "TEMPOCASA Milano Corso Lodi",
+      "agencyId": "101758",
+      "otherFeatures": [
+        "fibra ottica",
+        "videocitofono",
+        "impianto di allarme",
+        "porta blindata",
+        "accesso per disabili",
+        "terrazzo",
+        "impianto tv centralizzato",
+        "arredato",
+        "cantina"
+      ]
+    },
+    "contract": {
+      "id": 1,
+      "name": "Sale",
+      "isHidden": false
+    },
+    "topology": {
+      "typology": {
+        "id": 4,
+        "name": "Apartment"
+      },
+      "category": {
+        "id": 1,
+        "name": "Residential"
+      },
+      "surface": {
+        "size": 65,
+        "unitOfMeasure": "m²"
+      },
+      "isLuxury": false,
+      "rooms": "2",
+      "bathrooms": "1",
+      "floor": "1",
+      "lift": true,
+      "terrace": true,
+      "furnished": true,
+      "cellar": true
+    },
+    "price": {
+      "value": "€ 399,000",
+      "raw": 399000,
+      "currency": "EUR",
+      "isHidden": false,
+      "startPrice": null,
+      "discount": null
+    },
+    "geography": {
+      "municipality": {
+        "id": 8042,
+        "name": "Milan"
+      },
+      "province": {
+        "id": "MI",
+        "name": "Milan"
+      },
+      "geolocation": {
+        "latitude": 45.4412,
+        "longitude": 9.21455,
+        "visibilityType": "exact_location",
+        "geoHash": "u0nd98mf"
+      },
+      "zipcode": "20139",
+      "street": "Viale BRENTA 3",
+      "macrozone": {
+        "id": 10069,
+        "name": "Porta Vittoria, Lodi"
+      },
+      "microzone": {
+        "id": 10341,
+        "name": "Lodi - Brenta"
+      }
+    },
+    "badge": {
+      "visibility": {
+        "key": "isSky",
+        "label": "Sky",
+        "opt": [
+          {
+            "label": "bgColor",
+            "value": "#13aaec"
+          }
+        ]
+      },
+      "isNew": false,
+      "isNewConstruction": false
+    },
+    "media": {
+      "placeholder": null,
+      "images": [
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568503/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568503/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568481/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568481/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568555/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568555/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568655/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568655/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568545/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568545/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568567/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568567/xxl.jpg",
+          "label": "Salone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568589/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568589/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568603/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568603/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568669/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568669/xxl.jpg",
+          "label": "Camera da letto"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568535/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568535/xxl.jpg",
+          "label": "Cucina"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568621/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568621/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568643/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568643/xxl.jpg",
+          "label": "Balcone"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568519/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568519/xxl.jpg",
+          "label": "Facciata"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568687/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568687/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568699/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568699/xxl.jpg",
+          "label": "Bagno"
+        },
+        {
+          "sd": "https://pwm.im-cdn.it/image/1658568705/m-c.jpg",
+          "hd": "https://pwm.im-cdn.it/image/1658568705/xxl.jpg",
+          "label": "Altro"
+        }
+      ],
+      "floorPlans": [
+        {
+          "sd": "https://pic.im-cdn.it/plan/114703418/m.jpg",
+          "hd": "https://pic.im-cdn.it/plan/114703418/xxl.jpg",
+          "label": "Planimetria"
+        }
+      ]
+    },
+    "contacts": {
+      "phones": [
+        {
+          "type": "vTel1",
+          "num": "+390235406823"
+        }
+      ],
+      "bookVisitsEnabled": true,
+      "priceProposalEnabled": false,
+      "agencyId": 101758,
+      "agencyUuid": "bd5c9fef-728c-520a-8c38-2de714f522a0"
+    },
+    "isUnread": false,
+    "subProperties": null
+  }
+]
