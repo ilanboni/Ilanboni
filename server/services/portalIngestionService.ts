@@ -215,6 +215,8 @@ export class PortalIngestionService {
           ownerName: listing.ownerName,
           ownerPhone: listing.ownerPhone,
           ownerEmail: listing.ownerEmail,
+          url: listing.url,
+          externalLink: listing.url, // Update externalLink for UI display
           lastSeenAt: now,
           updatedAt: now
         })
@@ -241,6 +243,7 @@ export class PortalIngestionService {
         ownerEmail: listing.ownerEmail,
         externalId: listing.externalId,
         url: listing.url,
+        externalLink: listing.url, // Populate externalLink for UI display
         source: listing.source || `scraper-${portalId}`,
         latitude: listing.latitude,
         longitude: listing.longitude,

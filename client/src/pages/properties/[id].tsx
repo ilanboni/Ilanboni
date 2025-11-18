@@ -696,51 +696,79 @@ export default function PropertyDetailPage() {
                     </div>
                   </div>
                   
-                  {/* Dettagli Proprietario - mostra solo se almeno un campo è presente */}
-                  {(property?.ownerName || property?.ownerPhone || property?.ownerEmail) && (
+                  {/* Dettagli Proprietario e Link Annuncio */}
+                  {(property?.ownerName || property?.ownerPhone || property?.ownerEmail || property?.externalLink) && (
                     <div className="mt-6 pt-6 border-t">
-                      <div className="text-sm text-gray-500 mb-3 font-semibold">Dettagli Proprietario</div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {property?.ownerName && (
-                          <div className="flex items-center gap-2">
-                            <i className="fas fa-user text-gray-400 w-5"></i>
-                            <div>
-                              <div className="text-xs text-gray-500">Nome</div>
-                              <div className="font-medium">{property.ownerName}</div>
-                            </div>
-                          </div>
-                        )}
-                        {property?.ownerPhone && (
-                          <div className="flex items-center gap-2">
-                            <i className="fas fa-phone text-gray-400 w-5"></i>
-                            <div>
-                              <div className="text-xs text-gray-500">Telefono</div>
+                      <div className="text-sm text-gray-500 mb-3 font-semibold">Dettagli Proprietario e Annuncio</div>
+                      
+                      {/* Link Annuncio Esterno - in evidenza */}
+                      {property?.externalLink && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <i className="fas fa-external-link-alt text-blue-600 text-xl"></i>
+                            <div className="flex-1">
+                              <div className="text-xs text-blue-600 font-medium mb-1">Annuncio Originale</div>
                               <a 
-                                href={`tel:${property.ownerPhone}`} 
-                                className="font-medium text-blue-600 hover:underline"
-                                data-testid="link-owner-phone"
+                                href={property.externalLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-700 hover:text-blue-900 font-medium hover:underline break-all"
+                                data-testid="link-external-listing"
                               >
-                                {property.ownerPhone}
+                                {property.externalLink.includes('immobiliare.it') ? 'Visualizza su Immobiliare.it' : 
+                                 property.externalLink.includes('idealista.it') ? 'Visualizza su Idealista.it' : 
+                                 'Visualizza annuncio esterno'}
+                                <i className="fas fa-arrow-right ml-2"></i>
                               </a>
                             </div>
                           </div>
-                        )}
-                        {property?.ownerEmail && (
-                          <div className="flex items-center gap-2">
-                            <i className="fas fa-envelope text-gray-400 w-5"></i>
-                            <div>
-                              <div className="text-xs text-gray-500">Email</div>
-                              <a 
-                                href={`mailto:${property.ownerEmail}`} 
-                                className="font-medium text-blue-600 hover:underline"
-                                data-testid="link-owner-email"
-                              >
-                                {property.ownerEmail}
-                              </a>
+                        </div>
+                      )}
+                      
+                      {/* Contatti Proprietario */}
+                      {(property?.ownerName || property?.ownerPhone || property?.ownerEmail) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {property?.ownerName && (
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-user text-gray-400 w-5"></i>
+                              <div>
+                                <div className="text-xs text-gray-500">Nome</div>
+                                <div className="font-medium">{property.ownerName}</div>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                          {property?.ownerPhone && (
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-phone text-gray-400 w-5"></i>
+                              <div>
+                                <div className="text-xs text-gray-500">Telefono</div>
+                                <a 
+                                  href={`tel:${property.ownerPhone}`} 
+                                  className="font-medium text-blue-600 hover:underline"
+                                  data-testid="link-owner-phone"
+                                >
+                                  {property.ownerPhone}
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                          {property?.ownerEmail && (
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-envelope text-gray-400 w-5"></i>
+                              <div>
+                                <div className="text-xs text-gray-500">Email</div>
+                                <a 
+                                  href={`mailto:${property.ownerEmail}`} 
+                                  className="font-medium text-blue-600 hover:underline"
+                                  data-testid="link-owner-email"
+                                >
+                                  {property.ownerEmail}
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
