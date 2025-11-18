@@ -63,7 +63,7 @@ export default function PrivatePropertiesPage() {
       if (property.ownerType !== 'private') return false;
       
       // Filtro 2: Solo da Apify (Immobiliare.it e Idealista.it)
-      if (!property.source || !['scraper-immobiliare', 'scraper-idealista'].includes(property.source)) {
+      if (!property.source || !['apify', 'scraper-immobiliare', 'scraper-idealista'].includes(property.source)) {
         return false;
       }
       
