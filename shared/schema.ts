@@ -162,6 +162,7 @@ export const properties = pgTable("properties", {
   firstSeenAt: timestamp("first_seen_at"), // prima volta che l'annuncio è stato visto
   lastSeenAt: timestamp("last_seen_at"), // ultimo aggiornamento
   url: text("url"), // URL completo dell'annuncio
+  isFavorite: boolean("is_favorite").default(false), // properties marked as favorites for follow-up
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });

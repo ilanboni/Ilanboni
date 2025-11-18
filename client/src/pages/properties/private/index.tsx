@@ -440,8 +440,8 @@ export default function PrivatePropertiesPage() {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     {filteredProperties.map((property) => {
-                      const lat = parseFloat(property.latitude);
-                      const lng = parseFloat(property.longitude);
+                      const lat = property.latitude ? parseFloat(property.latitude) : NaN;
+                      const lng = property.longitude ? parseFloat(property.longitude) : NaN;
                       
                       if (isNaN(lat) || isNaN(lng)) return null;
                       
@@ -553,9 +553,9 @@ export default function PrivatePropertiesPage() {
                               {property.size}m²
                             </Badge>
                           )}
-                          {property.rooms && (
+                          {property.bedrooms && (
                             <Badge variant="outline" className="text-xs">
-                              {property.rooms} locali
+                              {property.bedrooms} camere
                             </Badge>
                           )}
                           {property.ownerPhone && (

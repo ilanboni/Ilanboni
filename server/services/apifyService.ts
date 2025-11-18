@@ -89,7 +89,7 @@ export class ApifyService {
     console.log('[APIFY] 🔍 Starting complete Milano scrape...');
 
     return this.scrapeImmobiliare({
-      maxItems: 5000, // Increase to get more coverage
+      maxItems: 20000, // Increased from 5000 to get better coverage of Milano listings
       proxyConfiguration: {
         useApifyProxy: true,
         apifyProxyGroups: ['RESIDENTIAL']
