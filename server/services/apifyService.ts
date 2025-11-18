@@ -93,6 +93,7 @@ export class ApifyService {
     
     const input = {
       location: 'Milano',
+      country: 'it',  // CRITICAL: Must specify Italy to avoid country mismatch
       maxItems: config.maxItems || 1000,
       propertyType: 'homes',
       operation: 'sale',

@@ -371,28 +371,10 @@ export class ScrapingJobWorker {
         }
       });
     } else {
-      // Use Playwright adapter for Idealista (more reliable than Apify)
-      console.log(`[SCRAPING-WORKER] 🎭 Using Playwright adapter for Idealista`);
-      const { ingestionService } = await import('./portalIngestionService');
-      
-      // Scrape Milano with broad criteria to get all listings
-      listings = await ingestionService.importFromPortal('idealista', {
-        city: 'Milano',
-        maxPrice: 10000000  // Very high to get everything
-      }).then(result => {
-        console.log(`[SCRAPING-WORKER] 📊 Idealista Playwright: ${result.totalFetched} fetched, ${result.imported} imported, ${result.updated} updated`);
-        // Note: importFromPortal already saves to DB, so we need to fetch the listings manually
-        return [];  // Will be populated by direct adapter call below
+      // Use Apify for Idealista (now with correct country parameter)
+      listings = await apifyService.scrapeIdealista({
+        maxItems: config.maxItems!.idealista
       });
-
-      // Get adapter directly for listing extraction
-      const adapter = (ingestionService as any).adapters.get('idealista');
-      if (adapter) {
-        listings = await adapter.search({
-          city: 'Milano',
-          maxPrice: 10000000
-        });
-      }
     }
 
     console.log(`[SCRAPING-WORKER] 🎯 ${portal}: fetched ${listings.length} listings`);
