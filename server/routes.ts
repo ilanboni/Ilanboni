@@ -3015,26 +3015,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         communicationContent = `Immobile condiviso inviato al cliente ${clientName}`;
       }
 
-      // Send WhatsApp message - ONLY TO TEST NUMBER
+      // Send WhatsApp message
       let whatsappSuccess = false;
       let whatsappError = null;
       
+      const WHATSAPP_MODE = process.env.WHATSAPP_MODE || 'test';
       const TEST_PHONE_NUMBER = '393407992052'; // Ilan Boni - numero di test
       
       if (messageType === 'whatsapp') {
-        // SAFETY CHECK: Only send to test number
-        if (client.phone !== TEST_PHONE_NUMBER) {
-          whatsappError = `INVIO BLOCCATO PER SICUREZZA: messaggi WhatsApp possono essere inviati SOLO al numero di test ${TEST_PHONE_NUMBER}`;
+        // MODE-AWARE SAFETY CHECK
+        const isTestMode = WHATSAPP_MODE === 'test';
+        const isTestNumber = client.phone === TEST_PHONE_NUMBER;
+        
+        if (isTestMode && !isTestNumber) {
+          // Test mode: blocca tutto tranne Ilan Boni
+          whatsappError = `MODALITÀ TEST ATTIVA: messaggi WhatsApp possono essere inviati SOLO al numero di test ${TEST_PHONE_NUMBER}`;
           console.error(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] ${whatsappError}`);
           console.error(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] Tentativo di invio a: ${client.phone} (${clientName}) - BLOCCATO`);
         } else {
+          // Test mode + test number OR prod mode + any number
           try {
             const { sendWhatsAppMessage } = await import('./lib/ultramsgApi.js');
-            console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] ✓ Invio autorizzato a numero di test: ${client.phone}`);
+            const modeLabel = isTestMode ? 'MODALITÀ TEST' : 'MODALITÀ PRODUZIONE';
+            console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] ${modeLabel} - Invio a: ${client.phone} (${clientName})`);
             
             await sendWhatsAppMessage(client.phone, whatsappMessage);
             whatsappSuccess = true;
-            console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] WhatsApp sent successfully to test number`);
+            console.log(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] WhatsApp inviato con successo a ${client.phone}`);
           } catch (error: any) {
             whatsappError = error.message;
             console.error(`[POST /api/shared-properties/${sharedPropertyId}/send-to-client] WhatsApp error:`, error);
