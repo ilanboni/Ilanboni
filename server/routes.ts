@@ -4611,6 +4611,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // APIFY AUTOMATED SCRAPING ENDPOINTS
   // ==============================================
   
+  // Create new scraping job (full-city or buyer-specific)
+  app.post("/api/apify/jobs", async (req: Request, res: Response) => {
+    try {
+      const { jobType, clientId, config } = req.body;
+      
+      // Validate job type
+      if (!jobType || !['buyer', 'full-city'].includes(jobType)) {
+        return res.status(400).json({ 
+          error: "Invalid job type. Must be 'buyer' or 'full-city'" 
+        });
+      }
+      
+      // Validate clientId for buyer jobs
+      if (jobType === 'buyer' && !clientId) {
+        return res.status(400).json({ 
+          error: "clientId required for buyer jobs" 
+        });
+      }
+      
+      console.log(`[POST /api/apify/jobs] Creating ${jobType} job...`);
+      
+      // Create job in database
+      const jobData: any = {
+        jobType,
+        status: 'queued',
+        clientId: clientId || null,
+        config: config || (jobType === 'full-city' ? {
+          maxItems: { immobiliare: 20000, idealista: 10000 },
+          portals: ['immobiliare', 'idealista'],
+          batchSize: 500
+        } : null)
+      };
+      
+      const job = await storage.createScrapingJob(jobData);
+      
+      console.log(`[POST /api/apify/jobs] ✅ Job #${job.id} created (type: ${jobType}, status: queued)`);
+      
+      res.json({
+        success: true,
+        jobId: job.id,
+        job,
+        message: `Job #${job.id} created and queued. Worker will process it automatically.`
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/apify/jobs]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to create job' 
+      });
+    }
+  });
+
+  // List all scraping jobs with optional filtering
+  app.get("/api/apify/jobs", async (req: Request, res: Response) => {
+    try {
+      const { status, jobType, limit } = req.query;
+      
+      console.log(`[GET /api/apify/jobs] Fetching jobs (status: ${status || 'all'}, type: ${jobType || 'all'})`);
+      
+      const allJobs = await storage.getAllScrapingJobs();
+      
+      // Filter by status and jobType
+      let filteredJobs = allJobs;
+      if (status) {
+        filteredJobs = filteredJobs.filter((j: any) => j.status === status);
+      }
+      if (jobType) {
+        filteredJobs = filteredJobs.filter((j: any) => (j.jobType || 'buyer') === jobType);
+      }
+      
+      // Limit results if specified
+      if (limit) {
+        const limitNum = parseInt(limit as string);
+        if (!isNaN(limitNum)) {
+          filteredJobs = filteredJobs.slice(0, limitNum);
+        }
+      }
+      
+      res.json({
+        success: true,
+        total: filteredJobs.length,
+        jobs: filteredJobs
+      });
+      
+    } catch (error) {
+      console.error('[GET /api/apify/jobs]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to fetch jobs' 
+      });
+    }
+  });
+  
   // Test Apify connection
   app.get("/api/apify/test", async (req: Request, res: Response) => {
     try {
