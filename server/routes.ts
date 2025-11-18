@@ -4952,84 +4952,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Manual trigger: Scrape FULL Milano city using Apify actor (bypasses CAPTCHA)
+  // Manual trigger: Scrape FULL Milano city using async job queue (prevents timeout)
   app.post("/api/apify/scrape-full-city", async (req: Request, res: Response) => {
     try {
-      console.log('[POST /api/apify/scrape-full-city] 🚀 Starting FULL Milano city scrape with Apify...');
+      console.log('[POST /api/apify/scrape-full-city] 🚀 Creating full-city scraping job...');
       
-      const { getApifyService } = await import('./services/apifyService');
-      const apifyService = getApifyService();
-      
-      // Scrape entire Milano city using Apify actor (igolaizola/immobiliare-it-scraper)
-      const listings = await apifyService.scrapeAllMilano();
-      
-      console.log(`[APIFY-FULL-CITY] Retrieved ${listings.length} listings from Apify`);
-      
-      // Import listings to database
-      let imported = 0;
-      let updated = 0;
-      let failed = 0;
-      const errors: string[] = [];
-      
-      for (const listing of listings) {
-        try {
-          const existingProperty = await storage.getPropertyByExternalId(listing.externalId);
-          
-          if (existingProperty) {
-            await storage.updateProperty(existingProperty.id, listing);
-            updated++;
-          } else {
-            await storage.createProperty(listing);
-            imported++;
-          }
-        } catch (err) {
-          failed++;
-          const errorMsg = `Failed to import ${listing.address}: ${err instanceof Error ? err.message : 'Unknown error'}`;
-          errors.push(errorMsg);
-          
-          // Log first 5 errors to help debugging
-          if (failed <= 5) {
-            console.error(`[APIFY-IMPORT-ERROR #${failed}]`, errorMsg);
-            if (err instanceof Error && err.stack) {
-              console.error(`[APIFY-IMPORT-STACK #${failed}]`, err.stack.substring(0, 500));
-            }
-          }
+      // Create full-city scraping job in database
+      const jobData: any = {
+        jobType: 'full-city',
+        status: 'queued',
+        clientId: null,
+        config: {
+          maxItems: { immobiliare: 20000, idealista: 10000 },
+          portals: ['immobiliare', 'idealista'],
+          batchSize: 500
         }
-      }
+      };
       
-      console.log(`[APIFY-FULL-CITY] Import completed: ${imported} new, ${updated} updated, ${failed} failed`);
+      const job = await storage.createScrapingJob(jobData);
       
-      // Log summary of first errors
-      if (errors.length > 0) {
-        console.error(`[APIFY-FULL-CITY] First 10 errors:`, errors.slice(0, 10));
-      }
-      
-      // Trigger deduplication scan
-      if (imported > 0 || updated > 0) {
-        try {
-          console.log('[APIFY-FULL-CITY] Triggering deduplication scan...');
-          const { runDeduplicationScan } = await import('./services/deduplicationScheduler');
-          await runDeduplicationScan();
-          console.log('[APIFY-FULL-CITY] Deduplication completed');
-        } catch (dedupError) {
-          console.error('[APIFY-FULL-CITY] Deduplication failed:', dedupError);
-        }
-      }
+      console.log(`[POST /api/apify/scrape-full-city] ✅ Job #${job.id} created and queued`);
+      console.log(`[POST /api/apify/scrape-full-city] 🔄 Background worker will process this job automatically`);
       
       res.json({
         success: true,
-        method: 'apify-actor',
-        totalFetched: listings.length,
-        imported,
-        updated,
-        failed,
-        errors
+        jobId: job.id,
+        status: 'queued',
+        message: `Full-city scraping job #${job.id} created. Check /api/scraping-jobs/${job.id} for progress.`,
+        statusEndpoint: `/api/scraping-jobs/${job.id}`,
+        listJobsEndpoint: '/api/apify/jobs'
       });
       
     } catch (error) {
       console.error('[POST /api/apify/scrape-full-city]', error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : 'Apify scraping failed' 
+        error: error instanceof Error ? error.message : 'Failed to create scraping job' 
       });
     }
   });
