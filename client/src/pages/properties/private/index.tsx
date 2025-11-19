@@ -165,7 +165,7 @@ export default function PrivatePropertiesPage() {
       if (property.ownerType !== 'private') return false;
       
       // Filtro 2: Solo da Apify (Immobiliare.it e Idealista.it)
-      if (!property.source || !['apify', 'scraper-immobiliare', 'scraper-idealista'].includes(property.source)) {
+      if (!property.source || !['apify', 'scraper-immobiliare', 'scraper-idealista', 'idealista', 'immobiliare'].includes(property.source)) {
         return false;
       }
       
@@ -194,8 +194,8 @@ export default function PrivatePropertiesPage() {
       
       // Filtro 5: Portale specifico
       if (filters.portalFilter && filters.portalFilter !== 'all') {
-        if (filters.portalFilter === 'immobiliare' && property.source !== 'apify' && property.source !== 'scraper-immobiliare') return false;
-        if (filters.portalFilter === 'idealista' && property.source !== 'scraper-idealista') return false;
+        if (filters.portalFilter === 'immobiliare' && property.source !== 'apify' && property.source !== 'scraper-immobiliare' && property.source !== 'immobiliare') return false;
+        if (filters.portalFilter === 'idealista' && property.source !== 'scraper-idealista' && property.source !== 'idealista') return false;
       }
       
       // Filtro 6: Ricerca testuale
@@ -243,8 +243,8 @@ export default function PrivatePropertiesPage() {
   const stats = useMemo(() => ({
     total: filteredProperties.length,
     withPhone: filteredProperties.filter(p => p.ownerPhone).length,
-    immobiliare: filteredProperties.filter(p => p.source === 'apify' || p.source === 'scraper-immobiliare').length,
-    idealista: filteredProperties.filter(p => p.source === 'scraper-idealista').length,
+    immobiliare: filteredProperties.filter(p => p.source === 'apify' || p.source === 'scraper-immobiliare' || p.source === 'immobiliare').length,
+    idealista: filteredProperties.filter(p => p.source === 'scraper-idealista' || p.source === 'idealista').length,
     favorites: filteredProperties.filter(p => p.isFavorite).length,
   }), [filteredProperties]);
   
