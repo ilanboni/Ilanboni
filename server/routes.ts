@@ -4991,6 +4991,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual trigger: Scrape ONLY Idealista (priorità per proprietà private)
+  app.post("/api/apify/scrape-idealista", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/apify/scrape-idealista] 🚀 Creating Idealista-only scraping job...');
+      
+      const maxItems = req.body?.maxItems || 10000;
+      
+      // Create job solo per Idealista
+      const jobData: any = {
+        jobType: 'full-city',
+        status: 'queued',
+        clientId: null,
+        config: {
+          maxItems: { idealista: maxItems },
+          portals: ['idealista'], // Solo Idealista
+          batchSize: 500
+        }
+      };
+      
+      const job = await storage.createScrapingJob(jobData);
+      
+      console.log(`[POST /api/apify/scrape-idealista] ✅ Job #${job.id} created (Idealista only, ${maxItems} items)`);
+      console.log(`[POST /api/apify/scrape-idealista] 🔄 Background worker will process this job automatically`);
+      
+      res.json({
+        success: true,
+        jobId: job.id,
+        status: 'queued',
+        message: `Idealista scraping job #${job.id} created. Check /api/scraping-jobs/${job.id} for progress.`,
+        statusEndpoint: `/api/scraping-jobs/${job.id}`,
+        listJobsEndpoint: '/api/apify/jobs'
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/apify/scrape-idealista]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to create scraping job' 
+      });
+    }
+  });
+
   // Get properties matching buyer's criteria (filters from database instead of scraping)
   app.get("/api/properties/for-buyer/:clientId", async (req: Request, res: Response) => {
     try {
