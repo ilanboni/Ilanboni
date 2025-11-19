@@ -59,7 +59,7 @@ export interface IStorage {
   // Property methods
   getProperty(id: number): Promise<Property | undefined>;
   getPropertyByExternalId(externalId: string): Promise<Property | undefined>;
-  getProperties(filters?: { status?: string; search?: string }): Promise<Property[]>;
+  getProperties(filters?: { status?: string; search?: string; ownerType?: string }): Promise<Property[]>;
   getPropertiesByIds(ids: number[]): Promise<Property[]>;
   getPropertyWithDetails(id: number): Promise<PropertyWithDetails | undefined>;
   createProperty(property: InsertProperty): Promise<Property>;
@@ -734,12 +734,16 @@ export class MemStorage implements IStorage {
     );
   }
   
-  async getProperties(filters?: { status?: string; search?: string }): Promise<Property[]> {
+  async getProperties(filters?: { status?: string; search?: string; ownerType?: string }): Promise<Property[]> {
     let properties = Array.from(this.propertyStore.values());
     
     if (filters) {
       if (filters.status && filters.status !== "all") {
         properties = properties.filter((property) => property.status === filters.status);
+      }
+      
+      if (filters.ownerType) {
+        properties = properties.filter((property) => property.ownerType === filters.ownerType);
       }
       
       if (filters.search) {
@@ -1970,7 +1974,7 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async getProperties(filters?: { status?: string; search?: string }): Promise<Property[]> {
+  async getProperties(filters?: { status?: string; search?: string; ownerType?: string }): Promise<Property[]> {
     let query = db.select().from(properties);
     
     if (filters) {
@@ -1978,6 +1982,10 @@ export class DatabaseStorage implements IStorage {
       
       if (filters.status) {
         conditions.push(eq(properties.status, filters.status));
+      }
+      
+      if (filters.ownerType) {
+        conditions.push(eq(properties.ownerType, filters.ownerType));
       }
       
       if (filters.search) {

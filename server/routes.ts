@@ -2086,7 +2086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/properties", async (req: Request, res: Response) => {
     try {
       // Filtraggio opzionale
-      const filters: { status?: string; search?: string } = {};
+      const filters: { status?: string; search?: string; ownerType?: string } = {};
       
       if (req.query.status) {
         filters.status = req.query.status as string;
@@ -2094,6 +2094,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (req.query.search) {
         filters.search = req.query.search as string;
+      }
+      
+      if (req.query.ownerType) {
+        filters.ownerType = req.query.ownerType as string;
       }
       
       const properties = await storage.getProperties(filters);
