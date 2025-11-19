@@ -11389,6 +11389,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
       // Raggruppa properties per tipo di update
       const multiagencyIds = [];
       const exclusiveIds = [];
+      const nonMultiagencyClusterIds = []; // CRITICAL FIX: cluster duplicati NON multiagency (stessa agenzia)
       
       for (const cluster of result.clusters) {
         const propertyIds = cluster.properties.map(p => p.id);
@@ -11396,6 +11397,9 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           multiagencyIds.push(...propertyIds);
         } else if (cluster.exclusivityHint) {
           exclusiveIds.push(...propertyIds);
+        } else if (cluster.clusterSize > 1) {
+          // CRITICAL FIX: Cluster con 2+ proprietà NON multiagency = stessa agenzia su più portali
+          nonMultiagencyClusterIds.push(...propertyIds);
         }
       }
       
@@ -11421,6 +11425,20 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           .set({
             isMultiagency: false,
             exclusivityHint: true,
+            updatedAt: new Date()
+          })
+          .where(sql`${properties.id} IN (${sql.join(batch.map(id => sql`${id}`), sql`, `)})`);
+        propertiesUpdated += batch.length;
+      }
+      
+      // CRITICAL FIX: Update non-multiagency cluster properties (stessa agenzia su più portali)
+      for (let i = 0; i < nonMultiagencyClusterIds.length; i += BATCH_SIZE) {
+        const batch = nonMultiagencyClusterIds.slice(i, i + BATCH_SIZE);
+        await db
+          .update(properties)
+          .set({
+            isMultiagency: false,
+            exclusivityHint: false,
             updatedAt: new Date()
           })
           .where(sql`${properties.id} IN (${sql.join(batch.map(id => sql`${id}`), sql`, `)})`);

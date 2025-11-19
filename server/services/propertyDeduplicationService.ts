@@ -11,6 +11,22 @@ import { geocodingService } from './geocodingService';
 // @ts-ignore - deprecated but functional
 import stringSimilarity from 'string-similarity';
 
+/**
+ * Normalizes an agency name for comparison
+ * Removes ALL non-alphanumeric characters (spaces, slashes, dots, hyphens, etc.)
+ * Examples: "RE/MAX" → "remax", "Gabetti Milano" → "gabettimilano"
+ */
+function normalizeAgencyName(name: string | null | undefined): string {
+  if (!name || typeof name !== 'string') return '';
+  
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD') // Decompose accented characters
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9]/g, ''); // Remove ALL non-alphanumeric characters
+}
+
 export interface PropertyCluster {
   properties: Property[];
   clusterSize: number;
@@ -364,7 +380,19 @@ export async function findPropertyClusters(properties: Property[]): Promise<Prop
   // Aggiungi cluster per proprietà duplicate (2+ immobili)
   for (const [_, props] of Array.from(clusters.entries())) {
     const clusterSize = props.length;
-    const isMultiagency = clusterSize > 1;
+    
+    // CRITICAL FIX: multiagency SOLO se ci sono 2+ AGENZIE DIVERSE
+    // Se stessa agenzia su più portali = esclusiva di quell'agenzia
+    const agencies = props
+      .map(p => normalizeAgencyName(p.agencyName))
+      .filter(name => name.length > 0);
+    
+    const uniqueAgencies = Array.from(new Set(agencies));
+    const isMultiagency = uniqueAgencies.length >= 2;
+    
+    if (clusterSize > 1 && !isMultiagency) {
+      console.log(`[PropertyDedup] Cluster ${props.map(p => `#${p.id}`).join(', ')} NON multiagency (stessa agenzia: ${uniqueAgencies[0] || 'sconosciuta'})`);
+    }
     
     let totalScore = 0;
     const allReasons: string[] = [];
