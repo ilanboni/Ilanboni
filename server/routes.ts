@@ -5036,6 +5036,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NEW: Scrape ONLY private properties from Idealista using Playwright
+  app.post("/api/apify/scrape-idealista-private", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/apify/scrape-idealista-private] 🏠 Starting private-only Idealista scraping...');
+      
+      const maxItems = req.body?.maxItems || 100;
+      
+      // Import the new Playwright adapter
+      const { IdealistaPlaywrightAdapter } = await import('./services/adapters/idealistaPlaywrightAdapter');
+      const adapter = new IdealistaPlaywrightAdapter();
+      
+      // Search for private properties in Milano
+      const listings = await adapter.search({
+        city: 'milano',
+        maxPrice: req.body?.maxPrice,
+        minSize: req.body?.minSize
+      });
+      
+      console.log(`[POST /api/apify/scrape-idealista-private] ✅ Found ${listings.length} private properties`);
+      
+      // Import and save to database
+      let imported = 0;
+      let updated = 0;
+      let skipped = 0;
+      
+      for (const listing of listings) {
+        try {
+          // Check if property already exists
+          const existing = await db.select()
+            .from(properties)
+            .where(and(
+              eq(properties.externalId, listing.externalId),
+              eq(properties.source, 'idealista')
+            ))
+            .limit(1);
+          
+          if (existing.length > 0) {
+            // Update existing property
+            await db.update(properties)
+              .set({
+                price: listing.price,
+                description: listing.description,
+                ownerType: 'private', // Force private classification
+                updatedAt: new Date()
+              })
+              .where(eq(properties.id, existing[0].id));
+            updated++;
+          } else {
+            // Insert new property
+            await db.insert(properties).values({
+              externalId: listing.externalId,
+              address: listing.address,
+              city: listing.city,
+              price: listing.price,
+              size: listing.size,
+              bedrooms: listing.bedrooms,
+              type: listing.type as any,
+              description: listing.description,
+              url: listing.url,
+              externalLink: listing.url,
+              source: 'idealista',
+              ownerType: 'private', // Force private classification
+              latitude: listing.latitude?.toString(),
+              longitude: listing.longitude?.toString(),
+              status: 'available'
+            });
+            imported++;
+          }
+        } catch (error) {
+          console.error(`[scrape-idealista-private] Failed to save property ${listing.externalId}:`, error);
+          skipped++;
+        }
+      }
+      
+      // Cleanup browser
+      await adapter.cleanup();
+      
+      console.log(`[POST /api/apify/scrape-idealista-private] 📊 Results: ${imported} imported, ${updated} updated, ${skipped} skipped`);
+      
+      res.json({
+        success: true,
+        totalFetched: listings.length,
+        imported,
+        updated,
+        skipped,
+        message: `Scraped ${listings.length} private properties from Idealista`
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/apify/scrape-idealista-private]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Private scraping failed' 
+      });
+    }
+  });
+
   // Get properties matching buyer's criteria (filters from database instead of scraping)
   app.get("/api/properties/for-buyer/:clientId", async (req: Request, res: Response) => {
     try {
