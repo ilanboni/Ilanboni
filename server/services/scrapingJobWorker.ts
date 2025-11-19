@@ -83,33 +83,65 @@ export class ScrapingJobWorker {
   }
 
   /**
-   * All'avvio, trova i job "running" vecchi e marcali come failed
-   * (probabilmente persi durante un restart del server)
+   * All'avvio, trova i job "running" e gestiscili in modo intelligente:
+   * - Job con checkpoint: ripresi dal worker
+   * - Job senza checkpoint: marcati come "queued" per ripartire dall'inizio
+   * - Job troppo vecchi (>30 min): marcati come failed
    * CRITICAL FIX: usa startedAt invece di createdAt per evitare di marcare job long-running legittimi come stale
    */
   private async cleanupStaleJobs() {
     try {
       const allJobs = await this.storage.getAllScrapingJobs();
-      const staleJobs = allJobs.filter((job: ScrapingJob) => {
-        if (job.status !== 'running') return false;
-        if (!job.startedAt) return false; // Skip se non ha startedAt (non dovrebbe mai accadere)
-        
-        const ageMinutes = (Date.now() - new Date(job.startedAt).getTime()) / (1000 * 60);
-        return ageMinutes > this.STALE_JOB_MINUTES;
-      });
+      const runningJobs = allJobs.filter((job: ScrapingJob) => job.status === 'running');
+      
+      if (runningJobs.length === 0) return;
+      
+      console.log(`[SCRAPING-WORKER] 🔍 Trovati ${runningJobs.length} job "running" da verificare...`);
 
-      if (staleJobs.length > 0) {
-        console.log(`[SCRAPING-WORKER] 🧹 Trovati ${staleJobs.length} job stale da pulire`);
-        
-        for (const job of staleJobs) {
+      for (const job of runningJobs) {
+        if (!job.startedAt) {
+          // Job senza startedAt = anomalia, marca come failed
           await this.storage.updateScrapingJob(job.id, {
             status: 'failed',
             completedAt: new Date(),
-            results: {
-              error: 'Job perso durante restart del server (timeout dopo 5 minuti)'
-            }
+            results: { error: 'Job senza startedAt (anomalia)' }
           });
-          console.log(`[SCRAPING-WORKER] ❌ Job #${job.id} marcato come failed (stale)`);
+          console.log(`[SCRAPING-WORKER] ❌ Job #${job.id} marcato come failed (no startedAt)`);
+          continue;
+        }
+
+        const ageMinutes = (Date.now() - new Date(job.startedAt).getTime()) / (1000 * 60);
+        const checkpoint = (job as any).checkpoint;
+        
+        // CRITICAL: Verifica che checkpoint abbia dati validi con safe property access
+        // Un oggetto vuoto {} o null non è un checkpoint valido
+        const hasCheckpoint = checkpoint && (
+          typeof checkpoint.currentPortal === 'string' || 
+          (typeof checkpoint.offset === 'number' && checkpoint.offset > 0) || 
+          (Array.isArray(checkpoint.completedPortals) && checkpoint.completedPortals.length > 0)
+        );
+
+        if (ageMinutes > this.STALE_JOB_MINUTES) {
+          // Job troppo vecchio = perso, marca come failed
+          await this.storage.updateScrapingJob(job.id, {
+            status: 'failed',
+            completedAt: new Date(),
+            results: { error: `Job perso durante restart (timeout dopo ${this.STALE_JOB_MINUTES} minuti)` }
+          });
+          console.log(`[SCRAPING-WORKER] ❌ Job #${job.id} marcato come failed (stale, ${ageMinutes.toFixed(1)} min)`);
+        } else if (!hasCheckpoint) {
+          // Job senza checkpoint = appena iniziato, rimetti in coda
+          // CRITICAL: Pulisci checkpoint per garantire riavvio completo
+          await this.storage.updateScrapingJob(job.id, {
+            status: 'queued',
+            startedAt: null,
+            checkpoint: null as any,
+            results: null as any
+          });
+          console.log(`[SCRAPING-WORKER] 🔄 Job #${job.id} rimesso in coda (no checkpoint, ${ageMinutes.toFixed(1)} min)`);
+        } else {
+          // Job con checkpoint = verrà ripreso dal worker nel prossimo polling
+          console.log(`[SCRAPING-WORKER] ✓ Job #${job.id} verrà ripreso da checkpoint (${ageMinutes.toFixed(1)} min)`);
         }
       }
     } catch (error) {
@@ -119,6 +151,7 @@ export class ScrapingJobWorker {
 
   /**
    * Controlla i job in coda e li esegue
+   * CRITICAL FIX: Riprende anche job "running" interrotti con checkpoint valido
    */
   private async processQueuedJobs() {
     if (this.isRunning) {
@@ -130,7 +163,33 @@ export class ScrapingJobWorker {
 
     try {
       const allJobs = await this.storage.getAllScrapingJobs();
+      
+      // CRITICAL FIX: Cerca prima job "running" interrotti
+      // Include anche job senza checkpoint se sono molto recenti (< 2 min = appena iniziati ma il worker è crashato)
+      const interruptedJobs = allJobs.filter((job: ScrapingJob) => {
+        if (job.status !== 'running') return false;
+        if (!job.startedAt) return false;
+        
+        const ageMinutes = (Date.now() - new Date(job.startedAt).getTime()) / (1000 * 60);
+        const hasCheckpoint = (job as any).checkpoint;
+        
+        // Job running da meno di 30 minuti
+        if (ageMinutes >= this.STALE_JOB_MINUTES) return false;
+        
+        // Con checkpoint = riprendi da dove si era fermato
+        // Senza checkpoint ma molto recente (< 2 min) = riprendi dall'inizio
+        return hasCheckpoint || ageMinutes < 2;
+      });
+      
       const queuedJobs = allJobs.filter((job: ScrapingJob) => job.status === 'queued');
+
+      // Riprendi prima job interrotti (priorità), poi quelli in coda
+      if (interruptedJobs.length > 0) {
+        const job = interruptedJobs[0];
+        console.log(`[SCRAPING-WORKER] 🔄 Riprendendo job interrotto #${job.id} da checkpoint...`);
+        await this.executeJob(job);
+        return;
+      }
 
       if (queuedJobs.length === 0) {
         return; // Nessun job in coda
@@ -151,18 +210,28 @@ export class ScrapingJobWorker {
 
   /**
    * Esegue un singolo job di scraping
+   * CRITICAL FIX: Non resetta startedAt se il job sta riprendendo da checkpoint
    */
   private async executeJob(job: ScrapingJob) {
     const jobType = (job as any).jobType || 'buyer';
+    const isResuming = job.status === 'running' && (job as any).checkpoint;
     
-    console.log(`[SCRAPING-WORKER] 🔧 Esecuzione job #${job.id} (type: ${jobType})...`);
+    if (isResuming) {
+      console.log(`[SCRAPING-WORKER] 🔄 Riprendendo job #${job.id} (type: ${jobType}) da checkpoint...`);
+    } else {
+      console.log(`[SCRAPING-WORKER] 🔧 Esecuzione job #${job.id} (type: ${jobType})...`);
+    }
 
     try {
-      // Marca job come "running" con startedAt
-      await this.storage.updateScrapingJob(job.id, { 
-        status: 'running',
-        startedAt: new Date()
-      });
+      // Marca job come "running" SOLO se non sta già riprendendo
+      if (!isResuming) {
+        await this.storage.updateScrapingJob(job.id, { 
+          status: 'running',
+          startedAt: new Date()
+        });
+      } else {
+        console.log(`[SCRAPING-WORKER] ✓ Job già in stato running, continuo da checkpoint`);
+      }
 
       // Routing based on job type
       if (jobType === 'full-city') {
@@ -422,20 +491,18 @@ export class ScrapingJobWorker {
         if (existingProp) {
           // Update existing property
           await this.storage.updateProperty(existingProp.id, {
-            title: listing.title,
             price: listing.price,
             size: listing.size,
             bedrooms: listing.bedrooms as any,
             bathrooms: listing.bathrooms as any,
             description: listing.description,
-            imageUrls: listing.imageUrls,
             ownerType: listing.ownerType,
             agencyName: listing.agencyName,
             ownerName: listing.ownerName,
             ownerPhone: listing.ownerPhone,
             ownerEmail: listing.ownerEmail,
-            latitude: listing.latitude,
-            longitude: listing.longitude
+            latitude: listing.latitude?.toString(),
+            longitude: listing.longitude?.toString()
           });
 
           results.updated++;
@@ -444,7 +511,6 @@ export class ScrapingJobWorker {
           // Insert new property
           await this.storage.createProperty({
             externalId: listing.externalId,
-            title: listing.title,
             address: listing.address,
             city: listing.city || 'Milano',
             price: listing.price,
@@ -456,9 +522,8 @@ export class ScrapingJobWorker {
             url: listing.url,
             externalLink: listing.url,
             description: listing.description,
-            imageUrls: listing.imageUrls,
-            latitude: listing.latitude,
-            longitude: listing.longitude,
+            latitude: listing.latitude?.toString(),
+            longitude: listing.longitude?.toString(),
             ownerType: listing.ownerType,
             agencyName: listing.agencyName,
             ownerName: listing.ownerName,
