@@ -236,9 +236,34 @@ export function classifyFromApifyImmobiliare(item: any): ClassificationResult {
  * Convenience function for Apify Idealista format
  */
 export function classifyFromApifyIdealista(item: any): ClassificationResult {
-  return classifyOwnerType({
+  // Idealista provides structured fields for advertiser detection
+  // Unlike Immobiliare, it doesn't have analytics.advertiser but has:
+  // - item.advertiser / item.advertiserName (name of who's selling)
+  // - item.advertiserType (could be "privato" or "agenzia")
+  // - item.contact (raw contact text)
+  // - item.phone / item.email
+  
+  const result = classifyOwnerType({
+    // Structured advertiser data (if available)
+    analytics: item.advertiserType ? {
+      advertiser: item.advertiserType,  // "privato" vs "agenzia"
+      advertiserName: item.advertiser || item.advertiserName
+    } : undefined,
+    
+    // Contact info
     contact: item.contact,
     description: item.description,
-    title: item.title
+    title: item.title,
+    
+    // Pre-extracted agency name (for fallback)
+    agencyName: item.advertiser || item.advertiserName || undefined
   });
+  
+  // Log classification for non-agency or low confidence
+  const propertyId = item.propertyCode || item.id || 'unknown';
+  if (result.ownerType === 'private' || result.confidence !== 'high') {
+    console.log(`[IDEALISTA-CLASSIFY] ${propertyId}: ${result.ownerType} (${result.confidence}) - ${result.reasoning} | advertiser="${item.advertiser || item.advertiserName}" type="${item.advertiserType}"`);
+  }
+  
+  return result;
 }

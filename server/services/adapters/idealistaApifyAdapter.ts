@@ -28,7 +28,7 @@ export class IdealistaApifyAdapter implements PortalAdapter {
       // Use igolaizola/idealista-scraper - specialized actor for idealista.it
       const location = criteria.city === 'milano' ? 'Milano' : criteria.city;
       
-      const input = {
+      const input: any = {
         location: location, // City name or Idealista location ID
         maxItems: 100, // Limit results per zone
         propertyType: 'homes', // apartment/home type
@@ -41,12 +41,12 @@ export class IdealistaApifyAdapter implements PortalAdapter {
 
       // Add price filter if specified
       if (criteria.maxPrice) {
-        input['maxPrice'] = criteria.maxPrice;
+        input.maxPrice = criteria.maxPrice;
       }
 
       // Add size filter if specified  
       if (criteria.minSize) {
-        input['minSurface'] = criteria.minSize;
+        input.minSurface = criteria.minSize;
       }
 
       console.log(`[IDEALISTA-APIFY] Input for igolaizola actor:`, JSON.stringify(input, null, 2));
@@ -58,7 +58,7 @@ export class IdealistaApifyAdapter implements PortalAdapter {
       
       // Get full run details including statusDetails
       try {
-        const runDetails = await this.client.run(run.id).get();
+        const runDetails: any = await this.client.run(run.id).get();
         console.log('[IDEALISTA-APIFY] Full run details:', JSON.stringify({
           status: runDetails?.status,
           statusMessage: runDetails?.statusMessage,
@@ -70,14 +70,14 @@ export class IdealistaApifyAdapter implements PortalAdapter {
           exitCode: runDetails?.exitCode,
           defaultDatasetId: runDetails?.defaultDatasetId
         }, null, 2));
-      } catch (detailsError) {
-        console.log('[IDEALISTA-APIFY] Could not fetch run details:', detailsError.message);
+      } catch (detailsError: any) {
+        console.log('[IDEALISTA-APIFY] Could not fetch run details:', detailsError?.message);
       }
       
       // Retrieve logs using correct API
-      if (run.logId) {
+      if ((run as any).logId) {
         try {
-          const logText = await this.client.log(run.logId).get();
+          const logText = await this.client.log((run as any).logId).get();
           if (logText) {
             const lines = logText.split('\n');
             const relevantLogs = lines.filter(line => 
@@ -105,8 +105,8 @@ export class IdealistaApifyAdapter implements PortalAdapter {
               lines.slice(-30).forEach(line => console.log('  ' + line));
             }
           }
-        } catch (logError) {
-          console.log('[IDEALISTA-APIFY] Could not fetch logs:', logError.message);
+        } catch (logError: any) {
+          console.log('[IDEALISTA-APIFY] Could not fetch logs:', logError?.message);
         }
       } else {
         console.log('[IDEALISTA-APIFY] No logId available in run object');
@@ -123,24 +123,25 @@ export class IdealistaApifyAdapter implements PortalAdapter {
       const listings: PropertyListing[] = [];
       for (const item of items) {
         try {
-          // igolaizola format for idealista
-          const price = item.price || 0;
-          const size = item.size || 0;
-          const rooms = item.rooms;
-          const address = item.address || '';
-          const url = item.url || '';
-          const propertyId = item.propertyCode || item.id || '';
+          // igolaizola format for idealista (cast to any for dynamic properties)
+          const itemData: any = item;
+          const price = Number(itemData.price) || 0;
+          const size = Number(itemData.size) || 0;
+          const rooms = itemData.rooms ? Number(itemData.rooms) : undefined;
+          const address = String(itemData.address || '');
+          const url = String(itemData.url || '');
+          const propertyId = String(itemData.propertyCode || itemData.id || '');
           
           // Extract GPS coordinates if available
-          const rawLat = item.latitude || item.lat;
-          const rawLng = item.longitude || item.lng || item.lon;
+          const rawLat = itemData.latitude || itemData.lat;
+          const rawLng = itemData.longitude || itemData.lng || itemData.lon;
           
           // Convert to number safely
           const latitude = rawLat ? (typeof rawLat === 'number' ? rawLat : parseFloat(String(rawLat))) : undefined;
           const longitude = rawLng ? (typeof rawLng === 'number' ? rawLng : parseFloat(String(rawLng))) : undefined;
           
           // Classify owner type using shared helper
-          const classification = classifyFromApifyIdealista(item);
+          const classification = classifyFromApifyIdealista(itemData);
           
           // Log classification for debugging (only for private or low confidence)
           if (classification.ownerType === 'private' || classification.confidence !== 'high') {
@@ -150,7 +151,7 @@ export class IdealistaApifyAdapter implements PortalAdapter {
           if (url && price > 0) {
             listings.push({
               externalId: propertyId,
-              title: item.title || item.description || `Appartamento - ${address}`,
+              title: String(itemData.title || itemData.description || `Appartamento - ${address}`),
               address: address,
               city: criteria.city || 'Milano',
               price: price,
@@ -158,7 +159,7 @@ export class IdealistaApifyAdapter implements PortalAdapter {
               bedrooms: rooms,
               type: 'apartment',
               url: url,
-              description: item.description || '',
+              description: String(itemData.description || ''),
               latitude: latitude && !isNaN(latitude) ? latitude : undefined,
               longitude: longitude && !isNaN(longitude) ? longitude : undefined,
               ownerType: classification.ownerType,
