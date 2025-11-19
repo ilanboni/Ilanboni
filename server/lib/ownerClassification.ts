@@ -75,6 +75,10 @@ const AGENCY_KEYWORDS = [
   'gruppo',
   'consulenza',
   'services',
+  'proponiamo',      // "proponiamo in vendita" - tipico linguaggio agenzie italiane
+  'disponiamo',      // "disponiamo in vendita" - tipico linguaggio agenzie italiane
+  'propone',         // "l'agenzia propone" - tipico linguaggio agenzie italiane
+  'proposta',        // "proposta immobiliare" - tipico linguaggio agenzie italiane
 ];
 
 /**
@@ -149,53 +153,37 @@ export function classifyOwnerType(input: ClassificationInput): ClassificationRes
     input.contact || ''
   ].join(' ').toLowerCase();
 
-  // Check for strong private seller indicators
+  // Check for BOTH private and agency keywords
   const privateMatches = PRIVATE_KEYWORDS.filter(keyword => 
     textToCheck.includes(keyword.toLowerCase())
   );
 
+  const agencyMatches = AGENCY_KEYWORDS.filter(keyword =>
+    textToCheck.includes(keyword.toLowerCase())
+  );
+
+  // PRIORITY TO AGENCY KEYWORDS - They are more specific and reliable
+  // "proponiamo" is much more indicative of agency than "proprietario" is of private
+  
+  // If any agency keywords found, classify as agency (they are highly specific)
+  if (agencyMatches.length > 0) {
+    return {
+      ownerType: 'agency',
+      agencyName: null,
+      confidence: agencyMatches.length >= 2 ? 'high' : 'medium',
+      reasoning: agencyMatches.length >= 2 
+        ? `Multiple agency keywords found: ${agencyMatches.join(', ')}`
+        : `Agency keyword in description: ${agencyMatches[0]}`
+    };
+  }
+
+  // Only if NO agency keywords found, check for private keywords
   if (privateMatches.length > 0) {
     return {
       ownerType: 'private',
       agencyName: null,
       confidence: privateMatches.length >= 2 ? 'high' : 'medium',
-      reasoning: `Keywords found: ${privateMatches.join(', ')}`
-    };
-  }
-
-  // Priority 5: Check agency keywords
-  const agencyMatches = AGENCY_KEYWORDS.filter(keyword =>
-    textToCheck.includes(keyword.toLowerCase())
-  );
-
-  // For Idealista (no agencyId): detect agencies by keywords alone if strong signal
-  if (agencyMatches.length >= 2) {
-    // Multiple agency keywords = strong signal (e.g. "REload Agency Milano")
-    return {
-      ownerType: 'agency',
-      agencyName: null, // Extract from description later if needed
-      confidence: 'high',
-      reasoning: `Multiple agency keywords found: ${agencyMatches.join(', ')}`
-    };
-  }
-  
-  if (agencyMatches.length > 0 && hasAgencyId) {
-    return {
-      ownerType: 'agency',
-      agencyName: input.analytics?.agencyName || input.contacts?.agencyName || null,
-      confidence: 'medium',
-      reasoning: `Agency keywords + agencyId present: ${agencyMatches.join(', ')}`
-    };
-  }
-  
-  // Single agency keyword without other signals = medium confidence
-  if (agencyMatches.length === 1 && textToCheck.length > 500) {
-    // Long description with "agenzia"/"immobiliare" likely agency
-    return {
-      ownerType: 'agency',
-      agencyName: null,
-      confidence: 'medium',
-      reasoning: `Agency keyword in detailed description: ${agencyMatches[0]}`
+      reasoning: `Private keywords found (no agency keywords): ${privateMatches.join(', ')}`
     };
   }
 
