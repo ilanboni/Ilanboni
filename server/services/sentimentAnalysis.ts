@@ -3,8 +3,11 @@ import { addDays } from "date-fns";
 import type { InsertTask } from "@shared/schema";
 import { storage } from "../storage";
 
-// Inizializza l'API OpenAI
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Inizializza l'API OpenAI con Replit AI Integrations (crediti Replit)
+const openai = new OpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+});
 
 // Interfaccia per il risultato dell'analisi del sentimento
 interface SentimentAnalysisResult {
@@ -68,7 +71,11 @@ export async function analyzeSentiment(
     });
 
     // Estrai e restituisci il risultato dell'analisi
-    const result = JSON.parse(response.choices[0].message.content) as SentimentAnalysisResult;
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("Risposta vuota da OpenAI");
+    }
+    const result = JSON.parse(content) as SentimentAnalysisResult;
     
     // Log dei risultati per debug
     console.log("[SENTIMENT ANALYSIS] Risultato:", {
@@ -136,10 +143,12 @@ export async function createFollowUpTaskIfNeeded(
       const followUpDate = addDays(new Date(), 10);
       
       // Prepara i dati del task
+      const createdAtDate = communication.createdAt ? communication.createdAt : new Date();
+      const createdDate = new Date(createdAtDate).toLocaleDateString("it-IT");
       const taskData: InsertTask = {
         type: "followUp",
         title: `Follow-up per ${client.firstName} ${client.lastName}`,
-        description: `Nessuna risposta alla comunicazione "${communication.subject}" del ${new Date(communication.createdAt).toLocaleDateString("it-IT")}. Contattare nuovamente il cliente.`,
+        description: `Nessuna risposta alla comunicazione "${communication.subject}" del ${createdDate}. Contattare nuovamente il cliente.`,
         clientId,
         propertyId: propertyId ?? null,
         dueDate: followUpDate.toISOString().substring(0, 10), // Converte in formato stringa YYYY-MM-DD
