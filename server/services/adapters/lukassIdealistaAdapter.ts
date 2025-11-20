@@ -27,8 +27,9 @@ export class LukassIdealistaAdapter implements PortalAdapter {
       // Build custom URL with private-only filter
       const startUrl = this.buildPrivateUrl(criteria);
       
+      // Lukass actor uses 'startUrls' (plural), not 'startUrl'
       const input = {
-        startUrl: startUrl, // Custom URL with da-privati-asc filter
+        startUrls: [startUrl], // Correct parameter name: startUrls (plural)
         maxItems: criteria.maxItems || 100,
         proxyConfiguration: {
           useApifyProxy: true,
@@ -37,20 +38,50 @@ export class LukassIdealistaAdapter implements PortalAdapter {
       };
 
       console.log(`[LUKASS-IDEALISTA] Starting lukass/idealista-scraper with URL: ${startUrl}`);
+      console.log(`[LUKASS-IDEALISTA] Full input payload:`, JSON.stringify(input, null, 2));
 
       const run = await this.client.actor('lukass/idealista-scraper').call(input);
       
       console.log(`[LUKASS-IDEALISTA] Run ID: ${run.id}, Status: ${run.status}`);
       
-      // Get run details for debugging
+      // Get run details and logs for debugging
       try {
         const runDetails: any = await this.client.run(run.id).get();
         console.log('[LUKASS-IDEALISTA] Run completed:', {
           status: runDetails?.status,
+          statusMessage: runDetails?.statusMessage,
           itemsCount: runDetails?.stats?.itemCount,
           failedRequests: runDetails?.stats?.requestsFailed,
           finishedAt: runDetails?.finishedAt
         });
+        
+        // If failed, get the logs
+        if (runDetails?.status === 'FAILED' && run.id) {
+          try {
+            const logResponse: any = await this.client.log(run.id).get();
+            if (logResponse) {
+              const lines = logResponse.split('\n');
+              const errorLines = lines.filter((line: string) => 
+                line.includes('ERROR') || 
+                line.includes('Error') || 
+                line.includes('error') ||
+                line.includes('FAILED') ||
+                line.includes('failed')
+              ).slice(-20); // Last 20 error lines
+              
+              if (errorLines.length > 0) {
+                console.log('[LUKASS-IDEALISTA] Error logs:');
+                errorLines.forEach((line: string) => console.log('  ' + line));
+              } else {
+                // Show last 30 lines if no errors found
+                console.log('[LUKASS-IDEALISTA] Last 30 log lines:');
+                lines.slice(-30).forEach((line: string) => console.log('  ' + line));
+              }
+            }
+          } catch (logError: any) {
+            console.log('[LUKASS-IDEALISTA] Could not fetch logs:', logError?.message);
+          }
+        }
       } catch (detailsError: any) {
         console.log('[LUKASS-IDEALISTA] Could not fetch run details:', detailsError?.message);
       }
