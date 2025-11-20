@@ -782,6 +782,7 @@ export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
   name: text("name").notNull(), // Nome campagna (es: "Milano Zona 1 - Nov 2025")
   template: text("template").notNull(), // Template messaggio con variabili {{name}}, {{address}}, etc.
   instructions: text("instructions"), // Istruzioni per il bot ChatGPT
+  objectionHandling: jsonb("objection_handling"), // Array di obiezioni: [{ keywords: ["no agenzie"], response: "..." }]
   followUpTemplate: text("followup_template"), // Template follow-up
   followUpDelayDays: integer("followup_delay_days").default(3), // Giorni prima del follow-up
   useAiPersonalization: boolean("use_ai_personalization").default(false), // Usa AI per personalizzazione avanzata

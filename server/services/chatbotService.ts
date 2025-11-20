@@ -33,6 +33,36 @@ interface BotResponse {
 }
 
 /**
+ * Verifica se il messaggio contiene un'obiezione configurata
+ */
+function checkForObjection(
+  userMessage: string,
+  objectionHandling: any
+): { keywords: string[]; response: string } | null {
+  if (!objectionHandling || !Array.isArray(objectionHandling)) {
+    return null;
+  }
+
+  const messageLower = userMessage.toLowerCase();
+  
+  for (const objection of objectionHandling) {
+    if (objection.keywords && Array.isArray(objection.keywords)) {
+      // Verifica se almeno una keyword è presente nel messaggio
+      const found = objection.keywords.some((keyword: string) => 
+        messageLower.includes(keyword.toLowerCase())
+      );
+      
+      if (found && objection.response) {
+        console.log(`[BOT-OBJECTION] Rilevata obiezione con keywords: ${objection.keywords.join(', ')}`);
+        return objection;
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Genera risposta bot usando ChatGPT
  */
 export async function generateBotResponse(
@@ -40,6 +70,24 @@ export async function generateBotResponse(
   context: BotContext
 ): Promise<BotResponse> {
   try {
+    // STEP 1: Verifica se c'è un'obiezione configurata
+    const objection = checkForObjection(
+      userMessage,
+      (context.campaign as any).objectionHandling
+    );
+    
+    if (objection) {
+      console.log(`[BOT-OBJECTION] Uso risposta configurata per obiezione`);
+      return {
+        message: objection.response,
+        intent: 'objection_handled',
+        confidence: 100,
+        shouldEndConversation: false,
+        suggestedActions: ['Monitorare risposta cliente', 'Follow-up tra qualche giorno']
+      };
+    }
+    
+    // STEP 2: Nessuna obiezione configurata, usa ChatGPT
     // Usa Replit AI Integrations (crediti Replit)
     const openai = new OpenAI({
       baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,

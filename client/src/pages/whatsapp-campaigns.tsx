@@ -49,7 +49,9 @@ import {
   Bot,
   Calendar,
   Eye,
-  Settings
+  Settings,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 
 const campaignFormSchema = z.object({
@@ -60,6 +62,10 @@ const campaignFormSchema = z.object({
   followUpDelayDays: z.coerce.number().min(1).max(30).optional(),
   useAiPersonalization: z.boolean().optional(),
   instructions: z.string().optional(),
+  objectionHandling: z.array(z.object({
+    keywords: z.array(z.string()),
+    response: z.string()
+  })).optional(),
   status: z.enum(['draft', 'active', 'paused', 'completed']).optional()
 });
 
@@ -74,6 +80,10 @@ interface Campaign {
   followUpDelayDays: number | null;
   useAiPersonalization: boolean;
   instructions: string | null;
+  objectionHandling?: Array<{
+    keywords: string[];
+    response: string;
+  }>;
   status: 'draft' | 'active' | 'paused' | 'completed';
   sentCount: number | null;
   responseCount: number | null;
@@ -280,6 +290,7 @@ function CampaignForm({
       followUpDelayDays: campaign.followUpDelayDays || 3,
       useAiPersonalization: campaign.useAiPersonalization,
       instructions: campaign.instructions || "",
+      objectionHandling: campaign.objectionHandling || [],
       status: campaign.status
     } : {
       name: "",
@@ -289,6 +300,7 @@ function CampaignForm({
       followUpDelayDays: 3,
       useAiPersonalization: false,
       instructions: "",
+      objectionHandling: [],
       status: 'draft' as const
     }
   });
@@ -490,6 +502,91 @@ function CampaignForm({
               <FormDescription>
                 Guida il bot AI su come rispondere ai proprietari (tono, obiettivi, limiti)
               </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="objectionHandling"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Gestione Obiezioni Automatiche (opzionale)
+              </FormLabel>
+              <FormDescription className="mb-3">
+                Configura risposte automatiche per obiezioni comuni (es: "No agenzie", "Prezzo troppo alto")
+              </FormDescription>
+              <div className="space-y-3">
+                {(field.value || []).map((objection, index) => (
+                  <Card key={index} className="p-3">
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 space-y-2">
+                          <div>
+                            <label className="text-sm font-medium">Parole chiave (separate da virgola)</label>
+                            <Input
+                              placeholder="no agenzie, niente agenzie, solo privati"
+                              value={objection.keywords.join(', ')}
+                              onChange={(e) => {
+                                const keywords = e.target.value.split(',').map(k => k.trim()).filter(k => k);
+                                const newObjections = [...(field.value || [])];
+                                newObjections[index] = { ...objection, keywords };
+                                field.onChange(newObjections);
+                              }}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Risposta automatica</label>
+                            <Textarea
+                              placeholder="Capisco perfettamente la sua preferenza. Come agente certificato, posso aiutarla gratuitamente con..."
+                              value={objection.response}
+                              onChange={(e) => {
+                                const newObjections = [...(field.value || [])];
+                                newObjections[index] = { ...objection, response: e.target.value };
+                                field.onChange(newObjections);
+                              }}
+                              rows={3}
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newObjections = [...(field.value || [])];
+                            newObjections.splice(index, 1);
+                            field.onChange(newObjections);
+                          }}
+                          className="mt-6"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newObjections = [...(field.value || []), { keywords: [], response: '' }];
+                    field.onChange(newObjections);
+                  }}
+                  className="w-full"
+                  data-testid="button-add-objection"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Aggiungi Obiezione
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
