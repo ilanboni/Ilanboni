@@ -23,11 +23,12 @@ export class IgolaIdealistaAdapter {
 
     try {
       // Prepare input for igolaizola actor
+      // NOTE: This actor only accepts 'location' and 'maxItems' parameters
+      // It does NOT support 'operation' or 'propertyType' filters
       const input = {
-        operation: 'sale',
-        propertyType: 'homes',
-        location: params.city, // FIXED: use 'location' (singular), not 'locations'
-        maxItems: params.maxItems || 100
+        location: params.city,
+        maxItems: params.maxItems || 100,
+        fetchDetails: false // Beta feature - set to false for now
       };
 
       console.log('[IGOLA-IDEALISTA] Starting actor with input:', JSON.stringify(input, null, 2));
