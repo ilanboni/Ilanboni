@@ -42,7 +42,7 @@ export class LukassIdealistaAdapter implements PortalAdapter {
         }
       };
 
-      console.log(`[LUKASS-IDEALISTA] Starting lukass/idealista-scraper with URL: ${startUrl}`);
+      console.log(`[LUKASS-IDEALISTA] Starting lukass/idealista-crawler-italy with URL: ${startUrl}`);
       console.log(`[LUKASS-IDEALISTA] Full input payload:`, JSON.stringify(input, null, 2));
 
       // Use Italy-specific actor instead of Spain-focused one
@@ -184,32 +184,10 @@ export class LukassIdealistaAdapter implements PortalAdapter {
   }
 
   private buildPrivateUrl(criteria: SearchCriteria): string {
-    // Start with private-only base URL
-    let url = IDEALISTA_PRIVATE_BASE_URL;
-    
-    const params: string[] = [];
-    
-    // Add price filter
-    if (criteria.maxPrice) {
-      params.push(`prezzoMassimo=${criteria.maxPrice}`);
-    }
-    
-    // Add size filter
-    if (criteria.minSize) {
-      params.push(`superficieMinima=${criteria.minSize}`);
-    }
-    
-    // Add bedrooms filter
-    if (criteria.bedrooms) {
-      params.push(`numeroDiCamere=${criteria.bedrooms}`);
-    }
-    
-    // Append additional params
-    if (params.length > 0) {
-      url += '&' + params.join('&');
-    }
-    
-    return url;
+    // Use clean URL without extra parameters for better actor compatibility
+    // The actor should respect the ordine=da-privati-asc sorting parameter
+    // We'll apply price/size filters AFTER scraping (distance filter is already applied)
+    return IDEALISTA_PRIVATE_BASE_URL;
   }
 
   private async respectRateLimit(): Promise<void> {
