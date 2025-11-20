@@ -5037,24 +5037,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // NEW: Scrape ONLY private properties from Idealista using Playwright
+  // PRIVATE PROPERTIES: Scrape using Lukass actor with custom URL filter
   app.post("/api/apify/scrape-idealista-private", async (req: Request, res: Response) => {
     try {
-      console.log('[POST /api/apify/scrape-idealista-private] 🏠 Starting private-only Idealista scraping...');
+      console.log('[POST /api/apify/scrape-idealista-private] 🏠 Starting PRIVATE-ONLY Idealista scraping via Lukass actor...');
       
-      const maxItems = req.body?.maxItems || 100;
-      
-      // Import the new Playwright adapter
-      const { IdealistaPlaywrightAdapter } = await import('./services/adapters/idealistaPlaywrightAdapter');
-      const adapter = new IdealistaPlaywrightAdapter();
+      // Import the new Lukass adapter (uses startUrl with da-privati-asc filter)
+      const { LukassIdealistaAdapter } = await import('./services/adapters/lukassIdealistaAdapter');
+      const adapter = new LukassIdealistaAdapter();
       
       // Search for private properties in Milano
       const listings = await adapter.search({
         city: 'milano',
         maxPrice: req.body?.maxPrice,
-        minSize: req.body?.minSize
+        minSize: req.body?.minSize,
+        maxItems: req.body?.maxItems || 100
       });
       
-      console.log(`[POST /api/apify/scrape-idealista-private] ✅ Found ${listings.length} private properties`);
+      console.log(`[POST /api/apify/scrape-idealista-private] ✅ Found ${listings.length} PRIVATE properties`);
       
       // Import and save to database
       let imported = 0;
@@ -5078,7 +5078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .set({
                 price: listing.price,
                 description: listing.description,
-                ownerType: 'private', // Force private classification
+                ownerType: 'private', // Always private from Lukass adapter
                 updatedAt: new Date()
               })
               .where(eq(properties.id, existing[0].id));
@@ -5097,7 +5097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               url: listing.url,
               externalLink: listing.url,
               source: 'idealista',
-              ownerType: 'private', // Force private classification
+              ownerType: 'private', // Always private from Lukass adapter
               latitude: listing.latitude?.toString(),
               longitude: listing.longitude?.toString(),
               status: 'available'
@@ -5110,7 +5110,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Cleanup browser
       await adapter.cleanup();
       
       console.log(`[POST /api/apify/scrape-idealista-private] 📊 Results: ${imported} imported, ${updated} updated, ${skipped} skipped`);
@@ -5121,7 +5120,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imported,
         updated,
         skipped,
-        message: `Scraped ${listings.length} private properties from Idealista`
+        adapter: 'lukass/idealista-scraper',
+        filter: 'da-privati-asc',
+        message: `Scraped ${listings.length} private properties from Idealista (via Lukass actor)`
       });
       
     } catch (error) {
