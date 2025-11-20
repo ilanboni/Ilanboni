@@ -4,8 +4,13 @@ import type { PortalAdapter, PropertyListing, SearchCriteria } from '../portalIn
 const IDEALISTA_PRIVATE_BASE_URL = 'https://www.idealista.it/vendita-case/milano-milano/?ordine=da-privati-asc';
 const REQUEST_DELAY_MS = 5000;
 
+// Duomo di Milano coordinates for distance filtering
+const DUOMO_MILANO_LAT = 45.4642;
+const DUOMO_MILANO_LNG = 9.1900;
+const MAX_DISTANCE_KM = 4;
+
 export class LukassIdealistaAdapter implements PortalAdapter {
-  name = 'Idealista Private (Lukass)';
+  name = 'Idealista Private Italy (Lukass)';
   portalId = 'idealista-private';
   private lastRequestTime = 0;
   private client: ApifyClient;
@@ -40,7 +45,8 @@ export class LukassIdealistaAdapter implements PortalAdapter {
       console.log(`[LUKASS-IDEALISTA] Starting lukass/idealista-scraper with URL: ${startUrl}`);
       console.log(`[LUKASS-IDEALISTA] Full input payload:`, JSON.stringify(input, null, 2));
 
-      const run = await this.client.actor('lukass/idealista-scraper').call(input);
+      // Use Italy-specific actor instead of Spain-focused one
+      const run = await this.client.actor('lukass/idealista-crawler-italy').call(input);
       
       console.log(`[LUKASS-IDEALISTA] Run ID: ${run.id}, Status: ${run.status}`);
       
@@ -93,8 +99,10 @@ export class LukassIdealistaAdapter implements PortalAdapter {
         console.log('[LUKASS-IDEALISTA] First item sample:', JSON.stringify(items[0], null, 2));
       }
 
-      // Transform lukass/idealista-scraper results to PropertyListings
+      // Transform lukass/idealista-crawler-italy results to PropertyListings
       const listings: PropertyListing[] = [];
+      let filteredByDistance = 0;
+      
       for (const item of items) {
         try {
           const itemData: any = item;
@@ -110,6 +118,19 @@ export class LukassIdealistaAdapter implements PortalAdapter {
           // Extract coordinates
           const latitude = itemData.latitude ? parseFloat(String(itemData.latitude)) : undefined;
           const longitude = itemData.longitude ? parseFloat(String(itemData.longitude)) : undefined;
+          
+          // Filter by distance from Duomo (4 km radius)
+          if (latitude && longitude && !isNaN(latitude) && !isNaN(longitude)) {
+            const distance = this.calculateDistance(DUOMO_MILANO_LAT, DUOMO_MILANO_LNG, latitude, longitude);
+            if (distance > MAX_DISTANCE_KM) {
+              console.log(`[LUKASS-IDEALISTA] ⊘ Filtered out: ${propertyId} - ${distance.toFixed(2)} km from Duomo (max ${MAX_DISTANCE_KM} km)`);
+              filteredByDistance++;
+              continue; // Skip this property
+            }
+            console.log(`[LUKASS-IDEALISTA] ✓ Within range: ${propertyId} - ${distance.toFixed(2)} km from Duomo`);
+          } else {
+            console.log(`[LUKASS-IDEALISTA] ⚠️ No coordinates for ${propertyId}, including anyway`);
+          }
           
           // IMPORTANT: All properties from this scraper are PRIVATE by design
           // (because we used the da-privati-asc filter in the URL)
@@ -139,6 +160,8 @@ export class LukassIdealistaAdapter implements PortalAdapter {
           console.error('[LUKASS-IDEALISTA] Failed to transform item:', itemError);
         }
       }
+      
+      console.log(`[LUKASS-IDEALISTA] 📍 Distance filter: ${filteredByDistance} properties excluded (>${MAX_DISTANCE_KM}km from Duomo)`);
 
       console.log(`[LUKASS-IDEALISTA] ✅ Found ${listings.length} PRIVATE listings`);
       return listings;
@@ -199,5 +222,23 @@ export class LukassIdealistaAdapter implements PortalAdapter {
     }
     
     this.lastRequestTime = Date.now();
+  }
+
+  // Calculate distance between two GPS coordinates using Haversine formula
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+    
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  }
+
+  private toRad(degrees: number): number {
+    return degrees * (Math.PI / 180);
   }
 }
