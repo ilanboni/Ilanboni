@@ -138,52 +138,57 @@ export async function generateAIPoweredMessage(
   baseTemplate?: string
 ): Promise<string> {
   try {
+    // Usa Replit AI Integrations (crediti Replit invece di API key personale)
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
     });
 
     const variables = extractVariablesFromProperty(property);
     const propertyDescription = ("description" in property ? property.description : null) || "";
 
-    const systemPrompt = `Sei un assistente AI che aiuta agenti immobiliari a scrivere messaggi WhatsApp personalizzati per proprietari privati.
+    const systemPrompt = `Sei un assistente AI che aiuta agenti immobiliari a personalizzare messaggi WhatsApp.
 
-Il tuo compito è generare un messaggio:
-1. Breve e conversazionale (max 250 caratteri)
-2. Professionale ma amichevole e naturale
-3. CRITICO: Analizza la descrizione originale e identifica le caratteristiche che il proprietario ha evidenziato come importanti
-4. Riprendi quelle stesse caratteristiche nel messaggio, dimostrando che le hai notate e apprezzate
-5. Usa un linguaggio naturale, come se stessi commentando specificamente quello che hai visto nell'annuncio
-6. In italiano
+COMPITO CRITICO:
+Riceverai un TEMPLATE BASE con la presentazione dell'agente (nome, ruolo, credenziali).
+Devi ARRICCHIRE il messaggio aggiungendo riferimenti SPECIFICI alle caratteristiche dell'immobile.
 
-ESEMPI di feature mirroring:
-- Se descrizione dice "luminoso e ristrutturato" → "sono rimasto impressionato dalla luminosità e dal fatto che sia già pronto per essere abitato"
-- Se descrizione dice "balcone vista parco" → "in particolare mi ha colpito il balcone con vista sul verde"
-- Se descrizione dice "silenzioso, zona tranquilla" → "ho notato che è in una zona molto tranquilla, perfetto per i miei clienti"
+REGOLE FONDAMENTALI:
+1. MANTIENI INTATTA la parte di presentazione dell'agente (chi è, cosa fa)
+2. AGGIUNGI dopo la presentazione i riferimenti specifici alle caratteristiche dell'annuncio
+3. USA "feature mirroring": riprendi le ESATTE parole che il proprietario ha usato
+4. Lunghezza totale: max 350 caratteri
+5. In italiano, tono professionale ma naturale
 
-NON includere:
-- Saluti formali eccessivi
-- Frasi generiche tipo "bel immobile"
-- Richieste di appuntamento immediate`;
+ESEMPI di COMBINAZIONE CORRETTA:
+
+Template base: "Buongiorno, sono Mario Rossi, agente immobiliare con 15 anni di esperienza..."
++ Features estratte: "grande terrazzo mansardato", "molto luminoso e silenzioso"
+= OUTPUT: "Buongiorno, sono Mario Rossi, agente immobiliare con 15 anni di esperienza. Ho visto il suo annuncio e sono rimasto particolarmente colpito dal grande terrazzo mansardato e dal fatto che sia molto luminoso e silenzioso. Possiamo organizzare una chiamata?"
+
+ERRORE DA EVITARE:
+❌ NON generare un messaggio completamente nuovo ignorando il template
+✅ COMBINA: template base + features specifiche`;
 
     const userPrompt = baseTemplate
-      ? `Template base: ${baseTemplate}
+      ? `STEP 1 - Template base da mantenere:
+${baseTemplate}
 
-Descrizione immobile ORIGINALE (analizza bene per identificare le caratteristiche evidenziate dal proprietario): 
+STEP 2 - Descrizione immobile ORIGINALE (identifica le caratteristiche evidenziate):
 ${propertyDescription}
 
-Caratteristiche tecniche:
+STEP 3 - Dati tecnici:
 - Indirizzo: ${variables.address}
-- Tipologia: ${variables.propertyType}
 - Prezzo: ${variables.price}
 - Dimensione: ${variables.size}
-${variables.rooms ? `- Locali: ${variables.rooms}` : ""}
 
-IMPORTANTE: 
-1. Prima identifica quali caratteristiche il proprietario ha evidenziato nella descrizione originale (es: luminoso, ristrutturato, vista, balcone, silenzioso, ecc.)
-2. Poi genera il messaggio riprendendo QUELLE SPECIFICHE caratteristiche con parole tue, come se le avessi notate tu stesso
-3. Usa il template base come struttura ma personalizza fortemente con le feature identificate
+ISTRUZIONI PER LA COMBINAZIONE:
+1. INIZIA con il template base ESATTAMENTE come è scritto (mantieni presentazione agente)
+2. IDENTIFICA max 2-3 caratteristiche chiave che il proprietario ha evidenziato (es: "grande terrazzo mansardato", "molto luminoso e silenzioso", "completamente arredato")
+3. AGGIUNGI dopo il template una frase tipo: "Ho visto il suo annuncio e sono rimasto colpito da [caratteristica 1] e [caratteristica 2]"
+4. CHIUDI con call-to-action naturale (es: "Possiamo organizzare una chiamata?")
 
-Genera il messaggio personalizzato.`
+OUTPUT: Messaggio completo = Template base + Features specifiche + CTA`
       : `Descrizione immobile ORIGINALE (analizza bene per identificare le caratteristiche evidenziate dal proprietario): 
 ${propertyDescription}
 
@@ -202,13 +207,13 @@ IMPORTANTE:
 Genera il messaggio WhatsApp personalizzato.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o-mini", // Usa gpt-4o-mini per costi ridotti (gpt-5 disponibile se serve)
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 150
+      max_completion_tokens: 200 // Aumentato per messaggi più ricchi
     });
 
     return completion.choices[0]?.message?.content?.trim() || "";
