@@ -88,9 +88,9 @@ export default function PrivatePropertiesPage() {
     isFavorite: false
   });
   
-  // Fetch all properties
+  // Fetch only private properties to avoid loading thousands of records
   const { data: allProperties, isLoading, isError, refetch } = useQuery<PropertyWithDetails[]>({
-    queryKey: ['/api/properties']
+    queryKey: ['/api/properties', { ownerType: 'private' }]
   });
 
   // Mutation for toggling favorite status
@@ -426,7 +426,7 @@ export default function PrivatePropertiesPage() {
               <>
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
                   <p className="text-sm text-blue-800">
-                    🗺️ Vista Mappa - {filteredProperties.length} proprietà private con coordinate GPS
+                    🗺️ Vista Mappa - Pagina {currentPage} di {totalPages} ({filteredProperties.length} totali, mostrando {paginatedProperties.length} in questa pagina)
                   </p>
                 </div>
                 <div className="h-[600px] rounded-lg overflow-hidden border-2 border-gray-200">
@@ -439,7 +439,7 @@ export default function PrivatePropertiesPage() {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    {filteredProperties.map((property) => {
+                    {paginatedProperties.map((property) => {
                       const lat = property.latitude ? parseFloat(property.latitude) : NaN;
                       const lng = property.longitude ? parseFloat(property.longitude) : NaN;
                       
