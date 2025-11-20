@@ -5229,6 +5229,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NEW: Scrape Idealista using igolaizola actor (with contactInfo.userType filtering!)
+  app.post("/api/apify/scrape-idealista-igola", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/apify/scrape-idealista-igola] 🏠 Starting Idealista scraping via igolaizola actor...');
+      
+      const { IgolaIdealistaAdapter } = await import('./services/adapters/igolaIdealistaAdapter');
+      const adapter = new IgolaIdealistaAdapter();
+      
+      const listings = await adapter.search({
+        city: 'milano',
+        maxItems: req.body?.maxItems || 100,
+        privateOnly: req.body?.privateOnly !== false // Default: filter only private
+      });
+      
+      console.log(`[POST /api/apify/scrape-idealista-igola] ✅ Found ${listings.length} properties`);
+      
+      // Import to database
+      let imported = 0;
+      let updated = 0;
+      let skipped = 0;
+      
+      for (const listing of listings) {
+        try {
+          const existing = await db.select()
+            .from(properties)
+            .where(and(
+              eq(properties.externalId, listing.externalId),
+              eq(properties.source, 'idealista')
+            ))
+            .limit(1);
+          
+          if (existing.length > 0) {
+            await db.update(properties)
+              .set({
+                price: listing.price,
+                description: listing.description,
+                ownerType: listing.ownerType,
+                ownerName: listing.ownerName,
+                ownerPhone: listing.ownerPhone,
+                updatedAt: new Date()
+              })
+              .where(eq(properties.id, existing[0].id));
+            updated++;
+          } else {
+            await db.insert(properties).values({
+              externalId: listing.externalId,
+              address: listing.address,
+              city: listing.city,
+              price: listing.price,
+              size: listing.size,
+              bedrooms: listing.bedrooms,
+              bathrooms: listing.bathrooms,
+              type: listing.type as any,
+              description: listing.description,
+              url: listing.url,
+              externalLink: listing.url,
+              source: 'idealista',
+              ownerType: listing.ownerType,
+              ownerName: listing.ownerName,
+              ownerPhone: listing.ownerPhone,
+              latitude: listing.latitude?.toString(),
+              longitude: listing.longitude?.toString(),
+              status: 'available'
+            });
+            imported++;
+          }
+        } catch (error) {
+          console.error(`[scrape-idealista-igola] Failed to save ${listing.externalId}:`, error);
+          skipped++;
+        }
+      }
+      
+      await adapter.cleanup();
+      
+      console.log(`[POST /api/apify/scrape-idealista-igola] 📊 ${imported} imported, ${updated} updated, ${skipped} skipped`);
+      
+      res.json({
+        success: true,
+        totalFetched: listings.length,
+        imported,
+        updated,
+        skipped,
+        actor: 'igolaizola/idealista-scraper',
+        method: 'contactInfo.userType filtering',
+        privateOnly: req.body?.privateOnly !== false,
+        message: `Scraped ${listings.length} properties from Idealista (filtered by userType)`
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/apify/scrape-idealista-igola]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Idealista scraping failed' 
+      });
+    }
+  });
+
   // NEW: Scrape 100% PRIVATE properties from CasaDaPrivato.it
   app.post("/api/apify/scrape-casadaprivato", async (req: Request, res: Response) => {
     try {

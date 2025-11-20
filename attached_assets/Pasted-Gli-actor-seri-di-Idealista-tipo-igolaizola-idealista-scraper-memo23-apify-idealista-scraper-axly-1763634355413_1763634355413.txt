@@ -1,0 +1,113 @@
+Gli actor seri di Idealista (tipo igolaizola/idealista-scraper, memo23/apify-idealista-scraper, axlymxp/idealista-scraper) salvano per ogni annuncio una sezione tipo:
+
+"contactInfo": {
+  "commercialName": "INMOBILIARIA  LA ZALAYA ",
+  "contactName": "INMOBILIARIA  LA ZALAYA ",
+  "userType": "professional",
+  "contactMethod": "all",
+  "phone1": {
+    "phoneNumber": "941776986",
+    "formattedPhone": "941 77 69 86",
+    "prefix": "34"
+  }
+}
+
+
+Qui il campo chiave è:
+
+"userType": "professional" // oppure "private"
+``` :contentReference[oaicite:0]{index=0}  
+
+Quindi:
+
+- `userType = "private"` → **privato**
+- `userType = "professional"` / `developer` → **agenzia / costruttore**
+
+---
+
+### 2. Passi concreti per te
+
+#### Passo 1 – Lancia l’actor Idealista come sempre
+
+Su Apify:
+
+- usi il tuo JSON di input (country, location, maxItems, ecc.)
+- **non tocchi nulla** per i privati
+- alla fine hai un **Dataset** con tutti gli annunci
+
+Annotati l’ID del dataset (es. `abcdef123456`).
+
+---
+
+#### Passo 2 – Scarica il dataset in JSON
+
+Da Apify:
+
+- vai sul Dataset
+- formato: **JSON**
+- salvalo, ad esempio: `idealista_raw.json`
+
+(Oppure lo leggi via API dalla tua app su Replit, ma per iniziare va bene anche scaricarlo a mano.)
+
+---
+
+#### Passo 3 – Filtra i privati da Replit (Python)
+
+Su Replit crea un file, per esempio `filtra_privati.py`:
+
+```python
+import json
+
+# 1. Carico il dataset grezzo esportato da Apify
+with open("idealista_raw.json", "r", encoding="utf-8") as f:
+    items = json.load(f)
+
+privati = []
+
+for item in items:
+    contact = item.get("contactInfo", {})
+    user_type = contact.get("userType")
+
+    # tengo SOLO gli annunci con userType = "private"
+    if user_type == "private":
+        privati.append(item)
+
+# 2. salvo il nuovo file con solo privati
+with open("idealista_privati.json", "w", encoding="utf-8") as f:
+    json.dump(privati, f, ensure_ascii=False, indent=2)
+
+print("Annunci totali:", len(items))
+print("Annunci privati:", len(privati))
+
+
+Poi su Replit esegui:
+
+python filtra_privati.py
+
+
+Risultato:
+
+idealista_raw.json → tutti gli annunci
+
+idealista_privati.json → solo privati
+
+Da lì puoi:
+
+importare il file nel tuo CRM
+
+unirlo con i dati di Immobiliare
+
+farci tutto il lavoro politico/commerciale che ti serve.
+
+3. In una frase
+
+Gli actor Idealista non filtrano i privati in input,
+ma ti danno il campo contactInfo.userType.
+
+Tu fai così:
+
+scrapi tutto con Apify
+
+su Replit tieni solo gli annunci dove userType == "private"
+
+e hai la lista pulita di venditori privati che ti serve.
