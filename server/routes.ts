@@ -12664,7 +12664,15 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
    */
   app.post('/api/whatsapp-campaigns', async (req: Request, res: Response) => {
     try {
-      const campaign = await storage.createWhatsappCampaign(req.body);
+      // Mapping frontend -> database schema
+      const { messageTemplate, useAiPersonalization, description, ...rest } = req.body;
+      
+      const campaignData = {
+        ...rest,
+        template: messageTemplate, // Frontend usa messageTemplate, DB usa template
+      };
+
+      const campaign = await storage.createWhatsappCampaign(campaignData);
       res.json({ ok: true, campaign });
     } catch (error) {
       console.error('[POST /api/whatsapp-campaigns] Errore:', error);
@@ -12684,12 +12692,14 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     try {
       const campaigns = await storage.getAllWhatsappCampaigns();
       
-      // Aggiungi statistiche per ogni campagna
+      // Aggiungi statistiche per ogni campagna e mapping database -> frontend
       const campaignsWithStats = await Promise.all(
         campaigns.map(async (campaign) => {
           const stats = await campaignFollowupService.getFollowUpStats(campaign.id);
+          const { template, ...rest } = campaign;
           return {
-            ...campaign,
+            ...rest,
+            messageTemplate: template, // Database usa template, frontend usa messageTemplate
             stats
           };
         })
@@ -12722,10 +12732,14 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
       const stats = await campaignFollowupService.getFollowUpStats(campaignId);
       const messages = await storage.getCampaignMessagesByCampaign(campaignId);
 
+      // Mapping database -> frontend
+      const { template, ...rest } = campaign;
+
       res.json({ 
         ok: true, 
         campaign: {
-          ...campaign,
+          ...rest,
+          messageTemplate: template, // Database usa template, frontend usa messageTemplate
           stats,
           messages
         }
@@ -12747,7 +12761,16 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   app.patch('/api/whatsapp-campaigns/:id', async (req: Request, res: Response) => {
     try {
       const campaignId = parseInt(req.params.id);
-      const campaign = await storage.updateWhatsappCampaign(campaignId, req.body);
+      
+      // Mapping frontend -> database schema
+      const { messageTemplate, useAiPersonalization, description, ...rest } = req.body;
+      
+      const updateData: any = { ...rest };
+      if (messageTemplate !== undefined) {
+        updateData.template = messageTemplate;
+      }
+      
+      const campaign = await storage.updateWhatsappCampaign(campaignId, updateData);
       res.json({ ok: true, campaign });
     } catch (error) {
       console.error('[PATCH /api/whatsapp-campaigns/:id] Errore:', error);
