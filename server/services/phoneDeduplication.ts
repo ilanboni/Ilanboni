@@ -156,13 +156,13 @@ export async function trackContact(
       
       await storage.updatePrivateContactTracking(normalizedPhone, {
         propertyId,
-        lastContactedAt: new Date(),
         contactCount: existingTracking.contactCount + 1,
         lastCampaignId: campaignId,
         metadata: {
           ...metadata,
           propertyIds,
-          campaignIds
+          campaignIds,
+          lastContactedAt: new Date().toISOString() // Salva in metadata invece che come campo
         }
       });
       
