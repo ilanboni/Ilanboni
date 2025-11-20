@@ -82,16 +82,27 @@ export function extractVariablesFromProperty(
   const description = "description" in property ? property.description : null;
   const propertyType = "type" in property ? property.type : "apartment";
 
+  // Estrae solo la via dall'indirizzo (rimuove città e dettagli)
+  const extractStreetName = (fullAddress: string): string => {
+    if (!fullAddress) return "";
+    // Rimuove ", Milano" e tutto dopo (parentesi, dettagli, ecc.)
+    const cleaned = fullAddress.replace(/,\s*Milano.*/i, "").replace(/\(.*?\)/g, "").trim();
+    // Rimuove "Via " all'inizio se presente
+    return cleaned.replace(/^Via\s+/i, "");
+  };
+
   return {
     name: ownerName || "Gentile proprietario",
     address: property.address || "",
+    via: extractStreetName(property.address || ""), // Nuova variabile per {{via}}
     price: formatPrice(property.price),
     size: formatSize(property.size),
     rooms: formatRooms(rooms),
     bathrooms: formatBathrooms(bathrooms),
     floor: formatFloor(floor),
     propertyType: formatPropertyType(propertyType || "apartment"),
-    description: description || ""
+    description: description || "",
+    caratteristiche: "" // Verrà riempita dall'AI se attiva
   };
 }
 
@@ -126,16 +137,15 @@ export function renderTemplate(
 }
 
 /**
- * Genera messaggio AI-powered con mirroring tono/stile
+ * Estrae caratteristiche chiave da descrizione immobile usando AI
  * 
- * Usa ChatGPT per generare un messaggio che:
- * - Rispecchia il tono della descrizione originale
- * - Include informazioni chiave dalla property
- * - Mantiene uno stile professionale ma amichevole
+ * Usa ChatGPT per identificare le 2-3 caratteristiche principali
+ * che il proprietario ha evidenziato nell'annuncio.
+ * 
+ * @returns Stringa breve con caratteristiche (es: "grande terrazzo mansardato, molto luminoso e silenzioso, completamente arredato")
  */
-export async function generateAIPoweredMessage(
-  property: Property | SharedProperty,
-  baseTemplate?: string
+export async function extractKeyFeatures(
+  property: Property | SharedProperty
 ): Promise<string> {
   try {
     // Usa Replit AI Integrations (crediti Replit invece di API key personale)
@@ -144,90 +154,65 @@ export async function generateAIPoweredMessage(
       apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
     });
 
-    const variables = extractVariablesFromProperty(property);
     const propertyDescription = ("description" in property ? property.description : null) || "";
 
-    const systemPrompt = `Sei un assistente AI che aiuta agenti immobiliari a personalizzare messaggi WhatsApp.
+    if (!propertyDescription || propertyDescription.length < 50) {
+      // Se non c'è descrizione sufficiente, restituisci caratteristiche generiche
+      return "caratteristiche interessanti";
+    }
 
-COMPITO CRITICO:
-Riceverai un TEMPLATE BASE con la presentazione dell'agente (nome, ruolo, credenziali).
-Devi ARRICCHIRE il messaggio aggiungendo riferimenti SPECIFICI alle caratteristiche dell'immobile.
+    const systemPrompt = `Sei un assistente AI che analizza descrizioni di immobili per identificare le caratteristiche principali.
 
-REGOLE FONDAMENTALI:
-1. MANTIENI INTATTA la parte di presentazione dell'agente (chi è, cosa fa)
-2. AGGIUNGI dopo la presentazione i riferimenti specifici alle caratteristiche dell'annuncio
-3. USA "feature mirroring": riprendi le ESATTE parole che il proprietario ha usato
-4. Lunghezza totale: max 350 caratteri
-5. In italiano, tono professionale ma naturale
+COMPITO:
+Leggi la descrizione dell'immobile e identifica le 2-3 caratteristiche PRINCIPALI che il proprietario ha evidenziato.
 
-ESEMPI di COMBINAZIONE CORRETTA:
+REGOLE:
+1. Estrai SOLO 2-3 caratteristiche chiave (non tutto)
+2. Usa le ESATTE parole del proprietario (feature mirroring)
+3. Formato: "caratteristica1, caratteristica2, caratteristica3"
+4. Breve e naturale (max 80 caratteri totali)
+5. In minuscolo
+6. In italiano
 
-Template base: "Buongiorno, sono Mario Rossi, agente immobiliare con 15 anni di esperienza..."
-+ Features estratte: "grande terrazzo mansardato", "molto luminoso e silenzioso"
-= OUTPUT: "Buongiorno, sono Mario Rossi, agente immobiliare con 15 anni di esperienza. Ho visto il suo annuncio e sono rimasto particolarmente colpito dal grande terrazzo mansardato e dal fatto che sia molto luminoso e silenzioso. Possiamo organizzare una chiamata?"
+ESEMPI CORRETTI:
+- Descrizione: "...appartamento luminoso e ristrutturato con balcone vista parco..."
+  OUTPUT: "luminosità, ristrutturazione completa, balcone con vista"
 
-ERRORE DA EVITARE:
-❌ NON generare un messaggio completamente nuovo ignorando il template
-✅ COMBINA: template base + features specifiche`;
+- Descrizione: "...grande terrazzo mansardato... molto luminoso e silenzioso... completamente arredato..."
+  OUTPUT: "grande terrazzo mansardato, luminosità e silenziosità, arredamento completo"
 
-    const userPrompt = baseTemplate
-      ? `STEP 1 - Template base da mantenere:
-${baseTemplate}
+- Descrizione: "...box e cantina inclusi... teleriscaldamento... vicino metro..."
+  OUTPUT: "box e cantina inclusi, teleriscaldamento, vicinanza metro"
 
-STEP 2 - Descrizione immobile ORIGINALE (identifica le caratteristiche evidenziate):
+IMPORTANTE: Restituisci SOLO la lista di caratteristiche, niente altro.`;
+
+    const userPrompt = `Descrizione immobile:
 ${propertyDescription}
 
-STEP 3 - Dati tecnici:
-- Indirizzo: ${variables.address}
-- Prezzo: ${variables.price}
-- Dimensione: ${variables.size}
-
-ISTRUZIONI PER LA COMBINAZIONE:
-1. INIZIA con il template base ESATTAMENTE come è scritto (mantieni presentazione agente)
-2. IDENTIFICA max 2-3 caratteristiche chiave che il proprietario ha evidenziato (es: "grande terrazzo mansardato", "molto luminoso e silenzioso", "completamente arredato")
-3. AGGIUNGI dopo il template una frase tipo: "Ho visto il suo annuncio e sono rimasto colpito da [caratteristica 1] e [caratteristica 2]"
-4. CHIUDI con call-to-action naturale (es: "Possiamo organizzare una chiamata?")
-
-OUTPUT: Messaggio completo = Template base + Features specifiche + CTA`
-      : `Descrizione immobile ORIGINALE (analizza bene per identificare le caratteristiche evidenziate dal proprietario): 
-${propertyDescription}
-
-Caratteristiche tecniche:
-- Indirizzo: ${variables.address}
-- Tipologia: ${variables.propertyType}
-- Prezzo: ${variables.price}
-- Dimensione: ${variables.size}
-${variables.rooms ? `- Locali: ${variables.rooms}` : ""}
-
-IMPORTANTE: 
-1. Prima identifica quali caratteristiche il proprietario ha evidenziato nella descrizione originale (es: luminoso, ristrutturato, vista, balcone, silenzioso, ecc.)
-2. Poi genera il messaggio riprendendo QUELLE SPECIFICHE caratteristiche con parole tue, come se le avessi notate tu stesso
-3. Dimostra che hai letto l'annuncio con attenzione
-
-Genera il messaggio WhatsApp personalizzato.`;
+Identifica ed estrai le 2-3 caratteristiche principali in formato: "caratteristica1, caratteristica2, caratteristica3"`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Usa gpt-4o-mini per costi ridotti (gpt-5 disponibile se serve)
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      temperature: 0.7,
-      max_completion_tokens: 200 // Aumentato per messaggi più ricchi
+      temperature: 0.5,
+      max_completion_tokens: 100
     });
 
-    return completion.choices[0]?.message?.content?.trim() || "";
+    const features = completion.choices[0]?.message?.content?.trim() || "caratteristiche interessanti";
+    return features;
   } catch (error) {
-    console.error("[generateAIPoweredMessage] Errore generazione AI:", error);
-    // Fallback al template base se AI fallisce
-    return "";
+    console.error("[extractKeyFeatures] Errore estrazione AI:", error);
+    return "caratteristiche interessanti";
   }
 }
 
 /**
  * Genera messaggio finale combinando template e AI
  * 
- * 1. Se aiPowered = true, usa AI per generare messaggio completo
+ * 1. Se aiPowered = true, usa AI per estrarre caratteristiche e inserirle nel template
  * 2. Altrimenti, usa template rendering standard
  */
 export async function generateCampaignMessage(
@@ -235,13 +220,16 @@ export async function generateCampaignMessage(
   template: string,
   aiPowered: boolean = false
 ): Promise<string> {
+  // Estrai variabili base
+  const variables = extractVariablesFromProperty(property);
+
+  // Se AI è attivo, estrai caratteristiche chiave
   if (aiPowered) {
-    const aiMessage = await generateAIPoweredMessage(property, template);
-    if (aiMessage) return aiMessage;
+    const features = await extractKeyFeatures(property);
+    variables.caratteristiche = features;
   }
 
-  // Fallback: template rendering standard
-  const variables = extractVariablesFromProperty(property);
+  // Renderizza template con tutte le variabili
   return renderTemplate(template, variables);
 }
 
@@ -260,13 +248,15 @@ export function validateTemplate(template: string): {
   const validVariables = [
     "name",
     "address",
+    "via",
     "price",
     "size",
     "rooms",
     "bathrooms",
     "floor",
     "propertyType",
-    "description"
+    "description",
+    "caratteristiche"
   ];
 
   let match: RegExpExecArray | null;
