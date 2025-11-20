@@ -5237,8 +5237,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { IgolaIdealistaAdapter } = await import('./services/adapters/igolaIdealistaAdapter');
       const adapter = new IgolaIdealistaAdapter();
       
+      // Accept locationIds from request body
+      const locationIds = req.body?.locationIds || [];
+      if (locationIds.length === 0) {
+        return res.status(400).json({ 
+          error: 'locationIds array is required (e.g., ["0-EU-IT-MI-01-001-135-01"])' 
+        });
+      }
+      
+      console.log('[POST /api/apify/scrape-idealista-igola] 📍 Locations:', locationIds);
+      
       const listings = await adapter.search({
-        city: 'milano',
+        locationIds,
         maxItems: req.body?.maxItems || 100,
         privateOnly: req.body?.privateOnly !== false // Default: filter only private
       });
