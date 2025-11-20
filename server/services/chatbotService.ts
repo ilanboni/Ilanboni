@@ -34,6 +34,7 @@ interface BotResponse {
 
 /**
  * Verifica se il messaggio contiene un'obiezione configurata
+ * Usa word boundary matching per evitare false positives da sottostringhe
  */
 function checkForObjection(
   userMessage: string,
@@ -47,10 +48,13 @@ function checkForObjection(
   
   for (const objection of objectionHandling) {
     if (objection.keywords && Array.isArray(objection.keywords)) {
-      // Verifica se almeno una keyword è presente nel messaggio
-      const found = objection.keywords.some((keyword: string) => 
-        messageLower.includes(keyword.toLowerCase())
-      );
+      // Verifica se almeno una keyword è presente nel messaggio (con word boundaries)
+      const found = objection.keywords.some((keyword: string) => {
+        const keywordLower = keyword.toLowerCase().trim();
+        // Use word boundary regex for precise matching - evita false positives
+        const regex = new RegExp(`\\b${keywordLower}\\b`, 'i');
+        return regex.test(messageLower);
+      });
       
       if (found && objection.response) {
         console.log(`[BOT-OBJECTION] Rilevata obiezione con keywords: ${objection.keywords.join(', ')}`);
