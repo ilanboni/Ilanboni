@@ -1,0 +1,14 @@
+{
+  "name": "casadaprivato-scraper",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Apify actor to scrape PRIVATE properties from CasaDaPrivato.it",
+  "main": "main.js",
+  "dependencies": {
+    "apify": "^3.0.0",
+    "crawlee": "^3.0.0"
+  },
+  "scripts": {
+    "start": "node main.js"
+  }
+}

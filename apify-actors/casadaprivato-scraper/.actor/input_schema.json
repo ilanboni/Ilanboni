@@ -1,0 +1,40 @@
+{
+  "title": "CasaDaPrivato Scraper Input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "startUrl": {
+      "title": "Start URL",
+      "type": "string",
+      "description": "URL to start scraping from",
+      "default": "https://www.casadaprivato.it/annunci-vendita/immobili/milano-milano",
+      "editor": "textfield"
+    },
+    "maxItems": {
+      "title": "Max Items",
+      "type": "integer",
+      "description": "Maximum number of properties to scrape",
+      "default": 100,
+      "minimum": 1
+    },
+    "centerLat": {
+      "title": "Center Latitude",
+      "type": "number",
+      "description": "Center point latitude for distance filtering (Duomo di Milano = 45.4642)",
+      "default": 45.4642
+    },
+    "centerLng": {
+      "title": "Center Longitude",
+      "type": "number",
+      "description": "Center point longitude for distance filtering (Duomo di Milano = 9.1900)",
+      "default": 9.1900
+    },
+    "maxDistanceKm": {
+      "title": "Max Distance (km)",
+      "type": "number",
+      "description": "Maximum distance from center point in kilometers",
+      "default": 4
+    }
+  },
+  "required": ["startUrl"]
+}

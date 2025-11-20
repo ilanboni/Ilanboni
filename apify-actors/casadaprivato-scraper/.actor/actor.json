@@ -1,0 +1,13 @@
+{
+  "actorSpecification": 1,
+  "name": "casadaprivato-scraper",
+  "title": "CasaDaPrivato.it Scraper",
+  "description": "Scrapes 100% PRIVATE property listings from CasaDaPrivato.it in Milano",
+  "version": "1.0",
+  "buildTag": "latest",
+  "meta": {
+    "templateId": "puppeteer-scraper"
+  },
+  "input": "./input_schema.json",
+  "dockerfile": "./Dockerfile"
+}

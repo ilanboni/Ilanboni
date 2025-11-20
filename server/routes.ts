@@ -5229,6 +5229,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NEW: Scrape 100% PRIVATE properties from CasaDaPrivato.it
+  app.post("/api/apify/scrape-casadaprivato", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/apify/scrape-casadaprivato] 🏠 Starting CasaDaPrivato.it scraping (100% PRIVATE)...');
+      
+      // Import the CasaDaPrivato adapter
+      const { CasaDaPrivatoAdapter } = await import('./services/adapters/casadaprivatoAdapter');
+      const adapter = new CasaDaPrivatoAdapter();
+      
+      // Search for private properties in Milano
+      const listings = await adapter.search({
+        city: 'milano',
+        maxItems: req.body?.maxItems || 50, // Default to 50 for testing
+        centerLat: 45.4642, // Duomo
+        centerLng: 9.1900,
+        maxDistanceKm: 4
+      });
+      
+      console.log(`[POST /api/apify/scrape-casadaprivato] ✅ Found ${listings.length} properties (ALL PRIVATE!)`);
+      
+      // Import and save to database
+      let imported = 0;
+      let updated = 0;
+      let skipped = 0;
+      
+      for (const listing of listings) {
+        try {
+          // Check if property already exists
+          const existing = await db.select()
+            .from(properties)
+            .where(and(
+              eq(properties.externalId, listing.externalId),
+              eq(properties.source, 'casadaprivato')
+            ))
+            .limit(1);
+          
+          if (existing.length > 0) {
+            // Update existing property
+            await db.update(properties)
+              .set({
+                price: listing.price,
+                description: listing.description,
+                ownerType: listing.ownerType,
+                updatedAt: new Date()
+              })
+              .where(eq(properties.id, existing[0].id));
+            updated++;
+          } else {
+            // Insert new property
+            await db.insert(properties).values({
+              externalId: listing.externalId,
+              address: listing.address,
+              city: listing.city,
+              price: listing.price,
+              size: listing.size,
+              bedrooms: listing.bedrooms,
+              bathrooms: listing.bathrooms,
+              type: listing.type as any,
+              description: listing.description,
+              url: listing.url,
+              externalLink: listing.url,
+              source: 'casadaprivato',
+              ownerType: 'private', // 100% guaranteed!
+              latitude: listing.latitude?.toString(),
+              longitude: listing.longitude?.toString(),
+              status: 'available'
+            });
+            imported++;
+          }
+        } catch (error) {
+          console.error(`[scrape-casadaprivato] Failed to save property ${listing.externalId}:`, error);
+          skipped++;
+        }
+      }
+      
+      await adapter.cleanup();
+      
+      console.log(`[POST /api/apify/scrape-casadaprivato] 📊 Results: ${imported} imported, ${updated} updated, ${skipped} skipped`);
+      
+      res.json({
+        success: true,
+        totalFetched: listings.length,
+        imported,
+        updated,
+        skipped,
+        source: 'CasaDaPrivato.it',
+        guarantee: '100% PRIVATE sellers (no agencies)',
+        actorId: '19mkVoWzGaxhCBvib',
+        cost: `~$${(listings.length * 0.00025).toFixed(4)}`,
+        message: `Scraped ${listings.length} private properties from CasaDaPrivato.it`
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/apify/scrape-casadaprivato]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'CasaDaPrivato scraping failed' 
+      });
+    }
+  });
+
   // NEW: Scrape ONLY private properties from Idealista using CUSTOM actor (our own!)
   app.post("/api/apify/scrape-idealista-private-custom", async (req: Request, res: Response) => {
     try {
