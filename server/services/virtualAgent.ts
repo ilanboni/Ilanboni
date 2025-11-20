@@ -5,11 +5,51 @@ import { communications, properties, clients, sharedProperties } from "@shared/s
 import { sendWhatsAppMessage } from "../lib/ultramsgApi";
 import { ChatCompletionMessageParam } from "openai/resources";
 
-// Inizializza OpenAI con la chiave API
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Inizializza OpenAI con Replit AI Integrations (crediti Replit)
+const openai = new OpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+});
 
 // Il modello più recente di OpenAI è "gpt-4o", rilasciato il 13 maggio 2024
 const MODEL = "gpt-4o";
+
+/**
+ * Verifica se siamo in orario lavorativo (Lun-Sab)
+ */
+function isBusinessHours(): boolean {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = domenica, 1 = lunedì, ... 6 = sabato
+  
+  // Domenica = disattivato
+  if (dayOfWeek === 0) {
+    return false;
+  }
+  
+  // Lunedì-Sabato = attivo
+  return true;
+}
+
+/**
+ * Schedula una risposta ritardata (10 minuti)
+ */
+async function scheduleDelayedResponse(
+  communicationId: number,
+  delayMinutes: number = 10
+): Promise<void> {
+  const delayMs = delayMinutes * 60 * 1000; // 10 minuti in millisecondi
+  
+  console.log(`[VIRTUAL-AGENT] Risposta schedulata tra ${delayMinutes} minuti per comunicazione ${communicationId}`);
+  
+  setTimeout(async () => {
+    try {
+      console.log(`[VIRTUAL-AGENT] Esecuzione risposta ritardata per comunicazione ${communicationId}`);
+      await executeDelayedResponse(communicationId);
+    } catch (error) {
+      console.error(`[VIRTUAL-AGENT] Errore risposta ritardata:`, error);
+    }
+  }, delayMs);
+}
 
 interface AgentResponse {
   message: string;
@@ -17,9 +57,54 @@ interface AgentResponse {
 }
 
 /**
+ * Esegue la risposta ritardata (chiamata dopo 10 minuti)
+ */
+async function executeDelayedResponse(communicationId: number): Promise<void> {
+  const result = await generateAndSendResponse(communicationId);
+  if (result.success) {
+    console.log(`[VIRTUAL-AGENT] ✅ Risposta inviata: ${result.message}`);
+  } else {
+    console.error(`[VIRTUAL-AGENT] ❌ Errore: ${result.message}`);
+  }
+}
+
+/**
  * Genera e invia una risposta automatica a un messaggio del cliente
+ * Entry point principale - gestisce business hours e scheduling
  */
 export async function handleClientMessage(
+  communicationId: number
+): Promise<AgentResponse> {
+  try {
+    // Verifica business hours (Lun-Sab)
+    if (!isBusinessHours()) {
+      console.log(`[VIRTUAL-AGENT] Fuori orario (Domenica) - risposta posticipata a Lunedì`);
+      return {
+        success: true,
+        message: "Messaggio ricevuto. Risposta verrà inviata Lunedì (orario lavorativo)."
+      };
+    }
+    
+    // Schedula risposta con ritardo di 10 minuti
+    await scheduleDelayedResponse(communicationId, 10);
+    
+    return {
+      success: true,
+      message: "Risposta schedulata tra 10 minuti"
+    };
+  } catch (error: any) {
+    console.error("Errore durante scheduling risposta:", error);
+    return {
+      success: false,
+      message: `Errore: ${error.message || "Errore sconosciuto"}`,
+    };
+  }
+}
+
+/**
+ * Genera e invia effettivamente la risposta (chiamata dopo il ritardo)
+ */
+async function generateAndSendResponse(
   communicationId: number
 ): Promise<AgentResponse> {
   try {

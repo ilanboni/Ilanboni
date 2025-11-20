@@ -40,8 +40,10 @@ export async function generateBotResponse(
   context: BotContext
 ): Promise<BotResponse> {
   try {
+    // Usa Replit AI Integrations (crediti Replit)
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
     });
 
     // Build conversation history for context
