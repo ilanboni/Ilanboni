@@ -3,30 +3,6 @@
 ## Overview
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector, with a focus on comprehensive property data aggregation and intelligent client-property matching.
 
-## WhatsApp Bot Campaign System (Nov 20, 2025)
-**Automated Private Seller Outreach System** - Bot conversazionale AI per contattare proprietari privati su WhatsApp:
-
-**Workflow Completo:**
-1. **Identificazione nuovi annunci**: Sistema notifica giornalmente nuovi annunci privati
-2. **Selezione manuale**: Agente mette nei preferiti gli annunci da contattare
-3. **Generazione messaggio personalizzato**: Template con variabili ({{name}}, {{address}}, {{price}}, ecc.) + AI mirroring
-4. **Invio WhatsApp**: Sistema invia messaggio personalizzato
-5. **Bot conversazionale**: Se risponde, bot AI gestisce conversazione secondo istruzioni agente
-6. **Follow-up automatico**: Se non risponde, follow-up automatico dopo X giorni
-7. **Anti-duplicazione**: Sistema evita doppioni anche se annuncio viene ripubblicato
-
-**Tecnologie:**
-- **Database**: 4 tabelle (private_contact_tracking, whatsapp_campaigns, campaign_messages, bot_conversation_logs)
-- **Deduplicazione**: Sistema anti-spam con tracking telefoni, protezione doppioni, cooldown period
-- **Bot AI**: OpenAI/ChatGPT per conversazioni naturali
-- **Integrazione completa**: Ogni contatto crea automaticamente cliente (seller) + shared_property + comunicazioni tracciate
-
-**Safety Features:**
-- Normalizzazione telefoni (rimuove spazi, trattini, gestisce prefissi internazionali)
-- Status tracking ("active", "do_not_contact", "responded", "converted")
-- Cooldown configurabile tra contatti (default: 30 giorni)
-- Metadata completo per audit trail (propertyIds[], campaignIds[], lastResponse)
-
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
@@ -37,12 +13,12 @@ The application features a modern full-stack architecture.
 - **Database**: PostgreSQL with Drizzle ORM.
 - **UI/UX**: Utilizes shadcn/ui components built on Radix UI, styled with Tailwind CSS. Interactive maps are provided by Leaflet, and geocoding by Nominatim. The UI emphasizes a card-based interface with color-coded visual cues for property status.
 - **Technical Implementations**: OAuth2 for Google services, UltraMsg for WhatsApp integration, and OpenAI for AI features. The system includes a custom scheduler, advanced property deduplication and matching algorithms using image hashing and fuzzy string matching, and a virtual secretary for prioritized contact management and task generation. It also features an advanced multi-agency property clustering system with intelligent filtering, automated reporting for property acquisition, and agency name normalization. An "Ignore" functionality for shared properties allows agents to dismiss unwanted listings. The system supports viewing of all matching competitor properties with accurate geographic filtering using FeatureCollection for multi-zone buyer searches. An automatic zone geocoding system uses Nominatim API to visualize buyer search areas.
-    - **WhatsApp Integration**: Features 3-tier message deduplication and property context threading, where WhatsApp webhooks automatically link client replies to specific shared properties. Includes a dual-mode safety system for sending properties via WhatsApp, with test and production configurations to prevent accidental mass messages.
+    - **WhatsApp Integration**: Features 3-tier message deduplication and property context threading, where WhatsApp webhooks automatically link client replies to specific shared properties. Includes a dual-mode safety system for sending properties via WhatsApp, with test and production configurations to prevent accidental mass messages. An automated private seller outreach system is implemented with AI conversational bot capabilities, including personalized message generation, intent recognition, and automatic follow-ups.
     - **Google Calendar Integration**: Robust OAuth token management handles expired/revoked tokens, invalidating them and prompting for reauthorization to ensure seamless sync recovery.
-    - **Property Deduplication**: Employs an intelligent bucketing algorithm combining geographic and price criteria to significantly reduce comparison complexity and improve performance. **Multiagency Classification Fix (Nov 19, 2025)**: Fixed critical bug where properties from the same agency on multiple portals (e.g., Gabetti on both Immobiliare.it and Idealista.it) were incorrectly marked as multiagency. System now uses robust agency name normalization (removes all non-alphanumeric characters: "RE/MAX" → "remax", "Engel & Völkers" → "engelvolkers") and only marks clusters as multiagency when 2+ DIFFERENT agencies are involved. Reduced false positives from thousands to 535 genuine multiagency cases (6.4% vs 73.9% exclusive single-agency properties). Includes dedicated Idealista-only scraping endpoint (`/api/apify/scrape-idealista`) for faster access to private property listings.
-    - **Owner Classification System**: Accurately distinguishes between private sellers and agencies using multi-signal classification algorithm. **Critical Classification Fix (Nov 19, 2025)**: Fixed major bug where 4,815 Idealista properties were incorrectly classified as "private" when they were actually agencies. Root cause: Algorithm checked private keywords ("proprietario", "privat") before agency keywords, causing descriptions with both to be misclassified. Solution: (1) Added Italian agency keywords ("proponiamo", "disponiamo", "propone", "proposta" - typical agency language); (2) Reversed priority to check agency keywords first (they are more specific and reliable). Result: Idealista private properties reduced from 6,593 to 1,778 (22.8%), with 6,015 correctly classified as agencies (77.2%), matching realistic Italian real estate market distribution. Re-classified all 7,793 Idealista properties using updated algorithm.
-    - **Automated Property Scraping**: Features a full-city scraping scheduler that downloads all properties from Milano using Apify, then filters them server-side based on buyer criteria. This is more efficient than per-buyer scraping. Includes instant property filtering for buyers, leveraging a unified approach for both normal and shared properties. **Private Property Scraping (Nov 20, 2025)**: Implemented production-ready solution using `igolaizola/idealista-scraper` actor that provides `contactInfo.userType` field (`private`/`professional`/`developer`) for 100% accurate filtering of genuine private sellers. Features complete offset-based pagination (no upper limit), supporting datasets of 10,000+ properties without data loss. Endpoint: `POST /api/apify/scrape-idealista-igola` with `privateOnly` parameter (default: true). Cost: ~$0.20/100 properties.
-        - **Asynchronous Job Queue System** (Nov 2025): Implemented to solve timeout issues with long-running Apify operations (10-20 min vs 60-120s Replit limit). Background worker polls every 30s for queued jobs, processes dual-portal scraping (Immobiliare.it + Idealista.it) in 500-property batches, and persists checkpoints for server-restart recovery. **Critical Batch Processing Fixes (Nov 19, 2025)**: (1) **Auto-recovery of interrupted jobs**: Worker now intelligently handles "running" jobs on startup—those with checkpoints are resumed, those without are re-queued, and stale jobs (>30 min) are marked as failed; (2) **Type safety fixes**: Removed non-existent fields (title, imageUrls) from property insert/update operations that were causing silent failures; (3) **Coordinate conversion**: Fixed latitude/longitude to properly convert from number to text format as required by database schema. Robust error handling with retry logic (3 attempts, exponential backoff) on checkpoint saves, and nested try-catch to prevent stuck jobs. Known limitation: No incremental checkpoints during Apify actor execution—if Apify crashes mid-run, progress is lost (future enhancement: stream dataset pagination). API endpoints: POST /api/apify/jobs (create), GET /api/apify/jobs (list), GET /api/scraping-jobs/:id (status), POST /api/apify/scrape-full-city (delegates to queue).
+    - **Property Deduplication**: Employs an intelligent bucketing algorithm combining geographic and price criteria to significantly reduce comparison complexity and improve performance. Includes robust agency name normalization to accurately identify multi-agency properties.
+    - **Owner Classification System**: Accurately distinguishes between private sellers and agencies using a multi-signal classification algorithm that prioritizes agency keywords for improved accuracy.
+    - **Automated Property Scraping**: Features a full-city scraping scheduler that downloads all properties from Milano using Apify, then filters them server-side based on buyer criteria. Includes instant property filtering for buyers, leveraging a unified approach for both normal and shared properties. Production-ready private property scraping uses `igolaizola/idealista-scraper` for accurate private seller identification.
+    - **Asynchronous Job Queue System**: Solves timeout issues for long-running Apify operations by processing jobs in the background. Features auto-recovery for interrupted jobs, robust error handling with retry logic, and checkpoint persistence for server-restart recovery.
     - **Private Properties Section**: A dedicated UI for managing properties sold directly by private owners, featuring map/list views, favorites, and comprehensive filtering. Utilizes a classification system for accurate owner type detection, leveraging multiple signals and providing confidence scores.
 - **Feature Specifications**:
     - **Client Management**: Detailed client profiles with AI-extracted preferences.
@@ -69,8 +45,7 @@ The application features a modern full-stack architecture.
 - **string-similarity**: Fuzzy matching for property deduplication
 - **UltraMsg**: WhatsApp messaging integration
 - **OpenAI SDK + Replit AI Integrations**: AI features
-- **Apify**: Web scraping platform for automated property data collection from Immobiliare.it and Idealista.it
-  - **igolaizola/idealista-scraper**: Professional actor for Idealista (Italy/Spain/Portugal) with `contactInfo.userType` field for accurate private/agency distinction. Features full pagination support for unlimited dataset sizes and built-in residential proxy rotation. (~$0.20/100 properties + $19/month subscription)
+- **Apify**: Web scraping platform for automated property data collection from Immobiliare.it and Idealista.it, including the `igolaizola/idealista-scraper` actor.
 - **Nominatim**: Geocoding services for search area visualization
 - **multer**: File upload middleware for property attachments
 - **node-cron**: Cron-based task scheduler for automated buyer scraping
