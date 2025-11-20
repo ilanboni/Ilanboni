@@ -3,7 +3,7 @@
   "name": "idealista-private-scraper",
   "title": "Idealista Private Properties Scraper",
   "description": "Scrapes ONLY private seller properties from Idealista.it using the ordine=da-privati-asc filter. Filters out all agencies to get genuine private sellers in Milano.",
-  "version": "1.0.0",
+  "version": "1.0",
   "dockerfile": "./Dockerfile",
   "readme": "./README.md",
   "input": "./input_schema.json",
