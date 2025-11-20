@@ -784,6 +784,7 @@ export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
   instructions: text("instructions"), // Istruzioni per il bot ChatGPT
   followUpTemplate: text("followup_template"), // Template follow-up
   followUpDelayDays: integer("followup_delay_days").default(3), // Giorni prima del follow-up
+  useAiPersonalization: boolean("use_ai_personalization").default(false), // Usa AI per personalizzazione avanzata
   status: text("status").default("draft").notNull(), // "draft", "active", "paused", "completed"
   totalTargets: integer("total_targets").default(0), // Totale destinatari
   sentCount: integer("sent_count").default(0), // Messaggi inviati

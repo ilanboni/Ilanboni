@@ -12858,11 +12858,11 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
             continue;
           }
 
-          // Genera messaggio personalizzato
+          // Genera messaggio personalizzato con AI mirroring se attivo
           const messageContent = await campaignMessageService.generateCampaignMessage(
             property,
-            campaign.template, // Usa template, non messageTemplate (campo DB)
-            false // TODO: usare campaign.useAiPersonalization quando disponibile in schema
+            campaign.template,
+            campaign.useAiPersonalization || false // Usa AI se configurato in campagna
           );
 
           // Crea record messaggio
