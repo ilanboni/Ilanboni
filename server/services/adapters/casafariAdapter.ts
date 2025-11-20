@@ -34,7 +34,7 @@ export class CasafariAdapter implements PortalAdapter {
     return this.client;
   }
 
-  async search(criteria: SearchCriteria): Promise<PropertyListing[]> {
+  async search(criteria: SearchCriteria & { privateOnly?: boolean; sourceFilter?: string }): Promise<PropertyListing[]> {
     try {
       const client = await this.getClient();
       console.log('[CASAFARI] Searching with criteria:', criteria);
@@ -58,9 +58,25 @@ export class CasafariAdapter implements PortalAdapter {
         console.log(`[CASAFARI] Batch ${offset / batchSize + 1}: ${data.results.length} listings (${data.count} total available)`);
 
         // Transform Casafari results to our PropertyListing format
-        const batchListings: PropertyListing[] = data.results
+        let batchListings: PropertyListing[] = data.results
           .filter(r => r.operations.includes('sale')) // Only sale listings
           .map(result => this.transformResult(result));
+
+        // Additional client-side filters (if not supported by API)
+        if (criteria.privateOnly) {
+          const beforeFilter = batchListings.length;
+          batchListings = batchListings.filter(listing => listing.ownerType === 'private');
+          console.log(`[CASAFARI] Private filter: ${beforeFilter} → ${batchListings.length} listings`);
+        }
+
+        if (criteria.sourceFilter) {
+          const beforeFilter = batchListings.length;
+          const sourceFilter = criteria.sourceFilter.toLowerCase();
+          batchListings = batchListings.filter(listing => 
+            listing.url?.toLowerCase().includes(sourceFilter)
+          );
+          console.log(`[CASAFARI] Source filter (${criteria.sourceFilter}): ${beforeFilter} → ${batchListings.length} listings`);
+        }
 
         allListings.push(...batchListings);
 
@@ -124,7 +140,7 @@ export class CasafariAdapter implements PortalAdapter {
     }
   }
 
-  private async getOrCreateFeed(criteria: SearchCriteria): Promise<number> {
+  private async getOrCreateFeed(criteria: SearchCriteria & { privateOnly?: boolean }): Promise<number> {
     const client = await this.getClient();
 
     // Generate a cache key from search criteria
@@ -143,7 +159,7 @@ export class CasafariAdapter implements PortalAdapter {
     
     // Create new feed
     const feedPayload: FeedPayload = {
-      name: `Auto: ${criteria.city} ${criteria.zone || ''} (${criteria.propertyType || 'any'})`,
+      name: `Auto: ${criteria.city} ${criteria.zone || ''} (${criteria.propertyType || 'any'})${criteria.privateOnly ? ' [PRIVATE ONLY]' : ''}`,
       filter: {
         operation: 'sale',
         types: [criteria.propertyType === 'house' ? 'house' : 'apartment'],
@@ -151,12 +167,14 @@ export class CasafariAdapter implements PortalAdapter {
         ...(criteria.minPrice && { price_from: criteria.minPrice }),
         ...(criteria.minSize && { total_area_from: criteria.minSize }),
         ...(criteria.maxSize && { total_area_to: criteria.maxSize }),
-        ...(criteria.bedrooms && { bedrooms_from: criteria.bedrooms })
+        ...(criteria.bedrooms && { bedrooms_from: criteria.bedrooms }),
+        // Add private seller filter if requested
+        ...(criteria.privateOnly && { is_private_property: true })
         // Geographic filtering not available - searches all of Italy
       }
     };
 
-    console.log(`[CASAFARI] Creating feed for ${criteria.zone || criteria.city} (no geographic filter available)`);
+    console.log(`[CASAFARI] Creating feed for ${criteria.zone || criteria.city}${criteria.privateOnly ? ' (PRIVATE ONLY)' : ''} (no geographic filter available)`);
     const feed = await client.createFeed(feedPayload);
     console.log(`[CASAFARI] Created feed #${feed.id}: ${feed.name}`);
 
@@ -166,7 +184,7 @@ export class CasafariAdapter implements PortalAdapter {
     return feed.id;
   }
 
-  private getCacheKey(criteria: SearchCriteria): string {
+  private getCacheKey(criteria: SearchCriteria & { privateOnly?: boolean; sourceFilter?: string }): string {
     return JSON.stringify({
       city: criteria.city,
       zone: criteria.zone,
@@ -175,7 +193,9 @@ export class CasafariAdapter implements PortalAdapter {
       priceMax: criteria.maxPrice,
       sizeMin: criteria.minSize,
       sizeMax: criteria.maxSize,
-      bedrooms: criteria.bedrooms
+      bedrooms: criteria.bedrooms,
+      privateOnly: criteria.privateOnly,
+      sourceFilter: criteria.sourceFilter
     });
   }
 

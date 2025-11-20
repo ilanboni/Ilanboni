@@ -5132,6 +5132,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NEW: Import ONLY private properties from Idealista via Casafari API
+  app.post("/api/casafari/import-idealista-private", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/casafari/import-idealista-private] 🏠 Importing private Idealista properties via Casafari...');
+      
+      const maxPrice = req.body?.maxPrice || 1000000;
+      const minSize = req.body?.minSize || 50;
+      
+      // Import the Casafari adapter
+      const { CasafariAdapter } = await import('./services/adapters/casafariAdapter');
+      const adapter = new CasafariAdapter();
+      
+      // Search for private properties from Idealista
+      const listings = await adapter.search({
+        city: 'milano',
+        maxPrice,
+        minSize,
+        privateOnly: true,        // ✅ Only private sellers
+        sourceFilter: 'idealista' // ✅ Only from Idealista
+      });
+      
+      console.log(`[POST /api/casafari/import-idealista-private] ✅ Found ${listings.length} private Idealista properties via Casafari`);
+      
+      // Import and save to database
+      let imported = 0;
+      let updated = 0;
+      let skipped = 0;
+      
+      for (const listing of listings) {
+        try {
+          // Check if property already exists (by Casafari's external ID)
+          const existing = await db.select()
+            .from(properties)
+            .where(and(
+              eq(properties.externalId, listing.externalId),
+              eq(properties.source, 'casafari')
+            ))
+            .limit(1);
+          
+          if (existing.length > 0) {
+            // Update existing property
+            await db.update(properties)
+              .set({
+                price: listing.price,
+                description: listing.description,
+                ownerType: listing.ownerType, // Already 'private' from Casafari
+                agencyName: listing.agencyName,
+                updatedAt: new Date()
+              })
+              .where(eq(properties.id, existing[0].id));
+            updated++;
+          } else {
+            // Insert new property
+            await db.insert(properties).values({
+              externalId: listing.externalId,
+              address: listing.address,
+              city: listing.city,
+              price: listing.price,
+              size: listing.size,
+              bedrooms: listing.bedrooms,
+              bathrooms: listing.bathrooms,
+              floor: listing.floor,
+              type: listing.type as any,
+              description: listing.description,
+              url: listing.url,
+              externalLink: listing.url,
+              source: 'casafari',
+              ownerType: listing.ownerType, // Already 'private' from Casafari
+              agencyName: listing.agencyName,
+              status: 'available'
+            });
+            imported++;
+          }
+        } catch (error) {
+          console.error(`[import-idealista-private] Failed to save property ${listing.externalId}:`, error);
+          skipped++;
+        }
+      }
+      
+      // Cleanup Casafari feeds
+      await adapter.cleanup();
+      
+      console.log(`[POST /api/casafari/import-idealista-private] 📊 Results: ${imported} imported, ${updated} updated, ${skipped} skipped`);
+      
+      res.json({
+        success: true,
+        totalFetched: listings.length,
+        imported,
+        updated,
+        skipped,
+        source: 'casafari',
+        filter: 'private + idealista',
+        message: `Imported ${listings.length} private properties from Idealista via Casafari`
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/casafari/import-idealista-private]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Casafari import failed' 
+      });
+    }
+  });
+
   // Get properties matching buyer's criteria (filters from database instead of scraping)
   app.get("/api/properties/for-buyer/:clientId", async (req: Request, res: Response) => {
     try {
