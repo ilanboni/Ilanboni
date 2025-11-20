@@ -45,17 +45,31 @@ export class IdealistaPlaywrightAdapter implements PortalAdapter {
       await page.setViewportSize({ width: 1920, height: 1080 });
 
       await page.goto(searchUrl, {
-        waitUntil: 'domcontentloaded',
+        waitUntil: 'networkidle',  // Wait for all network requests to finish
         timeout: PAGE_TIMEOUT
       });
 
-      await page.waitForTimeout(2000);
+      // Wait longer for JavaScript to execute
+      await page.waitForTimeout(5000);
 
+      // Accept cookies if present
       const acceptCookies = page.locator('button:has-text("Accetta")').first();
       if (await acceptCookies.count() > 0) {
         await acceptCookies.click().catch(() => {});
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(2000);
       }
+
+      // Save HTML for debugging
+      const html = await page.content();
+      const fs = await import('fs');
+      const debugPath = '/tmp/idealista-debug.html';
+      fs.writeFileSync(debugPath, html);
+      console.log(`[IDEALISTA-PW] Saved page HTML to ${debugPath} (${html.length} chars)`);
+      
+      // Also save a screenshot
+      const screenshotPath = '/tmp/idealista-debug.png';
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      console.log(`[IDEALISTA-PW] Saved screenshot to ${screenshotPath}`);
 
       const listings = await this.extractListings(page);
       console.log(`[IDEALISTA-PW] Found ${listings.length} listings`);
@@ -106,20 +120,13 @@ export class IdealistaPlaywrightAdapter implements PortalAdapter {
   }
 
   private buildSearchUrl(criteria: SearchCriteria): string {
-    const parts: string[] = [IDEALISTA_BASE_URL];
-    
-    parts.push('vendita-case');
-    
-    if (criteria.city) {
-      parts.push(criteria.city.toLowerCase().replace(/\s+/g, '-'));
-    }
-    
-    parts.push('con-appartamenti');
-    let url = parts.join('/') + '/';
+    // Use Idealista's exact URL format for Milano with private-only filter
+    // Format: https://www.idealista.it/vendita-case/milano-milano/?ordine=da-privati-asc
+    let url = `${IDEALISTA_BASE_URL}/vendita-case/milano-milano/`;
 
     const params: string[] = [];
 
-    // CRITICAL: Add private-only filter
+    // CRITICAL: Add private-only filter (MUST be first parameter)
     params.push('ordine=da-privati-asc');
     
     if (criteria.maxPrice) {
