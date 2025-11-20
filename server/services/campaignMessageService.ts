@@ -143,40 +143,58 @@ export async function generateAIPoweredMessage(
     const systemPrompt = `Sei un assistente AI che aiuta agenti immobiliari a scrivere messaggi WhatsApp personalizzati per proprietari privati.
 
 Il tuo compito è generare un messaggio:
-1. Breve e conciso (max 200 caratteri)
-2. Professionale ma amichevole
-3. Che rispecchia il tono della descrizione originale dell'immobile
-4. Include alcune caratteristiche chiave dell'immobile per dimostrare interesse genuino
-5. In italiano
+1. Breve e conversazionale (max 250 caratteri)
+2. Professionale ma amichevole e naturale
+3. CRITICO: Analizza la descrizione originale e identifica le caratteristiche che il proprietario ha evidenziato come importanti
+4. Riprendi quelle stesse caratteristiche nel messaggio, dimostrando che le hai notate e apprezzate
+5. Usa un linguaggio naturale, come se stessi commentando specificamente quello che hai visto nell'annuncio
+6. In italiano
+
+ESEMPI di feature mirroring:
+- Se descrizione dice "luminoso e ristrutturato" → "sono rimasto impressionato dalla luminosità e dal fatto che sia già pronto per essere abitato"
+- Se descrizione dice "balcone vista parco" → "in particolare mi ha colpito il balcone con vista sul verde"
+- Se descrizione dice "silenzioso, zona tranquilla" → "ho notato che è in una zona molto tranquilla, perfetto per i miei clienti"
 
 NON includere:
 - Saluti formali eccessivi
-- Richieste di appuntamento immediate
-- Pressioni commerciali`;
+- Frasi generiche tipo "bel immobile"
+- Richieste di appuntamento immediate`;
 
     const userPrompt = baseTemplate
       ? `Template base: ${baseTemplate}
 
-Descrizione immobile originale: ${propertyDescription}
+Descrizione immobile ORIGINALE (analizza bene per identificare le caratteristiche evidenziate dal proprietario): 
+${propertyDescription}
 
-Caratteristiche:
+Caratteristiche tecniche:
 - Indirizzo: ${variables.address}
 - Tipologia: ${variables.propertyType}
 - Prezzo: ${variables.price}
 - Dimensione: ${variables.size}
 ${variables.rooms ? `- Locali: ${variables.rooms}` : ""}
 
-Genera un messaggio personalizzato basato sul template che rispecchi il tono della descrizione originale.`
-      : `Descrizione immobile originale: ${propertyDescription}
+IMPORTANTE: 
+1. Prima identifica quali caratteristiche il proprietario ha evidenziato nella descrizione originale (es: luminoso, ristrutturato, vista, balcone, silenzioso, ecc.)
+2. Poi genera il messaggio riprendendo QUELLE SPECIFICHE caratteristiche con parole tue, come se le avessi notate tu stesso
+3. Usa il template base come struttura ma personalizza fortemente con le feature identificate
 
-Caratteristiche:
+Genera il messaggio personalizzato.`
+      : `Descrizione immobile ORIGINALE (analizza bene per identificare le caratteristiche evidenziate dal proprietario): 
+${propertyDescription}
+
+Caratteristiche tecniche:
 - Indirizzo: ${variables.address}
 - Tipologia: ${variables.propertyType}
 - Prezzo: ${variables.price}
 - Dimensione: ${variables.size}
 ${variables.rooms ? `- Locali: ${variables.rooms}` : ""}
 
-Genera un messaggio WhatsApp personalizzato che rispecchi il tono della descrizione originale.`;
+IMPORTANTE: 
+1. Prima identifica quali caratteristiche il proprietario ha evidenziato nella descrizione originale (es: luminoso, ristrutturato, vista, balcone, silenzioso, ecc.)
+2. Poi genera il messaggio riprendendo QUELLE SPECIFICHE caratteristiche con parole tue, come se le avessi notate tu stesso
+3. Dimostra che hai letto l'annuncio con attenzione
+
+Genera il messaggio WhatsApp personalizzato.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
