@@ -754,6 +754,105 @@ export const insertPropertyAttachmentSchema = createInsertSchema(propertyAttachm
 export type PropertyAttachment = typeof propertyAttachments.$inferSelect;
 export type InsertPropertyAttachment = z.infer<typeof insertPropertyAttachmentSchema>;
 
+// Tabella per tracking contatti WhatsApp privati (anti-duplicazione)
+export const privateContactTracking = pgTable("private_contact_tracking", {
+  id: serial("id").primaryKey(),
+  phoneNumber: text("phone_number").notNull().unique(), // Numero normalizzato (es: 393123456789)
+  propertyId: integer("property_id").references(() => properties.id), // Ultima proprietà per cui è stato contattato
+  firstContactedAt: timestamp("first_contacted_at").defaultNow().notNull(),
+  lastContactedAt: timestamp("last_contacted_at").defaultNow().notNull(),
+  contactCount: integer("contact_count").default(1).notNull(), // Contatore contatti totali
+  lastCampaignId: integer("last_campaign_id"), // ID ultima campagna
+  status: text("status").default("active").notNull(), // "active", "do_not_contact", "responded", "converted"
+  notes: text("notes"), // Note agente
+  metadata: jsonb("metadata") // { propertyIds: [], campaignIds: [], lastResponse: "", etc. }
+}, (table) => ({
+  phoneIdx: uniqueIndex("private_contact_tracking_phone_idx").on(table.phoneNumber)
+}));
+
+export const insertPrivateContactTrackingSchema = createInsertSchema(privateContactTracking)
+  .omit({ id: true, firstContactedAt: true, lastContactedAt: true });
+
+export type PrivateContactTracking = typeof privateContactTracking.$inferSelect;
+export type InsertPrivateContactTracking = z.infer<typeof insertPrivateContactTrackingSchema>;
+
+// Campagne WhatsApp per privati
+export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // Nome campagna (es: "Milano Zona 1 - Nov 2025")
+  template: text("template").notNull(), // Template messaggio con variabili {{name}}, {{address}}, etc.
+  instructions: text("instructions"), // Istruzioni per il bot ChatGPT
+  followUpTemplate: text("followup_template"), // Template follow-up
+  followUpDelayDays: integer("followup_delay_days").default(3), // Giorni prima del follow-up
+  status: text("status").default("draft").notNull(), // "draft", "active", "paused", "completed"
+  totalTargets: integer("total_targets").default(0), // Totale destinatari
+  sentCount: integer("sent_count").default(0), // Messaggi inviati
+  respondedCount: integer("responded_count").default(0), // Risposte ricevute
+  convertedCount: integer("converted_count").default(0), // Conversioni (appuntamenti, ecc.)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  metadata: jsonb("metadata") // { filters: {}, settings: {}, stats: {} }
+});
+
+export const insertWhatsappCampaignSchema = createInsertSchema(whatsappCampaigns)
+  .omit({ id: true, createdAt: true });
+
+export type WhatsappCampaign = typeof whatsappCampaigns.$inferSelect;
+export type InsertWhatsappCampaign = z.infer<typeof insertWhatsappCampaignSchema>;
+
+// Messaggi campagna (tracking individuale per ogni destinatario)
+export const campaignMessages = pgTable("campaign_messages", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => whatsappCampaigns.id, { onDelete: 'cascade' }),
+  propertyId: integer("property_id").notNull().references(() => properties.id),
+  phoneNumber: text("phone_number").notNull(), // Numero destinatario
+  ownerName: text("owner_name"), // Nome estratto dall'annuncio
+  messageContent: text("message_content").notNull(), // Messaggio personalizzato inviato
+  status: text("status").default("pending").notNull(), // "pending", "sent", "delivered", "read", "responded", "failed"
+  sentAt: timestamp("sent_at"),
+  deliveredAt: timestamp("delivered_at"),
+  readAt: timestamp("read_at"),
+  respondedAt: timestamp("responded_at"),
+  response: text("response"), // Prima risposta ricevuta
+  followUpSent: boolean("followup_sent").default(false),
+  followUpSentAt: timestamp("followup_sent_at"),
+  followUpResponse: text("followup_response"),
+  conversationActive: boolean("conversation_active").default(false), // Bot conversazionale attivo
+  lastBotMessage: text("last_bot_message"), // Ultimo messaggio bot
+  lastBotMessageAt: timestamp("last_bot_message_at"),
+  errorMessage: text("error_message"), // Eventuali errori
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  metadata: jsonb("metadata") // { propertyDetails: {}, extractedInfo: {}, botContext: {} }
+}, (table) => ({
+  campaignPhoneIdx: index("campaign_messages_campaign_phone_idx").on(table.campaignId, table.phoneNumber)
+}));
+
+export const insertCampaignMessageSchema = createInsertSchema(campaignMessages)
+  .omit({ id: true, createdAt: true });
+
+export type CampaignMessage = typeof campaignMessages.$inferSelect;
+export type InsertCampaignMessage = z.infer<typeof insertCampaignMessageSchema>;
+
+// Log conversazioni bot (per analisi e miglioramento)
+export const botConversationLogs = pgTable("bot_conversation_logs", {
+  id: serial("id").primaryKey(),
+  campaignMessageId: integer("campaign_message_id").notNull().references(() => campaignMessages.id, { onDelete: 'cascade' }),
+  phoneNumber: text("phone_number").notNull(),
+  userMessage: text("user_message").notNull(), // Messaggio utente
+  botResponse: text("bot_response").notNull(), // Risposta bot
+  intent: text("intent"), // Intent riconosciuto (es: "schedule_visit", "ask_price", "not_interested")
+  confidence: integer("confidence"), // Confidence score 0-100
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  metadata: jsonb("metadata") // { context: {}, extracted: {}, model: "gpt-4" }
+});
+
+export const insertBotConversationLogSchema = createInsertSchema(botConversationLogs)
+  .omit({ id: true, timestamp: true });
+
+export type BotConversationLog = typeof botConversationLogs.$inferSelect;
+export type InsertBotConversationLog = z.infer<typeof insertBotConversationLogSchema>;
+
 // Schema per validazione request body "send property to client"
 export const sendPropertyToClientSchema = z.object({
   clientId: z.number().int().positive(),
