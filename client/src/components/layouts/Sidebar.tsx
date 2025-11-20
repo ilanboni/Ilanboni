@@ -81,6 +81,7 @@ export default function Sidebar({ className }: SidebarProps) {
         <SidebarLink to="/apify/automation" icon="fas fa-magic">Automazione Apify</SidebarLink>
         <SidebarLink to="/reports/acquisitions" icon="fas fa-file-contract">Report Acquisizione</SidebarLink>
         <SidebarLink to="/assistente" icon="fas fa-robot">Assistente Virtuale</SidebarLink>
+        <SidebarLink to="/whatsapp-campaigns" icon="fas fa-paper-plane">Campagne WhatsApp Bot</SidebarLink>
         <SidebarLink to="/mail-merge" icon="fas fa-mail-bulk">Mail Merge Proprietari</SidebarLink>
         <SidebarLink to="/email-processor" icon="fas fa-envelope-open-text">Email Immobiliare.it</SidebarLink>
         <SidebarLink to="/settings/whatsapp-diagnostic" icon="fab fa-whatsapp">Diagnostica WhatsApp</SidebarLink>
