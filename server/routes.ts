@@ -49,6 +49,10 @@ import { z } from "zod";
 import OpenAI from "openai";
 import { summarizeText } from "./lib/openai";
 import { renderAuthPage, handleOAuthCallback, renderConfigPage } from "./oauth-helper";
+import * as phoneDedup from "./services/phoneDeduplication";
+import * as campaignMessageService from "./services/campaignMessageService";
+import * as chatbotService from "./services/chatbotService";
+import * as campaignFollowupService from "./services/campaignFollowupService";
 
 // Inizializza OpenAI
 const openai = new OpenAI({ 
@@ -12643,6 +12647,362 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
       res.status(500).json({
         ok: false,
         error: 'Errore durante generazione report',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * ============================================================================
+   * WHATSAPP CAMPAIGN ENDPOINTS - Bot Conversazionale per Proprietari Privati
+   * ============================================================================
+   */
+
+  /**
+   * POST /api/whatsapp-campaigns
+   * Crea nuova campagna WhatsApp
+   */
+  app.post('/api/whatsapp-campaigns', async (req: Request, res: Response) => {
+    try {
+      const campaign = await storage.createWhatsappCampaign(req.body);
+      res.json({ ok: true, campaign });
+    } catch (error) {
+      console.error('[POST /api/whatsapp-campaigns] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante creazione campagna',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * GET /api/whatsapp-campaigns
+   * Lista tutte le campagne WhatsApp
+   */
+  app.get('/api/whatsapp-campaigns', async (req: Request, res: Response) => {
+    try {
+      const campaigns = await storage.getAllWhatsappCampaigns();
+      
+      // Aggiungi statistiche per ogni campagna
+      const campaignsWithStats = await Promise.all(
+        campaigns.map(async (campaign) => {
+          const stats = await campaignFollowupService.getFollowUpStats(campaign.id);
+          return {
+            ...campaign,
+            stats
+          };
+        })
+      );
+
+      res.json({ ok: true, campaigns: campaignsWithStats });
+    } catch (error) {
+      console.error('[GET /api/whatsapp-campaigns] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante recupero campagne',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * GET /api/whatsapp-campaigns/:id
+   * Dettagli campagna singola
+   */
+  app.get('/api/whatsapp-campaigns/:id', async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaign = await storage.getWhatsappCampaign(campaignId);
+      
+      if (!campaign) {
+        return res.status(404).json({ ok: false, error: 'Campagna non trovata' });
+      }
+
+      const stats = await campaignFollowupService.getFollowUpStats(campaignId);
+      const messages = await storage.getCampaignMessagesByCampaign(campaignId);
+
+      res.json({ 
+        ok: true, 
+        campaign: {
+          ...campaign,
+          stats,
+          messages
+        }
+      });
+    } catch (error) {
+      console.error('[GET /api/whatsapp-campaigns/:id] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante recupero campagna',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * PATCH /api/whatsapp-campaigns/:id
+   * Aggiorna campagna
+   */
+  app.patch('/api/whatsapp-campaigns/:id', async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const campaign = await storage.updateWhatsappCampaign(campaignId, req.body);
+      res.json({ ok: true, campaign });
+    } catch (error) {
+      console.error('[PATCH /api/whatsapp-campaigns/:id] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante aggiornamento campagna',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/whatsapp-campaigns/:id/validate-template
+   * Valida template messaggio campagna
+   */
+  app.post('/api/whatsapp-campaigns/:id/validate-template', async (req: Request, res: Response) => {
+    try {
+      const { template } = req.body;
+      
+      if (!template) {
+        return res.status(400).json({ ok: false, error: 'Template mancante' });
+      }
+
+      const validation = campaignMessageService.validateTemplate(template);
+      res.json({ 
+        ok: true, 
+        validation 
+      });
+    } catch (error) {
+      console.error('[POST /api/whatsapp-campaigns/:id/validate-template] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante validazione template',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/whatsapp-campaigns/:id/send
+   * Invia messaggi campagna a proprietà selezionate
+   */
+  app.post('/api/whatsapp-campaigns/:id/send', async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      const { propertyIds } = req.body;
+
+      if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
+        return res.status(400).json({ ok: false, error: 'Lista proprietà mancante o vuota' });
+      }
+
+      const campaign = await storage.getWhatsappCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ ok: false, error: 'Campagna non trovata' });
+      }
+
+      const results = {
+        sent: 0,
+        skipped: 0,
+        failed: 0,
+        errors: [] as string[]
+      };
+
+      // Processa ogni proprietà
+      for (const propertyId of propertyIds) {
+        try {
+          const property = await storage.getProperty(propertyId);
+          if (!property) {
+            results.skipped++;
+            results.errors.push(`Proprietà ${propertyId} non trovata`);
+            continue;
+          }
+
+          if (!property.ownerPhone) {
+            results.skipped++;
+            results.errors.push(`Proprietà ${propertyId} senza numero telefono`);
+            continue;
+          }
+
+          // Verifica deduplicazione
+          const canContact = await phoneDedup.isPhoneContactable(property.ownerPhone);
+          if (!canContact) {
+            results.skipped++;
+            results.errors.push(`Telefono ${property.ownerPhone} già contattato recentemente`);
+            continue;
+          }
+
+          // Genera messaggio personalizzato
+          const messageContent = campaign.useAiPersonalization
+            ? await campaignMessageService.generatePersonalizedMessage(campaign.messageTemplate, property)
+            : campaignMessageService.renderTemplate(
+                campaign.messageTemplate,
+                campaignMessageService.extractVariablesFromProperty(property)
+              );
+
+          // Crea record messaggio
+          const campaignMessage = await storage.createCampaignMessage({
+            campaignId: campaign.id,
+            propertyId: property.id,
+            phoneNumber: property.ownerPhone,
+            messageContent,
+            status: 'pending',
+            conversationActive: true
+          });
+
+          // TODO: Invia via WhatsApp (UltraMsg integration)
+          // Per ora, marca come "sent"
+          await storage.updateCampaignMessage(campaignMessage.id, {
+            status: 'sent',
+            sentAt: new Date()
+          });
+
+          // Traccia contatto
+          await phoneDedup.trackContact(property.ownerPhone, propertyId, campaign.id);
+
+          results.sent++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push(`Errore proprietà ${propertyId}: ${error instanceof Error ? error.message : 'Unknown'}`);
+        }
+      }
+
+      // Aggiorna statistiche campagna
+      await storage.updateWhatsappCampaign(campaignId, {
+        sentCount: (campaign.sentCount || 0) + results.sent,
+        status: results.sent > 0 ? 'active' : campaign.status
+      });
+
+      res.json({ 
+        ok: true, 
+        results 
+      });
+    } catch (error) {
+      console.error('[POST /api/whatsapp-campaigns/:id/send] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante invio messaggi',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/whatsapp-campaigns/chatbot/message
+   * Processa messaggio ricevuto da proprietario (webhook WhatsApp)
+   */
+  app.post('/api/whatsapp-campaigns/chatbot/message', async (req: Request, res: Response) => {
+    try {
+      const { campaignMessageId, phoneNumber, message } = req.body;
+
+      if (!campaignMessageId || !phoneNumber || !message) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: 'Parametri mancanti: campaignMessageId, phoneNumber, message richiesti' 
+        });
+      }
+
+      // Verifica se bot è attivo per questo messaggio
+      const isActive = await chatbotService.isBotActiveForMessage(campaignMessageId);
+      if (!isActive) {
+        return res.json({ 
+          ok: true, 
+          botActive: false,
+          message: 'Bot non attivo per questa conversazione' 
+        });
+      }
+
+      // Processa messaggio e genera risposta bot
+      const botResponse = await chatbotService.processChatbotMessage(
+        campaignMessageId,
+        phoneNumber,
+        message
+      );
+
+      // TODO: Invia risposta bot via WhatsApp (UltraMsg integration)
+
+      res.json({ 
+        ok: true, 
+        botActive: true,
+        botResponse 
+      });
+    } catch (error) {
+      console.error('[POST /api/whatsapp-campaigns/chatbot/message] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante processamento messaggio bot',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * GET /api/whatsapp-campaigns/messages/:id/conversation
+   * Ottieni storico conversazione per un messaggio
+   */
+  app.get('/api/whatsapp-campaigns/messages/:id/conversation', async (req: Request, res: Response) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      const logs = await storage.getBotConversationLogs(messageId);
+
+      res.json({ 
+        ok: true, 
+        conversation: logs 
+      });
+    } catch (error) {
+      console.error('[GET /api/whatsapp-campaigns/messages/:id/conversation] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante recupero conversazione',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/whatsapp-campaigns/followup/process
+   * Processa follow-up schedulati (da chiamare via cron)
+   */
+  app.post('/api/whatsapp-campaigns/followup/process', async (req: Request, res: Response) => {
+    try {
+      const results = await campaignFollowupService.processScheduledFollowUps();
+      res.json({ 
+        ok: true, 
+        results 
+      });
+    } catch (error) {
+      console.error('[POST /api/whatsapp-campaigns/followup/process] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante processamento follow-up',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * GET /api/whatsapp-campaigns/contact-tracking/:phone
+   * Verifica status tracking per un numero telefono
+   */
+  app.get('/api/whatsapp-campaigns/contact-tracking/:phone', async (req: Request, res: Response) => {
+    try {
+      const phone = req.params.phone;
+      const tracking = await storage.getPrivateContactTracking(phone);
+      const canContact = await phoneDedup.isPhoneContactable(phone);
+
+      res.json({ 
+        ok: true, 
+        tracking,
+        canContact
+      });
+    } catch (error) {
+      console.error('[GET /api/whatsapp-campaigns/contact-tracking/:phone] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante verifica tracking',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
