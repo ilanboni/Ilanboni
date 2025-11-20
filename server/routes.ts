@@ -12851,20 +12851,19 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           }
 
           // Verifica deduplicazione
-          const canContact = await phoneDedup.isPhoneContactable(property.ownerPhone);
-          if (!canContact) {
+          const contactCheck = await phoneDedup.canRecontactPhone(property.ownerPhone, 30);
+          if (!contactCheck.canContact) {
             results.skipped++;
-            results.errors.push(`Telefono ${property.ownerPhone} già contattato recentemente`);
+            results.errors.push(`Telefono ${property.ownerPhone}: ${contactCheck.reason || 'già contattato recentemente'}`);
             continue;
           }
 
           // Genera messaggio personalizzato
-          const messageContent = campaign.useAiPersonalization
-            ? await campaignMessageService.generatePersonalizedMessage(campaign.messageTemplate, property)
-            : campaignMessageService.renderTemplate(
-                campaign.messageTemplate,
-                campaignMessageService.extractVariablesFromProperty(property)
-              );
+          const messageContent = await campaignMessageService.generateCampaignMessage(
+            property,
+            campaign.template, // Usa template, non messageTemplate (campo DB)
+            false // TODO: usare campaign.useAiPersonalization quando disponibile in schema
+          );
 
           // Crea record messaggio
           const campaignMessage = await storage.createCampaignMessage({

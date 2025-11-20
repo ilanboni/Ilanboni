@@ -102,6 +102,11 @@ export function renderTemplate(
   template: string,
   variables: TemplateVariables
 ): string {
+  if (!template) {
+    console.error('[renderTemplate] Template nullo o indefinito');
+    return '';
+  }
+  
   let rendered = template;
 
   Object.keys(variables).forEach((key) => {
