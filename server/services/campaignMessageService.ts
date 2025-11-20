@@ -166,30 +166,35 @@ export async function extractKeyFeatures(
 COMPITO:
 Leggi la descrizione dell'immobile e identifica le 2-3 caratteristiche PRINCIPALI che il proprietario ha evidenziato.
 
-REGOLE:
+REGOLE CRITICHE:
 1. Estrai SOLO 2-3 caratteristiche chiave (non tutto)
 2. Usa le ESATTE parole del proprietario (feature mirroring)
-3. Formato: "caratteristica1, caratteristica2, caratteristica3"
-4. Breve e naturale (max 80 caratteri totali)
+3. FORMATO OBBLIGATORIO: "il/la/l' caratteristica1, il/la/l' caratteristica2, il/la/l' caratteristica3"
+4. SEMPRE con articolo determinativo (il, la, l')
 5. In minuscolo
-6. In italiano
+6. Breve e naturale (max 100 caratteri totali)
+7. In italiano
 
-ESEMPI CORRETTI:
+ESEMPI CORRETTI (nota l'articolo determinativo):
 - Descrizione: "...appartamento luminoso e ristrutturato con balcone vista parco..."
-  OUTPUT: "luminosità, ristrutturazione completa, balcone con vista"
+  OUTPUT: "la luminosità, la ristrutturazione recente, il balcone con vista"
 
 - Descrizione: "...grande terrazzo mansardato... molto luminoso e silenzioso... completamente arredato..."
-  OUTPUT: "grande terrazzo mansardato, luminosità e silenziosità, arredamento completo"
+  OUTPUT: "il grande terrazzo mansardato, la luminosità e silenziosità, l'arredamento completo"
 
 - Descrizione: "...box e cantina inclusi... teleriscaldamento... vicino metro..."
-  OUTPUT: "box e cantina inclusi, teleriscaldamento, vicinanza metro"
+  OUTPUT: "il box e la cantina inclusi, il teleriscaldamento, la vicinanza alla metro"
 
-IMPORTANTE: Restituisci SOLO la lista di caratteristiche, niente altro.`;
+ERRORE DA EVITARE:
+❌ "grande terrazzo, luminosità, arredamento" (senza articoli)
+✅ "il grande terrazzo, la luminosità, l'arredamento" (con articoli)
+
+IMPORTANTE: Restituisci SOLO la lista di caratteristiche CON ARTICOLI, niente altro.`;
 
     const userPrompt = `Descrizione immobile:
 ${propertyDescription}
 
-Identifica ed estrai le 2-3 caratteristiche principali in formato: "caratteristica1, caratteristica2, caratteristica3"`;
+Identifica ed estrai le 2-3 caratteristiche principali in formato con articoli: "il/la/l' caratteristica1, il/la/l' caratteristica2, il/la/l' caratteristica3"`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
