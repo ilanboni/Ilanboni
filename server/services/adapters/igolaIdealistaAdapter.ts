@@ -22,13 +22,17 @@ export class IgolaIdealistaAdapter {
     console.log('[IGOLA-IDEALISTA] Private only filter:', params.privateOnly !== false);
 
     try {
-      // Prepare input for igolaizola actor
-      // NOTE: This actor only accepts 'location' and 'maxItems' parameters
-      // It does NOT support 'operation' or 'propertyType' filters
+      // Prepare input for igolaizola actor with full parameters
+      // Try using "city-city" format for more results (e.g., "milano-milano")
+      const locationFormat = `${params.city.toLowerCase()}-${params.city.toLowerCase()}`;
       const input = {
-        location: params.city,
+        country: 'it',
+        location: locationFormat,
+        operation: 'sale',
+        propertyType: 'homes',
+        homeType: ['flat', 'apartment', 'penthouse', 'duplex', 'loft'],
         maxItems: params.maxItems || 100,
-        fetchDetails: false // Beta feature - set to false for now
+        fetchDetails: false
       };
 
       console.log('[IGOLA-IDEALISTA] Starting actor with input:', JSON.stringify(input, null, 2));
