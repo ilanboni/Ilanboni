@@ -12875,17 +12875,40 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
             conversationActive: true
           });
 
-          // TODO: Invia via WhatsApp (UltraMsg integration)
-          // Per ora, marca come "sent"
-          await storage.updateCampaignMessage(campaignMessage.id, {
-            status: 'sent',
-            sentAt: new Date()
-          });
-
-          // Traccia contatto
-          await phoneDedup.trackContact(property.ownerPhone, propertyId, campaign.id);
-
-          results.sent++;
+          // Invia via WhatsApp (UltraMsg)
+          try {
+            const { sendWhatsAppMessage } = await import('./lib/ultramsgApi.js');
+            const whatsappResult = await sendWhatsAppMessage(property.ownerPhone, messageContent);
+            
+            if (whatsappResult.success) {
+              console.log(`[CAMPAIGN ${campaignId}] ✅ WhatsApp inviato a ${property.ownerPhone}`);
+              await storage.updateCampaignMessage(campaignMessage.id, {
+                status: 'sent',
+                sentAt: new Date(),
+                metadata: { whatsappMessageId: whatsappResult.messageId }
+              });
+              
+              // Traccia contatto
+              await phoneDedup.trackContact(property.ownerPhone, propertyId, campaign.id);
+              results.sent++;
+            } else {
+              console.error(`[CAMPAIGN ${campaignId}] ❌ Errore invio WhatsApp a ${property.ownerPhone}:`, whatsappResult.error);
+              await storage.updateCampaignMessage(campaignMessage.id, {
+                status: 'failed',
+                metadata: { error: whatsappResult.error }
+              });
+              results.failed++;
+              results.errors.push(`WhatsApp ${property.ownerPhone}: ${whatsappResult.error}`);
+            }
+          } catch (whatsappError) {
+            console.error(`[CAMPAIGN ${campaignId}] ❌ Eccezione invio WhatsApp:`, whatsappError);
+            await storage.updateCampaignMessage(campaignMessage.id, {
+              status: 'failed',
+              metadata: { error: whatsappError instanceof Error ? whatsappError.message : 'Unknown error' }
+            });
+            results.failed++;
+            results.errors.push(`Eccezione WhatsApp ${property.ownerPhone}: ${whatsappError instanceof Error ? whatsappError.message : 'Unknown'}`);
+          }
         } catch (error) {
           results.failed++;
           results.errors.push(`Errore proprietà ${propertyId}: ${error instanceof Error ? error.message : 'Unknown'}`);
@@ -12944,7 +12967,19 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
         message
       );
 
-      // TODO: Invia risposta bot via WhatsApp (UltraMsg integration)
+      // Invia risposta bot via WhatsApp
+      try {
+        const { sendWhatsAppMessage } = await import('./lib/ultramsgApi.js');
+        const whatsappResult = await sendWhatsAppMessage(phoneNumber, botResponse);
+        
+        if (whatsappResult.success) {
+          console.log(`[CHATBOT] ✅ Risposta bot inviata a ${phoneNumber}`);
+        } else {
+          console.error(`[CHATBOT] ❌ Errore invio risposta bot:`, whatsappResult.error);
+        }
+      } catch (whatsappError) {
+        console.error(`[CHATBOT] ❌ Eccezione invio risposta bot:`, whatsappError);
+      }
 
       res.json({ 
         ok: true, 
