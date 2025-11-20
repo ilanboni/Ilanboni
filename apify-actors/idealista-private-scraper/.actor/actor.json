@@ -1,0 +1,32 @@
+{
+  "actorSpecification": 1,
+  "name": "idealista-private-scraper",
+  "title": "Idealista Private Properties Scraper",
+  "description": "Scrapes ONLY private seller properties from Idealista.it using the ordine=da-privati-asc filter. Filters out all agencies to get genuine private sellers in Milano.",
+  "version": "1.0.0",
+  "dockerfile": "./Dockerfile",
+  "readme": "./README.md",
+  "input": "./input_schema.json",
+  "storages": {
+    "dataset": {
+      "actorSpecification": 1,
+      "title": "Private Properties",
+      "views": {
+        "overview": {
+          "title": "Overview",
+          "transformation": {
+            "fields": [
+              "adid",
+              "title",
+              "price",
+              "size",
+              "rooms",
+              "address",
+              "url"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
