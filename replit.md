@@ -3,6 +3,30 @@
 ## Overview
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector, with a focus on comprehensive property data aggregation and intelligent client-property matching.
 
+## WhatsApp Bot Campaign System (Nov 20, 2025)
+**Automated Private Seller Outreach System** - Bot conversazionale AI per contattare proprietari privati su WhatsApp:
+
+**Workflow Completo:**
+1. **Identificazione nuovi annunci**: Sistema notifica giornalmente nuovi annunci privati
+2. **Selezione manuale**: Agente mette nei preferiti gli annunci da contattare
+3. **Generazione messaggio personalizzato**: Template con variabili ({{name}}, {{address}}, {{price}}, ecc.) + AI mirroring
+4. **Invio WhatsApp**: Sistema invia messaggio personalizzato
+5. **Bot conversazionale**: Se risponde, bot AI gestisce conversazione secondo istruzioni agente
+6. **Follow-up automatico**: Se non risponde, follow-up automatico dopo X giorni
+7. **Anti-duplicazione**: Sistema evita doppioni anche se annuncio viene ripubblicato
+
+**Tecnologie:**
+- **Database**: 4 tabelle (private_contact_tracking, whatsapp_campaigns, campaign_messages, bot_conversation_logs)
+- **Deduplicazione**: Sistema anti-spam con tracking telefoni, protezione doppioni, cooldown period
+- **Bot AI**: OpenAI/ChatGPT per conversazioni naturali
+- **Integrazione completa**: Ogni contatto crea automaticamente cliente (seller) + shared_property + comunicazioni tracciate
+
+**Safety Features:**
+- Normalizzazione telefoni (rimuove spazi, trattini, gestisce prefissi internazionali)
+- Status tracking ("active", "do_not_contact", "responded", "converted")
+- Cooldown configurabile tra contatti (default: 30 giorni)
+- Metadata completo per audit trail (propertyIds[], campaignIds[], lastResponse)
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 

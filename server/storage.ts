@@ -17,7 +17,11 @@ import {
   propertyAttachments, type PropertyAttachment, type InsertPropertyAttachment,
   scrapingJobs, type ScrapingJob, type InsertScrapingJob,
   type ClientWithDetails, type PropertyWithDetails, 
-  type SharedPropertyWithDetails
+  type SharedPropertyWithDetails,
+  privateContactTracking, type PrivateContactTracking, type InsertPrivateContactTracking,
+  whatsappCampaigns, type WhatsappCampaign, type InsertWhatsappCampaign,
+  campaignMessages, type CampaignMessage, type InsertCampaignMessage,
+  botConversationLogs, type BotConversationLog, type InsertBotConversationLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql } from "drizzle-orm";
@@ -151,6 +155,28 @@ export interface IStorage {
   getAllScrapingJobs(): Promise<ScrapingJob[]>;
   createScrapingJob(job: InsertScrapingJob): Promise<ScrapingJob>;
   updateScrapingJob(id: number, data: Partial<InsertScrapingJob>): Promise<ScrapingJob | undefined>;
+  
+  // Private contact tracking methods (for WhatsApp campaigns)
+  getPrivateContactTracking(phoneNumber: string): Promise<PrivateContactTracking | undefined>;
+  createPrivateContactTracking(data: InsertPrivateContactTracking): Promise<PrivateContactTracking>;
+  updatePrivateContactTracking(phoneNumber: string, data: Partial<InsertPrivateContactTracking>): Promise<PrivateContactTracking | undefined>;
+  
+  // WhatsApp campaign methods
+  getWhatsappCampaign(id: number): Promise<WhatsappCampaign | undefined>;
+  getAllWhatsappCampaigns(): Promise<WhatsappCampaign[]>;
+  createWhatsappCampaign(campaign: InsertWhatsappCampaign): Promise<WhatsappCampaign>;
+  updateWhatsappCampaign(id: number, data: Partial<InsertWhatsappCampaign>): Promise<WhatsappCampaign | undefined>;
+  
+  // Campaign message methods
+  getCampaignMessage(id: number): Promise<CampaignMessage | undefined>;
+  getCampaignMessagesByPhone(phoneNumber: string): Promise<CampaignMessage[]>;
+  getCampaignMessagesByCampaign(campaignId: number): Promise<CampaignMessage[]>;
+  createCampaignMessage(message: InsertCampaignMessage): Promise<CampaignMessage>;
+  updateCampaignMessage(id: number, data: Partial<InsertCampaignMessage>): Promise<CampaignMessage | undefined>;
+  
+  // Bot conversation log methods
+  createBotConversationLog(log: InsertBotConversationLog): Promise<BotConversationLog>;
+  getBotConversationLogs(campaignMessageId: number): Promise<BotConversationLog[]>;
 }
 
 // In-memory storage implementation
@@ -1701,6 +1727,66 @@ export class MemStorage implements IStorage {
     console.log(`[getMatchingBuyersForSharedProperty] ${matchingBuyers.length} clienti corrispondono alla proprietà condivisa ${sharedPropertyId} dopo tutti i controlli`);
     return matchingBuyers;
   }
+  
+  // Private contact tracking methods (stub - MemStorage not used in production)
+  async getPrivateContactTracking(phoneNumber: string): Promise<PrivateContactTracking | undefined> {
+    return undefined;
+  }
+  
+  async createPrivateContactTracking(data: InsertPrivateContactTracking): Promise<PrivateContactTracking> {
+    return { id: 1, phoneNumber: data.phoneNumber, firstContactedAt: new Date(), lastContactedAt: new Date(), contactCount: 1, status: 'active', ...data} as PrivateContactTracking;
+  }
+  
+  async updatePrivateContactTracking(phoneNumber: string, data: Partial<InsertPrivateContactTracking>): Promise<PrivateContactTracking | undefined> {
+    return undefined;
+  }
+  
+  // WhatsApp campaign methods (stub)
+  async getWhatsappCampaign(id: number): Promise<WhatsappCampaign | undefined> {
+    return undefined;
+  }
+  
+  async getAllWhatsappCampaigns(): Promise<WhatsappCampaign[]> {
+    return [];
+  }
+  
+  async createWhatsappCampaign(campaign: InsertWhatsappCampaign): Promise<WhatsappCampaign> {
+    return { id: 1, createdAt: new Date(), ...campaign } as WhatsappCampaign;
+  }
+  
+  async updateWhatsappCampaign(id: number, data: Partial<InsertWhatsappCampaign>): Promise<WhatsappCampaign | undefined> {
+    return undefined;
+  }
+  
+  // Campaign message methods (stub)
+  async getCampaignMessage(id: number): Promise<CampaignMessage | undefined> {
+    return undefined;
+  }
+  
+  async getCampaignMessagesByPhone(phoneNumber: string): Promise<CampaignMessage[]> {
+    return [];
+  }
+  
+  async getCampaignMessagesByCampaign(campaignId: number): Promise<CampaignMessage[]> {
+    return [];
+  }
+  
+  async createCampaignMessage(message: InsertCampaignMessage): Promise<CampaignMessage> {
+    return { id: 1, createdAt: new Date(), ...message } as CampaignMessage;
+  }
+  
+  async updateCampaignMessage(id: number, data: Partial<InsertCampaignMessage>): Promise<CampaignMessage | undefined> {
+    return undefined;
+  }
+  
+  // Bot conversation log methods (stub)
+  async createBotConversationLog(log: InsertBotConversationLog): Promise<BotConversationLog> {
+    return { id: 1, timestamp: new Date(), ...log } as BotConversationLog;
+  }
+  
+  async getBotConversationLogs(campaignMessageId: number): Promise<BotConversationLog[]> {
+    return [];
+  }
 }
 
 // Export a single storage instance
@@ -3136,6 +3222,133 @@ export class DatabaseStorage implements IStorage {
       .where(eq(scrapingJobs.id, id))
       .returning();
     return result.length > 0 ? result[0] : undefined;
+  }
+  
+  // Private contact tracking methods
+  async getPrivateContactTracking(phoneNumber: string): Promise<PrivateContactTracking | undefined> {
+    const [result] = await db
+      .select()
+      .from(privateContactTracking)
+      .where(eq(privateContactTracking.phoneNumber, phoneNumber))
+      .limit(1);
+    return result;
+  }
+  
+  async createPrivateContactTracking(data: InsertPrivateContactTracking): Promise<PrivateContactTracking> {
+    const [result] = await db
+      .insert(privateContactTracking)
+      .values(data)
+      .returning();
+    return result;
+  }
+  
+  async updatePrivateContactTracking(phoneNumber: string, data: Partial<InsertPrivateContactTracking>): Promise<PrivateContactTracking | undefined> {
+    if (Object.keys(data).length === 0) return undefined;
+    
+    const [result] = await db
+      .update(privateContactTracking)
+      .set(data)
+      .where(eq(privateContactTracking.phoneNumber, phoneNumber))
+      .returning();
+    return result;
+  }
+  
+  // WhatsApp campaign methods
+  async getWhatsappCampaign(id: number): Promise<WhatsappCampaign | undefined> {
+    const [result] = await db
+      .select()
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.id, id))
+      .limit(1);
+    return result;
+  }
+  
+  async getAllWhatsappCampaigns(): Promise<WhatsappCampaign[]> {
+    return await db
+      .select()
+      .from(whatsappCampaigns)
+      .orderBy(desc(whatsappCampaigns.createdAt));
+  }
+  
+  async createWhatsappCampaign(campaign: InsertWhatsappCampaign): Promise<WhatsappCampaign> {
+    const [result] = await db
+      .insert(whatsappCampaigns)
+      .values(campaign)
+      .returning();
+    return result;
+  }
+  
+  async updateWhatsappCampaign(id: number, data: Partial<InsertWhatsappCampaign>): Promise<WhatsappCampaign | undefined> {
+    if (Object.keys(data).length === 0) return undefined;
+    
+    const [result] = await db
+      .update(whatsappCampaigns)
+      .set(data)
+      .where(eq(whatsappCampaigns.id, id))
+      .returning();
+    return result;
+  }
+  
+  // Campaign message methods
+  async getCampaignMessage(id: number): Promise<CampaignMessage | undefined> {
+    const [result] = await db
+      .select()
+      .from(campaignMessages)
+      .where(eq(campaignMessages.id, id))
+      .limit(1);
+    return result;
+  }
+  
+  async getCampaignMessagesByPhone(phoneNumber: string): Promise<CampaignMessage[]> {
+    return await db
+      .select()
+      .from(campaignMessages)
+      .where(eq(campaignMessages.phoneNumber, phoneNumber))
+      .orderBy(desc(campaignMessages.createdAt));
+  }
+  
+  async getCampaignMessagesByCampaign(campaignId: number): Promise<CampaignMessage[]> {
+    return await db
+      .select()
+      .from(campaignMessages)
+      .where(eq(campaignMessages.campaignId, campaignId))
+      .orderBy(desc(campaignMessages.createdAt));
+  }
+  
+  async createCampaignMessage(message: InsertCampaignMessage): Promise<CampaignMessage> {
+    const [result] = await db
+      .insert(campaignMessages)
+      .values(message)
+      .returning();
+    return result;
+  }
+  
+  async updateCampaignMessage(id: number, data: Partial<InsertCampaignMessage>): Promise<CampaignMessage | undefined> {
+    if (Object.keys(data).length === 0) return undefined;
+    
+    const [result] = await db
+      .update(campaignMessages)
+      .set(data)
+      .where(eq(campaignMessages.id, id))
+      .returning();
+    return result;
+  }
+  
+  // Bot conversation log methods
+  async createBotConversationLog(log: InsertBotConversationLog): Promise<BotConversationLog> {
+    const [result] = await db
+      .insert(botConversationLogs)
+      .values(log)
+      .returning();
+    return result;
+  }
+  
+  async getBotConversationLogs(campaignMessageId: number): Promise<BotConversationLog[]> {
+    return await db
+      .select()
+      .from(botConversationLogs)
+      .where(eq(botConversationLogs.campaignMessageId, campaignMessageId))
+      .orderBy(botConversationLogs.timestamp);
   }
 }
 
