@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { db } from "../db";
 import { eq, and, desc } from "drizzle-orm";
-import { communications, properties, clients, sharedProperties } from "@shared/schema";
+import { communications, properties, clients, sharedProperties, whatsappCampaigns, campaignMessages } from "@shared/schema";
 import { sendWhatsAppMessage } from "../lib/ultramsgApi";
 import { ChatCompletionMessageParam } from "openai/resources";
 
@@ -102,6 +102,36 @@ export async function handleClientMessage(
 }
 
 /**
+ * Verifica se il messaggio contiene un'obiezione configurata nella campagna
+ */
+function checkForObjection(
+  userMessage: string,
+  objectionHandling: any
+): { keywords: string[]; response: string } | null {
+  if (!objectionHandling || !Array.isArray(objectionHandling)) {
+    return null;
+  }
+
+  const messageLower = userMessage.toLowerCase();
+  
+  for (const objection of objectionHandling) {
+    if (objection.keywords && Array.isArray(objection.keywords)) {
+      // Verifica se almeno una keyword è presente nel messaggio
+      const found = objection.keywords.some((keyword: string) => 
+        messageLower.includes(keyword.toLowerCase())
+      );
+      
+      if (found && objection.response) {
+        console.log(`[VIRTUAL-AGENT-OBJECTION] ✅ Rilevata obiezione con keywords: ${objection.keywords.join(', ')}`);
+        return objection;
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Genera e invia effettivamente la risposta (chiamata dopo il ritardo)
  */
 async function generateAndSendResponse(
@@ -157,63 +187,109 @@ async function generateAndSendResponse(
       return { success: false, message: "Immobile non trovato" };
     }
 
-    // Recupera le comunicazioni precedenti con questo cliente sullo stesso immobile
-    const previousCommunications = await db
-      .select()
-      .from(communications)
-      .where(
-        and(
-          eq(communications.clientId, client.id),
-          communication.propertyId
-            ? eq(communications.propertyId, communication.propertyId)
-            : eq(communications.sharedPropertyId, communication.sharedPropertyId!)
+    // STEP 1: Verifica se il messaggio proviene da una campagna WhatsApp con obiezioni configurate
+    let campaign: any = null;
+    if (communication.sharedPropertyId && client.phone) {
+      // Cerca se questa shared property ha una campagna associata
+      const campaignMessageResult = await db
+        .select({
+          campaign: whatsappCampaigns
+        })
+        .from(campaignMessages)
+        .innerJoin(whatsappCampaigns, eq(campaignMessages.campaignId, whatsappCampaigns.id))
+        .where(
+          and(
+            eq(campaignMessages.propertyId, communication.sharedPropertyId),
+            eq(campaignMessages.phoneNumber, client.phone)
+          )
         )
-      )
-      .orderBy(desc(communications.createdAt))
-      .limit(10);
-
-    // Prepara la conversazione per OpenAI
-    const conversationHistory = previousCommunications
-      .reverse()
-      .map((comm) => {
-        const role = comm.direction === "inbound" ? "user" : "assistant";
-        return {
-          role,
-          content: comm.content,
-        };
-      });
-
-    // Determina lo stile di comunicazione in base al cliente
-    const isFormalStyle = !client.isFriend;
-    
-    // Costruisci il prompt per OpenAI
-    const systemPrompt = generateSystemPrompt(client, propertyDetails, isFormalStyle, isSharedProperty);
-
-    // Genera la risposta con OpenAI
-    const messages: ChatCompletionMessageParam[] = [
-      { role: "system", content: systemPrompt }
-    ];
-    
-    // Aggiungi la storia delle conversazioni
-    for (const msg of conversationHistory) {
-      messages.push({
-        role: msg.role === 'user' ? 'user' : 'assistant',
-        content: msg.content as string
-      });
+        .limit(1);
+      
+      if (campaignMessageResult.length > 0) {
+        campaign = campaignMessageResult[0].campaign;
+        console.log(`[VIRTUAL-AGENT] Campagna trovata: ${campaign.name} (ID: ${campaign.id})`);
+      }
     }
+
+    // STEP 2: Verifica se c'è un'obiezione configurata
+    let responseText: string | null = null;
     
-    // Richiesta a OpenAI
-    const response = await openai.chat.completions.create({
-      model: MODEL,
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 500,
-    });
+    if (campaign && campaign.objectionHandling && communication.content) {
+      const objection = checkForObjection(
+        communication.content,
+        campaign.objectionHandling
+      );
+      
+      if (objection) {
+        console.log(`[VIRTUAL-AGENT-OBJECTION] ✅ Uso risposta preconfigurata per obiezione`);
+        responseText = objection.response;
+      }
+    }
 
-    const responseText = response.choices[0].message.content;
-
+    // STEP 3: Se non c'è obiezione, usa OpenAI per generare risposta intelligente
     if (!responseText) {
-      return { success: false, message: "Impossibile generare una risposta" };
+      console.log(`[VIRTUAL-AGENT] Nessuna obiezione rilevata, uso OpenAI per risposta personalizzata`);
+      
+      // Recupera le comunicazioni precedenti con questo cliente sullo stesso immobile
+      const previousCommunications = await db
+        .select()
+        .from(communications)
+        .where(
+          and(
+            eq(communications.clientId, client.id),
+            communication.propertyId
+              ? eq(communications.propertyId, communication.propertyId)
+              : eq(communications.sharedPropertyId, communication.sharedPropertyId!)
+          )
+        )
+        .orderBy(desc(communications.createdAt))
+        .limit(10);
+
+      // Prepara la conversazione per OpenAI
+      const conversationHistory = previousCommunications
+        .reverse()
+        .map((comm) => {
+          const role = comm.direction === "inbound" ? "user" : "assistant";
+          return {
+            role,
+            content: comm.content,
+          };
+        });
+
+      // Determina lo stile di comunicazione in base al cliente
+      const isFormalStyle = !client.isFriend;
+      
+      // Costruisci il prompt per OpenAI (usa istruzioni campagna se disponibili)
+      const systemPrompt = campaign && campaign.instructions
+        ? generateSystemPromptWithCampaign(client, propertyDetails, isFormalStyle, isSharedProperty, campaign.instructions)
+        : generateSystemPrompt(client, propertyDetails, isFormalStyle, isSharedProperty);
+
+      // Genera la risposta con OpenAI
+      const messages: ChatCompletionMessageParam[] = [
+        { role: "system", content: systemPrompt }
+      ];
+      
+      // Aggiungi la storia delle conversazioni
+      for (const msg of conversationHistory) {
+        messages.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content as string
+        });
+      }
+      
+      // Richiesta a OpenAI
+      const response = await openai.chat.completions.create({
+        model: MODEL,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 500,
+      });
+
+      responseText = response.choices[0].message.content;
+
+      if (!responseText) {
+        return { success: false, message: "Impossibile generare una risposta" };
+      }
     }
 
     // Salva la risposta come nuova comunicazione
@@ -296,7 +372,46 @@ Segui queste linee guida:
 4. Non inventare dettagli sull'immobile che non sono stati forniti.
 5. Se il cliente mostra interesse per l'immobile, promuovi una visita sul posto.
 6. Aggiungi sempre un saluto iniziale e una chiusura professionale.
-7. Firma come "Il tuo agente immobiliare" o "La Sua agenzia immobiliare" in base allo stile.
+7. Firma come "Il tuo agente immobiliare" o "La Sua agenzia immobiliare" in base allo stile.`;
+}
+
+/**
+ * Genera il prompt con le istruzioni della campagna
+ */
+function generateSystemPromptWithCampaign(
+  client: any,
+  propertyDetails: any,
+  isFormalStyle: boolean,
+  isSharedProperty: boolean,
+  campaignInstructions: string
+): string {
+  const salutation = getSalutation(client);
+  
+  const propertyInfo = isSharedProperty
+    ? `immobile in ${propertyDetails.address}, ${propertyDetails.city}, ${propertyDetails.size} mq, al prezzo di €${propertyDetails.price}`
+    : `${propertyDetails.type} in ${propertyDetails.address}, ${propertyDetails.city}, ${propertyDetails.size} mq, ${propertyDetails.bedrooms ? propertyDetails.bedrooms + ' locali' : ''}, ${propertyDetails.bathrooms ? propertyDetails.bathrooms + ' bagni' : ''}, al prezzo di €${propertyDetails.price}`;
+
+  return `Sei un assistente immobiliare virtuale che rappresenta un'agenzia immobiliare italiana. Stai comunicando con ${client.firstName} ${client.lastName}.
+  
+Informazioni sul cliente:
+- Nome completo: ${client.firstName} ${client.lastName}
+- Stile di comunicazione: ${isFormalStyle ? 'formale' : 'informale'}
+- Saluto appropriato: "${salutation}" 
+  
+Informazioni sull'immobile:
+${propertyInfo}
+
+ISTRUZIONI SPECIFICHE DELLA CAMPAGNA:
+${campaignInstructions}
+
+Il tuo compito è rispondere alle domande del cliente riguardo all'immobile seguendo le istruzioni specifiche fornite sopra.
+
+Segui queste linee guida generali:
+1. Usa uno stile di comunicazione ${isFormalStyle ? 'formale (con "Lei")' : 'informale (con "tu")'}.
+2. Sii conciso ma esauriente, rispondendo alle domande specifiche del cliente.
+3. Non inventare dettagli sull'immobile che non sono stati forniti.
+4. Aggiungi sempre un saluto iniziale e una chiusura professionale.
+5. Firma come "Il tuo agente immobiliare" o "La Sua agenzia immobiliare" in base allo stile.
 8. Mantieni un tono cordiale e professionale.`;
 }
 
