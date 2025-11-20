@@ -31,22 +31,26 @@ function isBusinessHours(): boolean {
 }
 
 /**
- * Schedula una risposta ritardata (10 minuti)
+ * Schedula una risposta ritardata (0 secondi in fase di beta test)
  */
 async function scheduleDelayedResponse(
   communicationId: number,
-  delayMinutes: number = 10
+  delayMinutes: number = 0  // ⚡ BETA TEST: risposta immediata
 ): Promise<void> {
-  const delayMs = delayMinutes * 60 * 1000; // 10 minuti in millisecondi
+  const delayMs = delayMinutes * 60 * 1000;
   
-  console.log(`[VIRTUAL-AGENT] Risposta schedulata tra ${delayMinutes} minuti per comunicazione ${communicationId}`);
+  if (delayMinutes === 0) {
+    console.log(`[VIRTUAL-AGENT] ⚡ BETA TEST: Risposta IMMEDIATA per comunicazione ${communicationId}`);
+  } else {
+    console.log(`[VIRTUAL-AGENT] Risposta schedulata tra ${delayMinutes} minuti per comunicazione ${communicationId}`);
+  }
   
   setTimeout(async () => {
     try {
-      console.log(`[VIRTUAL-AGENT] Esecuzione risposta ritardata per comunicazione ${communicationId}`);
+      console.log(`[VIRTUAL-AGENT] Esecuzione risposta per comunicazione ${communicationId}`);
       await executeDelayedResponse(communicationId);
     } catch (error) {
-      console.error(`[VIRTUAL-AGENT] Errore risposta ritardata:`, error);
+      console.error(`[VIRTUAL-AGENT] Errore risposta:`, error);
     }
   }, delayMs);
 }
@@ -85,12 +89,12 @@ export async function handleClientMessage(
       };
     }
     
-    // Schedula risposta con ritardo di 10 minuti
-    await scheduleDelayedResponse(communicationId, 10);
+    // ⚡ BETA TEST: Risposta IMMEDIATA (0 minuti di delay)
+    await scheduleDelayedResponse(communicationId, 0);
     
     return {
       success: true,
-      message: "Risposta schedulata tra 10 minuti"
+      message: "⚡ BETA TEST: Risposta IMMEDIATA"
     };
   } catch (error: any) {
     console.error("Errore durante scheduling risposta:", error);
