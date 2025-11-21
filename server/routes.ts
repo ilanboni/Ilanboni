@@ -5372,6 +5372,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NEW: Automatic scraping of Milano zones using pre-configured location IDs
+  app.post("/api/admin/scrape-milano-zones", async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/admin/scrape-milano-zones] 🎯 Starting automatic Milano zones scraping...');
+      
+      const { IgolaIdealistaAdapter } = await import('./services/adapters/igolaIdealistaAdapter');
+      const { MILANO_ZONES } = await import('./config/milanZones');
+      const adapter = new IgolaIdealistaAdapter();
+      
+      // Validate zones are configured
+      if (!MILANO_ZONES || MILANO_ZONES.length === 0) {
+        return res.status(400).json({ 
+          error: 'Milano zones not configured. Add location IDs to server/config/milanZones.ts' 
+        });
+      }
+      
+      console.log(`[POST /api/admin/scrape-milano-zones] 📍 Scraping ${MILANO_ZONES.length} zones...`);
+      
+      const listings = await adapter.search({
+        locationIds: MILANO_ZONES,
+        maxItems: req.body?.maxItems || 1000,
+        privateOnly: true // Always filter private sellers
+      });
+      
+      console.log(`[POST /api/admin/scrape-milano-zones] ✅ Found ${listings.length} private properties`);
+      
+      // Import to database
+      let imported = 0;
+      let updated = 0;
+      let skipped = 0;
+      
+      for (const listing of listings) {
+        try {
+          const existing = await db.select()
+            .from(properties)
+            .where(and(
+              eq(properties.externalId, listing.externalId),
+              eq(properties.source, 'idealista')
+            ))
+            .limit(1);
+          
+          if (existing.length > 0) {
+            await db.update(properties)
+              .set({
+                price: listing.price,
+                description: listing.description,
+                ownerType: listing.ownerType,
+                ownerName: listing.ownerName,
+                ownerPhone: listing.ownerPhone,
+                updatedAt: new Date()
+              })
+              .where(eq(properties.id, existing[0].id));
+            updated++;
+          } else {
+            await db.insert(properties).values({
+              externalId: listing.externalId,
+              address: listing.address,
+              city: listing.city,
+              price: listing.price,
+              size: listing.size,
+              bedrooms: listing.bedrooms,
+              bathrooms: listing.bathrooms,
+              type: listing.type as any,
+              description: listing.description,
+              url: listing.url,
+              externalLink: listing.url,
+              source: 'idealista',
+              ownerType: listing.ownerType,
+              ownerName: listing.ownerName,
+              ownerPhone: listing.ownerPhone,
+              latitude: listing.latitude?.toString(),
+              longitude: listing.longitude?.toString(),
+              status: 'available'
+            });
+            imported++;
+          }
+        } catch (error) {
+          console.error(`[scrape-milano-zones] Failed to save ${listing.externalId}:`, error);
+          skipped++;
+        }
+      }
+      
+      await adapter.cleanup();
+      
+      console.log(`[POST /api/admin/scrape-milano-zones] 📊 ${imported} imported, ${updated} updated, ${skipped} skipped`);
+      
+      res.json({
+        ok: true,
+        message: `✅ Scraping completato in ${Math.round((Date.now() / 1000) / 60 * 10) / 10} minuti`,
+        result: {
+          portal: 'Idealista (Apify - Milano Zones)',
+          zonesScraped: MILANO_ZONES.length,
+          totalFetched: listings.length,
+          imported,
+          updated,
+          skipped,
+          errors: []
+        }
+      });
+      
+    } catch (error) {
+      console.error('[POST /api/admin/scrape-milano-zones]', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Milano zones scraping failed' 
+      });
+    }
+  });
+
   // NEW: Scrape 100% PRIVATE properties from CasaDaPrivato.it
   app.post("/api/apify/scrape-casadaprivato", async (req: Request, res: Response) => {
     try {

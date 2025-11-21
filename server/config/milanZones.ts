@@ -17,9 +17,12 @@
  */
 
 export const MILANO_ZONES = [
-  // TODO: Add your 7-8 Milano zone location IDs here
-  // Each ID should be in format: "0-EU-IT-MI-XX-XXX-XXX-XX"
-  // Example: "0-EU-IT-MI-01-001-135-01"
+  "0-EU-IT-MI-01-001-135-01",
+  "0-EU-IT-MI-01-001-135-02",
+  "0-EU-IT-MI-01-001-135-03",
+  "0-EU-IT-MI-01-001-135-04",
+  "0-EU-IT-MI-01-001-135-05",
+  "0-EU-IT-MI-01-001-135-16"
 ];
 
 /**
