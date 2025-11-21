@@ -6,6 +6,13 @@ This project is a comprehensive real estate management system designed to stream
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Configuration - Milano Zones for Scraping
+**IMPORTANT**: The 7-8 Milano location IDs for Idealista scraping are saved in:
+```
+server/config/milanZones.ts → MILANO_ZONES array
+```
+These IDs persist in the code so they won't get lost. When you have the location IDs, add them directly to this file in the `MILANO_ZONES` array. Format: `"0-EU-IT-MI-XX-XXX-XXX-XX"`
+
 ## System Architecture
 The application features a modern full-stack architecture.
 - **Frontend**: React with TypeScript, Vite, Tailwind CSS, shadcn/ui, Wouter for routing, TanStack Query for server state, Leaflet for maps, and React Hook Form with Zod for form management. It includes mobile-responsive optimizations.
