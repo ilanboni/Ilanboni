@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -102,17 +102,19 @@ export default function ClientDetailPage() {
     }
   });
   
-  // Debug logging
-  console.log('[MATCHING-DEBUG]', {
-    isClientSuccess,
-    isBuyer,
-    hasSufficientRating,
-    canFetchMatchingProps,
-    clientType: client?.type,
-    rating: client?.buyer?.rating,
-    matchingPropertiesLength: matchingProperties?.length,
-    isLoading: isMatchingPropertiesLoading
-  });
+  // Debug logging with useEffect to track changes
+  useEffect(() => {
+    console.log('[MATCHING-DEBUG] Effect triggered', {
+      isClientSuccess,
+      isBuyer,
+      hasSufficientRating,
+      canFetchMatchingProps,
+      clientType: client?.type,
+      rating: client?.buyer?.rating,
+      matchingPropertiesLength: matchingProperties?.length,
+      isLoading: isMatchingPropertiesLoading
+    });
+  }, [isClientSuccess, isBuyer, hasSufficientRating, canFetchMatchingProps, client?.type, client?.buyer?.rating, matchingProperties?.length, isMatchingPropertiesLoading]);
   
   // Fetch matching properties with notification status (per client compratori)
   const { data: propertiesWithNotifications, isLoading: isPropertiesWithNotificationsLoading, refetch: refetchPropertiesWithNotifications } = useQuery({

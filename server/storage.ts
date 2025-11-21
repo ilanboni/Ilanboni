@@ -3511,6 +3511,7 @@ export class DatabaseStorage implements IStorage {
       ownerName: p.ownerName,
       ownerPhone: p.ownerPhone,
       ownerEmail: p.ownerEmail,
+      ownerType: 'private', // Hardcoded since we're converting private properties only
       elevator: p.elevator,
       balconyOrTerrace: p.balconyOrTerrace,
       parking: p.parking,
@@ -3711,6 +3712,7 @@ export class DatabaseStorage implements IStorage {
       ownerName: p.ownerName,
       ownerPhone: p.ownerPhone,
       ownerEmail: p.ownerEmail,
+      ownerType: 'private', // Hardcoded since we're converting private properties only
       elevator: p.elevator,
       balconyOrTerrace: p.balconyOrTerrace,
       parking: p.parking,
