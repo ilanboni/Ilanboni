@@ -121,6 +121,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const webhookForwarder = getWebhookForwarder();
   webhookForwarder.registerRoutes(app);
   
+  // ⚡ ENDPOINT DI SCRAPING MANUALE - PRIORITARIO
+  app.get('/api/admin/scrape-idealista-now', async (req: Request, res: Response) => {
+    try {
+      console.log('[MANUAL-SCRAPE] 🚀 Inizio scraping IMMEDIATO Idealista Milano...');
+      
+      const { ingestionService } = await import('./services/portalIngestionService');
+      
+      const startTime = Date.now();
+      const result = await ingestionService.importFromPortal('idealista', {
+        city: 'milano'
+      });
+      
+      const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
+      
+      console.log(`[MANUAL-SCRAPE] ✅ Scraping completato in ${duration} minuti`);
+      console.log(`[MANUAL-SCRAPE] Risultati:`, result);
+      
+      res.json({ 
+        ok: true, 
+        message: `Scraping completato in ${duration} minuti`,
+        result
+      });
+    } catch (error) {
+      console.error('[MANUAL-SCRAPE] ❌ Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante scraping',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
+      });
+    }
+  });
+
   // Registra le route per l'assistente AI
   await registerAIAssistantRoutes(app);
   
