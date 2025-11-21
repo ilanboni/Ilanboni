@@ -51,10 +51,15 @@ export default function ClientDetailPage() {
   const queryClient = useQueryClient();
   
   // Fetch client details
-  const { data: client, isLoading: isClientLoading } = useQuery<ClientWithDetails>({
+  const { data: client, isLoading: isClientLoading, isSuccess: isClientSuccess } = useQuery<ClientWithDetails>({
     queryKey: [`/api/clients/${id}`],
     enabled: !isNaN(id),
   });
+  
+  // Computed flags for buyer queries - must be computed AFTER client query
+  const isBuyer = client?.type === "buyer";
+  const hasSufficientRating = (client?.buyer?.rating ?? 0) >= 4;
+  const canFetchMatchingProps = isClientSuccess && isBuyer && hasSufficientRating;
   
   // Fetch client communications
   const { data: communications, isLoading: isCommunicationsLoading } = useQuery<Communication[]>({
@@ -77,26 +82,42 @@ export default function ClientDetailPage() {
   // Fetch matching properties (per client compratori) - Advanced matching with tolerances
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
     queryKey: [`/api/clients/${id}/matching-properties-advanced`],
-    enabled: !isNaN(id) && client?.type === "buyer" && (client?.buyer?.rating ?? 0) >= 4,
+    enabled: canFetchMatchingProps,
     staleTime: 10 * 60 * 1000,
     refetchInterval: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
+      console.log('[MATCHING-QUERY] Fetching matching properties for client', id);
       const response = await fetch(`/api/clients/${id}/matching-properties-advanced`);
       if (!response.ok) {
+        console.error('[MATCHING-QUERY] Error response:', response.status);
         if (response.status === 400) {
           return [];
         }
         throw new Error('Errore nel caricamento degli immobili compatibili');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('[MATCHING-QUERY] Received data:', data.length, 'properties');
+      return data;
     }
+  });
+  
+  // Debug logging
+  console.log('[MATCHING-DEBUG]', {
+    isClientSuccess,
+    isBuyer,
+    hasSufficientRating,
+    canFetchMatchingProps,
+    clientType: client?.type,
+    rating: client?.buyer?.rating,
+    matchingPropertiesLength: matchingProperties?.length,
+    isLoading: isMatchingPropertiesLoading
   });
   
   // Fetch matching properties with notification status (per client compratori)
   const { data: propertiesWithNotifications, isLoading: isPropertiesWithNotificationsLoading, refetch: refetchPropertiesWithNotifications } = useQuery({
     queryKey: [`/api/clients/${id}/properties-with-notification-status`],
-    enabled: !isNaN(id) && client?.type === "buyer",
+    enabled: isClientSuccess && client?.type === "buyer",
     staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,
@@ -117,7 +138,7 @@ export default function ClientDetailPage() {
   // Fetch SAVED scraped properties (FAST - from database)
   const { data: savedScrapedProperties, isLoading: isSavedScrapedPropertiesLoading, refetch: refetchSavedScrapedProperties } = useQuery({
     queryKey: [`/api/clients/${id}/saved-scraped-properties`],
-    enabled: !isNaN(id) && client?.type === "buyer" && client?.buyer?.rating === 5,
+    enabled: isClientSuccess && client?.type === "buyer" && (client?.buyer?.rating ?? 0) === 5,
     staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,
