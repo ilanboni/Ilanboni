@@ -30,7 +30,7 @@ export class IdealistaApifyAdapter implements PortalAdapter {
       
       const input: any = {
         location: location, // Use city name for Idealista scraping
-        maxItems: 1000, // Reduce to 1000 for faster response
+        maxItems: 5000, // Increased to find all Milano properties
         propertyType: 'homes', // apartment/home type
         operation: 'sale', // vendita
         proxyConfiguration: {
