@@ -239,8 +239,8 @@ export default function ClientsByTypePage() {
           searchArea: data.searchArea || null,
           minSize: data.minSize ? parseInt(data.minSize, 10) : null,
           maxPrice: data.maxPrice ? parseInt(data.maxPrice, 10) : null,
-          urgency: 3, // valore di default
-          rating: 3,  // valore di default
+          urgency: data.urgency ? parseInt(data.urgency, 10) : 3,
+          rating: data.rating ? parseInt(data.rating, 10) : 3,
           searchNotes: data.searchNotes || ""
         };
       } else if (data.type === 'seller') {
