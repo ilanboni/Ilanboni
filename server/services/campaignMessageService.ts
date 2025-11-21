@@ -129,11 +129,17 @@ export function renderTemplate(
   // Rimuovi variabili non sostituite
   rendered = rendered.replace(/\{\{[^}]+\}\}/g, "");
 
-  // Pulisci spazi multipli e linee vuote
-  rendered = rendered.replace(/\s+/g, " ").trim();
-  rendered = rendered.replace(/\n\s*\n/g, "\n");
-
-  return rendered;
+  // ✅ NUOVO: Preserva i paragrafi (doppi a capo) ma pulisci spazi multipli
+  // 1. Sostituisci triple+ newline con doppio newline
+  rendered = rendered.replace(/\n{3,}/g, "\n\n");
+  
+  // 2. Rimuovi spazi multipli SOLO all'interno delle righe (non i newline)
+  rendered = rendered.split("\n").map(line => line.replace(/\s+/g, " ").trim()).join("\n");
+  
+  // 3. Rimuovi righe vuote multiple consecutive (max 1 riga vuota tra paragrafi)
+  rendered = rendered.replace(/\n\s*\n\s*\n/g, "\n\n");
+  
+  return rendered.trim();
 }
 
 /**
