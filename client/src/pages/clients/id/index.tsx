@@ -80,25 +80,18 @@ export default function ClientDetailPage() {
   });
   
   // Fetch matching properties (per client compratori) - Advanced matching with tolerances
-  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
+  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery<any[]>({
     queryKey: [`/api/clients/${id}/matching-properties-advanced`],
-    enabled: canFetchMatchingProps,
+    enabled: isClientSuccess && client?.type === "buyer" && (client?.buyer?.rating ?? 0) >= 4,
     staleTime: 10 * 60 * 1000,
     refetchInterval: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      console.log('[MATCHING-QUERY] Fetching matching properties for client', id);
       const response = await fetch(`/api/clients/${id}/matching-properties-advanced`);
       if (!response.ok) {
-        console.error('[MATCHING-QUERY] Error response:', response.status);
-        if (response.status === 400) {
-          return [];
-        }
-        throw new Error('Errore nel caricamento degli immobili compatibili');
+        throw new Error(`HTTP ${response.status}`);
       }
-      const data = await response.json();
-      console.log('[MATCHING-QUERY] Received data:', data.length, 'properties');
-      return data;
+      return response.json();
     }
   });
   
