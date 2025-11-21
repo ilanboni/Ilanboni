@@ -2145,6 +2145,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get multi-agency properties (yellow classification) - MUST be before /:id route
+  app.get("/api/properties/multi-agency", async (req: Request, res: Response) => {
+    try {
+      const properties = await storage.getMultiAgencyProperties();
+      const enrichedProperties = enrichArrayWithClassification(properties);
+      res.json(enrichedProperties);
+    } catch (error) {
+      console.error("[GET /api/properties/multi-agency]", error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà multi-agenzia" });
+    }
+  });
+  
+  // Get private properties (green classification) - MUST be before /:id route
+  app.get("/api/properties/private", async (req: Request, res: Response) => {
+    try {
+      const properties = await storage.getPrivateProperties();
+      const enrichedProperties = enrichArrayWithClassification(properties);
+      res.json(enrichedProperties);
+    } catch (error) {
+      console.error("[GET /api/properties/private]", error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà private" });
+    }
+  });
+  
   // Ottieni un immobile specifico
   app.get("/api/properties/:id", async (req: Request, res: Response) => {
     try {
@@ -2690,30 +2714,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("[GET /api/scraped-properties/multi-agency]", error);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà multi-agency" });
-    }
-  });
-  
-  // Get multi-agency properties (yellow classification)
-  app.get("/api/properties/multi-agency", async (req: Request, res: Response) => {
-    try {
-      const properties = await storage.getMultiAgencyProperties();
-      const enrichedProperties = enrichArrayWithClassification(properties);
-      res.json(enrichedProperties);
-    } catch (error) {
-      console.error("[GET /api/properties/multi-agency]", error);
-      res.status(500).json({ error: "Errore durante il recupero delle proprietà multi-agenzia" });
-    }
-  });
-  
-  // Get private properties (green classification)
-  app.get("/api/properties/private", async (req: Request, res: Response) => {
-    try {
-      const properties = await storage.getPrivateProperties();
-      const enrichedProperties = enrichArrayWithClassification(properties);
-      res.json(enrichedProperties);
-    } catch (error) {
-      console.error("[GET /api/properties/private]", error);
-      res.status(500).json({ error: "Errore durante il recupero delle proprietà private" });
     }
   });
   
