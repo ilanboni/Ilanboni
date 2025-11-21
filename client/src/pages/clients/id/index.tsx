@@ -74,15 +74,15 @@ export default function ClientDetailPage() {
     enabled: !isNaN(id),
   });
   
-  // Fetch matching properties (per client compratori)
+  // Fetch matching properties (per client compratori) - Advanced matching with tolerances
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery({
-    queryKey: [`/api/clients/${id}/matching-properties`],
-    enabled: false, // Disabilitato temporaneamente
+    queryKey: [`/api/clients/${id}/matching-properties-advanced`],
+    enabled: !isNaN(id) && client?.type === "buyer" && (client?.buyer?.rating ?? 0) >= 4,
     staleTime: 10 * 60 * 1000,
     refetchInterval: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      const response = await fetch(`/api/clients/${id}/matching-properties`);
+      const response = await fetch(`/api/clients/${id}/matching-properties-advanced`);
       if (!response.ok) {
         if (response.status === 400) {
           return [];
