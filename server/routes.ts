@@ -13065,6 +13065,39 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  /**
+   * GET /api/test-scrape-idealista
+   * Testa lo scraping Apify Idealista per verificare che funziona
+   */
+  app.get('/api/test-scrape-idealista', async (req: Request, res: Response) => {
+    try {
+      console.log('[TEST-SCRAPE] 🧪 Inizio test scraping Idealista...');
+      
+      const { ingestionService } = await import('./services/portalIngestionService');
+      
+      // Testa ricerca su Milano
+      const result = await ingestionService.importFromPortal('idealista', {
+        city: 'milano'
+      });
+      
+      console.log('[TEST-SCRAPE] ✅ Test completato:', result);
+      
+      res.json({ 
+        ok: true, 
+        message: 'Test scraping completato',
+        result
+      });
+    } catch (error) {
+      console.error('[TEST-SCRAPE] ❌ Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante test scraping',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
+      });
+    }
+  });
+
   return httpServer;
 }
 
