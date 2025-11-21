@@ -129,8 +129,18 @@ export class IgolaIdealistaAdapter {
           const contact = item.contactInfo || {};
           const userType = contact.userType;
           
+          // Create title from property characteristics
+          const rooms = item.rooms ? `${item.rooms} locali` : '';
+          const size = item.size ? `${item.size}m²` : '';
+          const zone = item.district || item.neighborhood || '';
+          const titleParts = [rooms, size, zone].filter(Boolean);
+          const title = titleParts.length > 0 
+            ? `Appartamento ${titleParts.join(', ')}` 
+            : `Appartamento in ${item.municipality || 'Milano'}`;
+          
           return {
             externalId: item.propertyCode || `idealista-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            title,
             address: item.address || '',
             city: item.municipality || params.city || 'Milano',
             price: item.price || 0,

@@ -1,12 +1,9 @@
 import OpenAI from "openai";
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn("OPENAI_API_KEY non impostata. Alcune funzionalità AI non saranno disponibili.");
-}
-
-// Initialize the OpenAI client
+// Use Replit AI Integrations (no personal API key needed)
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
 });
 
 /**
@@ -15,14 +12,9 @@ const openai = new OpenAI({
  * @returns Un riassunto breve del testo
  */
 export async function summarizeText(text: string): Promise<string> {
-  if (!process.env.OPENAI_API_KEY) {
-    return "Riassunto non disponibile (API key mancante)";
-  }
-
   try {
-    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -33,7 +25,7 @@ export async function summarizeText(text: string): Promise<string> {
           content: text
         }
       ],
-      max_tokens: 50,
+      max_completion_tokens: 50,
       temperature: 0.5,
     });
 

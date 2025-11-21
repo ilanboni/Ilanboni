@@ -168,28 +168,30 @@ Leggi la descrizione dell'immobile e identifica le 2-3 caratteristiche PRINCIPAL
 
 REGOLE CRITICHE:
 1. Estrai SOLO 2-3 caratteristiche chiave (non tutto)
-2. Usa le ESATTE parole del proprietario (feature mirroring)
-3. FORMATO OBBLIGATORIO: "il/la/l' caratteristica1, il/la/l' caratteristica2, il/la/l' caratteristica3"
+2. Usa NOMI GENERICI senza metrature o dimensioni specifiche
+3. FORMATO OBBLIGATORIO: "il/la/l' caratteristica1, il/la/l' caratteristica2"
 4. SEMPRE con articolo determinativo (il, la, l')
 5. In minuscolo
-6. Breve e naturale (max 100 caratteri totali)
+6. Breve e naturale (max 80 caratteri totali)
 7. In italiano
+8. IMPORTANTE: NON includere misure, metrature o numeri specifici
 
-ESEMPI CORRETTI (nota l'articolo determinativo):
-- Descrizione: "...appartamento luminoso e ristrutturato con balcone vista parco..."
-  OUTPUT: "la luminosità, la ristrutturazione recente, il balcone con vista"
+ESEMPI CORRETTI (nota: NO metrature):
+- Descrizione: "...appartamento luminoso con balcone di 10mq vista parco..."
+  OUTPUT: "la luminosità, il balcone con vista"
 
-- Descrizione: "...grande terrazzo mansardato... molto luminoso e silenzioso... completamente arredato..."
-  OUTPUT: "il grande terrazzo mansardato, la luminosità e silenziosità, l'arredamento completo"
+- Descrizione: "...terrazzo di 15mq mansardato... doppia esposizione... arredato..."
+  OUTPUT: "il terrazzo, la doppia esposizione"
 
-- Descrizione: "...box e cantina inclusi... teleriscaldamento... vicino metro..."
-  OUTPUT: "il box e la cantina inclusi, il teleriscaldamento, la vicinanza alla metro"
+- Descrizione: "...box auto di 12mq e cantina di 8mq... teleriscaldamento..."
+  OUTPUT: "il box e la cantina, il teleriscaldamento"
 
-ERRORE DA EVITARE:
-❌ "grande terrazzo, luminosità, arredamento" (senza articoli)
-✅ "il grande terrazzo, la luminosità, l'arredamento" (con articoli)
+ERRORI DA EVITARE:
+❌ "terrazzo di 15mq" → ✅ "il terrazzo"
+❌ "box di 12mq" → ✅ "il box"
+❌ "balcone da 10mq" → ✅ "il balcone"
 
-IMPORTANTE: Restituisci SOLO la lista di caratteristiche CON ARTICOLI, niente altro.`;
+IMPORTANTE: Restituisci SOLO la lista di caratteristiche GENERICHE CON ARTICOLI, senza misure.`;
 
     const userPrompt = `Descrizione immobile:
 ${propertyDescription}
