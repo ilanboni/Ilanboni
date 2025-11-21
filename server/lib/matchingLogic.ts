@@ -57,8 +57,8 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
  * applicando i criteri di tolleranza specificati:
  * - Tipologia proprietà (matching esatto se specificato)
  * - È situato all'interno del poligono di ricerca dell'acquirente
- * - Ha una metratura che può essere fino al 10% inferiore al minimo richiesto
- * - Ha un prezzo che può essere fino al 10% superiore al massimo richiesto
+ * - Ha una metratura tra -20% e +40% rispetto al minimo richiesto
+ * - Ha un prezzo che può essere fino al 20% superiore al massimo richiesto
  * 
  * @param property L'immobile da verificare
  * @param buyer L'acquirente con le preferenze da confrontare
@@ -81,13 +81,19 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
     }
   }
   
-  // Verifica metratura con tolleranza del 10% inferiore
-  if (buyer.minSize && property.size && property.size < buyer.minSize * 0.9) {
-    return false;
+  // Verifica metratura con tolleranza -20% / +40% rispetto al minimo
+  if (buyer.minSize && property.size) {
+    const minAcceptable = buyer.minSize * 0.8; // -20%
+    const maxAcceptable = buyer.minSize * 1.4; // +40%
+    
+    if (property.size < minAcceptable || property.size > maxAcceptable) {
+      console.log(`[Matching] Property ${property.id} size ${property.size}mq is outside range ${minAcceptable.toFixed(0)}-${maxAcceptable.toFixed(0)}mq (buyer wants ${buyer.minSize}mq ±20%/+40%) - REJECTED`);
+      return false;
+    }
   }
   
-  // Verifica prezzo con tolleranza del 10% superiore
-  if (buyer.maxPrice && property.price > buyer.maxPrice * 1.1) {
+  // Verifica prezzo con tolleranza del 20% superiore
+  if (buyer.maxPrice && property.price > buyer.maxPrice * 1.2) {
     return false;
   }
   
@@ -230,7 +236,7 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
 /**
  * Verifica se un immobile condiviso (sharedProperty) corrisponde alle preferenze di un acquirente.
  * Applica gli stessi criteri di tolleranza di isPropertyMatchingBuyerCriteria ma adattati
- * per gli immobili dei concorrenti.
+ * per gli immobili dei concorrenti: -20% / +40% metratura, +20% prezzo.
  * 
  * @param sharedProperty L'immobile condiviso da verificare
  * @param buyer L'acquirente con le preferenze da confrontare
@@ -250,13 +256,19 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
     }
   }
   
-  // Verifica metratura con tolleranza del 10% inferiore
-  if (buyer.minSize && sharedProperty.size && sharedProperty.size < buyer.minSize * 0.9) {
-    return false;
+  // Verifica metratura con tolleranza -20% / +40% rispetto al minimo
+  if (buyer.minSize && sharedProperty.size) {
+    const minAcceptable = buyer.minSize * 0.8; // -20%
+    const maxAcceptable = buyer.minSize * 1.4; // +40%
+    
+    if (sharedProperty.size < minAcceptable || sharedProperty.size > maxAcceptable) {
+      console.log(`[Matching] SharedProperty ${sharedProperty.id} size ${sharedProperty.size}mq is outside range ${minAcceptable.toFixed(0)}-${maxAcceptable.toFixed(0)}mq (buyer wants ${buyer.minSize}mq ±20%/+40%) - REJECTED`);
+      return false;
+    }
   }
   
-  // Verifica prezzo con tolleranza del 10% superiore
-  if (buyer.maxPrice && sharedProperty.price && sharedProperty.price > buyer.maxPrice * 1.1) {
+  // Verifica prezzo con tolleranza del 20% superiore
+  if (buyer.maxPrice && sharedProperty.price && sharedProperty.price > buyer.maxPrice * 1.2) {
     return false;
   }
   
