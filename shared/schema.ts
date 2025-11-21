@@ -235,6 +235,8 @@ export const sharedProperties = pgTable("shared_properties", {
   ownerType: text("owner_type"), // "private" or "agency"
   scrapedForClientId: integer("scraped_for_client_id").references(() => clients.id), // Which client requested the scraping
   lastScrapedAt: timestamp("last_scraped_at"), // Last time this property was scraped
+  classificationColor: text("classification_color").default("red"), // "red" (single agency), "yellow" (multi-agency), "green" (private)
+  matchScore: integer("match_score"), // 0-100 matching score with buyer criteria
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 }, (table) => ({
@@ -242,6 +244,17 @@ export const sharedProperties = pgTable("shared_properties", {
   urlIdx: uniqueIndex("shared_properties_url_idx").on(table.url),
   // Unique constraint on address+price to prevent duplicate manual entries
   addressPriceIdx: uniqueIndex("shared_properties_address_price_idx").on(table.address, table.price)
+}));
+
+// Client-specific favorites (dual favorites system)
+export const clientFavorites = pgTable("client_favorites", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  sharedPropertyId: integer("shared_property_id").notNull().references(() => sharedProperties.id, { onDelete: 'cascade' }),
+  addedAt: timestamp("added_at").defaultNow(),
+  notes: text("notes"), // client-specific notes about this property
+}, (table) => ({
+  uniqueClientFav: uniqueIndex("client_favorites_unique_idx").on(table.clientId, table.sharedPropertyId)
 }));
 
 // Shared property notes (for tracking considerations and activities)
@@ -475,6 +488,10 @@ export const insertInteractionSchema = createInsertSchema(interactions)
 export const insertMarketInsightSchema = createInsertSchema(marketInsights).omit({ id: true, createdAt: true });
 export const insertPropertyVisitSchema = createInsertSchema(propertyVisits).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSharedPropertyNoteSchema = createInsertSchema(sharedPropertyNotes).omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertClientFavoriteSchema = createInsertSchema(clientFavorites).omit({ id: true, addedAt: true });
+export type ClientFavorite = typeof clientFavorites.$inferSelect;
+export type InsertClientFavorite = z.infer<typeof insertClientFavoriteSchema>;
 
 // Tabella per tracciare gli immobili inviati ai clienti
 export const propertySent = pgTable("property_sent", {
