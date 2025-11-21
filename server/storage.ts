@@ -3596,6 +3596,23 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(properties.createdAt));
     
+    // Helper function to derive portalSource from source/portal fields
+    const derivePortalSource = (source: string | null, portal: string | null): string | null => {
+      const sourceStr = (source || '').toLowerCase();
+      const portalStr = (portal || '').toLowerCase();
+      
+      if (sourceStr.includes('idealista') || portalStr.includes('idealista')) {
+        return 'Idealista.it';
+      }
+      if (sourceStr.includes('immobiliare') || portalStr.includes('immobiliare')) {
+        return 'Immobiliare.it';
+      }
+      if (sourceStr === 'manual') {
+        return 'Manuale';
+      }
+      return null;
+    };
+    
     // Convert Property to SharedProperty format for frontend compatibility
     return privateProps.map((p: any) => ({
       id: p.id,
@@ -3617,12 +3634,17 @@ export class DatabaseStorage implements IStorage {
       updatedAt: p.updatedAt,
       externalId: p.externalId,
       source: p.source || 'manual',
+      portalSource: derivePortalSource(p.source, p.portal), // Deriva da source/portal
       classificationColor: 'green' as const,
       isIgnored: false,
+      ownerName: p.ownerName,
+      ownerPhone: p.ownerPhone,
+      ownerEmail: p.ownerEmail,
       elevator: p.elevator,
       balconyOrTerrace: p.balconyOrTerrace,
       parking: p.parking,
-      garden: p.garden
+      garden: p.garden,
+      url: p.url || p.externalLink
     } as SharedProperty));
   }
 }

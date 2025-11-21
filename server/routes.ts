@@ -2161,8 +2161,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/properties/private", async (req: Request, res: Response) => {
     try {
       const properties = await storage.getPrivateProperties();
-      const enrichedProperties = enrichArrayWithClassification(properties);
-      res.json(enrichedProperties);
+      // No need to enrich - getPrivateProperties() already returns properly formatted SharedProperty objects
+      res.json(properties);
     } catch (error) {
       console.error("[GET /api/properties/private]", error);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà private" });
