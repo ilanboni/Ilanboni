@@ -3443,7 +3443,7 @@ export class DatabaseStorage implements IStorage {
     if (!buyer) return [];
     
     // Get all available shared properties
-    const allProperties = await db
+    const sharedProps = await db
       .select()
       .from(sharedProperties)
       .where(
@@ -3452,6 +3452,74 @@ export class DatabaseStorage implements IStorage {
           eq(sharedProperties.isAcquired, false)
         )
       );
+    
+    // Get all available private properties from the main properties table
+    const privateProps = await db
+      .select()
+      .from(properties)
+      .where(
+        and(
+          eq(properties.ownerType, 'private'),
+          eq(properties.status, 'available')
+        )
+      );
+    
+    // Helper function to derive portalSource from source/portal fields
+    const derivePortalSource = (source: string | null, portal: string | null): string | null => {
+      const sourceStr = (source || '').toLowerCase();
+      const portalStr = (portal || '').toLowerCase();
+      
+      if (sourceStr.includes('idealista') || portalStr.includes('idealista')) {
+        return 'Idealista.it';
+      }
+      if (sourceStr.includes('immobiliare') || portalStr.includes('immobiliare')) {
+        return 'Immobiliare.it';
+      }
+      if (sourceStr === 'manual') {
+        return 'Manuale';
+      }
+      return null;
+    };
+    
+    // Convert private properties to SharedProperty format
+    const convertedPrivateProps: SharedProperty[] = privateProps.map((p: any) => ({
+      id: p.id,
+      propertyId: p.id,
+      address: p.address || '',
+      city: p.city || 'Milano',
+      province: p.province || 'MI',
+      type: p.type || 'apartment',
+      size: p.size,
+      price: p.price,
+      rooms: p.bedrooms, // ⚠️ CORREZIONE: properties usa 'bedrooms', sharedProperties usa 'rooms'
+      bathrooms: p.bathrooms,
+      description: p.description,
+      images: p.images || [],
+      location: p.location,
+      agencyName: p.ownerName || 'Privato',
+      agencyUrl: p.url || p.externalLink || '',
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      externalId: p.externalId,
+      source: p.source || 'manual',
+      portalSource: derivePortalSource(p.source, p.portal),
+      classificationColor: 'green' as const,
+      isIgnored: false,
+      isFavorite: p.isFavorite || false,
+      isAcquired: false,
+      matchBuyers: false,
+      ownerName: p.ownerName,
+      ownerPhone: p.ownerPhone,
+      ownerEmail: p.ownerEmail,
+      elevator: p.elevator,
+      balconyOrTerrace: p.balconyOrTerrace,
+      parking: p.parking,
+      garden: p.garden,
+      url: p.url || p.externalLink
+    } as SharedProperty));
+    
+    // Combine both sets of properties
+    const allProperties = [...sharedProps, ...convertedPrivateProps];
     
     // Filter using advanced matching logic with tolerances
     // size: -20% to +30%, price: +20%, zone: 1km radius
@@ -3623,7 +3691,7 @@ export class DatabaseStorage implements IStorage {
       type: p.type || 'apartment',
       size: p.size,
       price: p.price,
-      rooms: p.rooms,
+      rooms: p.bedrooms, // ⚠️ CORREZIONE: properties usa 'bedrooms', sharedProperties usa 'rooms'
       bathrooms: p.bathrooms,
       description: p.description,
       images: p.images || [],
@@ -3637,6 +3705,9 @@ export class DatabaseStorage implements IStorage {
       portalSource: derivePortalSource(p.source, p.portal), // Deriva da source/portal
       classificationColor: 'green' as const,
       isIgnored: false,
+      isFavorite: p.isFavorite || false,
+      isAcquired: false,
+      matchBuyers: false,
       ownerName: p.ownerName,
       ownerPhone: p.ownerPhone,
       ownerEmail: p.ownerEmail,
