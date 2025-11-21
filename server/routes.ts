@@ -3906,7 +3906,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const matches = await storage.getMatchingPropertiesForClient(clientId);
-      res.json(matches);
+      res.json({
+        total: matches.length,
+        properties: matches
+      });
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/matching-properties-advanced]`, error);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà" });

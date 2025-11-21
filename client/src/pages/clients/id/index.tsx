@@ -80,34 +80,40 @@ export default function ClientDetailPage() {
   });
   
   // Fetch matching properties (per client compratori) - Advanced matching with tolerances
-  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery<any[]>({
+  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading, error: matchingPropertiesError } = useQuery<any[]>({
     queryKey: [`/api/clients/${id}/matching-properties-advanced`],
-    enabled: isClientSuccess && client?.type === "buyer" && (client?.buyer?.rating ?? 0) >= 4,
+    enabled: isClientSuccess && client?.type === "buyer",
     staleTime: 10 * 60 * 1000,
     refetchInterval: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      const response = await fetch(`/api/clients/${id}/matching-properties-advanced`);
+      console.log('[MATCHING-QUERY] Fetching matching properties for client', id);
+      const response = await fetch(`/api/clients/${id}/matching-properties-advanced`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorText = await response.text();
+        console.error('[MATCHING-QUERY] Error response:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-      return response.json();
+      const data = await response.json();
+      console.log('[MATCHING-QUERY] Received', data.length, 'matching properties');
+      return data;
     }
   });
   
   // Debug logging with useEffect to track changes
   useEffect(() => {
-    console.log('[MATCHING-DEBUG] Effect triggered', {
+    console.log('[MATCHING-DEBUG] Component state', {
       isClientSuccess,
-      isBuyer,
-      hasSufficientRating,
-      canFetchMatchingProps,
+      isClientLoading,
       clientType: client?.type,
       rating: client?.buyer?.rating,
       matchingPropertiesLength: matchingProperties?.length,
-      isLoading: isMatchingPropertiesLoading
+      isMatchingPropertiesLoading,
+      matchingPropertiesError: matchingPropertiesError?.message
     });
-  }, [isClientSuccess, isBuyer, hasSufficientRating, canFetchMatchingProps, client?.type, client?.buyer?.rating, matchingProperties?.length, isMatchingPropertiesLoading]);
+  }, [isClientSuccess, isClientLoading, client?.type, client?.buyer?.rating, matchingProperties?.length, isMatchingPropertiesLoading, matchingPropertiesError]);
   
   // Fetch matching properties with notification status (per client compratori)
   const { data: propertiesWithNotifications, isLoading: isPropertiesWithNotificationsLoading, refetch: refetchPropertiesWithNotifications } = useQuery({

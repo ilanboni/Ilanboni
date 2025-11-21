@@ -159,8 +159,25 @@ export default function ClientDetailPage() {
   
   // Fetch matching properties (per client compratori)
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading } = useQuery<MatchingPropertiesResponse>({
-    queryKey: ['/api/properties/for-buyer', id],
+    queryKey: [`/api/clients/${id}/matching-properties-advanced`],
     enabled: !isNaN(id) && client?.type === "buyer",
+    staleTime: 10 * 60 * 1000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      console.log('[MATCHING-QUERY] Fetching matching properties for client', id);
+      const response = await fetch(`/api/clients/${id}/matching-properties-advanced`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[MATCHING-QUERY] Error response:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      const data = await response.json();
+      console.log('[MATCHING-QUERY] Received', data.total, 'total properties,', data.properties.length, 'in array');
+      return data;
+    }
   });
   
   // Fetch matching properties with notification status (per client compratori)
