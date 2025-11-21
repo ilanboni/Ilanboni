@@ -1,5 +1,5 @@
 import { ApifyClient } from 'apify-client';
-import type { PropertyListing } from '../propertyIngestion';
+import type { PropertyListing } from '../portalIngestionService';
 
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN!;
 const ACTOR_ID = 'igolaizola/idealista-scraper'; // Professional actor with contactInfo
@@ -67,7 +67,11 @@ export class IgolaIdealistaAdapter {
           Date.now() - startTime < maxWaitTime
         ) {
           await new Promise(resolve => setTimeout(resolve, pollInterval));
-          finalRun = await this.client.run(run.id).get();
+          const updatedRun = await this.client.run(run.id).get();
+          if (!updatedRun) {
+            throw new Error(`Failed to get run status for ${run.id}`);
+          }
+          finalRun = updatedRun;
           console.log(`[IGOLA-IDEALISTA] Polling... Status: ${finalRun.status}`);
         }
 
@@ -79,7 +83,6 @@ export class IgolaIdealistaAdapter {
         console.log('[IGOLA-IDEALISTA] Run completed:', {
           status: finalRun.status,
           statusMessage: finalRun.statusMessage,
-          itemsCount: finalRun.stats?.itemsCount,
           finishedAt: finalRun.finishedAt
         });
 

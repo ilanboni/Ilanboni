@@ -12957,7 +12957,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   app.post('/api/whatsapp-campaigns/:id/send', async (req: Request, res: Response) => {
     try {
       const campaignId = parseInt(req.params.id);
-      const { propertyIds } = req.body;
+      const { propertyIds, testMode, testPhone } = req.body;
 
       if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
         return res.status(400).json({ ok: false, error: 'Lista proprietà mancante o vuota' });
@@ -12985,18 +12985,29 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
             continue;
           }
 
-          if (!property.ownerPhone) {
+          if (!property.ownerPhone && !testMode) {
             results.skipped++;
             results.errors.push(`Proprietà ${propertyId} senza numero telefono`);
             continue;
           }
 
-          // Verifica deduplicazione
-          const contactCheck = await phoneDedup.canRecontactPhone(property.ownerPhone, 30);
-          if (!contactCheck.canContact) {
+          // In test mode, usa testPhone; altrimenti usa owner phone
+          const targetPhone = testMode && testPhone ? testPhone : property.ownerPhone;
+          
+          if (!targetPhone) {
             results.skipped++;
-            results.errors.push(`Telefono ${property.ownerPhone}: ${contactCheck.reason || 'già contattato recentemente'}`);
+            results.errors.push(`Nessun numero telefono disponibile per proprietà ${propertyId}`);
             continue;
+          }
+
+          // Salta deduplicazione in test mode
+          if (!testMode) {
+            const contactCheck = await phoneDedup.canRecontactPhone(targetPhone, 30);
+            if (!contactCheck.canContact) {
+              results.skipped++;
+              results.errors.push(`Telefono ${targetPhone}: ${contactCheck.reason || 'già contattato recentemente'}`);
+              continue;
+            }
           }
 
           // Genera messaggio personalizzato con AI mirroring se attivo
@@ -13010,7 +13021,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           const campaignMessage = await storage.createCampaignMessage({
             campaignId: campaign.id,
             propertyId: property.id,
-            phoneNumber: property.ownerPhone,
+            phoneNumber: targetPhone,
             messageContent,
             status: 'pending',
             conversationActive: true
@@ -13019,7 +13030,7 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           // Invia via WhatsApp (UltraMsg)
           try {
             const { sendWhatsAppMessage } = await import('./lib/ultramsgApi.js');
-            const whatsappResult = await sendWhatsAppMessage(property.ownerPhone, messageContent);
+            const whatsappResult = await sendWhatsAppMessage(targetPhone, messageContent);
             
             if (whatsappResult.success) {
               console.log(`[CAMPAIGN ${campaignId}] ✅ WhatsApp inviato a ${property.ownerPhone}`);
