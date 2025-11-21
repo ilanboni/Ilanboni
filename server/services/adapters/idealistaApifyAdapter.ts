@@ -25,12 +25,11 @@ export class IdealistaApifyAdapter implements PortalAdapter {
     await this.respectRateLimit();
 
     try {
-      // Milano location ID for Idealista (from previous working setup)
-      // Using numeric location ID instead of city name for more reliable scraping
-      const locationId = criteria.city === 'milano' ? '3700' : criteria.city;
+      // Use Milano as location - this was working yesterday
+      const location = criteria.city === 'milano' ? 'Milano' : criteria.city;
       
       const input: any = {
-        location: locationId, // Use Idealista location ID format
+        location: location, // Use city name for Idealista scraping
         maxItems: 1000, // Reduce to 1000 for faster response
         propertyType: 'homes', // apartment/home type
         operation: 'sale', // vendita
