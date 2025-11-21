@@ -13,9 +13,9 @@ export class FullCityScrapingScheduler {
   private lastRunTime: Date | null = null;
 
   /**
-   * @param cronExpression Cron expression (default: "0 2 * * 2,5" = Martedì e Venerdì alle 2:00 AM)
+   * @param cronExpression Cron expression (default: "0 7 * * *" = Ogni giorno alle 7:00 AM)
    */
-  constructor(cronExpression: string = '0 2 * * 2,5') {
+  constructor(cronExpression: string = '0 7 * * *') {
     this.cronExpression = cronExpression;
   }
 
@@ -31,7 +31,7 @@ export class FullCityScrapingScheduler {
       timezone: 'Europe/Rome'
     });
 
-    console.log(`[FULL-CITY-SCHEDULER] ⏰ Avviato con cron "${this.cronExpression}" (Martedì e Venerdì alle 2:00 AM Europe/Rome)`);
+    console.log(`[FULL-CITY-SCHEDULER] ⏰ Avviato con cron "${this.cronExpression}" (Ogni giorno alle 7:00 AM Europe/Rome)`);
     console.log(`[FULL-CITY-SCHEDULER] 📊 Sistema ottimizzato: 1 scraping completo invece di N scraping per buyer`);
   }
 
@@ -143,6 +143,6 @@ export class FullCityScrapingScheduler {
   }
 }
 
-// Istanza singleton: esegui Martedì e Venerdì alle 2:00 AM (timezone: Europe/Rome)
+// Istanza singleton: esegui ogni giorno alle 7:00 AM (timezone: Europe/Rome)
 // Sistema ottimizzato: 1 solo scraping completo invece di N scraping per buyer
-export const fullCityScrapingScheduler = new FullCityScrapingScheduler('0 2 * * 2,5');
+export const fullCityScrapingScheduler = new FullCityScrapingScheduler();

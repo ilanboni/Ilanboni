@@ -21,11 +21,14 @@ import {
   privateContactTracking, type PrivateContactTracking, type InsertPrivateContactTracking,
   whatsappCampaigns, type WhatsappCampaign, type InsertWhatsappCampaign,
   campaignMessages, type CampaignMessage, type InsertCampaignMessage,
-  botConversationLogs, type BotConversationLog, type InsertBotConversationLog
+  botConversationLogs, type BotConversationLog, type InsertBotConversationLog,
+  clientFavorites, type ClientFavorite, type InsertClientFavorite
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql } from "drizzle-orm";
 import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import { point } from '@turf/helpers';
 
 // Storage interface with CRUD methods for all entities
 export interface IStorage {
@@ -177,6 +180,17 @@ export interface IStorage {
   // Bot conversation log methods
   createBotConversationLog(log: InsertBotConversationLog): Promise<BotConversationLog>;
   getBotConversationLogs(campaignMessageId: number): Promise<BotConversationLog[]>;
+  
+  // Client favorites methods (dual favorites system)
+  getClientFavorites(clientId: number): Promise<ClientFavorite[]>;
+  addClientFavorite(clientId: number, sharedPropertyId: number, notes?: string): Promise<ClientFavorite>;
+  removeClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean>;
+  isClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean>;
+  
+  // Advanced property matching methods
+  getMatchingPropertiesForClient(clientId: number): Promise<SharedProperty[]>;
+  getMultiAgencyProperties(): Promise<SharedProperty[]>;
+  getPrivateProperties(): Promise<SharedProperty[]>;
 }
 
 // In-memory storage implementation
@@ -3349,6 +3363,237 @@ export class DatabaseStorage implements IStorage {
       .from(botConversationLogs)
       .where(eq(botConversationLogs.campaignMessageId, campaignMessageId))
       .orderBy(botConversationLogs.timestamp);
+  }
+  
+  // Client favorites methods (dual favorites system)
+  async getClientFavorites(clientId: number): Promise<ClientFavorite[]> {
+    return await db
+      .select()
+      .from(clientFavorites)
+      .where(eq(clientFavorites.clientId, clientId))
+      .orderBy(desc(clientFavorites.addedAt));
+  }
+  
+  async addClientFavorite(clientId: number, sharedPropertyId: number, notes?: string): Promise<ClientFavorite> {
+    // Upsert the favorite
+    await db
+      .insert(clientFavorites)
+      .values({ clientId, sharedPropertyId, notes })
+      .onConflictDoUpdate({
+        target: [clientFavorites.clientId, clientFavorites.sharedPropertyId],
+        set: notes ? { notes } : {} // Only update notes if provided
+      });
+    
+    // Always fetch and return the canonical record
+    const [result] = await db
+      .select()
+      .from(clientFavorites)
+      .where(
+        and(
+          eq(clientFavorites.clientId, clientId),
+          eq(clientFavorites.sharedPropertyId, sharedPropertyId)
+        )
+      )
+      .limit(1);
+    
+    // Guarantee a valid result (should never be undefined after upsert)
+    if (!result) {
+      throw new Error(`Failed to create or fetch favorite for client ${clientId} and property ${sharedPropertyId}`);
+    }
+    
+    return result;
+  }
+  
+  async removeClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(clientFavorites)
+        .where(
+          and(
+            eq(clientFavorites.clientId, clientId),
+            eq(clientFavorites.sharedPropertyId, sharedPropertyId)
+          )
+        )
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('[removeClientFavorite] Error:', error);
+      return false;
+    }
+  }
+  
+  async isClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(clientFavorites)
+      .where(
+        and(
+          eq(clientFavorites.clientId, clientId),
+          eq(clientFavorites.sharedPropertyId, sharedPropertyId)
+        )
+      )
+      .limit(1);
+    return result.length > 0;
+  }
+  
+  // Advanced property matching methods
+  async getMatchingPropertiesForClient(clientId: number): Promise<SharedProperty[]> {
+    // Get buyer preferences
+    const buyer = await this.getBuyerByClientId(clientId);
+    if (!buyer) return [];
+    
+    // Get all available shared properties
+    const allProperties = await db
+      .select()
+      .from(sharedProperties)
+      .where(
+        and(
+          eq(sharedProperties.isIgnored, false),
+          eq(sharedProperties.isAcquired, false)
+        )
+      );
+    
+    // Filter using advanced matching logic with tolerances
+    // size: -20% to +30%, price: +20%, zone: 1km radius
+    const matches = allProperties.filter(prop => {
+      // Size tolerance: -20% to +30%
+      // Only reject if BOTH values exist AND property is out of range
+      // If either value is missing, ACCEPT the property (let it through)
+      if (buyer.minSize && prop.size) {
+        const minAcceptable = buyer.minSize * 0.8; // -20%
+        const maxAcceptable = buyer.minSize * 1.3; // +30%
+        if (prop.size < minAcceptable || prop.size > maxAcceptable) {
+          return false; // Reject only when both values exist and it's out of range
+        }
+      }
+      // If buyer.minSize is set but prop.size is null/undefined → ACCEPT
+      // If buyer.minSize is not set → ACCEPT
+      
+      // Price tolerance: +20%
+      // Only reject if BOTH values exist AND property is too expensive
+      if (buyer.maxPrice && prop.price) {
+        const maxAcceptable = buyer.maxPrice * 1.2; // +20%
+        if (prop.price > maxAcceptable) {
+          return false; // Reject only when both values exist and it's too expensive
+        }
+      }
+      // If buyer.maxPrice is set but prop.price is null/undefined → ACCEPT
+      // If buyer.maxPrice is not set → ACCEPT
+      
+      // Zone tolerance: Check if property is within buyer's search areas
+      // Only enforce if BOTH buyer.searchArea AND prop.location exist
+      if (buyer.searchArea && prop.location) {
+        try {
+          // Normalize property location (support both {lat,lng} and GeoJSON)
+          const propLoc = prop.location as any;
+          let propLat: number, propLng: number;
+          
+          if (propLoc.coordinates) {
+            // GeoJSON format: coordinates: [lng, lat]
+            propLng = propLoc.coordinates[0];
+            propLat = propLoc.coordinates[1];
+          } else if (propLoc.lat !== undefined && propLoc.lng !== undefined) {
+            // Plain object: { lat, lng }
+            propLat = propLoc.lat;
+            propLng = propLoc.lng;
+          } else {
+            // Invalid location format → ACCEPT (no zone constraint)
+            return true;
+          }
+          
+          const searchArea = buyer.searchArea as any;
+          
+          // Check if searchArea is a FeatureCollection (polygon zones)
+          if (searchArea.type === 'FeatureCollection' && searchArea.features) {
+            const propertyPoint = point([propLng, propLat]);
+            let isInAnyZone = false;
+            
+            for (const feature of searchArea.features) {
+              if (booleanPointInPolygon(propertyPoint, feature)) {
+                isInAnyZone = true;
+                break;
+              }
+            }
+            
+            // Reject if property is outside all search zones
+            if (!isInAnyZone) {
+              return false;
+            }
+          }
+          // If searchArea is a single point with radius, calculate haversine distance
+          else if (searchArea.type === 'Point' || (searchArea.center && searchArea.radius)) {
+            // Extract center coordinates
+            let centerLat: number, centerLng: number;
+            let radiusKm = 1; // Default 1km as per requirement
+            
+            if (searchArea.center) {
+              // Format: { center: { lat, lng }, radius: number }
+              centerLat = searchArea.center.lat;
+              centerLng = searchArea.center.lng;
+              radiusKm = searchArea.radius || 1;
+            } else if (searchArea.coordinates) {
+              // GeoJSON Point: { type: 'Point', coordinates: [lng, lat] }
+              centerLng = searchArea.coordinates[0];
+              centerLat = searchArea.coordinates[1];
+            } else {
+              // Invalid format → ACCEPT
+              return true;
+            }
+            
+            // Calculate haversine distance
+            const R = 6371; // Earth radius in km
+            const dLat = (propLat - centerLat) * Math.PI / 180;
+            const dLng = (propLng - centerLng) * Math.PI / 180;
+            const a = 
+              Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(centerLat * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distanceKm = R * c;
+            
+            // Reject if property is outside radius
+            if (distanceKm > radiusKm) {
+              return false;
+            }
+          }
+        } catch (error) {
+          // If location processing fails → ACCEPT (don't reject due to data issues)
+          console.warn('[getMatchingPropertiesForClient] Zone check error:', error);
+          return true;
+        }
+      }
+      // If buyer.searchArea or prop.location is missing → ACCEPT (no zone constraint)
+      
+      return true; // Accept by default
+    });
+    
+    return matches;
+  }
+  
+  async getMultiAgencyProperties(): Promise<SharedProperty[]> {
+    return await db
+      .select()
+      .from(sharedProperties)
+      .where(
+        and(
+          eq(sharedProperties.classificationColor, 'yellow'),
+          eq(sharedProperties.isIgnored, false)
+        )
+      )
+      .orderBy(desc(sharedProperties.createdAt));
+  }
+  
+  async getPrivateProperties(): Promise<SharedProperty[]> {
+    return await db
+      .select()
+      .from(sharedProperties)
+      .where(
+        and(
+          eq(sharedProperties.classificationColor, 'green'),
+          eq(sharedProperties.isIgnored, false)
+        )
+      )
+      .orderBy(desc(sharedProperties.createdAt));
   }
 }
 

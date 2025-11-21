@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, RefreshCw, Map, List, Star, Phone, Trash2 } from "lucide-react";
-import { type PropertyWithDetails } from "@shared/schema";
+import { type SharedProperty } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
@@ -88,24 +88,24 @@ export default function PrivatePropertiesPage() {
     isFavorite: false
   });
   
-  // Fetch only private properties to avoid loading thousands of records
-  const { data: allProperties, isLoading, isError, refetch } = useQuery<PropertyWithDetails[]>({
-    queryKey: ['/api/properties', { ownerType: 'private' }]
+  // Fetch only private shared properties using new classification system
+  const { data: allProperties, isLoading, isError, refetch } = useQuery<SharedProperty[]>({
+    queryKey: ['/api/properties/private']
   });
 
   // Mutation for toggling favorite status
   const toggleFavoriteMutation = useMutation({
     mutationFn: async ({ propertyId, isFavorite }: { propertyId: number; isFavorite: boolean }) => {
-      return await apiRequest(`/api/properties/${propertyId}/favorite`, {
+      return await apiRequest(`/api/shared-properties/${propertyId}/favorite`, {
         method: 'PATCH',
         data: { isFavorite }
       });
     },
     onMutate: async ({ propertyId, isFavorite }) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/properties'] });
-      const previousData = queryClient.getQueryData(['/api/properties']);
+      await queryClient.cancelQueries({ queryKey: ['/api/properties/private'] });
+      const previousData = queryClient.getQueryData(['/api/properties/private']);
       
-      queryClient.setQueryData(['/api/properties'], (old: any[]) => {
+      queryClient.setQueryData(['/api/properties/private'], (old: any[]) => {
         return old?.map(prop => 
           prop.id === propertyId ? { ...prop, isFavorite } : prop
         ) || old;
@@ -115,7 +115,7 @@ export default function PrivatePropertiesPage() {
     },
     onError: (error, variables, context) => {
       if (context) {
-        queryClient.setQueryData(['/api/properties'], context.previousData);
+        queryClient.setQueryData(['/api/properties/private'], context.previousData);
       }
       toast({
         title: "Errore",
@@ -130,14 +130,14 @@ export default function PrivatePropertiesPage() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/properties/private'] });
     }
   });
   
   // Mutation for deleting property
   const deleteMutation = useMutation({
     mutationFn: async (propertyId: number) => {
-      return await apiRequest(`/api/properties/${propertyId}`, {
+      return await apiRequest(`/api/shared-properties/${propertyId}`, {
         method: 'DELETE'
       });
     },
@@ -146,7 +146,7 @@ export default function PrivatePropertiesPage() {
         title: "Proprietà eliminata",
         description: "La proprietà è stata eliminata con successo"
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/properties/private'] });
     },
     onError: () => {
       toast({
@@ -159,34 +159,26 @@ export default function PrivatePropertiesPage() {
   
   // Filter and sort properties with memoization for performance
   const filteredProperties = useMemo(() => {
-    // Filter properties
-    const filtered = allProperties?.filter((property: PropertyWithDetails) => {
-      // Filtro 1: Solo privati
-      if (property.ownerType !== 'private') return false;
+    // Filter properties - backend already returns only green (private) properties
+    const filtered = allProperties?.filter((property: SharedProperty) => {
+      // Filtro location: Estrai lat/lng da location object
+      let lat: number | null = null;
+      let lng: number | null = null;
       
-      // Filtro 2: Solo da Apify (Immobiliare.it e Idealista.it)
-      if (!property.source || !['apify', 'scraper-immobiliare', 'scraper-idealista', 'idealista', 'immobiliare'].includes(property.source)) {
-        return false;
+      if (property.location) {
+        const loc = property.location as any;
+        if (loc.lat !== undefined && loc.lng !== undefined) {
+          lat = typeof loc.lat === 'number' ? loc.lat : parseFloat(loc.lat);
+          lng = typeof loc.lng === 'number' ? loc.lng : parseFloat(loc.lng);
+        }
       }
       
-      // Filtro 3: Raggio 4km dal Duomo di Milano
-      if (property.latitude === null || property.latitude === undefined || 
-          property.longitude === null || property.longitude === undefined ||
-          property.latitude === '' || property.longitude === '') {
-        return false;
-      }
-      
-      const lat = parseFloat(property.latitude);
-      const lng = parseFloat(property.longitude);
-      
-      if (isNaN(lat) || isNaN(lng)) {
-        return false;
-      }
-      
-      const distance = calculateDistance(DUOMO_LAT, DUOMO_LNG, lat, lng);
-      
-      if (isNaN(distance) || distance > RADIUS_KM) {
-        return false;
+      // Filtro 1: Raggio 4km dal Duomo di Milano (opzionale - già filtrato dal backend)
+      if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+        const distance = calculateDistance(DUOMO_LAT, DUOMO_LNG, lat, lng);
+        if (isNaN(distance) || distance > RADIUS_KM) {
+          return false;
+        }
       }
       
       // Filtro 4: Solo con telefono (opzionale)
@@ -194,8 +186,9 @@ export default function PrivatePropertiesPage() {
       
       // Filtro 5: Portale specifico
       if (filters.portalFilter && filters.portalFilter !== 'all') {
-        if (filters.portalFilter === 'immobiliare' && property.source !== 'apify' && property.source !== 'scraper-immobiliare' && property.source !== 'immobiliare') return false;
-        if (filters.portalFilter === 'idealista' && property.source !== 'scraper-idealista' && property.source !== 'idealista') return false;
+        const portal = property.portalSource?.toLowerCase() || '';
+        if (filters.portalFilter === 'immobiliare' && !portal.includes('immobiliare')) return false;
+        if (filters.portalFilter === 'idealista' && !portal.includes('idealista')) return false;
       }
       
       // Filtro 6: Ricerca testuale
@@ -203,8 +196,8 @@ export default function PrivatePropertiesPage() {
         const query = filters.search.toLowerCase();
         const addressMatch = property.address?.toLowerCase().includes(query);
         const cityMatch = property.city?.toLowerCase().includes(query);
-        const descMatch = property.description?.toLowerCase().includes(query);
-        if (!addressMatch && !cityMatch && !descMatch) return false;
+        // SharedProperty doesn't have description field
+        if (!addressMatch && !cityMatch) return false;
       }
 
       // Filtro 7: Solo preferiti
@@ -243,14 +236,14 @@ export default function PrivatePropertiesPage() {
   const stats = useMemo(() => ({
     total: filteredProperties.length,
     withPhone: filteredProperties.filter(p => p.ownerPhone).length,
-    immobiliare: filteredProperties.filter(p => p.source === 'apify' || p.source === 'scraper-immobiliare' || p.source === 'immobiliare').length,
-    idealista: filteredProperties.filter(p => p.source === 'scraper-idealista' || p.source === 'idealista').length,
+    immobiliare: filteredProperties.filter(p => p.portalSource?.toLowerCase().includes('immobiliare')).length,
+    idealista: filteredProperties.filter(p => p.portalSource?.toLowerCase().includes('idealista')).length,
     favorites: filteredProperties.filter(p => p.isFavorite).length,
   }), [filteredProperties]);
   
   // Function to refresh data
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/properties/private'] });
     toast({
       title: "Aggiornamento in corso",
       description: "Ricaricamento delle proprietà..."
@@ -440,8 +433,10 @@ export default function PrivatePropertiesPage() {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     {paginatedProperties.map((property) => {
-                      const lat = property.latitude ? parseFloat(property.latitude) : NaN;
-                      const lng = property.longitude ? parseFloat(property.longitude) : NaN;
+                      // Extract lat/lng from location object
+                      const loc = property.location as any;
+                      const lat = loc?.lat ? (typeof loc.lat === 'number' ? loc.lat : parseFloat(loc.lat)) : NaN;
+                      const lng = loc?.lng ? (typeof loc.lng === 'number' ? loc.lng : parseFloat(loc.lng)) : NaN;
                       
                       if (isNaN(lat) || isNaN(lng)) return null;
                       
@@ -553,11 +548,6 @@ export default function PrivatePropertiesPage() {
                               {property.size}m²
                             </Badge>
                           )}
-                          {property.bedrooms && (
-                            <Badge variant="outline" className="text-xs">
-                              {property.bedrooms} camere
-                            </Badge>
-                          )}
                           {property.ownerPhone && (
                             <Badge variant="secondary" className="text-xs">
                               <Phone className="h-3 w-3 mr-1" />
@@ -570,9 +560,9 @@ export default function PrivatePropertiesPage() {
                             📱 {property.ownerPhone}
                           </div>
                         )}
-                        {property.source && (
+                        {property.portalSource && (
                           <div className="text-xs text-gray-500">
-                            Fonte: {property.source === 'apify' ? 'Immobiliare.it' : property.source}
+                            Fonte: {property.portalSource}
                           </div>
                         )}
                       </CardContent>

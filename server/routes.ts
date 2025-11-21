@@ -2693,6 +2693,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get multi-agency properties (yellow classification)
+  app.get("/api/properties/multi-agency", async (req: Request, res: Response) => {
+    try {
+      const properties = await storage.getMultiAgencyProperties();
+      const enrichedProperties = enrichArrayWithClassification(properties);
+      res.json(enrichedProperties);
+    } catch (error) {
+      console.error("[GET /api/properties/multi-agency]", error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà multi-agenzia" });
+    }
+  });
+  
+  // Get private properties (green classification)
+  app.get("/api/properties/private", async (req: Request, res: Response) => {
+    try {
+      const properties = await storage.getPrivateProperties();
+      const enrichedProperties = enrichArrayWithClassification(properties);
+      res.json(enrichedProperties);
+    } catch (error) {
+      console.error("[GET /api/properties/private]", error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà private" });
+    }
+  });
+  
   // Get shared properties with optional filters
   app.get("/api/shared-properties", async (req: Request, res: Response) => {
     try {
@@ -3870,6 +3894,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}]`, error);
       res.status(500).json({ error: "Errore durante il recupero del cliente" });
+    }
+  });
+  
+  // Get matching properties for client (advanced matching with tolerances)
+  app.get("/api/clients/:id/matching-properties-advanced", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const matches = await storage.getMatchingPropertiesForClient(clientId);
+      res.json(matches);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/matching-properties-advanced]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà" });
+    }
+  });
+  
+  // Get client favorites
+  app.get("/api/clients/:id/favorites", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const favorites = await storage.getClientFavorites(clientId);
+      res.json(favorites);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/favorites]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei preferiti" });
+    }
+  });
+  
+  // Add property to client favorites
+  app.post("/api/clients/:id/favorites", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const { sharedPropertyId, notes } = req.body;
+      if (!sharedPropertyId) {
+        return res.status(400).json({ error: "ID proprietà mancante" });
+      }
+      
+      const favorite = await storage.addClientFavorite(clientId, sharedPropertyId, notes);
+      res.status(201).json(favorite);
+    } catch (error) {
+      console.error(`[POST /api/clients/${req.params.id}/favorites]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiunta ai preferiti" });
+    }
+  });
+  
+  // Remove property from client favorites
+  app.delete("/api/clients/:id/favorites/:propertyId", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const sharedPropertyId = parseInt(req.params.propertyId);
+      
+      if (isNaN(clientId) || isNaN(sharedPropertyId)) {
+        return res.status(400).json({ error: "ID non valido" });
+      }
+      
+      await storage.removeClientFavorite(clientId, sharedPropertyId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error(`[DELETE /api/clients/${req.params.id}/favorites/${req.params.propertyId}]`, error);
+      res.status(500).json({ error: "Errore durante la rimozione dai preferiti" });
     }
   });
   
