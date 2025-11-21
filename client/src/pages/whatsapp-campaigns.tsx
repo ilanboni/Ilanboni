@@ -484,113 +484,127 @@ function CampaignForm({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="instructions"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Istruzioni Bot Conversazionale (opzionale)</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Istruzioni specifiche per il bot AI su come gestire le risposte..." 
-                  rows={3}
-                  {...field}
-                  value={field.value || ""}
-                  data-testid="input-bot-instructions"
-                />
-              </FormControl>
-              <FormDescription>
-                Guida il bot AI su come rispondere ai proprietari (tono, obiettivi, limiti)
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <Card className="p-4 bg-slate-50 dark:bg-slate-900/30 border-2">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold flex items-center gap-2 mb-1">
+                <Bot className="h-5 w-5" />
+                Configurazione Bot AI
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Istruzioni comportamentali e gestione automatica delle obiezioni
+              </p>
+            </div>
 
-        <FormField
-          control={form.control}
-          name="objectionHandling"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Gestione Obiezioni Automatiche (opzionale)
-              </FormLabel>
-              <FormDescription className="mb-3">
-                Configura risposte automatiche per obiezioni comuni (es: "No agenzie", "Prezzo troppo alto")
-              </FormDescription>
-              <div className="space-y-3">
-                {(field.value || []).map((objection, index) => (
-                  <Card key={index} className="p-3">
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 space-y-2">
-                          <div>
-                            <label className="text-sm font-medium">Parole chiave (separate da virgola)</label>
-                            <Input
-                              placeholder="no agenzie, niente agenzie, solo privati"
-                              value={objection.keywords.join(', ')}
-                              onChange={(e) => {
-                                const keywords = e.target.value.split(',').map(k => k.trim()).filter(k => k);
+            <FormField
+              control={form.control}
+              name="instructions"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Istruzioni Bot Conversazionale (opzionale)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Istruzioni specifiche per il bot AI su come gestire le risposte..." 
+                      rows={3}
+                      {...field}
+                      value={field.value || ""}
+                      data-testid="input-bot-instructions"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Guida il bot AI su come rispondere ai proprietari (tono, obiettivi, limiti)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="objectionHandling"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Gestione Obiezioni Automatiche (opzionale)
+                  </FormLabel>
+                  <FormDescription className="mb-3">
+                    Configura risposte automatiche per obiezioni comuni (es: "No agenzie", "Prezzo troppo alto")
+                  </FormDescription>
+                  <div className="space-y-3">
+                    {(field.value || []).map((objection, index) => (
+                      <Card key={index} className="p-3">
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 space-y-2">
+                              <div>
+                                <label className="text-sm font-medium">Parole chiave (separate da virgola)</label>
+                                <Input
+                                  placeholder="no agenzie, niente agenzie, solo privati"
+                                  value={objection.keywords.join(', ')}
+                                  onChange={(e) => {
+                                    const keywords = e.target.value.split(',').map(k => k.trim()).filter(k => k);
+                                    const newObjections = [...(field.value || [])];
+                                    newObjections[index] = { ...objection, keywords };
+                                    field.onChange(newObjections);
+                                  }}
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium">Risposta automatica</label>
+                                <Textarea
+                                  placeholder="Capisco perfettamente la sua preferenza. Come agente certificato, posso aiutarla gratuitamente con..."
+                                  value={objection.response}
+                                  onChange={(e) => {
+                                    const newObjections = [...(field.value || [])];
+                                    newObjections[index] = { ...objection, response: e.target.value };
+                                    field.onChange(newObjections);
+                                  }}
+                                  rows={3}
+                                  className="mt-1"
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
                                 const newObjections = [...(field.value || [])];
-                                newObjections[index] = { ...objection, keywords };
+                                newObjections.splice(index, 1);
                                 field.onChange(newObjections);
                               }}
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Risposta automatica</label>
-                            <Textarea
-                              placeholder="Capisco perfettamente la sua preferenza. Come agente certificato, posso aiutarla gratuitamente con..."
-                              value={objection.response}
-                              onChange={(e) => {
-                                const newObjections = [...(field.value || [])];
-                                newObjections[index] = { ...objection, response: e.target.value };
-                                field.onChange(newObjections);
-                              }}
-                              rows={3}
-                              className="mt-1"
-                            />
+                              className="mt-6"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                           </div>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            const newObjections = [...(field.value || [])];
-                            newObjections.splice(index, 1);
-                            field.onChange(newObjections);
-                          }}
-                          className="mt-6"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const newObjections = [...(field.value || []), { keywords: [], response: '' }];
-                    field.onChange(newObjections);
-                  }}
-                  className="w-full"
-                  data-testid="button-add-objection"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Aggiungi Obiezione
-                </Button>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                      </Card>
+                    ))}
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newObjections = [...(field.value || []), { keywords: [], response: '' }];
+                        field.onChange(newObjections);
+                      }}
+                      className="w-full"
+                      data-testid="button-add-objection"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Aggiungi Obiezione
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </Card>
 
         <FormField
           control={form.control}
