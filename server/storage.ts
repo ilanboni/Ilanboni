@@ -3584,16 +3584,46 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getPrivateProperties(): Promise<SharedProperty[]> {
-    return await db
+    // Get private properties from the main properties table (not sharedProperties)
+    const privateProps = await db
       .select()
-      .from(sharedProperties)
+      .from(properties)
       .where(
         and(
-          eq(sharedProperties.classificationColor, 'green'),
-          eq(sharedProperties.isIgnored, false)
+          eq(properties.ownerType, 'private'),
+          eq(properties.status, 'available')
         )
       )
-      .orderBy(desc(sharedProperties.createdAt));
+      .orderBy(desc(properties.createdAt));
+    
+    // Convert Property to SharedProperty format for frontend compatibility
+    return privateProps.map((p: any) => ({
+      id: p.id,
+      propertyId: p.id,
+      address: p.address || '',
+      city: p.city || 'Milano',
+      province: p.province || 'MI',
+      type: p.type || 'apartment',
+      size: p.size,
+      price: p.price,
+      rooms: p.rooms,
+      bathrooms: p.bathrooms,
+      description: p.description,
+      images: p.images || [],
+      location: p.location,
+      agencyName: p.ownerName || 'Privato',
+      agencyUrl: p.url || p.externalLink || '',
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      externalId: p.externalId,
+      source: p.source || 'manual',
+      classificationColor: 'green' as const,
+      isIgnored: false,
+      elevator: p.elevator,
+      balconyOrTerrace: p.balconyOrTerrace,
+      parking: p.parking,
+      garden: p.garden
+    } as SharedProperty));
   }
 }
 
