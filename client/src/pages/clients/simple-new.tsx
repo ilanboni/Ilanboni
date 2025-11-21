@@ -24,6 +24,7 @@ export default function SimpleNewClient() {
     phone: "3771234567",
     religion: "catholic",
     notes: "Cliente test",
+    searchLink: "",
     minSize: "80",
     maxPrice: "250000",
     urgency: "3",
@@ -53,6 +54,7 @@ export default function SimpleNewClient() {
         phone: formData.phone,
         religion: formData.religion,
         notes: formData.notes,
+        searchLink: formData.searchLink || null,
         // Aggiungi i dati specifici in base al tipo di cliente
         buyer: clientType === 'buyer' ? {
           searchArea,
@@ -234,6 +236,18 @@ export default function SimpleNewClient() {
                 onChange={handleChange}
                 className="w-full p-2 border rounded"
                 rows={3}
+              />
+            </div>
+            
+            <div>
+              <label className="block mb-2">Link ricerca (Casafari)</label>
+              <input
+                type="url"
+                name="searchLink"
+                value={formData.searchLink}
+                onChange={handleChange}
+                placeholder="https://www.casafari.com/..."
+                className="w-full p-2 border rounded"
               />
             </div>
             

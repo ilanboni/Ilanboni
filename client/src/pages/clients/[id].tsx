@@ -772,6 +772,21 @@ export default function ClientDetailPage() {
                     <h3 className="text-sm font-medium text-gray-500 mb-1">Cliente dal</h3>
                     <p>{client?.createdAt ? formatDate(client.createdAt.toString()) : "Data non disponibile"}</p>
                   </div>
+                  <div className="md:col-span-2">
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">Link ricerca</h3>
+                    {client?.searchLink ? (
+                      <a 
+                        href={client.searchLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline break-all"
+                      >
+                        {client.searchLink}
+                      </a>
+                    ) : (
+                      <p>Non specificato</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
               

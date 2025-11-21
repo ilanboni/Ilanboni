@@ -57,6 +57,7 @@ const clientFormSchema = z.object({
   birthday: z.date().optional().nullable(),
   contractType: z.enum(["rent", "sale"]).optional().nullable(),
   notes: z.string().optional().or(z.literal("")),
+  searchLink: z.string().url("Inserisci un URL valido").optional().or(z.literal("")),
   // Buyer-specific fields
   searchArea: z.any().optional().nullable(),
   minSize: z.union([z.number().min(0), z.string().regex(/^\d*$/, "Inserisci solo numeri").transform(val => val === "" ? null : Number(val)), z.null(), z.undefined()]),
@@ -112,6 +113,7 @@ export default function ClientForm({
       birthday: initialData.birthday ? new Date(initialData.birthday) : undefined,
       contractType: initialData.contractType as "rent" | "sale" | undefined,
       notes: initialData.notes || "",
+      searchLink: initialData.searchLink || "",
       // Buyer fields - prima utilizza le preferenze separate, poi fallback sui dati cliente
       searchArea: buyerPreferences?.searchArea || initialData.buyer?.searchArea || null,
       minSize: buyerPreferences?.minSize !== undefined ? Number(buyerPreferences.minSize) : 
@@ -140,6 +142,7 @@ export default function ClientForm({
       birthday: undefined,
       contractType: undefined,
       notes: "",
+      searchLink: "",
       // Default buyer values - utilizza le preferenze separate se disponibili
       searchArea: buyerPreferences?.searchArea || null,
       minSize: buyerPreferences?.minSize !== undefined ? Number(buyerPreferences.minSize) : undefined,
@@ -417,6 +420,25 @@ export default function ClientForm({
                     <Textarea
                       placeholder="Inserisci qui eventuali note sul cliente..."
                       className="resize-none h-24"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Search Link field - common for both types */}
+            <FormField
+              control={form.control}
+              name="searchLink"
+              render={({ field }) => (
+                <FormItem className="mt-4">
+                  <FormLabel>Link ricerca (Casafari)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="url"
+                      placeholder="https://www.casafari.com/..."
                       {...field}
                     />
                   </FormControl>

@@ -52,6 +52,7 @@ export const clients = pgTable("clients", {
   birthday: date("birthday"),
   contractType: text("contract_type"), // "rent" or "sale"
   notes: text("notes"),
+  searchLink: text("search_link"), // Casafari search link
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
