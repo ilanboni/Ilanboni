@@ -25,12 +25,13 @@ export class IdealistaApifyAdapter implements PortalAdapter {
     await this.respectRateLimit();
 
     try {
-      // Use igolaizola/idealista-scraper - specialized actor for idealista.it
-      const location = criteria.city === 'milano' ? 'Milano' : criteria.city;
+      // Milano location ID for Idealista (from previous working setup)
+      // Using numeric location ID instead of city name for more reliable scraping
+      const locationId = criteria.city === 'milano' ? '3700' : criteria.city;
       
       const input: any = {
-        location: location, // City name or Idealista location ID
-        maxItems: 5000, // Scrape up to 5000 items per search
+        location: locationId, // Use Idealista location ID format
+        maxItems: 1000, // Reduce to 1000 for faster response
         propertyType: 'homes', // apartment/home type
         operation: 'sale', // vendita
         proxyConfiguration: {
