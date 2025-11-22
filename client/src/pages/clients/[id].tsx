@@ -1740,7 +1740,8 @@ export default function ClientDetailPage() {
                       <Card key={property.id} className="overflow-hidden" style={{
                         backgroundColor: bgColor,
                         borderColor: borderColor,
-                        borderWidth: '1px'
+                        borderWidth: '2px',
+                        borderStyle: 'solid'
                       }}>
                         <div className="aspect-video relative bg-gray-100">
                           {property.images && property.images.length > 0 ? (
