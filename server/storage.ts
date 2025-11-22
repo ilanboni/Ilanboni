@@ -3652,10 +3652,20 @@ export class DatabaseStorage implements IStorage {
         ...prop,
         isMultiagency,
         ownerType
-      };
+      } as any;
     });
     
-    return processedMatches;
+    // Debug: log first property to verify fields are present
+    if (processedMatches.length > 0) {
+      console.log('[getMatchingPropertiesForClient] First property:', {
+        id: processedMatches[0].id,
+        address: processedMatches[0].address,
+        isMultiagency: (processedMatches[0] as any).isMultiagency,
+        ownerType: (processedMatches[0] as any).ownerType
+      });
+    }
+    
+    return processedMatches as any[];
   }
   
   async getMultiAgencyProperties(): Promise<SharedProperty[]> {

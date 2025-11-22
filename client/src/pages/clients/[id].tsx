@@ -1677,6 +1677,19 @@ export default function ClientDetailPage() {
                     propertiesIsArray: Array.isArray(matchingProperties?.properties),
                     fullData: matchingProperties
                   });
+                  
+                  // Log first property in detail to check for isMultiagency and ownerType
+                  if (matchingProperties?.properties && matchingProperties.properties.length > 0) {
+                    const firstProp = matchingProperties.properties[0] as any;
+                    console.log('[FIRST-PROPERTY-DETAIL]', {
+                      id: firstProp.id,
+                      address: firstProp.address,
+                      isMultiagency: firstProp.isMultiagency,
+                      ownerType: firstProp.ownerType,
+                      agenciesCount: firstProp.agencies?.length,
+                      allKeys: Object.keys(firstProp).join(', ')
+                    });
+                  }
                   return null;
                 })()}
                 {isMatchingPropertiesLoading ? (

@@ -3912,6 +3912,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/matching-properties-advanced]`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[MATCHING-PROPERTIES] Error detail: ${errorMessage}`);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà" });
     }
   });
