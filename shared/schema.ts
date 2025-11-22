@@ -233,6 +233,7 @@ export const sharedProperties = pgTable("shared_properties", {
   url: text("url"), // Link to external listing
   imageUrls: jsonb("image_urls"), // Array of image URLs from scraping
   ownerType: text("owner_type"), // "private" or "agency"
+  isMultiagency: boolean("is_multiagency").default(false), // true if 7+ agencies
   scrapedForClientId: integer("scraped_for_client_id").references(() => clients.id), // Which client requested the scraping
   lastScrapedAt: timestamp("last_scraped_at"), // Last time this property was scraped
   classificationColor: text("classification_color").default("red"), // "red" (single agency), "yellow" (multi-agency), "green" (private)

@@ -107,7 +107,18 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
     
     try {
       // Verifico che la posizione dell'immobile sia nel formato corretto
-      const propertyLocation = property.location as any;
+      let propertyLocation = property.location as any;
+      
+      // Parse JSON string if needed
+      if (typeof propertyLocation === 'string') {
+        try {
+          propertyLocation = JSON.parse(propertyLocation);
+        } catch (e) {
+          console.log(`[Matching] L'immobile ${property.id} non ha una posizione valida:`, property.location);
+          return false;
+        }
+      }
+      
       if (!propertyLocation || !propertyLocation.lat || !propertyLocation.lng) {
         console.log(`[Matching] L'immobile ${property.id} non ha una posizione valida:`, property.location);
         return false;

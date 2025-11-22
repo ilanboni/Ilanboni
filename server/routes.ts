@@ -12676,8 +12676,8 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
           if (geocodeResults.length > 0) {
             const result = geocodeResults[0];
             const location = {
-              type: 'Point',
-              coordinates: [result.lng, result.lat]
+              lat: result.lat,
+              lng: result.lng
             };
             
             await db.update(sharedProperties)

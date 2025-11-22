@@ -1856,6 +1856,14 @@ export default function ClientDetailPage() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
+                  <Button 
+                    variant={showOnlyPrivateProperties ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowOnlyPrivateProperties(!showOnlyPrivateProperties)}
+                    data-testid="button-filter-private-properties"
+                  >
+                    <i className="fas fa-filter mr-2"></i>Solo Privati
+                  </Button>
                   {client?.buyer?.rating && client.buyer.rating >= 4 && (
                     <Button 
                       onClick={async () => {
@@ -1931,23 +1939,25 @@ export default function ClientDetailPage() {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {savedScrapedProperties.map((property, idx) => {
-                      // Determine color based on ownerType and isMultiagency
-                      let bgColor = 'bg-gray-50';
-                      let borderColor = '#d1d5db';
-                      
-                      if (property.ownerType === 'private') {
-                        bgColor = 'bg-green-50';
-                        borderColor = '#86efac';
-                      } else if (property.isMultiagency) {
-                        bgColor = 'bg-yellow-50';
-                        borderColor = '#fde047';
-                      } else {
-                        bgColor = 'bg-red-50';
-                        borderColor = '#fca5a5';
-                      }
-                      
-                      return (
+                      {savedScrapedProperties
+                        .filter(property => !showOnlyPrivateProperties || property.ownerType === 'private')
+                        .map((property, idx) => {
+                        // Determine color based on ownerType and isMultiagency
+                        let bgColor = 'bg-gray-50';
+                        let borderColor = '#d1d5db';
+                        
+                        if (property.ownerType === 'private') {
+                          bgColor = 'bg-green-50';
+                          borderColor = '#86efac';
+                        } else if (property.isMultiagency) {
+                          bgColor = 'bg-yellow-50';
+                          borderColor = '#fde047';
+                        } else {
+                          bgColor = 'bg-red-50';
+                          borderColor = '#fca5a5';
+                        }
+                        
+                        return (
                       <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className={`overflow-hidden ${bgColor}`} style={{
                         borderColor: borderColor,
                         borderWidth: '2px',

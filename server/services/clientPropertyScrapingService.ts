@@ -63,7 +63,27 @@ export class ClientPropertyScrapingService {
       .from(sharedProperties)
       .where(eq(sharedProperties.matchBuyers, true));
 
+    const drizzleCount = savedProperties.length;
+    console.log(`[DRIZZLE-QUERY] Query executed. Drizzle.length = ${drizzleCount}`);
+    console.log(`[DRIZZLE-QUERY] First 3 IDs: ${savedProperties.slice(0, 3).map(p => p.id).join(', ')}`);
+    console.log(`[DRIZZLE-QUERY] Last 3 IDs: ${savedProperties.slice(-3).map(p => p.id).join(', ')}`);
+    
+    console.log(`[SAVED-PROPERTIES] Drizzle returned ${savedProperties.length} properties (database has 2731 with match_buyers=true)`);
     console.log(`[SAVED-PROPERTIES] Found ${savedProperties.length} saved properties before filtering`);
+    
+    // DEBUG: Log first property details
+    if (savedProperties.length > 0) {
+      console.log(`[DEBUG] First property:`, { id: savedProperties[0].id, ownerType: savedProperties[0].ownerType, address: savedProperties[0].address });
+      console.log(`[DEBUG] All property IDs in range [1200-3500]:`, savedProperties.filter(sp => sp.id >= 1200 && sp.id <= 3500).map(p => p.id));
+    }
+    
+    // DEBUG: Check if private properties are in the list
+    const debugProps = savedProperties.filter(sp => [1236, 3461].includes(sp.id));
+    if (debugProps.length > 0) {
+      console.log(`[DEBUG] Found ${debugProps.length} private test properties:`, debugProps.map(p => ({ id: p.id, ownerType: p.ownerType, address: p.address, size: p.size, location: p.location })));
+    } else {
+      console.log(`[DEBUG] Private test properties (1236, 3461) NOT found in saved properties list!`);
+    }
 
     // Filter using centralized matching logic
     const { isSharedPropertyMatchingBuyerCriteria } = await import('../lib/matchingLogic');
@@ -87,6 +107,9 @@ export class ClientPropertyScrapingService {
           } else if (loc.x !== undefined && loc.y !== undefined) {
             longitude = loc.x;
             latitude = loc.y;
+          } else if (loc.lat !== undefined && loc.lng !== undefined) {
+            latitude = loc.lat;
+            longitude = loc.lng;
           }
         } catch (e) {
           console.warn('[CLIENT-SCRAPING] Failed to parse location for property', sp.id);
