@@ -3233,25 +3233,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Endpoint per trovare clienti potenziali per una proprietà condivisa
+  // Get matching buyers for a shared property - usa la STESSA logica del ranking endpoint
   app.get("/api/shared-properties/:id/matching-buyers", async (req: Request, res: Response) => {
     try {
-      const sharedPropertyId = parseInt(req.params.id);
-      if (isNaN(sharedPropertyId)) {
+      const propertyId = parseInt(req.params.id);
+      if (isNaN(propertyId)) {
         return res.status(400).json({ error: "ID proprietà condivisa non valido" });
       }
       
-      const sharedProperty = await storage.getSharedProperty(sharedPropertyId);
+      const sharedProperty = await storage.getSharedProperty(propertyId);
       if (!sharedProperty) {
         return res.status(404).json({ error: "Proprietà condivisa non trovata" });
       }
       
-      // Cerca clienti acquirenti con preferenze compatibili per questa proprietà condivisa
-      const matchingBuyers = await storage.getMatchingBuyersForSharedProperty(sharedPropertyId);
+      // Carica TUTTI i buyer (stessa logica del ranking endpoint)
+      const allBuyers = await db
+        .select()
+        .from(buyers)
+        .innerJoin(clients, eq(buyers.clientId, clients.id));
       
-      console.log(`[GET /api/shared-properties/${sharedPropertyId}/matching-buyers] Trovati ${matchingBuyers.length} clienti compatibili`);
+      // Filtra i buyer interessati in memoria (non in DB) usando la STESSA logica del ranking
+      const interestedBuyers = allBuyers.filter(row => {
+        const buyer = row.buyers;
+        if (!sharedProperty.size || !sharedProperty.price) return false;
+        
+        // Usa la stessa logica di matching del ranking endpoint
+        const matchesSize = !buyer.minSize || sharedProperty.size >= buyer.minSize * 0.8; // -20% tolleranza
+        const matchesPrice = !buyer.maxPrice || sharedProperty.price <= buyer.maxPrice * 1.2; // +20% tolleranza
+        
+        return matchesSize && matchesPrice;
+      });
       
-      res.json(matchingBuyers);
+      // Mappa i risultati con le informazioni del client
+      const result = interestedBuyers.map(row => ({
+        id: row.clients.id,
+        firstName: row.clients.firstName,
+        lastName: row.clients.lastName,
+        phone: row.clients.phone,
+        type: row.clients.type
+      }));
+      
+      console.log(`[GET /api/shared-properties/${propertyId}/matching-buyers] Trovati ${result.length} clienti compatibili`);
+      
+      res.json(result);
     } catch (error) {
       console.error(`[GET /api/shared-properties/${req.params.id}/matching-buyers]`, error);
       res.status(500).json({ error: "Errore durante il recupero dei clienti compatibili" });
@@ -3280,27 +3304,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[DELETE /api/shared-properties/${req.params.id}]`, error);
       res.status(500).json({ error: "Errore durante l'eliminazione della proprietà condivisa" });
-    }
-  });
-  
-  // Get matching buyers for a shared property
-  app.get("/api/shared-properties/:id/matching-buyers", async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "ID proprietà condivisa non valido" });
-      }
-      
-      const sharedProperty = await storage.getSharedProperty(id);
-      if (!sharedProperty) {
-        return res.status(404).json({ error: "Proprietà condivisa non trovata" });
-      }
-      
-      const matchingBuyers = await storage.getMatchingBuyersForSharedProperty(id);
-      res.json(matchingBuyers);
-    } catch (error) {
-      console.error(`[GET /api/shared-properties/${req.params.id}/matching-buyers]`, error);
-      res.status(500).json({ error: "Errore durante il recupero dei compratori corrispondenti" });
     }
   });
   

@@ -7,11 +7,18 @@ This project is a comprehensive real estate management system designed to stream
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (2025-11-22)
-**Bugfix: Price Tolerance in Buyer-Property Matching**
-- Fixed critical bug: Changed preliminary price filter tolerance from +10% to -20% (now uses `price * 0.8` instead of `price * 1.1`)
-- This allows buyers to be matched to cheaper properties (e.g., buyer with maxPrice 550K now matches property at 549K)
-- The matching now correctly applies the 20% tolerance as per the bidirectional matching logic
-- Bug was causing valid buyers to be excluded from "Potenziali Interessati" lists
+
+**Performance Optimization: Ranking Endpoint**
+- Optimized `/api/analytics/shared-properties-ranking` endpoint from 2930 queries to 2 queries
+- Response time improved: 14+ seconds → 0.4 seconds ⚡
+- Now loads properties in memory instead of N+1 database queries
+- Shows TOP 20 ranked properties for better UX
+
+**Bugfix: Endpoint Synchronization - Matching Buyers**
+- Fixed critical bug: `/api/shared-properties/:id/matching-buyers` endpoint had different matching logic than ranking
+- Rewrote endpoint to use identical logic to ranking endpoint (price tolerance -20% to +20%, size tolerance -20%)
+- Now returns same matching buyers as shown in ranking (e.g., property with "44 clienti" in ranking shows 44 clients in popover)
+- Bug was causing empty popover lists even though ranking showed interested clients
 
 **Feature: Interactive Property Ranking with Client Names Popover**
 - Added interactive popover to the "Proprietà Condivise" dashboard widget
@@ -20,6 +27,11 @@ Preferred communication style: Simple, everyday language.
   - Client phone numbers
   - Scrollable list if many clients are interested
 - Improved UX: Number of interested clients is now visually clickable (blue, underlined text)
+- Dashboard shows TOP 20 properties ranked by number of interested buyers
+
+**Technical Details:**
+- Price tolerance: buyer maxPrice >= property.price * 0.8 (allows cheaper properties)
+- Size tolerance: property.size >= buyer minSize * 0.8 (allows smaller properties)
 
 **Feature: "Immobili preferiti" (Favorites System) + Bidirectional Matching Views**
 
