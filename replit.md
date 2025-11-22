@@ -6,6 +6,20 @@ This project is a comprehensive real estate management system designed to stream
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (2025-11-22)
+**Feature: "Immobili preferiti" (Favorites System)**
+- Implemented dual favorites system: global favorites + per-client favorites
+- Added "Solo Privati" filter button in "Possibili Immobili" tab (shows only private properties)
+- Color-coded property classification: 🟢 Green (private, 425), 🟡 Yellow (multi-agency 7+, 351), 🔴 Red (single-agency, 2230)
+- Heart/favorite button on each property card with toggle functionality
+- Clicking the heart button adds/removes property from both global favorites AND client-specific favorites
+- Database table `client_favorites` created with unique constraint on (client_id, shared_property_id)
+- API endpoints:
+  - GET `/api/clients/:id/favorites` - Get client's favorite properties
+  - POST `/api/clients/:id/favorites` - Add property to client favorites
+  - DELETE `/api/clients/:id/favorites/:propertyId` - Remove property from client favorites
+  - PATCH `/api/shared-properties/:id/favorite` - Toggle global favorite status
+
 ## Configuration - Milano Zones for Scraping
 **IMPORTANT**: The 7-8 Milano location IDs for Idealista scraping are saved in:
 ```

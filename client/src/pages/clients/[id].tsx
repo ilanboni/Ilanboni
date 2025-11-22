@@ -418,10 +418,11 @@ export default function ClientDetailPage() {
     }
   };
   
-  // Toggle favorite status for a shared property
+  // Toggle favorite status for a shared property (both global and per-client)
   const handleToggleFavorite = async (propertyId: number, currentFavoriteStatus: boolean) => {
     try {
-      const response = await fetch(`/api/shared-properties/${propertyId}/favorite`, {
+      // 1. Update global favorite status on shared property
+      const globalResponse = await fetch(`/api/shared-properties/${propertyId}/favorite`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -429,16 +430,52 @@ export default function ClientDetailPage() {
         body: JSON.stringify({ isFavorite: !currentFavoriteStatus })
       });
       
-      if (!response.ok) {
-        throw new Error("Errore durante l'aggiornamento dei preferiti");
+      if (!globalResponse.ok) {
+        throw new Error("Errore durante l'aggiornamento dei preferiti globali");
+      }
+      
+      // 2. Add/remove from client-specific favorites
+      if (!currentFavoriteStatus) {
+        // Adding to client favorites
+        const clientResponse = await fetch(`/api/clients/${id}/favorites`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            sharedPropertyId: propertyId,
+            notes: ''
+          })
+        });
+        
+        if (!clientResponse.ok) {
+          console.warn("Avvertenza: proprietà aggiunta ai preferiti globali ma errore nei preferiti cliente");
+        }
+      } else {
+        // Removing from client favorites
+        const clientResponse = await fetch(`/api/clients/${id}/favorites/${propertyId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!clientResponse.ok) {
+          console.warn("Avvertenza: proprietà rimossa dai preferiti globali ma errore nei preferiti cliente");
+        }
       }
       
       // Refetch saved scraped properties to show updated favorite status
       await refetchSavedScrapedProperties();
       
+      // Invalidate client favorites cache
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${id}/favorites`] });
+      
       toast({
         title: currentFavoriteStatus ? "Rimosso dai preferiti" : "Aggiunto ai preferiti",
-        description: "Le preferenze sono state aggiornate",
+        description: currentFavoriteStatus 
+          ? "L'immobile è stato rimosso dai preferiti di questo cliente"
+          : "L'immobile è stato aggiunto ai preferiti di questo cliente",
       });
     } catch (error: any) {
       console.error("Errore nel toggle dei preferiti:", error);
