@@ -8333,24 +8333,26 @@ Genera un suggerimento professionale in italiano per un agente immobiliare su do
   // API per la classifica delle proprietà condivise
   app.get("/api/analytics/shared-properties-ranking", async (req: Request, res: Response) => {
     try {
-      // Fetch proprietà condivise
+      // Carica TUTTI i buyer UNA SOLA VOLTA (non per ogni proprietà)
+      const allBuyers = await db
+        .select()
+        .from(buyers);
+
+      // Carica tutte le proprietà condivise (LIMIT 100 per performance)
       const sharedProps = await db
         .select()
-        .from(sharedProperties);
+        .from(sharedProperties)
+        .limit(100);
         
-      // Per ogni proprietà, calcola il numero di potenziali interessati
-      const rankedProperties = await Promise.all(sharedProps.map(async (property) => {
-        const buyersData = await db
-          .select()
-          .from(buyers)
-          .innerJoin(clients, eq(buyers.clientId, clients.id));
-          
-        // Calcola quanti buyer potrebbero essere interessati
-        const interestedBuyers = buyersData.filter(buyer => {
+      // Processa le proprietà in memoria (molto più veloce)
+      const rankedProperties = sharedProps.map((property) => {
+        // Filtra i buyer interessati in memoria (non in DB)
+        const interestedBuyers = allBuyers.filter(buyer => {
           if (!property.size || !property.price) return false;
           
-          const matchesSize = !buyer.buyers.minSize || property.size >= buyer.buyers.minSize * 0.9;
-          const matchesPrice = !buyer.buyers.maxPrice || property.price <= buyer.buyers.maxPrice * 1.1;
+          // Usa la stessa logica di matching del sistema principale
+          const matchesSize = !buyer.minSize || property.size >= buyer.minSize * 0.8; // -20% tolleranza
+          const matchesPrice = !buyer.maxPrice || property.price <= buyer.maxPrice * 1.2; // +20% tolleranza
           
           return matchesSize && matchesPrice;
         });
@@ -8362,24 +8364,24 @@ Genera un suggerimento professionale in italiano per un agente immobiliare su do
           let matchScore = 0;
           let totalCriteria = 0;
           
-          if (buyer.buyers.minSize && property.size) {
+          if (buyer.minSize && property.size) {
             totalCriteria++;
-            const sizeRatio = property.size / buyer.buyers.minSize;
-            if (sizeRatio >= 1 && sizeRatio <= 1.5) {
+            const sizeRatio = property.size / buyer.minSize;
+            if (sizeRatio >= 1 && sizeRatio <= 1.4) {
               matchScore += 1;
-            } else if (sizeRatio >= 0.9 && sizeRatio < 1) {
+            } else if (sizeRatio >= 0.8 && sizeRatio < 1) {
               matchScore += 0.7;
-            } else if (sizeRatio > 1.5) {
+            } else if (sizeRatio > 1.4) {
               matchScore += 0.5;
             }
           }
           
-          if (buyer.buyers.maxPrice && property.price) {
+          if (buyer.maxPrice && property.price) {
             totalCriteria++;
-            const priceRatio = property.price / buyer.buyers.maxPrice;
+            const priceRatio = property.price / buyer.maxPrice;
             if (priceRatio <= 1) {
               matchScore += 1;
-            } else if (priceRatio > 1 && priceRatio <= 1.1) {
+            } else if (priceRatio > 1 && priceRatio <= 1.2) {
               matchScore += 0.7;
             }
           }
@@ -8402,12 +8404,12 @@ Genera un suggerimento professionale in italiano per un agente immobiliare su do
           stage: property.stage || 'address_found',
           isAcquired: property.isAcquired || false
         };
-      }));
+      });
       
-      // Ordina per numero di potenziali interessati (decrescente)
-      const sortedProperties = rankedProperties.sort((a, b) => 
-        b.interestedBuyersCount - a.interestedBuyersCount
-      );
+      // Ordina per numero di potenziali interessati (decrescente) e prendi i TOP 20
+      const sortedProperties = rankedProperties
+        .sort((a, b) => b.interestedBuyersCount - a.interestedBuyersCount)
+        .slice(0, 20); // Mostra solo i TOP 20
       
       res.json(sortedProperties);
     } catch (error) {
