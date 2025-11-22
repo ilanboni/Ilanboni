@@ -129,7 +129,8 @@ export class ClientPropertyScrapingService {
         isMultiagency,
         isDuplicate: true,
         isPrivate: derivedOwnerType === 'private',
-        agencyCount
+        agencyCount,
+        agencies: sp.agencies
       };
     });
 
