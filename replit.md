@@ -7,18 +7,30 @@ This project is a comprehensive real estate management system designed to stream
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (2025-11-22)
-**Feature: "Immobili preferiti" (Favorites System)**
+**Feature: "Immobili preferiti" (Favorites System) + Bidirectional Matching Views**
+
+### Dual Favorites System:
 - Implemented dual favorites system: global favorites + per-client favorites
 - Added "Solo Privati" filter button in "Possibili Immobili" tab (shows only private properties)
 - Color-coded property classification: 🟢 Green (private, 425), 🟡 Yellow (multi-agency 7+, 351), 🔴 Red (single-agency, 2230)
 - Heart/favorite button on each property card with toggle functionality
 - Clicking the heart button adds/removes property from both global favorites AND client-specific favorites
 - Database table `client_favorites` created with unique constraint on (client_id, shared_property_id)
-- API endpoints:
-  - GET `/api/clients/:id/favorites` - Get client's favorite properties
-  - POST `/api/clients/:id/favorites` - Add property to client favorites
-  - DELETE `/api/clients/:id/favorites/:propertyId` - Remove property from client favorites
-  - PATCH `/api/shared-properties/:id/favorite` - Toggle global favorite status
+
+### Bidirectional Matching Views:
+- **Per Property**: Shows "Potenziali Interessati" (matching clients) in shared property detail page using `SharedPropertyMatchingBuyers` component
+- **Per Client**: Shows "Possibili Immobili" tab with monocondiviso, pluricondiviso, and private properties that match buyer criteria
+- Both views use intelligent matching algorithm based on: property location (polygon matching), size tolerance (-20% to +40%), price tolerance (+20%), property type
+- Matching score calculation: 0-100% based on how well property matches buyer preferences
+- Supports multi-agency properties with all agency links displayed
+
+### API Endpoints:
+- GET `/api/clients/:id/favorites` - Get client's favorite properties
+- POST `/api/clients/:id/favorites` - Add property to client favorites
+- DELETE `/api/clients/:id/favorites/:propertyId` - Remove property from client favorites
+- PATCH `/api/shared-properties/:id/favorite` - Toggle global favorite status
+- GET `/api/shared-properties/:id/matching-buyers` - Get clients interested in a property
+- GET `/api/clients/:id/matching-shared-properties` - Get properties matching a client's criteria
 
 ## Configuration - Milano Zones for Scraping
 **IMPORTANT**: The 7-8 Milano location IDs for Idealista scraping are saved in:
