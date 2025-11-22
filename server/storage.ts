@@ -1704,7 +1704,7 @@ export class MemStorage implements IStorage {
         and(
           or(
             isNull(buyers.maxPrice),
-            gte(buyers.maxPrice, Math.round(sharedProperty.price * 1.1)) // Tolleranza 10% sul prezzo
+            gte(buyers.maxPrice, Math.round(sharedProperty.price * 0.8)) // Tolleranza -20%: includi buyer che cercano proprietà più economiche
           ),
           or(
             isNull(buyers.minSize),
@@ -2502,7 +2502,7 @@ export class DatabaseStorage implements IStorage {
         and(
           or(
             isNull(buyers.maxPrice),
-            gte(buyers.maxPrice, Math.round(sharedProperty.price * 1.1)) // Tolleranza 10% sul prezzo
+            gte(buyers.maxPrice, Math.round(sharedProperty.price * 0.8)) // Tolleranza -20%: includi buyer che cercano proprietà più economiche
           ),
           or(
             isNull(buyers.minSize),
