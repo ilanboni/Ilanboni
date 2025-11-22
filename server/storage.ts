@@ -3648,22 +3648,16 @@ export class DatabaseStorage implements IStorage {
       // - Otherwise → null
       const ownerType = prop.ownerType === 'private' ? 'private' : null;
       
+      // Add 'images' field as alias for 'imageUrls' for frontend compatibility
+      const images = (prop as any).imageUrls || (prop as any).images || [];
+      
       return {
         ...prop,
         isMultiagency,
-        ownerType
+        ownerType,
+        images  // Frontend expects this field instead of imageUrls
       } as any;
     });
-    
-    // Debug: log first property to verify fields are present
-    if (processedMatches.length > 0) {
-      console.log('[getMatchingPropertiesForClient] First property:', {
-        id: processedMatches[0].id,
-        address: processedMatches[0].address,
-        isMultiagency: (processedMatches[0] as any).isMultiagency,
-        ownerType: (processedMatches[0] as any).ownerType
-      });
-    }
     
     return processedMatches as any[];
   }
