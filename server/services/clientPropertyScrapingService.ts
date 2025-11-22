@@ -451,8 +451,16 @@ export class ClientPropertyScrapingService {
       for (const prop of groupProperties) {
         if (prop.ownerType === 'private') {
           hasPrivate = true;
+        } else if (prop.agencies && Array.isArray(prop.agencies) && prop.agencies.length > 0) {
+          // Count unique agencies from the agencies array (from database properties)
+          for (const agency of prop.agencies) {
+            if (agency.name) {
+              const normalized = normalizeAgencyName(agency.name);
+              agencies.add(normalized);
+            }
+          }
         } else if (prop.agencyName) {
-          // Use normalized agency name for counting unique agencies
+          // Fallback for properties without agencies array
           const normalized = normalizeAgencyName(prop.agencyName);
           agencies.add(normalized);
         }
