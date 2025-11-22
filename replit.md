@@ -24,6 +24,13 @@ Preferred communication style: Simple, everyday language.
 - Matching score calculation: 0-100% based on how well property matches buyer preferences
 - Supports multi-agency properties with all agency links displayed
 
+### Dashboard Feature - Classifica Immobili:
+- Added "Proprietà Condivise" ranking widget in dashboard
+- Shows properties ranked by number of interested buyers
+- Displays: ranking position, address, size/price, interested buyers count, match percentage
+- Component: `SharedPropertiesRanking` (client/src/components/dashboard/SharedPropertiesRanking.tsx)
+- Endpoint: `GET /api/analytics/shared-properties-ranking`
+
 ### API Endpoints:
 - GET `/api/clients/:id/favorites` - Get client's favorite properties
 - POST `/api/clients/:id/favorites` - Add property to client favorites
@@ -31,6 +38,7 @@ Preferred communication style: Simple, everyday language.
 - PATCH `/api/shared-properties/:id/favorite` - Toggle global favorite status
 - GET `/api/shared-properties/:id/matching-buyers` - Get clients interested in a property
 - GET `/api/clients/:id/matching-shared-properties` - Get properties matching a client's criteria
+- GET `/api/analytics/shared-properties-ranking` - Get properties ranked by interested buyers count
 
 ## Configuration - Milano Zones for Scraping
 **IMPORTANT**: The 7-8 Milano location IDs for Idealista scraping are saved in:
