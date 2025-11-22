@@ -1707,12 +1707,28 @@ export default function ClientDetailPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {(matchingProperties.properties ?? [])
                         .filter(property => !showOnlyPrivateProperties || property.ownerType === 'private')
-                        .map((property) => (
-                      <Card key={property.id} className={`overflow-hidden ${
-                        property.ownerType === 'private' ? 'bg-green-50 border-green-200' :
-                        property.isMultiagency ? 'bg-yellow-50 border-yellow-200' :
-                        'bg-red-50 border-red-200'
-                      }`}>
+                        .map((property) => {
+                          // Calculate colors for this property
+                          let bgColor = '#f3f4f6'; // default gray
+                          let borderColor = '#d1d5db';
+                          
+                          if (property.ownerType === 'private') {
+                            bgColor = '#dcfce7'; // green-50
+                            borderColor = '#86efac'; // green-300
+                          } else if (property.isMultiagency) {
+                            bgColor = '#fef3c7'; // yellow-50
+                            borderColor = '#fde047'; // yellow-300
+                          } else {
+                            bgColor = '#fee2e2'; // red-50
+                            borderColor = '#fca5a5'; // red-300
+                          }
+                          
+                          return (
+                      <Card key={property.id} className="overflow-hidden" style={{
+                        backgroundColor: bgColor,
+                        borderColor: borderColor,
+                        borderWidth: '1px'
+                      }}>
                         <div className="aspect-video relative bg-gray-100">
                           {property.images && property.images.length > 0 ? (
                             <img 
@@ -1788,7 +1804,8 @@ export default function ClientDetailPage() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                          );
+                        })}
                   </div>
                   </>
                 )}
