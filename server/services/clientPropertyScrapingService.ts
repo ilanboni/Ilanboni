@@ -32,7 +32,7 @@ export class ClientPropertyScrapingService {
   private idealistaAdapter = new IdealistaApifyAdapter();
 
   async getSavedScrapedPropertiesForClient(clientId: number): Promise<ScrapedPropertyResult[]> {
-    console.log(`[CLIENT-SCRAPING] Loading saved scraped properties for client ${clientId}`);
+    console.log(`[SAVED-PROPERTIES] Loading saved scraped properties for client ${clientId}`);
 
     // Get client and buyer data
     const client = await db.query.clients.findFirst({
@@ -55,13 +55,15 @@ export class ClientPropertyScrapingService {
       throw new Error(`Buyer data not found for client ${clientId}`);
     }
 
+    console.log(`[SAVED-PROPERTIES] Client ${client.firstName} ${client.lastName}, buyer type: ${buyer.propertyType || 'any'}, zones: ${(buyer.zones as any)?.length || 0}, rating: ${buyer.rating}`);
+
     // Get all saved scraped properties from database
     const savedProperties = await db
       .select()
       .from(sharedProperties)
       .where(eq(sharedProperties.matchBuyers, true));
 
-    console.log(`[CLIENT-SCRAPING] Found ${savedProperties.length} saved properties before filtering`);
+    console.log(`[SAVED-PROPERTIES] Found ${savedProperties.length} saved properties before filtering`);
 
     // Filter using centralized matching logic
     const { isSharedPropertyMatchingBuyerCriteria } = await import('../lib/matchingLogic');
@@ -69,7 +71,7 @@ export class ClientPropertyScrapingService {
       isSharedPropertyMatchingBuyerCriteria(sp, buyer)
     );
 
-    console.log(`[CLIENT-SCRAPING] After filtering: ${matchingProperties.length} properties match buyer criteria (type: ${buyer.propertyType || 'any'})`);
+    console.log(`[SAVED-PROPERTIES] After filtering: ${matchingProperties.length} properties match buyer criteria (type: ${buyer.propertyType || 'any'})`);
 
     // Convert to ScrapedPropertyResult format
     const results: ScrapedPropertyResult[] = matchingProperties.map(sp => {

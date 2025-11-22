@@ -198,23 +198,38 @@ export default function ClientDetailPage() {
   });
   
   // Fetch SAVED scraped properties (FAST - from database)
+  const isQueryEnabled = !isNaN(id) && client?.type === "buyer" && client?.buyer?.rating && client.buyer.rating >= 4;
+  console.log('[SAVED-PROPERTIES-QUERY]', {
+    id,
+    clientType: client?.type,
+    buyerRating: client?.buyer?.rating,
+    isQueryEnabled
+  });
+  
   const { data: savedScrapedProperties, isLoading: isSavedScrapedPropertiesLoading, refetch: refetchSavedScrapedProperties } = useQuery({
     queryKey: [`/api/clients/${id}/saved-scraped-properties`],
-    enabled: !isNaN(id) && client?.type === "buyer" && client?.buyer?.rating && client.buyer.rating >= 4,
+    enabled: isQueryEnabled,
     staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     refetchOnReconnect: false,
     queryFn: async () => {
+      console.log('[SAVED-PROPERTIES-FETCHING] Starting fetch for client', id);
       const response = await fetch(`/api/clients/${id}/saved-scraped-properties`);
+      const data = await response.json();
+      console.log('[SAVED-PROPERTIES-FETCHED]', {
+        responseOk: response.ok,
+        dataLength: Array.isArray(data) ? data.length : 'not-array',
+        firstItem: data?.[0]
+      });
       if (!response.ok) {
         if (response.status === 400) {
           return [];
         }
         throw new Error('Errore nel caricamento degli immobili salvati');
       }
-      return response.json();
+      return data;
     }
   });
 
