@@ -97,6 +97,15 @@ export class ClientPropertyScrapingService {
       const agencyCount = (sp.agencies && Array.isArray(sp.agencies)) ? sp.agencies.length : 0;
       const isMultiagency = agencyCount > 1;
       
+      // Derive ownerType: if ownerName is NULL or looks like "Multi-Agency", treat as agency
+      // if ownerType is explicitly set to 'private', use that. Otherwise default to 'agency'
+      let derivedOwnerType: 'agency' | 'private' = 'agency';
+      if (sp.ownerType === 'private') {
+        derivedOwnerType = 'private';
+      } else if (sp.ownerName && sp.ownerName.toLowerCase().includes('privato')) {
+        derivedOwnerType = 'private';
+      }
+      
       return {
         id: sp.id, // CRITICAL: Include the sharedProperties.id for frontend links
         externalId: sp.externalId || sp.id.toString(),
@@ -114,12 +123,12 @@ export class ClientPropertyScrapingService {
         latitude,
         longitude,
         imageUrls: Array.isArray(sp.imageUrls) ? sp.imageUrls : [],
-        ownerType: (sp.ownerType as 'agency' | 'private') || 'agency',
+        ownerType: derivedOwnerType,
         agencyName: sp.ownerName || 'Multi-Agency',
         portalSource: sp.portalSource || 'Database',
         isMultiagency,
         isDuplicate: true,
-        isPrivate: sp.ownerType === 'private',
+        isPrivate: derivedOwnerType === 'private',
         agencyCount
       };
     });
