@@ -1709,7 +1709,9 @@ export default function ClientDetailPage() {
                         .filter(property => !showOnlyPrivateProperties || property.ownerType === 'private')
                         .map((property) => (
                       <Card key={property.id} className={`overflow-hidden ${
-                        property.isMultiagency ? 'bg-yellow-50 border-yellow-200' : ''
+                        property.ownerType === 'private' ? 'bg-green-50 border-green-200' :
+                        property.isMultiagency ? 'bg-yellow-50 border-yellow-200' :
+                        'bg-red-50 border-red-200'
                       }`}>
                         <div className="aspect-video relative bg-gray-100">
                           {property.images && property.images.length > 0 ? (
