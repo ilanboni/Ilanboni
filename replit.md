@@ -7,6 +7,20 @@ This project is a comprehensive real estate management system designed to stream
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (2025-11-22)
+**Bugfix: Price Tolerance in Buyer-Property Matching**
+- Fixed critical bug: Changed preliminary price filter tolerance from +10% to -20% (now uses `price * 0.8` instead of `price * 1.1`)
+- This allows buyers to be matched to cheaper properties (e.g., buyer with maxPrice 550K now matches property at 549K)
+- The matching now correctly applies the 20% tolerance as per the bidirectional matching logic
+- Bug was causing valid buyers to be excluded from "Potenziali Interessati" lists
+
+**Feature: Interactive Property Ranking with Client Names Popover**
+- Added interactive popover to the "Proprietà Condivise" dashboard widget
+- When users click on "X potenziali interessati", a popover appears showing:
+  - List of interested clients' names (firstName lastName)
+  - Client phone numbers
+  - Scrollable list if many clients are interested
+- Improved UX: Number of interested clients is now visually clickable (blue, underlined text)
+
 **Feature: "Immobili preferiti" (Favorites System) + Bidirectional Matching Views**
 
 ### Dual Favorites System:

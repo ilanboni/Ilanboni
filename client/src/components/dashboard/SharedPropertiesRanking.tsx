@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { CardContent } from "@/components/ui/card";
 import { CardHeader } from "@/components/ui/card";
@@ -7,12 +8,18 @@ import { CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { 
   AlertCircle, 
   Building, 
   Users, 
   MapPin,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -28,7 +35,18 @@ interface RankedSharedProperty {
   isAcquired: boolean;
 }
 
+interface MatchingBuyer {
+  id: number;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
 export default function SharedPropertiesRanking() {
+  const [openPopover, setOpenPopover] = useState<number | null>(null);
+  const [buyersByProperty, setBuyersByProperty] = useState<Record<number, MatchingBuyer[] | null>>({});
+  const [loadingBuyers, setLoadingBuyers] = useState<Record<number, boolean>>({});
+
   // Fetch proprietà condivise con più potenziali interessati
   const { 
     data: rankedProperties, 
@@ -49,6 +67,38 @@ export default function SharedPropertiesRanking() {
       }
     }
   });
+
+  const handleOpenPopover = async (propertyId: number) => {
+    setOpenPopover(propertyId);
+    
+    // Se i buyer sono già caricati, non fare nulla
+    if (buyersByProperty[propertyId]) {
+      return;
+    }
+
+    // Fetch dei buyer interessati
+    setLoadingBuyers(prev => ({ ...prev, [propertyId]: true }));
+    try {
+      const response = await fetch(`/api/shared-properties/${propertyId}/matching-buyers`);
+      if (response.ok) {
+        const buyers = await response.json() as MatchingBuyer[];
+        setBuyersByProperty(prev => ({
+          ...prev,
+          [propertyId]: buyers.map(b => ({
+            id: b.id,
+            firstName: b.firstName,
+            lastName: b.lastName,
+            phone: b.phone
+          }))
+        }));
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento dei buyer:", error);
+      setBuyersByProperty(prev => ({ ...prev, [propertyId]: [] }));
+    } finally {
+      setLoadingBuyers(prev => ({ ...prev, [propertyId]: false }));
+    }
+  };
 
   if (isLoading) {
     return <SharedPropertiesRankingSkeleton />;
@@ -160,7 +210,49 @@ export default function SharedPropertiesRanking() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center text-sm">
                     <Users className="h-4 w-4 text-primary-600 mr-1" />
-                    <span className="font-medium">{property.interestedBuyersCount} potenziali interessati</span>
+                    
+                    <Popover open={openPopover === property.id} onOpenChange={(open) => {
+                      if (open) {
+                        handleOpenPopover(property.id);
+                      } else {
+                        setOpenPopover(null);
+                      }
+                    }}>
+                      <PopoverTrigger asChild>
+                        <button
+                          className="font-medium hover:underline cursor-pointer text-primary hover:text-primary-700"
+                          data-testid={`button-show-buyers-${property.id}`}
+                        >
+                          {property.interestedBuyersCount} potenziali interessati
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64">
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">Clienti interessati</h4>
+                          {loadingBuyers[property.id] ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            </div>
+                          ) : buyersByProperty[property.id] && buyersByProperty[property.id]!.length > 0 ? (
+                            <ul className="space-y-2 max-h-64 overflow-y-auto">
+                              {buyersByProperty[property.id]!.map((buyer) => (
+                                <li key={buyer.id} className="p-2 rounded bg-gray-50 hover:bg-gray-100">
+                                  <div className="text-sm font-medium">{buyer.firstName} {buyer.lastName}</div>
+                                  {buyer.phone && (
+                                    <div className="text-xs text-gray-600">{buyer.phone}</div>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-sm text-gray-600 py-4">
+                              Nessun cliente interessato trovato
+                            </div>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+
                     {property.matchPercentage && (
                       <Badge className="ml-2 bg-green-100 text-green-800 text-xs">
                         Match {property.matchPercentage}%
