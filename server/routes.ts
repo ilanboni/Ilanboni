@@ -48,6 +48,7 @@ import { eq, sql, desc, asc, gte, lte, and, inArray, count, sum, lt, gt, or, lik
 import { z } from "zod";
 import OpenAI from "openai";
 import { summarizeText } from "./lib/openai";
+import { geocodeAddress } from "./lib/geocoding";
 import { renderAuthPage, handleOAuthCallback, renderConfigPage } from "./oauth-helper";
 import * as phoneDedup from "./services/phoneDeduplication";
 import * as campaignMessageService from "./services/campaignMessageService";
@@ -12625,6 +12626,108 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
       res.status(500).json({
         ok: false,
         error: 'Errore durante ingestion',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * POST /api/admin/geocode-private-properties
+   * Geocodifica tutte le proprietà private senza coordinate GPS
+   * Protetto da autenticazione Bearer
+   */
+  app.post('/api/admin/geocode-private-properties', authBearer, async (req: Request, res: Response) => {
+    try {
+      console.log('[POST /api/admin/geocode-private-properties] Inizio geocodifica proprietà private...');
+      
+      // Trova tutte le proprietà private senza location
+      const properties = await db.query.sharedProperties.findMany({
+        where: and(
+          or(
+            eq(sharedProperties.ownerType, 'private'),
+            like(sharedProperties.ownerName, '%privat%'),
+            like(sharedProperties.ownerName, '%Proprietario%')
+          ),
+          isNull(sharedProperties.location)
+        )
+      });
+      
+      console.log(`[GEOCODING] Trovate ${properties.length} proprietà private senza coordinate`);
+      
+      let geocoded = 0;
+      let failed = 0;
+      const results: any[] = [];
+      
+      for (const prop of properties) {
+        try {
+          // Determina la città: se è un quartiere noto o manca, usa Milano
+          let city = prop.city || 'Milano';
+          const knownQuartiers = ['Ascanio Sforza', 'Istria', 'Segrate', 'Navigli', 'Lambrate', 'Ortica'];
+          const isQuartier = knownQuartiers.includes(city);
+          if (isQuartier) {
+            city = 'Milano';
+          }
+          
+          const address = `${prop.address}, ${city}, Italia`;
+          console.log(`[GEOCODING] Tentativo geocoding: ${prop.address} -> query: "${address}"`);
+          
+          const geocodeResults = await geocodeAddress(address);
+          
+          if (geocodeResults.length > 0) {
+            const result = geocodeResults[0];
+            const location = {
+              type: 'Point',
+              coordinates: [result.lng, result.lat]
+            };
+            
+            await db.update(sharedProperties)
+              .set({ location })
+              .where(eq(sharedProperties.id, prop.id));
+            
+            geocoded++;
+            results.push({
+              id: prop.id,
+              address: prop.address,
+              coords: [result.lat, result.lng],
+              status: 'geocoded'
+            });
+            
+            console.log(`[GEOCODING] Proprietà ${prop.id}: ${address} -> (${result.lat}, ${result.lng})`);
+          } else {
+            failed++;
+            results.push({
+              id: prop.id,
+              address: prop.address,
+              status: 'not_found'
+            });
+            console.log(`[GEOCODING] Nessun risultato per: ${address}`);
+          }
+        } catch (error) {
+          failed++;
+          results.push({
+            id: prop.id,
+            address: prop.address,
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+          console.error(`[GEOCODING] Errore per proprietà ${prop.id}:`, error);
+        }
+      }
+      
+      console.log(`[GEOCODING] Completato: ${geocoded} geocodificate, ${failed} fallite`);
+      
+      res.json({
+        ok: true,
+        geocoded,
+        failed,
+        total: properties.length,
+        results
+      });
+    } catch (error) {
+      console.error('[POST /api/admin/geocode-private-properties] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante geocodifica',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
