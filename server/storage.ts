@@ -3636,7 +3636,26 @@ export class DatabaseStorage implements IStorage {
       return true; // Accept by default
     });
     
-    return matches;
+    // Post-process matches to ensure ownerType and isMultiagency are correctly calculated
+    const processedMatches = matches.map(prop => {
+      // Calculate isMultiagency based on number of agencies
+      const agencyCount = (prop.agencies && Array.isArray(prop.agencies)) ? prop.agencies.length : 0;
+      const isMultiagency = agencyCount > 1;
+      
+      // Determine ownerType:
+      // - If already set to 'private' → keep it
+      // - If shared property with agencies → null (agency-owned)
+      // - Otherwise → null
+      const ownerType = prop.ownerType === 'private' ? 'private' : null;
+      
+      return {
+        ...prop,
+        isMultiagency,
+        ownerType
+      };
+    });
+    
+    return processedMatches;
   }
   
   async getMultiAgencyProperties(): Promise<SharedProperty[]> {
