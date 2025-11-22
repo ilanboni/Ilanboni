@@ -91,6 +91,10 @@ export class ClientPropertyScrapingService {
         }
       }
       
+      // Calculate isMultiagency based on number of agencies
+      const agencyCount = (sp.agencies && Array.isArray(sp.agencies)) ? sp.agencies.length : 0;
+      const isMultiagency = agencyCount > 1;
+      
       return {
         id: sp.id, // CRITICAL: Include the sharedProperties.id for frontend links
         externalId: sp.externalId || sp.id.toString(),
@@ -111,9 +115,10 @@ export class ClientPropertyScrapingService {
         ownerType: (sp.ownerType as 'agency' | 'private') || 'agency',
         agencyName: sp.ownerName || 'Multi-Agency',
         portalSource: sp.portalSource || 'Database',
-        isMultiagency: true,
+        isMultiagency,
         isDuplicate: true,
-        isPrivate: sp.ownerType === 'private'
+        isPrivate: sp.ownerType === 'private',
+        agencyCount
       };
     });
 
@@ -478,6 +483,7 @@ export class ClientPropertyScrapingService {
           classification,
           agencyCount: agencies.size,
           isMultiagency: classification === 'multiagency',
+          ownerType: hasPrivate ? 'private' : 'agency', // Correctly set ownerType based on classification
           agencyVariants
         });
         
@@ -489,7 +495,8 @@ export class ClientPropertyScrapingService {
           ...prop,
           classification,
           agencyCount: agencies.size,
-          isMultiagency: classification === 'multiagency'
+          isMultiagency: classification === 'multiagency',
+          ownerType: hasPrivate ? 'private' : 'agency' // Ensure consistent ownerType
         });
       }
     }

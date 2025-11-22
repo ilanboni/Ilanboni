@@ -1917,12 +1917,27 @@ export default function ClientDetailPage() {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {savedScrapedProperties.map((property, idx) => {
-                      const bgColor = property.classification === 'single-agency' ? 'bg-red-50' :
-                                     property.classification === 'multiagency' ? 'bg-yellow-50' :
-                                     property.classification === 'private' ? 'bg-green-50' :
-                                     '';
+                      // Determine color based on ownerType and isMultiagency
+                      let bgColor = 'bg-gray-50';
+                      let borderColor = '#d1d5db';
+                      
+                      if (property.ownerType === 'private') {
+                        bgColor = 'bg-green-50';
+                        borderColor = '#86efac';
+                      } else if (property.isMultiagency) {
+                        bgColor = 'bg-yellow-50';
+                        borderColor = '#fde047';
+                      } else {
+                        bgColor = 'bg-red-50';
+                        borderColor = '#fca5a5';
+                      }
+                      
                       return (
-                      <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className={`overflow-hidden ${bgColor}`} data-testid={`card-property-${idx}`}>
+                      <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className={`overflow-hidden ${bgColor}`} style={{
+                        borderColor: borderColor,
+                        borderWidth: '2px',
+                        borderStyle: 'solid'
+                      }} data-testid={`card-property-${idx}`}>
                         <div className="aspect-video relative bg-gray-100">
                           {property.imageUrls && property.imageUrls.length > 0 ? (
                             <img 
