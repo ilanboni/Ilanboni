@@ -3252,16 +3252,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(buyers)
         .innerJoin(clients, eq(buyers.clientId, clients.id));
       
+      // Importa la funzione di matching centralizzata per GEOGRAPHIC check
+      const { isSharedPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+      
       // Filtra i buyer interessati in memoria (non in DB) usando la STESSA logica del ranking
+      // CRITICAL: Usa isSharedPropertyMatchingBuyerCriteria che include geographic matching (searchArea)
       const interestedBuyers = allBuyers.filter(row => {
         const buyer = row.buyers;
-        if (!sharedProperty.size || !sharedProperty.price) return false;
-        
-        // Usa la stessa logica di matching del ranking endpoint
-        const matchesSize = !buyer.minSize || sharedProperty.size >= buyer.minSize * 0.8; // -20% tolleranza
-        const matchesPrice = !buyer.maxPrice || sharedProperty.price <= buyer.maxPrice * 1.2; // +20% tolleranza
-        
-        return matchesSize && matchesPrice;
+        return isSharedPropertyMatchingBuyerCriteria(sharedProperty, buyer);
       });
       
       // Mappa i risultati con le informazioni del client

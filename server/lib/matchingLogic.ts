@@ -304,6 +304,7 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
       let isInArea = false;
       
       if (buyer.searchArea && typeof buyer.searchArea === 'object') {
+        console.log(`[Matching] DEBUG: Buyer ${buyer.id} searchArea type: ${(buyer.searchArea as any).type}, has features: ${!!(buyer.searchArea as any).features}, is array: ${Array.isArray(buyer.searchArea)}`);
         // FIX: Se è un FeatureCollection (array di poligoni/punti multipli) - per zone multiple
         if ((buyer.searchArea as any).type === 'FeatureCollection' && (buyer.searchArea as any).features) {
           // Verifica se il punto è dentro ALMENO UNO dei poligoni
@@ -397,9 +398,12 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
     }
   }
   
-  // Se l'acquirente non ha specificato un'area di ricerca o l'immobile non ha
-  // una posizione specificata, assumiamo che sia compatibile
-  return true;
+  // CRITICAL FIX: Se l'acquirente HA specificato un'area di ricerca ma siamo giunti qui,
+  // significa che la proprietà NON è dentro nessuna delle sue aree di ricerca.
+  // Rifiutiamo il matching.
+  // Se l'acquirente NON ha una searchArea, allora NON matchamo (perché non abbiamo modo di validare).
+  console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) RIFIUTATO: buyer ${buyer.id} non ha area di ricerca valida o proprietà è fuori area`);
+  return false;
 }
 
 /**
