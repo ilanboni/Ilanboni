@@ -189,6 +189,8 @@ export default function PrivatePropertiesPage() {
         const portal = property.portalSource?.toLowerCase() || '';
         if (filters.portalFilter === 'immobiliare' && !portal.includes('immobiliare')) return false;
         if (filters.portalFilter === 'idealista' && !portal.includes('idealista')) return false;
+        if (filters.portalFilter === 'clickcase' && !portal.includes('clickcase')) return false;
+        if (filters.portalFilter === 'casadaprivato' && !portal.includes('casadaprivato')) return false;
       }
       
       // Filtro 6: Ricerca testuale
@@ -238,6 +240,8 @@ export default function PrivatePropertiesPage() {
     withPhone: filteredProperties.filter(p => p.ownerPhone).length,
     immobiliare: filteredProperties.filter(p => p.portalSource?.toLowerCase().includes('immobiliare')).length,
     idealista: filteredProperties.filter(p => p.portalSource?.toLowerCase().includes('idealista')).length,
+    clickcase: filteredProperties.filter(p => p.portalSource?.toLowerCase().includes('clickcase')).length,
+    casadaprivato: filteredProperties.filter(p => p.portalSource?.toLowerCase().includes('casadaprivato')).length,
     favorites: filteredProperties.filter(p => p.isFavorite).length,
   }), [filteredProperties]);
   
@@ -367,6 +371,8 @@ export default function PrivatePropertiesPage() {
                   <SelectItem value="all">Tutti i portali</SelectItem>
                   <SelectItem value="immobiliare">Immobiliare.it ({stats.immobiliare})</SelectItem>
                   <SelectItem value="idealista">Idealista.it ({stats.idealista})</SelectItem>
+                  <SelectItem value="clickcase">ClickCase.it ({stats.clickcase})</SelectItem>
+                  <SelectItem value="casadaprivato">CasaDaPrivato.it ({stats.casadaprivato})</SelectItem>
                 </SelectContent>
               </Select>
               

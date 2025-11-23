@@ -3484,6 +3484,12 @@ export class DatabaseStorage implements IStorage {
       if (sourceStr.includes('immobiliare') || portalStr.includes('immobiliare')) {
         return 'Immobiliare.it';
       }
+      if (sourceStr.includes('clickcase') || portalStr.includes('clickcase')) {
+        return 'ClickCase.it';
+      }
+      if (sourceStr.includes('casadaprivato') || portalStr.includes('casadaprivato')) {
+        return 'CasaDaPrivato.it';
+      }
       if (sourceStr === 'manual') {
         return 'Manuale';
       }
@@ -3740,6 +3746,12 @@ export class DatabaseStorage implements IStorage {
       }
       if (sourceStr.includes('immobiliare') || portalStr.includes('immobiliare')) {
         return 'Immobiliare.it';
+      }
+      if (sourceStr.includes('clickcase') || portalStr.includes('clickcase')) {
+        return 'ClickCase.it';
+      }
+      if (sourceStr.includes('casadaprivato') || portalStr.includes('casadaprivato')) {
+        return 'CasaDaPrivato.it';
       }
       if (sourceStr === 'manual') {
         return 'Manuale';
