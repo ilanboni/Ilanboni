@@ -8405,8 +8405,17 @@ Genera un suggerimento professionale in italiano per un agente immobiliare su do
         };
       });
       
+      // Filtra per escludere proprietà senza indirizzo valido o senza interessati
+      // e che non hanno alcun valore informativo
+      const filteredProperties = rankedProperties.filter(p => 
+        p.address && 
+        !p.address.toLowerCase().includes('non disponibile') && 
+        !p.address.toLowerCase().includes('indirizzo non') &&
+        p.interestedBuyersCount > 0
+      );
+
       // Ordina per numero di potenziali interessati (decrescente) e prendi i TOP 20
-      const sortedProperties = rankedProperties
+      const sortedProperties = filteredProperties
         .sort((a, b) => b.interestedBuyersCount - a.interestedBuyersCount)
         .slice(0, 20); // Mostra solo i TOP 20
       
