@@ -1,0 +1,61 @@
+{
+  "title": "Scraper Immobili Privati Milano - 4km dal Duomo",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "city": {
+      "title": "Città",
+      "type": "string",
+      "description": "Città da scrapare",
+      "default": "milano",
+      "prefill": "milano"
+    },
+    "area": {
+      "title": "Area/Zona",
+      "type": "string",
+      "description": "Area specifiche entro la città",
+      "default": "milano",
+      "prefill": "milano"
+    },
+    "contract": {
+      "title": "Tipo Contratto",
+      "type": "string",
+      "description": "Tipo di contratto immobiliare",
+      "default": "vendita",
+      "enum": ["vendita", "affitto", "tutti"],
+      "prefill": "vendita"
+    },
+    "modeClickCase": {
+      "title": "Modalità ClickCase",
+      "type": "string",
+      "description": "Modalità di scraping per ClickCase",
+      "default": "solo_vendita",
+      "enum": ["solo_vendita", "tutti"],
+      "prefill": "solo_vendita"
+    },
+    "maxPagesCasa": {
+      "title": "Max Pagine CasaDaPrivato",
+      "type": "integer",
+      "description": "Numero massimo di pagine da scrapare da CasaDaPrivato",
+      "default": 3,
+      "minimum": 1,
+      "prefill": 3
+    },
+    "maxPagesClick": {
+      "title": "Max Pagine ClickCase",
+      "type": "integer",
+      "description": "Numero massimo di pagine da scrapare da ClickCase",
+      "default": 3,
+      "minimum": 1,
+      "prefill": 3
+    },
+    "geocodingApiKey": {
+      "title": "API Key Geocoding (OpenCage)",
+      "type": "string",
+      "description": "Chiave API di OpenCage per il geocoding degli indirizzi. Ottienimi qui: https://opencagedata.com/",
+      "editor": "password",
+      "isRequired": true
+    }
+  },
+  "required": ["geocodingApiKey"]
+}
