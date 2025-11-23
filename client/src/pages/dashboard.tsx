@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { AddManualPrivatePropertyDialog } from "@/components/properties/AddManualPrivatePropertyDialog";
+import { AddManualAgencyPropertyDialog } from "@/components/properties/AddManualAgencyPropertyDialog";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -52,6 +53,7 @@ export default function Dashboard() {
             </Button>
           </Link>
           <AddManualPrivatePropertyDialog />
+          <AddManualAgencyPropertyDialog />
         </div>
       </div>
       
