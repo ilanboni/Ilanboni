@@ -1,15 +1,15 @@
 import axios from 'axios';
 import type { PropertyListing } from '../portalIngestionService';
 
-const BASE_URL = 'https://www.casadaprivato.it';
+const BASE_URL = 'https://www.clickcase.it';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
-export class CasaDaPrivatoAdapter {
-  name = 'CasaDaPrivato.it';
-  portalId = 'casadaprivato';
+export class ClickCaseAdapter {
+  name = 'ClickCase.it';
+  portalId = 'clickcase';
 
   async search(params: { city?: string; maxItems?: number }): Promise<PropertyListing[]> {
-    console.log('[CASADAPRIVATO] 🔍 Scraping CasaDaPrivato (100% private properties)');
+    console.log('[CLICKCASE] 🔍 Scraping ClickCase (100% private properties)');
     const listings: PropertyListing[] = [];
 
     try {
@@ -26,12 +26,12 @@ export class CasaDaPrivatoAdapter {
         timeout: 15000,
       });
       
-      console.log(`[CASADAPRIVATO] Fetching URL (params auto-encoded by axios)`);
+      console.log(`[CLICKCASE] Fetching URL (params auto-encoded by axios)`);
 
       const html = response.data;
       
       // Estrae annunci dalla pagina (regex per dati strutturati)
-      const propertyRegex = /class="listing-item"[^>]*data-id="([^"]*)"[^>]*>(.*?)<\/div>/gs;
+      const propertyRegex = /class="property-card"[^>]*data-id="([^"]*)"[^>]*>(.*?)<\/div>/gs;
       let match;
       let count = 0;
 
@@ -41,20 +41,23 @@ export class CasaDaPrivatoAdapter {
           const itemHtml = match[2];
           
           // Estrae titolo
-          const titleMatch = itemHtml.match(/<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/);
-          const title = titleMatch ? titleMatch[2].trim() : 'N/A';
-          const url = titleMatch ? `${BASE_URL}${titleMatch[1]}` : '';
+          const titleMatch = itemHtml.match(/<h\d[^>]*>([^<]*)<\/h\d>/);
+          const title = titleMatch ? titleMatch[1].trim() : 'N/A';
+
+          // Estrae URL
+          const urlMatch = itemHtml.match(/<a[^>]*href="([^"]*)"[^>]*>/);
+          const url = urlMatch ? `${BASE_URL}${urlMatch[1]}` : '';
 
           // Estrae prezzo
           const priceMatch = itemHtml.match(/€\s*([\d.,]+)/);
           const price = priceMatch ? parseInt(priceMatch[1].replace(/\D/g, '')) : 0;
 
           // Estrae indirizzo
-          const addressMatch = itemHtml.match(/<span class="address">([^<]*)<\/span>/);
+          const addressMatch = itemHtml.match(/<span class="location">([^<]*)<\/span>/);
           const address = addressMatch ? addressMatch[1].trim() : '';
 
           // Estrae mq
-          const meterMatch = itemHtml.match(/(\d+)\s*mq/i);
+          const meterMatch = itemHtml.match(/(\d+)\s*m(?:q|²)/i);
           const size = meterMatch ? parseInt(meterMatch[1]) : 0;
 
           const listing: PropertyListing = {
@@ -66,21 +69,21 @@ export class CasaDaPrivatoAdapter {
             size,
             url,
             description: title,
-            portal: 'casadaprivato',
-            ownerType: 'private', // Always private on CasaDaPrivato
-            source: 'casadaprivato',
+            portal: 'clickcase',
+            ownerType: 'private', // Always private on ClickCase
+            source: 'clickcase',
           };
 
           listings.push(listing);
           count++;
         } catch (e) {
-          console.warn('[CASADAPRIVATO] ⚠️ Failed to parse item:', e);
+          console.warn('[CLICKCASE] ⚠️ Failed to parse item:', e);
         }
       }
 
-      console.log(`[CASADAPRIVATO] ✅ Found ${listings.length} PRIVATE properties`);
+      console.log(`[CLICKCASE] ✅ Found ${listings.length} PRIVATE properties`);
     } catch (error) {
-      console.error('[CASADAPRIVATO] ❌ Error scraping:', error);
+      console.error('[CLICKCASE] ❌ Error scraping:', error);
     }
 
     return listings;
@@ -104,7 +107,7 @@ export class CasaDaPrivatoAdapter {
         ownerEmail: emailMatch ? emailMatch[1].trim() : '',
       } as PropertyListing;
     } catch (error) {
-      console.error(`[CASADAPRIVATO] ❌ Error fetching details:`, error);
+      console.error(`[CLICKCASE] ❌ Error fetching details:`, error);
       return null;
     }
   }

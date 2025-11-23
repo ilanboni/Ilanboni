@@ -30,6 +30,8 @@ import { fullCityScrapingScheduler } from "./services/buyerScrapingScheduler";
 // Importa il worker per l'esecuzione persistente dei job di scraping
 import { getScrapingJobWorker } from "./services/scrapingJobWorker";
 import { storage } from "./storage";
+// Importa lo scheduler per lo scraping giornaliero di proprietà private (CasaDaPrivato, ClickCase, Idealista)
+import { dailyPrivatePropertiesScheduler } from "./services/dailyPrivatePropertiesScheduler";
 
 // Configura l'agente virtuale (impostazione di default, può essere cambiato tramite API)
 if (process.env.ENABLE_VIRTUAL_AGENT === undefined) {
@@ -327,6 +329,11 @@ async function pollWhatsAppMessages() {
     // Avvia lo scheduler per lo scraping COMPLETO di Milano (Martedì e Venerdì alle 2:00 AM)
     // Sistema ottimizzato: 1 scraping completo invece di N scraping per buyer
     fullCityScrapingScheduler.start();
+    
+    // Avvia lo scheduler giornaliero per CasaDaPrivato, ClickCase, Idealista private
+    // Scrapa una volta al giorno e filtra a 4km dal Duomo
+    dailyPrivatePropertiesScheduler.start();
+    console.log('[DAILY-SCHEDULER] ✅ Avviato - scraping automatico ogni 24 ore');
     
     // Avvia il worker per l'esecuzione persistente dei job di scraping
     // Questo worker controlla periodicamente i job in coda e li esegue
