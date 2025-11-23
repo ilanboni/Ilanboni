@@ -3101,8 +3101,8 @@ export class DatabaseStorage implements IStorage {
     // Un cliente con budget €600k dovrebbe vedere immobili fino a €660k (600k * 1.1), non dover avere budget €715k per un immobile da €650k
     
     // Calcolo i limiti di tolleranza per una query più semplice
-    const maxPriceForTolerance = Math.floor(property.price / 1.1); // Prezzo minimo del budget cliente per vedere questo immobile
-    const minSizeForTolerance = Math.ceil(property.size / 0.9); // Dimensione massima richiesta dal cliente per accettare questo immobile
+    const maxPriceForTolerance = Math.floor(property.price / 1.2); // Prezzo minimo del budget cliente per vedere questo immobile (+20% tolleranza)
+    const minSizeForTolerance = Math.ceil(property.size / 0.8); // Dimensione massima richiesta dal cliente per accettare questo immobile (-20% tolleranza)
     
     console.log(`[matchBuyersForProperty] Cerco clienti con budget ≥ €${maxPriceForTolerance} e dimensione richiesta ≤ ${minSizeForTolerance} mq`);
     

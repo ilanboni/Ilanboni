@@ -53,6 +53,49 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 /**
+ * Estrae le coordinate da una proprietà
+ * Supporta sia il formato location object (shared/multi-agency properties)
+ * che il formato latitude/longitude strings (private properties da Idealista)
+ * @param property La proprietà da cui estrarre le coordinate
+ * @returns Oggetto con { lat, lng } oppure null se non trovate
+ */
+function extractCoordinates(property: any): { lat: number; lng: number } | null {
+  // Try location object first (shared/multi-agency properties)
+  if (property.location) {
+    let loc = property.location;
+    
+    if (typeof loc === 'string') {
+      try {
+        loc = JSON.parse(loc);
+      } catch (e) {
+        // Not JSON, continue
+      }
+    }
+    
+    if (loc && typeof loc === 'object' && loc.lat !== undefined && loc.lng !== undefined) {
+      const lat = typeof loc.lat === 'string' ? parseFloat(loc.lat) : loc.lat;
+      const lng = typeof loc.lng === 'string' ? parseFloat(loc.lng) : loc.lng;
+      
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng };
+      }
+    }
+  }
+  
+  // Fallback to latitude/longitude fields (Idealista private properties)
+  if (property.latitude !== undefined && property.longitude !== undefined) {
+    const lat = typeof property.latitude === 'string' ? parseFloat(property.latitude) : property.latitude;
+    const lng = typeof property.longitude === 'string' ? parseFloat(property.longitude) : property.longitude;
+    
+    if (!isNaN(lat) && !isNaN(lng)) {
+      return { lat, lng };
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Verifica se un immobile corrisponde alle preferenze di un acquirente,
  * applicando i criteri di tolleranza specificati:
  * - Tipologia proprietà (matching esatto se specificato)
@@ -99,30 +142,15 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
   
   // Verifica se l'immobile è all'interno dell'area di ricerca (poligono)
   if (buyer.searchArea) {
-    // Se il buyer ha specificato una searchArea, la property DEVE avere location
-    if (!property.location) {
+    // Estrae le coordinate da location object O da latitude/longitude fields
+    const propertyLocation = extractCoordinates(property);
+    
+    if (!propertyLocation) {
       console.log(`[Matching] L'immobile ${property.id} non ha coordinate GPS - RIFIUTATO (buyer richiede searchArea)`);
       return false;
     }
     
     try {
-      // Verifico che la posizione dell'immobile sia nel formato corretto
-      let propertyLocation = property.location as any;
-      
-      // Parse JSON string if needed
-      if (typeof propertyLocation === 'string') {
-        try {
-          propertyLocation = JSON.parse(propertyLocation);
-        } catch (e) {
-          console.log(`[Matching] L'immobile ${property.id} non ha una posizione valida:`, property.location);
-          return false;
-        }
-      }
-      
-      if (!propertyLocation || !propertyLocation.lat || !propertyLocation.lng) {
-        console.log(`[Matching] L'immobile ${property.id} non ha una posizione valida:`, property.location);
-        return false;
-      }
       
       // Utilizzo Turf.js per verificare se il punto è dentro il poligono
       // Creo un punto GeoJSON con la posizione dell'immobile [lng, lat]
@@ -156,14 +184,15 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
               }
               if (isInArea) break; // Exit outer loop if found
             }
-            // Gestisci Point con raggio di default 1000m
+            // Gestisci Point con raggio di default 2000m (2km per zone urbane)
             else if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
               const distance = calculateDistance(
                 propertyLocation.lat, propertyLocation.lng,
                 feature.geometry.coordinates[1], feature.geometry.coordinates[0]
               );
-              if (distance <= 1000) { // 1km di raggio di default per i punti
+              if (distance <= 2000) { // 2km di raggio di default per i punti (zone urbane Milano)
                 isInArea = true;
+                console.log(`[Matching] Property ${property.id} (${property.address}) è DENTRO il raggio della zona ${feature.properties?.zoneName || 'unnamed'} a ${Math.round(distance)}m`);
                 break;
               }
             }
@@ -285,18 +314,15 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
   
   // Verifica se l'immobile è all'interno dell'area di ricerca (poligono)
   if (buyer.searchArea) {
-    // FIX CRITICO: Se il buyer ha specificato una searchArea, la property DEVE avere location
-    if (!sharedProperty.location) {
+    // Estrae le coordinate da location object O da latitude/longitude fields
+    const propertyLocation = extractCoordinates(sharedProperty);
+    
+    if (!propertyLocation) {
       console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) non ha coordinate GPS - RIFIUTATO (buyer richiede searchArea)`);
       return false;
     }
     
     try {
-      const propertyLocation = sharedProperty.location as any;
-      if (!propertyLocation || !propertyLocation.lat || !propertyLocation.lng) {
-        console.log(`[Matching] SharedProperty ${sharedProperty.id} non ha una posizione valida:`, sharedProperty.location);
-        return false;
-      }
       
       const immobilePoint = point([propertyLocation.lng, propertyLocation.lat]);
       
@@ -330,15 +356,15 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
               }
               if (isInArea) break; // Exit outer loop if found
             }
-            // Gestisci Point con raggio di default 1000m
+            // Gestisci Point con raggio di default 2000m (2km per zone urbane)
             else if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
               const distance = calculateDistance(
                 propertyLocation.lat, propertyLocation.lng,
                 feature.geometry.coordinates[1], feature.geometry.coordinates[0]
               );
-              if (distance <= 1000) { // 1km di raggio di default per i punti
+              if (distance <= 2000) { // 2km di raggio di default per i punti (zone urbane Milano)
                 isInArea = true;
-                console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO il raggio della zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'}`);
+                console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO il raggio della zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'} a ${Math.round(distance)}m`);
                 break;
               }
             }

@@ -6,7 +6,30 @@ This project is a comprehensive real estate management system designed to stream
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (2025-11-22)
+## Recent Changes (2025-11-23)
+
+**Critical Bugfix: Private Property Matching with Buyers**
+- Fixed matching logic to support private Idealista properties: Added `extractCoordinates()` helper function that supports both `location` object AND `latitude`/`longitude` string fields
+- **Issue**: Private properties from Idealista only had latitude/longitude strings, but matching logic only checked location object → Zero matches
+- **Solution**: New helper extracts coordinates from EITHER source, enabling matching for all property types
+- **Result**: Private properties now correctly match with buyers in "Possibili Immobili" tab and buyers see matching private sellers in property detail
+
+**Bugfix: Size Tolerance Calculation in Preliminary Filter**
+- Fixed dimension tolerance calculation in preliminary filter from `/0.9` to `/0.8` (for -20% tolerance)
+- **Impact**: Filter was rejecting valid buyers due to incorrect tolerance math
+- **Example**: Property 40mq now correctly matches buyer wanting 50mq (40 >= 50*0.8=40)
+
+**Feature Enhancement: Zone Search Radius for Urban Areas**
+- Increased default zone radius from 1km to 2km for FeatureCollection point-based zones
+- **Reason**: Milan is a large city; 1km radius was too restrictive, missing many relevant properties
+- **Effect**: Buyers' zone-based searches now cover reasonable urban distances
+
+**Technical Details:**
+- `extractCoordinates()` in `server/lib/matchingLogic.ts`: Handles coordinate extraction from multiple property formats
+- Updated tolerance calculation: `minSizeForTolerance = property.size / 0.8` (was incorrectly 0.9)
+- Zone matching: Points in FeatureCollection now use 2000m radius (was 1000m)
+
+## Previous Changes (2025-11-22)
 
 **Performance Optimization: Ranking Endpoint**
 - Optimized `/api/analytics/shared-properties-ranking` endpoint from 2930 queries to 2 queries
