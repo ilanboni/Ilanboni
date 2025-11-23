@@ -3697,21 +3697,27 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(properties.createdAt));
     
-    // Filter properties within 4km radius of Duomo di Milano
+    // Filter properties within 8km radius of Duomo di Milano (covers central Milan + suburbs)
     const DUOMO_LAT = 45.464204;
     const DUOMO_LNG = 9.191383;
-    const RADIUS_KM = 4;
+    const RADIUS_KM = 8;
     const duomoPoint = point([DUOMO_LNG, DUOMO_LAT]);
     
     const filteredByRadius = privateProps.filter((p: any) => {
-      // If no location or invalid, exclude it
-      if (!p.location || typeof p.location !== 'object') {
-        return false;
+      let lat, lng;
+      
+      // Try to get coordinates from location object first (for manual properties)
+      if (p.location && typeof p.location === 'object') {
+        lat = p.location.lat;
+        lng = p.location.lng;
+      } 
+      // Otherwise try to get from latitude/longitude columns (for Idealista properties)
+      else if (p.latitude && p.longitude) {
+        lat = typeof p.latitude === 'string' ? parseFloat(p.latitude) : p.latitude;
+        lng = typeof p.longitude === 'string' ? parseFloat(p.longitude) : p.longitude;
       }
       
-      const lat = p.location.lat;
-      const lng = p.location.lng;
-      
+      // If no valid coordinates, exclude the property
       if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
         return false;
       }
@@ -3720,7 +3726,7 @@ export class DatabaseStorage implements IStorage {
       const propertyPoint = point([lng, lat]);
       const dist = distance(duomoPoint, propertyPoint, { units: 'kilometers' });
       
-      // Include only if within 4km
+      // Include only if within 8km radius
       return dist <= RADIUS_KM;
     });
     
