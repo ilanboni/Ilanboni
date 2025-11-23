@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import type { PropertyListing } from '../portalIngestionService';
+import axios from 'axios';
 
 const BASE_URL = 'https://www.casadaprivato.it';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
@@ -15,79 +16,126 @@ export class CasaDaPrivatoAdapter {
 
     try {
       const city = params.city || 'milano';
-      const url = `${BASE_URL}/annunci-vendita/immobili/${city}-${city}`;
+      // Try multiple URL patterns - CasaDaPrivato likely uses various patterns
+      const urls = [
+        `${BASE_URL}/annunci-immobili-vendita/${city}/`,
+        `${BASE_URL}/annunci-vendita/${city}/`,
+        `${BASE_URL}/immobili-vendita/${city}/`,
+        `${BASE_URL}/annunci/vendita/${city}/`,
+      ];
       
-      console.log(`[CASADAPRIVATO] 🌐 Opening: ${url}`);
+      let foundProperties: any[] = [];
       
-      browser = await chromium.launch({ headless: true });
-      const context = await browser.newContext({
-        userAgent: USER_AGENT,
-      });
-      const page = await context.newPage();
-      
-      // Navigate and wait for content to load
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      
-      // Wait for property cards to appear (up to 10 seconds)
-      await page.waitForSelector('div[class*="listing"], div[class*="annuncio"], div[class*="property"]', { timeout: 10000 }).catch(() => {
-        console.log('[CASADAPRIVATO] ⚠️ Property selector not found, continuing with available content');
-      });
-      
-      // Extract all property items using multiple selector strategies
-      const properties = await page.evaluate(() => {
-        const items: any[] = [];
+      for (const url of urls) {
+        console.log(`[CASADAPRIVATO] 🌐 Trying: ${url}`);
         
-        // Strategy 1: Find by common property listing classes
-        const selectors = [
-          'div[class*="listing-item"]',
-          'div[class*="annuncio"]',
-          'div[class*="property-card"]',
-          'article[class*="listing"]',
-          'div.listing-item',
-          'div.annuncio'
-        ];
-        
-        for (const selector of selectors) {
-          const elements = document.querySelectorAll(selector);
-          if (elements.length > 0) {
-            console.log(`Found ${elements.length} items with selector: ${selector}`);
+        try {
+          browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            userAgent: USER_AGENT,
+          });
+          const page = await context.newPage();
+          
+          try {
+            // Navigate and wait for content to load
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
             
-            elements.forEach((el: any) => {
-              try {
-                const titleEl = el.querySelector('h2, h3, [class*="title"], a[class*="title"]');
-                const priceEl = el.querySelector('[class*="price"], span:contains("€")');
-                const addressEl = el.querySelector('[class*="address"], [class*="location"], .address');
-                const sizeEl = el.querySelector('[class*="size"], [class*="mq"]');
-                const linkEl = el.querySelector('a[href]');
-                
-                const item = {
-                  title: titleEl?.textContent?.trim() || '',
-                  price: priceEl?.textContent?.trim() || '',
-                  address: addressEl?.textContent?.trim() || '',
-                  size: sizeEl?.textContent?.trim() || '',
-                  url: linkEl?.getAttribute('href') || '',
-                };
-                
-                if (item.title || item.price) {
-                  items.push(item);
-                }
-              } catch (e) {
-                // Skip items with extraction errors
-              }
+            // Wait for property listings (similar to ClickCase which uses h3 a)
+            await page.waitForSelector('h3 a, h2 a, [class*="annuncio"] a', { timeout: 10000 }).catch(() => {
+              // Ignore timeout, continue anyway
             });
             
-            if (items.length > 0) break;
+            // Extract all property items using DOM
+            const properties = await page.evaluate(() => {
+              const items: any[] = [];
+              
+              // Try h3 pattern first (works for ClickCase)
+              let propertyContainers = document.querySelectorAll('h3');
+              if (propertyContainers.length === 0) {
+                propertyContainers = document.querySelectorAll('h2');
+              }
+              if (propertyContainers.length === 0) {
+                propertyContainers = document.querySelectorAll('a[class*="annuncio"], article');
+              }
+              
+              propertyContainers.forEach((heading: any) => {
+                try {
+                  const titleLink = heading.querySelector?.('a') || heading;
+                  const title = titleLink?.textContent?.trim() || '';
+                  const propUrl = titleLink?.getAttribute?.('href') || '';
+                  
+                  // Get the container
+                  let container = heading.closest('article') || heading.closest('div[class*="card"]') || heading.parentElement?.parentElement;
+                  if (!container) container = heading;
+                  
+                  // Find price
+                  let priceText = '';
+                  const priceEl = container?.querySelector('[class*="price"]') || 
+                                 Array.from(container?.querySelectorAll('*') || []).find((el: any) => 
+                                   el.textContent?.includes('€')
+                                 );
+                  if (priceEl) priceText = priceEl.textContent?.trim() || '';
+                  
+                  // Find address - extract zone from title if available
+                  let address = '';
+                  const zoneMatch = title.match(/zona\s+([^\/,]+)|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+                  if (zoneMatch) {
+                    address = (zoneMatch[1] || zoneMatch[2] || '').trim();
+                  }
+                  
+                  // Find size - look for m² pattern
+                  const sizeMatch = container?.textContent?.match(/(\d+)\s*m²/);
+                  const size = sizeMatch ? sizeMatch[1] : '';
+                  
+                  const item = {
+                    title,
+                    price: priceText,
+                    address,
+                    size,
+                    url: propUrl,
+                  };
+                  
+                  if (title && priceText) {
+                    items.push(item);
+                  }
+                } catch (e) {
+                  // Skip items with extraction errors
+                }
+              });
+              
+              return items;
+            });
+            
+            if (properties.length > 0) {
+              console.log(`[CASADAPRIVATO] 📊 Found ${properties.length} properties at: ${url}`);
+              foundProperties = properties;
+              await page.close();
+              break; // Exit URL loop if we found properties
+            }
+            
+            await page.close();
+          } finally {
+            if (browser) {
+              await browser.close().catch(e => {
+                // Silently ignore browser close errors
+              });
+            }
+          }
+        } catch (urlError) {
+          console.log(`[CASADAPRIVATO] ⚠️ URL ${url} failed, trying next...`);
+          if (browser) {
+            await browser.close().catch(() => {
+              // Silently ignore
+            });
           }
         }
-        
-        return items;
-      });
+      }
       
-      console.log(`[CASADAPRIVATO] 📊 Found ${properties.length} property items`);
+      console.log(`[CASADAPRIVATO] 📊 Found ${foundProperties.length} property items`);
       
       // Parse and convert to PropertyListing format
       let count = 0;
-      for (const prop of properties) {
+      for (const prop of foundProperties) {
         if (count >= (params.maxItems || 100)) break;
         
         try {
@@ -110,7 +158,7 @@ export class CasaDaPrivatoAdapter {
               externalId: `casa-${count}`,
               title: prop.title,
               address: prop.address,
-              city,
+              city: 'milano',
               price,
               size,
               url: fullUrl,

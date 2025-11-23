@@ -70,8 +70,12 @@ The application features a modern full-stack architecture.
 - Fallback: Uses Milano center (45.464, 9.190) for zone-only addresses that can't be geocoded
 
 **Data Sources & Automatic Classification (5 sources):**
-1. **CasaDaPrivato.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') [*Currently 0 results - Future Enhancement*]
-2. **ClickCase.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') ✅ **FULLY WORKING** (10 properties saved)
+1. **CasaDaPrivato.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') [⚙️ **0 results - Needs URL/Selector Refinement**]
+   - Adapter implemented with multiple URL patterns but no properties found yet
+   - URLs tried: `/annunci-immobili-vendita/`, `/annunci-vendita/`, `/immobili-vendita/`
+   - Selectors matched: h3/h2 patterns similar to ClickCase
+   - **Action needed**: Verify actual website URL structure and update adapter with correct selectors
+2. **ClickCase.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') ✅ **FULLY WORKING** (20 properties saved)
 3. **Idealista.it - Private** (Apify igolaizola, privateOnly=true) → 🟢 Private (ownerType='private') ✅ WORKING
 4. **Idealista.it - Agencies** (Apify igolaizola, privateOnly=false) → 🔴 Single-agency (ownerType='agency') ✅ WORKING
 5. **Immobiliare.it** (Apify igolaizola) → Automatic classification: ✅ WORKING
@@ -80,11 +84,11 @@ The application features a modern full-stack architecture.
    - 🔴 **Single-agency** (isMultiagency=false, 1-6 agencies)
 
 **Current Database Statistics:**
-- Total properties: 1,020
+- Total properties: 1,030
   - Idealista (source): 921 properties
   - Apify imports: 64 properties
   - Immobiliare (source): 25 properties
-  - **ClickCase (source): 10 properties ✅ NEW**
+  - **ClickCase (source): 20 properties ✅ (doubled from 10)**
 
 **Key Features Implemented:**
 - ✅ Automatic property classification based on agency count
