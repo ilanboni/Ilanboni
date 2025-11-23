@@ -16,12 +16,12 @@ export class CasaDaPrivatoAdapter {
 
     try {
       const city = params.city || 'milano';
-      // Try multiple URL patterns - CasaDaPrivato likely uses various patterns
+      // Try multiple URL patterns - following ClickCase pattern that works
       const urls = [
+        `${BASE_URL}/annunci/vendita-appartamenti-privati-${city}.html`,
         `${BASE_URL}/annunci-immobili-vendita/${city}/`,
         `${BASE_URL}/annunci-vendita/${city}/`,
         `${BASE_URL}/immobili-vendita/${city}/`,
-        `${BASE_URL}/annunci/vendita/${city}/`,
       ];
       
       let foundProperties: any[] = [];

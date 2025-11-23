@@ -15,7 +15,7 @@ export class ClickCaseAdapter {
 
     try {
       const city = params.city || 'milano';
-      const searchUrl = `${BASE_URL}/annunci/cercocase-lombardia-${city}.html`;
+      const searchUrl = `${BASE_URL}/annunci/vendita-appartamenti-privati-${city}.html`;
       
       console.log(`[CLICKCASE] 🌐 Opening: ${searchUrl}`);
       
@@ -82,7 +82,13 @@ export class ClickCaseAdapter {
               url,
             };
             
-            if (title && priceText) {
+            // Filter out rentals (affitti) - only keep sales (vendite)
+            const isRental = title.toLowerCase().includes('affitto') || 
+                            title.toLowerCase().includes('in affitto') ||
+                            priceText.toLowerCase().includes('/mese') ||
+                            priceText.toLowerCase().includes('al mese');
+            
+            if (title && priceText && !isRental) {
               items.push(item);
             }
           } catch (e) {
