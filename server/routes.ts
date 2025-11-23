@@ -13367,6 +13367,75 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  /**
+   * GET /api/test-scrape-private
+   * Test scraping CasaDaPrivato + ClickCase per vedere quante case da privato trova
+   */
+  app.get('/api/test-scrape-private', async (req: Request, res: Response) => {
+    try {
+      console.log('\n' + '='.repeat(60));
+      console.log('[TEST-PRIVATE-SCRAPE] 🧪 Inizio test CasaDaPrivato + ClickCase...');
+      console.log('='.repeat(60));
+      
+      const { CasaDaPrivatoAdapter } = await import('./services/adapters/casadaprivatoAdapter');
+      const { ClickCaseAdapter } = await import('./services/adapters/clickcaseAdapter');
+      
+      // Testa CasaDaPrivato
+      console.log('\n[TEST-PRIVATE-SCRAPE] 🔍 Scraping CasaDaPrivato...');
+      const casaAdapter = new CasaDaPrivatoAdapter();
+      const casaListings = await casaAdapter.search({ city: 'milano', maxItems: 200 });
+      console.log(`[TEST-PRIVATE-SCRAPE] ✅ CasaDaPrivato: ${casaListings.length} proprietà trovate`);
+      if (casaListings.length > 0) {
+        console.log('[TEST-PRIVATE-SCRAPE] Primi 3 risultati CasaDaPrivato:');
+        casaListings.slice(0, 3).forEach((p: any, i: number) => {
+          console.log(`  ${i+1}. ${p.title || p.address} - €${p.price} - ${p.size}mq`);
+        });
+      }
+      
+      // Testa ClickCase
+      console.log('\n[TEST-PRIVATE-SCRAPE] 🔍 Scraping ClickCase...');
+      const clickAdapter = new ClickCaseAdapter();
+      const clickListings = await clickAdapter.search({ city: 'milano', maxItems: 200 });
+      console.log(`[TEST-PRIVATE-SCRAPE] ✅ ClickCase: ${clickListings.length} proprietà trovate`);
+      if (clickListings.length > 0) {
+        console.log('[TEST-PRIVATE-SCRAPE] Primi 3 risultati ClickCase:');
+        clickListings.slice(0, 3).forEach((p: any, i: number) => {
+          console.log(`  ${i+1}. ${p.title || p.address} - €${p.price} - ${p.size}mq`);
+        });
+      }
+      
+      // Statistiche
+      const totalPrivate = casaListings.length + clickListings.length;
+      console.log('\n[TEST-PRIVATE-SCRAPE] 📊 STATISTICHE:');
+      console.log(`  🟢 Total proprietà da privato: ${totalPrivate}`);
+      console.log(`     - CasaDaPrivato: ${casaListings.length}`);
+      console.log(`     - ClickCase: ${clickListings.length}`);
+      console.log('='.repeat(60) + '\n');
+      
+      res.json({ 
+        ok: true, 
+        message: 'Test scraping privati completato',
+        statistics: {
+          totalPrivate,
+          casaDaPrivato: casaListings.length,
+          clickCase: clickListings.length
+        },
+        samples: {
+          casaDaPrivato: casaListings.slice(0, 3),
+          clickCase: clickListings.slice(0, 3)
+        }
+      });
+    } catch (error) {
+      console.error('[TEST-PRIVATE-SCRAPE] ❌ Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante test scraping privati',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
+      });
+    }
+  });
+
   return httpServer;
 }
 
