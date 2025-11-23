@@ -29,6 +29,7 @@ import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL
 import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point } from '@turf/helpers';
+import distance from '@turf/distance';
 
 // Storage interface with CRUD methods for all entities
 export interface IStorage {
@@ -3696,6 +3697,33 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(properties.createdAt));
     
+    // Filter properties within 4km radius of Duomo di Milano
+    const DUOMO_LAT = 45.464204;
+    const DUOMO_LNG = 9.191383;
+    const RADIUS_KM = 4;
+    const duomoPoint = point([DUOMO_LNG, DUOMO_LAT]);
+    
+    const filteredByRadius = privateProps.filter((p: any) => {
+      // If no location or invalid, exclude it
+      if (!p.location || typeof p.location !== 'object') {
+        return false;
+      }
+      
+      const lat = p.location.lat;
+      const lng = p.location.lng;
+      
+      if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+        return false;
+      }
+      
+      // Calculate distance from Duomo
+      const propertyPoint = point([lng, lat]);
+      const dist = distance(duomoPoint, propertyPoint, { units: 'kilometers' });
+      
+      // Include only if within 4km
+      return dist <= RADIUS_KM;
+    });
+    
     // Helper function to derive portalSource from source/portal fields
     const derivePortalSource = (source: string | null, portal: string | null): string | null => {
       const sourceStr = (source || '').toLowerCase();
@@ -3714,7 +3742,7 @@ export class DatabaseStorage implements IStorage {
     };
     
     // Convert Property to SharedProperty format for frontend compatibility
-    return privateProps.map((p: any) => ({
+    return filteredByRadius.map((p: any) => ({
       id: p.id,
       propertyId: p.id,
       address: p.address || '',
