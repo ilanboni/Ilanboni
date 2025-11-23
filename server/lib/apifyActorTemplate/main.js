@@ -24,19 +24,22 @@ const haversineKm = (lat1, lon1, lat2, lon2) => {
     return R * c;
 };
 
-// Funzione di geocoding
-const geocodeAddress = async (address, apiKey) => {
+// Funzione di geocoding con Nominatim (GRATUITO, NO API KEY)
+const geocodeAddress = async (address) => {
     if (!address) return null;
     try {
-        const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+        // Nominatim API (OpenStreetMap) - GRATUITO
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
             address
-        )}&key=${apiKey}&limit=1&language=it`;
-        const res = await fetch(url);
+        )}&format=json&limit=1&countrycodes=it`;
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Milano-PropertyScraper/1.0' },
+        });
         if (!res.ok) return null;
         const data = await res.json();
-        if (!data.results || !data.results.length) return null;
-        const { lat, lng } = data.results[0].geometry;
-        return { lat, lon: lng };
+        if (!data || !data.length) return null;
+        const { lat, lon } = data[0];
+        return { lat: parseFloat(lat), lon: parseFloat(lon) };
     } catch (error) {
         Apify.log.error(`Geocoding error for "${address}":`, error);
         return null;
@@ -54,20 +57,14 @@ Apify.main(async () => {
         modeClickCase = 'solo_vendita',
         maxPagesCasa = 3,
         maxPagesClick = 3,
-        geocodingApiKey,
     } = input;
-
-    if (!geocodingApiKey) {
-        Apify.log.error(
-            'Manca geocodingApiKey nell\'input, non posso filtrare per raggio.'
-        );
-        throw new Error('geocodingApiKey è obbligatorio');
-    }
 
     Apify.log.info(
         `Avvio scraping: città="${city}", zona="${area}", contratto="${contract}"`
     );
-    Apify.log.info(`Geocoding API attivo. Filtro: ${MAX_RADIUS_KM}km dal Duomo`);
+    Apify.log.info(
+        `Geocoding: Nominatim (OpenStreetMap - GRATUITO). Filtro: ${MAX_RADIUS_KM}km dal Duomo`
+    );
 
     // Configura le opzioni dello scraper (esempio generico)
     const crawlerOptions = {

@@ -1,8 +1,10 @@
 # Come Mettere l'Actor su Apify
 
 ## Prerequisiti
-- Account Apify.com
-- Chiave API di OpenCage (https://opencagedata.com/) - la puoi ottenere gratis
+- Account Apify.com (gratuito)
+
+## ✨ Nota Importante
+**NON SERVE API KEY DI GEOCODING!** L'actor usa Nominatim (OpenStreetMap) che è completamente GRATUITO.
 
 ## Step 1: Crea l'Actor su Apify
 
@@ -31,20 +33,25 @@ Nel file `main.js`, nella sezione **"Qui andrà il tuo codice di scraping"**, in
 
 Il template fornisce già:
 - ✅ Funzione `haversineKm()` - calcola distanza dal Duomo
-- ✅ Funzione `geocodeAddress()` - geocodifica indirizzi
-- ✅ GLOBAL_INPUT - accedi alla chiave di geocoding ovunque
+- ✅ Funzione `geocodeAddress()` - geocodifica indirizzi usando Nominatim (GRATIS, NO API KEY!)
+- ✅ GLOBAL_INPUT - accedi agli input ovunque
 
-Basta fare come nelle tue istruzioni: prima di salvare nel dataset, chiama geocodeAddress + haversineKm e filtra a 4km.
+Basta fare come nelle tue istruzioni: prima di salvare nel dataset, chiama:
+```javascript
+const coords = await geocodeAddress(locationString);
+const distanceKm = haversineKm(DUOMO_LAT, DUOMO_LON, coords.lat, coords.lon);
+if (distanceKm <= MAX_RADIUS_KM) {
+    await Dataset.pushData({ ...item, lat: coords.lat, lon: coords.lon, distance_km: distanceKm });
+}
+```
 
 ## Step 4: Testa l'Actor
 
 1. Sulla pagina dell'actor, clicca **"Start"**
-2. Un popup ti chiede gli input:
-   - **geocodingApiKey**: Inserisci qui la tua chiave di OpenCage (es: `abc123def456`)
-   - Gli altri parametri hanno valori di default
-
+2. Gli input hanno valori di default (city, maxPages, ecc.)
 3. Clicca **"Start"** di nuovo
 4. L'actor parte! Puoi vedere i log e il dataset finale
+5. ✨ **NON SERVE NESSUNA API KEY** - Nominatim è gratis!
 
 ## Step 5: Usa i Dati Scrapati
 
@@ -58,12 +65,13 @@ Quando l'actor finisce:
 
 ## Di Cosa hai Bisogno:
 
-**Chiave OpenCage gratuita:**
-1. Vai su https://opencagedata.com/
-2. Registrati (è gratis per 2500 richieste/giorno)
-3. Copia la tua API key
-4. Usala nei test dell'actor
+**NIENTE!** 🎉
+- ✅ Account Apify.com - gratuito
+- ✅ Nominatim API per geocoding - **GRATUITO, ILLIMITATO**
+- ✅ Nessuna chiave esterna richiesta
 
 ---
 
-**Nota:** Il template fornito è uno stub. Dovrai integrare il vero codice di scraping (Playwright, Puppeteer, ecc.) dentro Actor.main(), ma la parte di geocoding + filtro è già pronta! 🎉
+**Nota Tecnica:** Il template fornito include le funzioni `haversineKm()` e `geocodeAddress()` già pronte. Dovrai solo integrare il vero codice di scraping (Playwright, Puppeteer, ecc.) dentro `Actor.main()`, ma la parte di geocoding + filtro è **100% funzionante** e pronta! 🎉
+
+**Nominatim è Open Street Map**, usato dal tuo backend già - perfetto per continuità!

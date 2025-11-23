@@ -49,13 +49,6 @@
       "minimum": 1,
       "prefill": 3
     },
-    "geocodingApiKey": {
-      "title": "API Key Geocoding (OpenCage)",
-      "type": "string",
-      "description": "Chiave API di OpenCage per il geocoding degli indirizzi. Ottienimi qui: https://opencagedata.com/",
-      "editor": "password",
-      "isRequired": true
-    }
   },
-  "required": ["geocodingApiKey"]
+  "required": []
 }
