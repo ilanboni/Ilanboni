@@ -52,4 +52,49 @@ The application features a modern full-stack architecture.
 - **Nominatim**: Geocoding services for search area visualization.
 - **multer**: File upload middleware for property attachments.
 - **node-cron**: Cron-based task scheduler for automated tasks.
+
+## Recent Changes (2025-11-23)
+
+**✅ COMPLETE: Automated Daily Property Scraping System with Automatic Classification**
+
+**System Architecture:**
+- **DailyPrivatePropertiesScheduler** - Scrapes all 4 sources automatically every 24 hours
+- Runs at server startup + every 24 hours (NO manual trigger needed)
+- Uses Nominatim (FREE) for geocoding + Haversine for distance calculation
+- Filters all properties to 4km radius from Duomo (45.464211, 9.191383)
+
+**Data Sources & Automatic Classification:**
+1. **CasaDaPrivato.it** (Direct HTTP, no Apify) → 🟢 Private (ownerType='private')
+2. **ClickCase.it** (Direct HTTP, no Apify) → 🟢 Private (ownerType='private')  
+3. **Idealista.it Private** (Apify igolaizola) → 🟢 Private (ownerType='private')
+4. **Immobiliare.it** (Apify igolaizola) → Automatic classification:
+   - 🟢 **Private** (ownerType='private', no agencies)
+   - 🟡 **Multi-agency** (isMultiagency=true, 7+ agencies)
+   - 🔴 **Single-agency** (isMultiagency=false, 1-6 agencies)
+
+**Key Features Implemented:**
+- ✅ Automatic property classification based on agency count
+- ✅ Agency names and links stored in `agencies` JSONB array
+- ✅ Color-coded classification (🟢 green/🟡 yellow/🔴 red)
+- ✅ Distance calculation and 4km filtering
+- ✅ Detailed logging with emoji indicators and statistics
+- ✅ Graceful error handling with fallback recovery
+
+**Implementation Files:**
+- `server/services/adapters/casadaprivatoAdapter.ts` - Direct HTTP + regex parsing
+- `server/services/adapters/clickcaseAdapter.ts` - Direct HTTP + regex parsing
+- `server/services/adapters/immobiliareApifyAdapter.ts` - Apify integration (pre-existing)
+- `server/services/dailyPrivatePropertiesScheduler.ts` - Main orchestrator
+- `server/index.ts` - Scheduler initialization at server startup
+
+**Output Statistics Logged:**
+```
+[DAILY-SCHEDULER] 📈 Results:
+  Saved: N properties
+    🟢 Private: X
+    🟡 Multi-agency (7+): Y
+    🔴 Single-agency: Z
+  Discarded (outside 4km radius): N
+  Geocoding failed: M
+```
 ```

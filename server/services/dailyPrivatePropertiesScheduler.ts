@@ -1,6 +1,7 @@
 import { CasaDaPrivatoAdapter } from './adapters/casadaprivatoAdapter';
 import { ClickCaseAdapter } from './adapters/clickcaseAdapter';
 import { IgolaIdealistaAdapter } from './adapters/igolaIdealistaAdapter';
+import { ImmobiliareApifyAdapter } from './adapters/immobiliareApifyAdapter';
 import { storage } from '../storage';
 
 const DUOMO_LAT = 45.464211;
@@ -90,12 +91,15 @@ export class DailyPrivatePropertiesScheduler {
       
       // Scrapa Idealista privati
       const idealistaListings = await this.scrapeIdealistaPrivate();
+      
+      // Scrapa Immobiliare agenzie
+      const immobiliareListings = await this.scrapeImmobiliareAgencies();
 
-      const allListings = [...casaListings, ...clickListings, ...idealistaListings];
+      const allListings = [...casaListings, ...clickListings, ...idealistaListings, ...immobiliareListings];
       
       console.log(`\n[DAILY-SCHEDULER] 📊 Total listings before filtering: ${allListings.length}`);
 
-      // Filtra e salva a 4km dal Duomo
+      // Filtra e salva a 4km dal Duomo (con classificazione agenzie)
       const saved = await this.filterAndSaveProperties(allListings);
       
       console.log(`[DAILY-SCHEDULER] ✅ Completed - Saved ${saved} properties within 4km`);
@@ -152,12 +156,69 @@ export class DailyPrivatePropertiesScheduler {
     }
   }
 
+  private async scrapeImmobiliareAgencies() {
+    console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Immobiliare.it (agencies)...');
+    const adapter = new ImmobiliareApifyAdapter();
+    try {
+      const listings = await adapter.search({
+        city: 'milano',
+        propertyType: 'apartment',
+      });
+      console.log(`[DAILY-SCHEDULER] ✅ Immobiliare: ${listings.length} properties with agencies`);
+      return listings;
+    } catch (error) {
+      console.error('[DAILY-SCHEDULER] ❌ Immobiliare error:', error);
+      return [];
+    }
+  }
+
+  private classifyProperty(listing: any): { ownerType: string; isMultiagency: boolean; classificationColor: string } {
+    // Classificazione basata su numero di agenzie
+    const agenciesCount = (listing.agencies && listing.agencies.length) || 0;
+    
+    // Se non ci sono agenzie o è da CasaDaPrivato/ClickCase/Idealista privati -> PRIVATE 🟢
+    if (listing.ownerType === 'private' || listing.portal === 'casadaprivato' || listing.portal === 'clickcase' || listing.source === 'casadaprivato' || listing.source === 'clickcase') {
+      return {
+        ownerType: 'private',
+        isMultiagency: false,
+        classificationColor: 'green'
+      };
+    }
+    
+    // Se da Immobiliare:
+    // - 7+ agenzie -> PLURICONDIVISO 🟡 (multi-agency)
+    // - 1 agenzia -> MONOCONDIVISO 🔴 (single agency)
+    if (agenciesCount >= 7) {
+      return {
+        ownerType: 'agency',
+        isMultiagency: true,
+        classificationColor: 'yellow'
+      };
+    } else if (agenciesCount === 1) {
+      return {
+        ownerType: 'agency',
+        isMultiagency: false,
+        classificationColor: 'red'
+      };
+    }
+    
+    // Default: agenzia singola
+    return {
+      ownerType: 'agency',
+      isMultiagency: false,
+      classificationColor: 'red'
+    };
+  }
+
   private async filterAndSaveProperties(listings: any[]): Promise<number> {
     console.log(`\n[DAILY-SCHEDULER] 🔄 Filtering ${listings.length} properties to 4km radius...`);
     
     let saved = 0;
     let discarded = 0;
     let geocodeFailed = 0;
+    let privateCount = 0;
+    let monoagencyCount = 0;
+    let multiagencyCount = 0;
 
     for (const listing of listings) {
       try {
@@ -179,6 +240,14 @@ export class DailyPrivatePropertiesScheduler {
         const distance = haversineKm(DUOMO_LAT, DUOMO_LON, coords.lat, coords.lon);
 
         if (distance <= MAX_RADIUS_KM) {
+          // Classifica il tipo di proprietà
+          const classification = this.classifyProperty(listing);
+          
+          // Conta per statistiche
+          if (classification.classificationColor === 'green') privateCount++;
+          if (classification.classificationColor === 'yellow') multiagencyCount++;
+          if (classification.classificationColor === 'red') monoagencyCount++;
+          
           // Salva nel database
           const propertyToSave = {
             address: listing.address || '',
@@ -190,16 +259,20 @@ export class DailyPrivatePropertiesScheduler {
             url: listing.url || '',
             latitude: coords.lat.toString(),
             longitude: coords.lon.toString(),
-            ownerType: 'private',
+            ownerType: classification.ownerType,
+            isMultiagency: classification.isMultiagency,
             externalId: listing.externalId,
             ownerPhone: listing.ownerPhone,
             ownerEmail: listing.ownerEmail,
+            // Agenzie (se presenti)
+            agencies: listing.agencies || [],
           };
           
           await storage.createProperty(propertyToSave);
 
           saved++;
-          console.log(`  ✓ Saved: ${listing.title} (${distance.toFixed(2)}km)`);
+          const classificationEmoji = classification.classificationColor === 'green' ? '🟢' : classification.classificationColor === 'yellow' ? '🟡' : '🔴';
+          console.log(`  ${classificationEmoji} Saved: ${listing.title} (${distance.toFixed(2)}km)`);
         } else {
           discarded++;
         }
@@ -211,6 +284,9 @@ export class DailyPrivatePropertiesScheduler {
 
     console.log(`\n[DAILY-SCHEDULER] 📈 Results:`);
     console.log(`  Saved: ${saved}`);
+    console.log(`    🟢 Private: ${privateCount}`);
+    console.log(`    🟡 Multi-agency (7+): ${multiagencyCount}`);
+    console.log(`    🔴 Single-agency: ${monoagencyCount}`);
     console.log(`  Discarded (outside radius): ${discarded}`);
     console.log(`  Geocoding failed: ${geocodeFailed}`);
 
