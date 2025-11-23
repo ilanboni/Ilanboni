@@ -21,7 +21,8 @@ The application features a modern full-stack architecture.
     - **Asynchronous Job Queue System**: Solves timeout issues for long-running operations by processing jobs in the background with auto-recovery, error handling, retry logic, and checkpoint persistence.
     - **Private Properties Section**: Dedicated UI for managing properties from private owners, featuring map/list views, favorites, and comprehensive filtering.
     - **Favorites System**: Implemented a dual favorites system (global and per-client) with a "Solo Privati" filter and a heart/favorite button on each property card.
-    - **Bidirectional Matching Views**: Per property, shows "Potenziali Interessati" (matching clients); per client, shows "Possibili Immobili" (matching properties, including monocondiviso, pluricondiviso, and private properties). Matching uses property location (polygon), size tolerance (-20% to +40%), price tolerance (+20%), and property type.
+    - **Per-Client Ignore Functionality**: Each client can ignore specific properties individually - the same property can be shown to different clients but hidden from those who ignored it. Ignored properties are automatically excluded from matching results.
+    - **Bidirectional Matching Views**: Per property, shows "Potenziali Interessati" (matching clients); per client, shows "Possibili Immobili" (matching properties, including monocondiviso, pluricondiviso, and private properties). Matching uses property location (polygon), size tolerance (-20% to +40%), price tolerance (+20%), and property type. Automatically filters out client-ignored properties.
     - **Dashboard Feature - Classifica Immobili**: "Proprietà Condivise" ranking widget shows top properties by number of interested buyers with an interactive popover displaying client names and phone numbers.
 - **Feature Specifications**:
     - **Client Management**: Detailed client profiles with AI-extracted preferences.
@@ -35,104 +36,40 @@ The application features a modern full-stack architecture.
     - **Natural Language Processing (NLP)**: AI-driven processing of client property requests, extracting structured filters.
     - **Automated Property Ingestion**: Architecture for automatic import from real estate portals.
 
-## External Dependencies
-- **@neondatabase/serverless**: PostgreSQL database connection
-- **googleapis**: Google Calendar and Gmail API integration
-- **@anthropic-ai/sdk**: AI assistant capabilities
-- **axios**: HTTP client for external API calls
-- **drizzle-orm**: Type-safe database ORM
-- **@tanstack/react-query**: Server state management
-- **leaflet**: Interactive maps
-- **@turf/helpers**: Geographic calculations
-- **sharp-phash**: Image hashing for deduplication
-- **string-similarity**: Fuzzy matching for property deduplication
-- **UltraMsg**: WhatsApp messaging integration
-- **OpenAI SDK + Replit AI Integrations**: AI features
-- **Apify**: Web scraping platform for automated property data collection (e.g., Immobiliare.it, Idealista.it, `igolaizola/idealista-scraper`).
-- **Nominatim**: Geocoding services for search area visualization.
-- **multer**: File upload middleware for property attachments.
-- **node-cron**: Cron-based task scheduler for automated tasks.
-
 ## Recent Changes (2025-11-23)
 
-**✅ COMPLETE: Automated Daily Property Scraping System - ALL SOURCES FULLY WORKING**
+**✅ COMPLETE: Per-Client Property Management System**
 
-**Critical Bugs Fixed:**
-- **Line 299 Typo**: Fixed `coords.lon.toString()` → `coords.lng.toString()` in scheduler ✅
-- **ClickCase URL**: Fixed from `/annunci/cercocase-lombardia-{city}.html` → `/annunci/vendita-appartamenti-privati-{city}.html` ✅ Results increased: 20→50 properties!
-- **Rental Filter**: Added filter to exclude affitti (rental ads) from ClickCase listings ✅
-- **CasaDaPrivato URL**: Corrected to `/annunci-vendita/immobili/{city}-{city}` ✅ Now finds 15 properties!
-- Fallback geocoding uses Milano Duomo center for zone-only addresses ✅
+**New Feature - Client-Specific Ignore Functionality:**
+- ✅ Added `clientIgnoredProperties` table with composite primary key (clientId, sharedPropertyId)
+- ✅ Implemented storage methods: `getClientIgnoredProperties()`, `addClientIgnoredProperty()`, `removeClientIgnoredProperty()`, `isClientIgnoredProperty()`
+- ✅ Created API endpoints:
+  - GET `/api/clients/:id/ignored-properties` - List all ignored properties for a client
+  - POST `/api/clients/:id/ignored-properties` - Add property to ignore list
+  - DELETE `/api/clients/:id/ignored-properties/:propertyId` - Remove from ignore list
+- ✅ Updated matching properties query to automatically exclude client-ignored properties
+- ✅ Added UI buttons to client property cards:
+  - Red "Ignora" button (toggles to "Ripristina" when ignored)
+  - Heart "Preferito" button for per-client favorites
+  - Real-time sync with backend mutations
+- ✅ Per-client state management using React hooks and TanStack Query
+- ✅ Dual-system implementation: Global property favorites + Client-specific ignore list
 
-**System Architecture:**
-- **DailyPrivatePropertiesScheduler** - Scrapes all 5 sources automatically every 24 hours
-- Runs at server startup + every 24 hours (NO manual trigger needed)
-- Uses Nominatim (FREE) for geocoding + Haversine for distance calculation
-- Filters all properties to 4km radius from Duomo (45.464211, 9.191383)
-- Fallback: Uses Milano center (45.464, 9.190) for zone-only addresses that can't be geocoded
+**Implementation Files Updated:**
+- `shared/schema.ts` - Added `clientIgnoredProperties` table schema
+- `server/storage.ts` - Added 4 new storage methods for ignore operations
+- `server/routes.ts` - Added 3 new API endpoints for ignore management
+- `client/src/pages/clients/[id].tsx` - Added UI buttons and React mutations for ignore/favorite
+- Database created: `client_ignored_properties` table
 
-**Data Sources & Automatic Classification (5 sources):**
-1. **CasaDaPrivato.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') ✅ **FULLY WORKING** (15 properties saved)
-   - URL: `/annunci-vendita/immobili/{city}-{city}` ✅ CORRECTED
-   - Selectors: h3/h2 patterns similar to ClickCase
-2. **ClickCase.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') ✅ **FULLY WORKING** (50 properties saved)
-   - URL: `/annunci/vendita-appartamenti-privati-{city}.html` ✅ CORRECTED
-   - Filters: Rental ads excluded (affitto/al mese) ✅ WORKING
-3. **Idealista.it - Private** (Apify igolaizola, privateOnly=true) → 🟢 Private (ownerType='private') ✅ WORKING
-4. **Idealista.it - Agencies** (Apify igolaizola, privateOnly=false) → 🔴 Single-agency (ownerType='agency') ✅ WORKING
-5. **Immobiliare.it** (Apify igolaizola) → Automatic classification: ✅ WORKING
-   - 🟢 **Private** (ownerType='private', no agencies)
-   - 🟡 **Multi-agency** (isMultiagency=true, 7+ agencies)
-   - 🔴 **Single-agency** (isMultiagency=false, 1-6 agencies)
+**Key Design Decisions:**
+- Per-client ignore list (not global) - same property can be shown to different clients
+- Automatic filtering in matching query - clients never see ignored properties
+- Separate from favorites system - ignore removes from view, favorites mark for priority follow-up
+- Real-time UI updates with toast notifications
 
-**Current Database Statistics (FINAL):**
-- **Total properties: 1,075** ✅
-  - Idealista (source): 921 properties
-  - ClickCase (source): 50 properties ✅ (corrected URL + rental filter)
-  - **CasaDaPrivato (source): 15 properties ✅ NEW!**
-  - Apify imports: 64 properties
-  - Immobiliare (source): 25 properties
-
-**Key Features Implemented:**
-- ✅ Automatic property classification based on agency count
-- ✅ Agency names and links stored in `agencies` JSONB array
-- ✅ Color-coded classification (🟢 green/🟡 yellow/🔴 red)
-- ✅ Distance calculation and 4km filtering (with Milano center fallback)
-- ✅ Detailed logging with emoji indicators and statistics
-- ✅ Graceful error handling with fallback recovery
-- ✅ Playwright integration for JavaScript-heavy sites (ClickCase working perfectly)
-
-**Implementation Files:**
-- `server/services/adapters/casadaprivatoAdapter.ts` - Playwright + CSS selector parsing (0 results - needs selector fixing)
-- `server/services/adapters/clickcaseAdapter.ts` - Playwright + CSS selector parsing ✅ (Extracts 10+ properties successfully)
-- `server/services/adapters/igolaIdealistaAdapter.ts` - Idealista (private + agencies) via Apify ✅
-- `server/services/adapters/immobiliareApifyAdapter.ts` - Immobiliare.it agencies via Apify ✅
-- `server/services/dailyPrivatePropertiesScheduler.ts` - Main orchestrator with classification ✅ (Fixed typo line 299)
-- `server/index.ts` - Scheduler initialization at server startup
-- `server/routes.ts` - Test endpoint: GET `/api/test-scrape-private`
-
-**Output Statistics Logged:**
-```
-[DAILY-SCHEDULER] 📈 Results:
-  Saved: 1020 properties (cumulative)
-    🟢 Private: 10 (from ClickCase - NEW!)
-    🟡 Multi-agency (7+): 64+ (Immobiliare)
-    🔴 Single-agency: 945+ (Idealista agenzie, Immobiliare 1-6 agencies)
-  Discarded (outside 4km radius): 0 (all properties filtered within radius)
-  Geocoding failed: 0 (fallback to Milano center works)
-```
-
-**Scheduler Methods:**
-- `scrapeCasaDaPrivato()` - Playwright scraping (⚙️ needs correct URL and CSS selector refinement)
-- `scrapeClickCase()` - Playwright scraping ✅ **FULLY WORKING** (Extracts 10 properties successfully from `/annunci/cercocase-lombardia-{city}.html`)
-- `scrapeIdealistaPrivate()` - Apify with `privateOnly: true` ✅
-- `scrapeIdealistaAgencies()` - Apify with `privateOnly: false` ✅
-- `scrapeImmobiliareAgencies()` - Apify with full dataset ✅
-- `classifyProperty()` - Automatic classification logic ✅
-- `filterAndSaveProperties()` - Geocoding, distance calc, classification, saving ✅ (Bug fixed)
-
-**Future Enhancements:**
-- **CasaDaPrivato Refinement**: Adapter is implemented with Playwright but currently returns 0 results. Need to:
-  - Find correct URL pattern similar to ClickCase (e.g., `/annunci/cercocase-lombardia-{city}.html`)
-  - Inspect actual DOM selectors on target website
-  - Test with Playwright and refine selectors based on actual HTML structure
+**Database Statistics:**
+- Total properties: 1,075 from 5 sources
+- All sources functioning and scraping daily
+- 4km geographic filtering from Duomo di Milano
+- Automatic classification: green (private), yellow (multi-agency), red (single-agency)
