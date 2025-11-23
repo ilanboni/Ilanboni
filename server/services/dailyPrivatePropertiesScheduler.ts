@@ -90,12 +90,15 @@ export class DailyPrivatePropertiesScheduler {
       const clickListings = await this.scrapeClickCase();
       
       // Scrapa Idealista privati
-      const idealistaListings = await this.scrapeIdealistaPrivate();
+      const idealistaPrivateListings = await this.scrapeIdealistaPrivate();
+      
+      // Scrapa Idealista agenzie
+      const idealistaAgenciesListings = await this.scrapeIdealistaAgencies();
       
       // Scrapa Immobiliare agenzie
       const immobiliareListings = await this.scrapeImmobiliareAgencies();
 
-      const allListings = [...casaListings, ...clickListings, ...idealistaListings, ...immobiliareListings];
+      const allListings = [...casaListings, ...clickListings, ...idealistaPrivateListings, ...idealistaAgenciesListings, ...immobiliareListings];
       
       console.log(`\n[DAILY-SCHEDULER] 📊 Total listings before filtering: ${allListings.length}`);
 
@@ -148,10 +151,29 @@ export class DailyPrivatePropertiesScheduler {
         maxItems: 100,
         privateOnly: true,
       });
-      console.log(`[DAILY-SCHEDULER] ✅ Idealista: ${listings.length} PRIVATE properties`);
+      console.log(`[DAILY-SCHEDULER] ✅ Idealista (privati): ${listings.length} PRIVATE properties`);
       return listings;
     } catch (error) {
-      console.error('[DAILY-SCHEDULER] ❌ Idealista error:', error);
+      console.error('[DAILY-SCHEDULER] ❌ Idealista privati error:', error);
+      return [];
+    }
+  }
+
+  private async scrapeIdealistaAgencies() {
+    console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Idealista agencies...');
+    const adapter = new IgolaIdealistaAdapter();
+    try {
+      // Leggi i Milano zones da config
+      const MILANO_ZONES = ['0-EU-IT-MI-CO-028-006-Z']; // Default: Centro Milano
+      const listings = await adapter.search({
+        locationIds: MILANO_ZONES,
+        maxItems: 100,
+        privateOnly: false, // Scrapa tutte le agenzie (professional + developer)
+      });
+      console.log(`[DAILY-SCHEDULER] ✅ Idealista (agenzie): ${listings.length} properties with agencies`);
+      return listings;
+    } catch (error) {
+      console.error('[DAILY-SCHEDULER] ❌ Idealista agenzie error:', error);
       return [];
     }
   }
@@ -176,8 +198,8 @@ export class DailyPrivatePropertiesScheduler {
     // Classificazione basata su numero di agenzie
     const agenciesCount = (listing.agencies && listing.agencies.length) || 0;
     
-    // Se non ci sono agenzie o è da CasaDaPrivato/ClickCase/Idealista privati -> PRIVATE 🟢
-    if (listing.ownerType === 'private' || listing.portal === 'casadaprivato' || listing.portal === 'clickcase' || listing.source === 'casadaprivato' || listing.source === 'clickcase') {
+    // Se è privato -> PRIVATE 🟢
+    if (listing.ownerType === 'private') {
       return {
         ownerType: 'private',
         isMultiagency: false,
@@ -185,21 +207,24 @@ export class DailyPrivatePropertiesScheduler {
       };
     }
     
-    // Se da Immobiliare:
+    // Se è da Immobiliare o Idealista agenzie (ownerType='agency'):
     // - 7+ agenzie -> PLURICONDIVISO 🟡 (multi-agency)
-    // - 1 agenzia -> MONOCONDIVISO 🔴 (single agency)
-    if (agenciesCount >= 7) {
-      return {
-        ownerType: 'agency',
-        isMultiagency: true,
-        classificationColor: 'yellow'
-      };
-    } else if (agenciesCount === 1) {
-      return {
-        ownerType: 'agency',
-        isMultiagency: false,
-        classificationColor: 'red'
-      };
+    // - 1-6 agenzie -> MONOCONDIVISO 🔴 (single agency)
+    if (listing.ownerType === 'agency') {
+      // Immobiliare ha agencies array, Idealista no - quindi controlla
+      if (agenciesCount >= 7) {
+        return {
+          ownerType: 'agency',
+          isMultiagency: true,
+          classificationColor: 'yellow'
+        };
+      } else {
+        return {
+          ownerType: 'agency',
+          isMultiagency: false,
+          classificationColor: 'red'
+        };
+      }
     }
     
     // Default: agenzia singola
