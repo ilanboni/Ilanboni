@@ -419,7 +419,7 @@ export default function PrivatePropertiesPage() {
               <>
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
                   <p className="text-sm text-blue-800">
-                    🗺️ Vista Mappa - Pagina {currentPage} di {totalPages} ({filteredProperties.length} totali, mostrando {paginatedProperties.length} in questa pagina)
+                    🗺️ Vista Mappa - Mostrando {filteredProperties.length} proprietà
                   </p>
                 </div>
                 <div className="h-[600px] rounded-lg overflow-hidden border-2 border-gray-200">
@@ -427,12 +427,13 @@ export default function PrivatePropertiesPage() {
                     center={[DUOMO_LAT, DUOMO_LNG]}
                     zoom={13}
                     style={{ height: '100%', width: '100%' }}
+                    key={`map-${filteredProperties.length}`}
                   >
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    {paginatedProperties.map((property) => {
+                    {filteredProperties.map((property) => {
                       // Extract lat/lng from location object
                       const loc = property.location as any;
                       const lat = loc?.lat ? (typeof loc.lat === 'number' ? loc.lat : parseFloat(loc.lat)) : NaN;
