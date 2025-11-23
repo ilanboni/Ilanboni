@@ -58,10 +58,11 @@ The application features a modern full-stack architecture.
 **✅ COMPLETE: Automated Daily Property Scraping System - ALL SOURCES FULLY WORKING**
 
 **Critical Bugs Fixed:**
-- **Line 299 Typo**: Fixed `coords.lon.toString()` → `coords.lng.toString()` in scheduler
-- **ClickCase URL**: Fixed from `/annunci/cercocase-lombardia-{city}.html` → `/annunci/vendita-appartamenti-privati-{city}.html` ✅ Results increased from 20→37 properties!
-- **Rental Filter**: Added filter to exclude affitti (rental ads) from ClickCase listings
-- Fallback geocoding uses Milano Duomo center for zone-only addresses
+- **Line 299 Typo**: Fixed `coords.lon.toString()` → `coords.lng.toString()` in scheduler ✅
+- **ClickCase URL**: Fixed from `/annunci/cercocase-lombardia-{city}.html` → `/annunci/vendita-appartamenti-privati-{city}.html` ✅ Results increased: 20→50 properties!
+- **Rental Filter**: Added filter to exclude affitti (rental ads) from ClickCase listings ✅
+- **CasaDaPrivato URL**: Corrected to `/annunci-vendita/immobili/{city}-{city}` ✅ Now finds 15 properties!
+- Fallback geocoding uses Milano Duomo center for zone-only addresses ✅
 
 **System Architecture:**
 - **DailyPrivatePropertiesScheduler** - Scrapes all 5 sources automatically every 24 hours
@@ -71,11 +72,10 @@ The application features a modern full-stack architecture.
 - Fallback: Uses Milano center (45.464, 9.190) for zone-only addresses that can't be geocoded
 
 **Data Sources & Automatic Classification (5 sources):**
-1. **CasaDaPrivato.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') [⚙️ **0 results - Still investigating**]
-   - Adapter enhanced with ClickCase URL pattern
-   - Testing: `/annunci/vendita-appartamenti-privati-{city}.html` pattern
-   - Fallback URLs: `/annunci-immobili-vendita/`, `/annunci-vendita/`, `/immobili-vendita/`
-2. **ClickCase.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') ✅ **FULLY WORKING** (37 properties saved)
+1. **CasaDaPrivato.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') ✅ **FULLY WORKING** (15 properties saved)
+   - URL: `/annunci-vendita/immobili/{city}-{city}` ✅ CORRECTED
+   - Selectors: h3/h2 patterns similar to ClickCase
+2. **ClickCase.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') ✅ **FULLY WORKING** (50 properties saved)
    - URL: `/annunci/vendita-appartamenti-privati-{city}.html` ✅ CORRECTED
    - Filters: Rental ads excluded (affitto/al mese) ✅ WORKING
 3. **Idealista.it - Private** (Apify igolaizola, privateOnly=true) → 🟢 Private (ownerType='private') ✅ WORKING
@@ -86,9 +86,10 @@ The application features a modern full-stack architecture.
    - 🔴 **Single-agency** (isMultiagency=false, 1-6 agencies)
 
 **Current Database Statistics (FINAL):**
-- **Total properties: 1,047** ✅
+- **Total properties: 1,075** ✅
   - Idealista (source): 921 properties
-  - ClickCase (source): 37 properties ✅ (corrected URL + rental filter)
+  - ClickCase (source): 50 properties ✅ (corrected URL + rental filter)
+  - **CasaDaPrivato (source): 15 properties ✅ NEW!**
   - Apify imports: 64 properties
   - Immobiliare (source): 25 properties
 
