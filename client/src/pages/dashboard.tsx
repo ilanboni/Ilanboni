@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Helmet } from "react-helmet";
+import { AddManualPrivatePropertyDialog } from "@/components/properties/AddManualPrivatePropertyDialog";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -37,7 +38,7 @@ export default function Dashboard() {
           <h1 className="text-xl sm:text-2xl font-heading font-bold text-gray-900">Dashboard</h1>
           <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-gray-600">Panoramica attività e statistiche</p>
         </div>
-        <div className="flex gap-2 sm:gap-3">
+        <div className="flex gap-2 sm:gap-3 flex-wrap">
           <Link href="/clients/direct-new" className="flex-1 sm:flex-none">
             <Button className="w-full tap-target">
               <i className="fas fa-plus mr-1.5 sm:mr-2 text-sm"></i>
@@ -50,6 +51,7 @@ export default function Dashboard() {
               <span className="text-sm">Immobile</span>
             </Button>
           </Link>
+          <AddManualPrivatePropertyDialog />
         </div>
       </div>
       

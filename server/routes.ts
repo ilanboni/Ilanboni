@@ -2170,6 +2170,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Parse URL to extract property data
+  app.post("/api/properties/parse-url", async (req: Request, res: Response) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL non fornito" });
+      }
+
+      // Try to fetch and parse the page
+      const parsed: any = {
+        address: "",
+        price: 0,
+        bedrooms: undefined,
+        bathrooms: undefined,
+        size: undefined,
+        description: "",
+        ownerPhone: ""
+      };
+
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          },
+          timeout: 5000
+        });
+
+        if (!response.ok) {
+          return res.json(parsed); // Return empty parsed data
+        }
+
+        const html = await response.text();
+        
+        // Try to extract common patterns from HTML
+        // Price pattern: look for €, "€ 250.000", "price", "prezzo"
+        const priceMatch = html.match(/[€€][\s]*([0-9.]+)/i);
+        if (priceMatch) {
+          parsed.price = parseInt(priceMatch[1].replace(/\./g, ''));
+        }
+
+        // Bedrooms pattern
+        const bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|bedrooms|rooms)/i);
+        if (bedroomsMatch) {
+          parsed.bedrooms = parseInt(bedroomsMatch[1]);
+        }
+
+        // Bathrooms pattern
+        const bathroomsMatch = html.match(/(\d+)\s*(?:bagni|bathrooms|wc)/i);
+        if (bathroomsMatch) {
+          parsed.bathrooms = parseInt(bathroomsMatch[1]);
+        }
+
+        // Size pattern: "100 m²", "100mq", "100m2"
+        const sizeMatch = html.match(/(\d+)\s*(?:m²|mq|m2)/i);
+        if (sizeMatch) {
+          parsed.size = parseInt(sizeMatch[1]);
+        }
+
+        // Phone pattern: look for common phone patterns
+        const phoneMatch = html.match(/(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
+        if (phoneMatch) {
+          parsed.ownerPhone = phoneMatch[0].trim();
+        }
+
+        // Address from meta tags or common patterns
+        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([^<"]*)/i);
+        if (addressMatch) {
+          parsed.address = addressMatch[0].trim().substring(0, 100);
+        }
+
+        // Description from meta or og:description
+        const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
+                         html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
+        if (descMatch) {
+          parsed.description = descMatch[1].substring(0, 500);
+        }
+
+      } catch (parseError) {
+        console.log("[PARSE-URL] Parsing error (non-critical):", parseError);
+        // Return empty data - let user fill in manually
+      }
+
+      res.json(parsed);
+    } catch (error) {
+      console.error("[POST /api/properties/parse-url]", error);
+      res.status(500).json({ error: "Errore durante il parsing dell'URL" });
+    }
+  });
+
+  // Add manual private property
+  app.post("/api/properties/manual-private", async (req: Request, res: Response) => {
+    try {
+      const { url, address, city, type, price, bedrooms, bathrooms, size, floor, description, ownerPhone, ownerName, ownerEmail } = req.body;
+
+      if (!url || !address || !type || price === undefined) {
+        return res.status(400).json({ error: "Campi obbligatori mancanti" });
+      }
+
+      // Create as shared property (private seller)
+      const sharedProperty = await storage.createSharedProperty({
+        address,
+        city: city || "Milano",
+        type,
+        price: Number(price),
+        size: size ? Number(size) : undefined,
+        floor,
+        ownerName,
+        ownerPhone,
+        ownerEmail,
+        url,
+        ownerType: "private", // Mark as private seller
+        portalSource: "Manual",
+        externalId: `manual-${Date.now()}`,
+        classificationColor: "green",
+        matchBuyers: true
+      });
+
+      // If description provided, create it as a regular property too for geocoding
+      if (description) {
+        try {
+          await storage.createProperty({
+            address,
+            city: city || "Milano",
+            type,
+            price: Number(price),
+            bedrooms: bedrooms ? Number(bedrooms) : undefined,
+            bathrooms: bathrooms ? Number(bathrooms) : undefined,
+            size: size ? Number(size) : undefined,
+            floor,
+            description,
+            ownerName,
+            ownerPhone,
+            ownerEmail,
+            ownerType: "private",
+            source: "manual",
+            url,
+            externalId: `manual-${Date.now()}`,
+            geocodeStatus: "pending"
+          });
+        } catch (err) {
+          console.log("[MANUAL-PRIVATE] Property creation skipped:", err);
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        property: sharedProperty,
+        message: "Proprietà privata aggiunta con successo"
+      });
+    } catch (error) {
+      console.error("[POST /api/properties/manual-private]", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Errore durante l'aggiunta della proprietà privata" });
+    }
+  });
+  
   // Ottieni un immobile specifico
   app.get("/api/properties/:id", async (req: Request, res: Response) => {
     try {
