@@ -85,6 +85,102 @@ export default function ClientDetailPage() {
   const [showOnlyPrivateProperties, setShowOnlyPrivateProperties] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [ignoredProperties, setIgnoredProperties] = useState<Set<number>>(new Set());
+  const [favoriteProperties, setFavoriteProperties] = useState<Set<number>>(new Set());
+  
+  // Load ignored and favorite properties on mount
+  useEffect(() => {
+    if (id && !isNaN(id)) {
+      (async () => {
+        try {
+          const [ignoredRes, favRes] = await Promise.all([
+            fetch(`/api/clients/${id}/ignored-properties`),
+            fetch(`/api/clients/${id}/favorites`)
+          ]);
+          if (ignoredRes.ok) {
+            const data = await ignoredRes.json();
+            setIgnoredProperties(new Set(data.map((p: any) => p.sharedPropertyId)));
+          }
+          if (favRes.ok) {
+            const data = await favRes.json();
+            setFavoriteProperties(new Set(data.map((p: any) => p.sharedPropertyId)));
+          }
+        } catch (error) {
+          console.error('[Load ignored/favorites] Error:', error);
+        }
+      })();
+    }
+  }, [id]);
+  
+  // Add property to ignored list mutation
+  const ignorePropertyMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      const response = await fetch(`/api/clients/${id}/ignored-properties`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sharedPropertyId: propertyId, reason: 'Manual ignore' })
+      });
+      if (!response.ok) throw new Error('Error ignoring property');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setIgnoredProperties(new Set([...Array.from(ignoredProperties), data.sharedPropertyId]));
+      queryClient.refetchQueries({ queryKey: [`/api/clients/${id}/matching-properties-advanced`] });
+      toast({ description: 'Proprietà ignorata per questo cliente' });
+    }
+  });
+  
+  // Remove property from ignored list mutation
+  const unignorePropertyMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      const response = await fetch(`/api/clients/${id}/ignored-properties/${propertyId}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Error removing from ignored');
+      return response.json();
+    },
+    onSuccess: (_, propertyId) => {
+      const newIgnored = new Set(Array.from(ignoredProperties));
+      newIgnored.delete(propertyId);
+      setIgnoredProperties(newIgnored);
+      queryClient.refetchQueries({ queryKey: [`/api/clients/${id}/matching-properties-advanced`] });
+      toast({ description: 'Proprietà ripristinata' });
+    }
+  });
+  
+  // Add property to favorites mutation
+  const addFavoriteMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      const response = await fetch(`/api/clients/${id}/favorites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sharedPropertyId: propertyId })
+      });
+      if (!response.ok) throw new Error('Error adding favorite');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setFavoriteProperties(new Set([...Array.from(favoriteProperties), data.sharedPropertyId]));
+      toast({ description: 'Aggiunto ai preferiti' });
+    }
+  });
+  
+  // Remove property from favorites mutation
+  const removeFavoriteMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      const response = await fetch(`/api/clients/${id}/favorites/${propertyId}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Error removing favorite');
+      return response.json();
+    },
+    onSuccess: (_, propertyId) => {
+      const newFavorites = new Set(Array.from(favoriteProperties));
+      newFavorites.delete(propertyId);
+      setFavoriteProperties(newFavorites);
+      toast({ description: 'Rimosso dai preferiti' });
+    }
+  });
   
   // Filter properties from database mutation (instant, no scraping)
   const filterPropertiesMutation = useMutation<MatchingPropertiesResponse>({
@@ -1845,7 +1941,7 @@ export default function ClientDetailPage() {
                             </div>
                           </div>
                           
-                          <div className="mt-4 flex justify-between">
+                          <div className="mt-4 flex gap-2 flex-wrap">
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -1866,6 +1962,36 @@ export default function ClientDetailPage() {
                               <Link href={`/communications/whatsapp?clientId=${id}&propertyId=${property.id}`}>
                                 <i className="fab fa-whatsapp mr-1"></i> Invia
                               </Link>
+                            </Button>
+                            
+                            <Button
+                              variant={favoriteProperties.has(property.id) ? "default" : "outline"}
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => favoriteProperties.has(property.id) 
+                                ? removeFavoriteMutation.mutate(property.id)
+                                : addFavoriteMutation.mutate(property.id)
+                              }
+                              disabled={addFavoriteMutation.isPending || removeFavoriteMutation.isPending}
+                              data-testid={`button-favorite-${property.id}`}
+                            >
+                              <i className={`fas fa-heart mr-1 ${favoriteProperties.has(property.id) ? 'text-red-500' : ''}`}></i>
+                              Preferito
+                            </Button>
+                            
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => ignoredProperties.has(property.id)
+                                ? unignorePropertyMutation.mutate(property.id)
+                                : ignorePropertyMutation.mutate(property.id)
+                              }
+                              disabled={ignorePropertyMutation.isPending || unignorePropertyMutation.isPending}
+                              data-testid={`button-ignore-${property.id}`}
+                            >
+                              <i className={`fas ${ignoredProperties.has(property.id) ? 'fa-eye' : 'fa-eye-slash'} mr-1`}></i>
+                              {ignoredProperties.has(property.id) ? 'Ripristina' : 'Ignora'}
                             </Button>
                           </div>
                         </CardContent>

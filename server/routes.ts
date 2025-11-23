@@ -3908,9 +3908,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const matches = await storage.getMatchingPropertiesForClient(clientId);
+      
+      // Filter out ignored properties
+      const ignoredProperties = await storage.getClientIgnoredProperties(clientId);
+      const ignoredPropertyIds = new Set(ignoredProperties.map(p => p.sharedPropertyId));
+      
+      const filteredMatches = matches.filter(p => !ignoredPropertyIds.has(p.id));
+      
       res.json({
-        total: matches.length,
-        properties: matches
+        total: filteredMatches.length,
+        properties: filteredMatches
       });
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/matching-properties-advanced]`, error);
@@ -3972,6 +3979,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`[DELETE /api/clients/${req.params.id}/favorites/${req.params.propertyId}]`, error);
       res.status(500).json({ error: "Errore durante la rimozione dai preferiti" });
+    }
+  });
+  
+  // Get client ignored properties
+  app.get("/api/clients/:id/ignored-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const ignored = await storage.getClientIgnoredProperties(clientId);
+      res.json(ignored);
+    } catch (error) {
+      console.error(`[GET /api/clients/${req.params.id}/ignored-properties]`, error);
+      res.status(500).json({ error: "Errore durante il recupero delle proprietà ignorate" });
+    }
+  });
+  
+  // Add property to client ignored list
+  app.post("/api/clients/:id/ignored-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      const { sharedPropertyId, reason } = req.body;
+      if (!sharedPropertyId) {
+        return res.status(400).json({ error: "ID proprietà mancante" });
+      }
+      
+      const ignored = await storage.addClientIgnoredProperty(clientId, sharedPropertyId, reason);
+      res.status(201).json(ignored);
+    } catch (error) {
+      console.error(`[POST /api/clients/${req.params.id}/ignored-properties]`, error);
+      res.status(500).json({ error: "Errore durante l'aggiunta alla lista di ignora" });
+    }
+  });
+  
+  // Remove property from client ignored list
+  app.delete("/api/clients/:id/ignored-properties/:propertyId", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const sharedPropertyId = parseInt(req.params.propertyId);
+      
+      if (isNaN(clientId) || isNaN(sharedPropertyId)) {
+        return res.status(400).json({ error: "ID non valido" });
+      }
+      
+      await storage.removeClientIgnoredProperty(clientId, sharedPropertyId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error(`[DELETE /api/clients/${req.params.id}/ignored-properties/${req.params.propertyId}]`, error);
+      res.status(500).json({ error: "Errore durante la rimozione dalla lista di ignora" });
     }
   });
   

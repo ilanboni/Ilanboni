@@ -258,6 +258,17 @@ export const clientFavorites = pgTable("client_favorites", {
   uniqueClientFav: uniqueIndex("client_favorites_unique_idx").on(table.clientId, table.sharedPropertyId)
 }));
 
+// Client-specific ignored properties (per-client ignore list)
+export const clientIgnoredProperties = pgTable("client_ignored_properties", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  sharedPropertyId: integer("shared_property_id").notNull().references(() => sharedProperties.id, { onDelete: 'cascade' }),
+  ignoredAt: timestamp("ignored_at").defaultNow(),
+  reason: text("reason"), // optional reason for ignoring
+}, (table) => ({
+  uniqueClientIgnored: uniqueIndex("client_ignored_properties_unique_idx").on(table.clientId, table.sharedPropertyId)
+}));
+
 // Shared property notes (for tracking considerations and activities)
 export const sharedPropertyNotes = pgTable("shared_property_notes", {
   id: serial("id").primaryKey(),
@@ -493,6 +504,10 @@ export const insertSharedPropertyNoteSchema = createInsertSchema(sharedPropertyN
 export const insertClientFavoriteSchema = createInsertSchema(clientFavorites).omit({ id: true, addedAt: true });
 export type ClientFavorite = typeof clientFavorites.$inferSelect;
 export type InsertClientFavorite = z.infer<typeof insertClientFavoriteSchema>;
+
+export const insertClientIgnoredPropertySchema = createInsertSchema(clientIgnoredProperties).omit({ id: true, ignoredAt: true });
+export type ClientIgnoredProperty = typeof clientIgnoredProperties.$inferSelect;
+export type InsertClientIgnoredProperty = z.infer<typeof insertClientIgnoredPropertySchema>;
 
 // Tabella per tracciare gli immobili inviati ai clienti
 export const propertySent = pgTable("property_sent", {

@@ -22,7 +22,8 @@ import {
   whatsappCampaigns, type WhatsappCampaign, type InsertWhatsappCampaign,
   campaignMessages, type CampaignMessage, type InsertCampaignMessage,
   botConversationLogs, type BotConversationLog, type InsertBotConversationLog,
-  clientFavorites, type ClientFavorite, type InsertClientFavorite
+  clientFavorites, type ClientFavorite, type InsertClientFavorite,
+  clientIgnoredProperties, type ClientIgnoredProperty, type InsertClientIgnoredProperty
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql } from "drizzle-orm";
@@ -187,6 +188,12 @@ export interface IStorage {
   addClientFavorite(clientId: number, sharedPropertyId: number, notes?: string): Promise<ClientFavorite>;
   removeClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean>;
   isClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean>;
+  
+  // Client ignored properties methods (per-client ignore list)
+  getClientIgnoredProperties(clientId: number): Promise<ClientIgnoredProperty[]>;
+  addClientIgnoredProperty(clientId: number, sharedPropertyId: number, reason?: string): Promise<ClientIgnoredProperty>;
+  removeClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean>;
+  isClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean>;
   
   // Advanced property matching methods
   getMatchingPropertiesForClient(clientId: number): Promise<SharedProperty[]>;
@@ -3439,6 +3446,77 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(clientFavorites.clientId, clientId),
           eq(clientFavorites.sharedPropertyId, sharedPropertyId)
+        )
+      )
+      .limit(1);
+    return result.length > 0;
+  }
+  
+  // Client ignored properties methods (per-client ignore list)
+  async getClientIgnoredProperties(clientId: number): Promise<ClientIgnoredProperty[]> {
+    return await db
+      .select()
+      .from(clientIgnoredProperties)
+      .where(eq(clientIgnoredProperties.clientId, clientId))
+      .orderBy(desc(clientIgnoredProperties.ignoredAt));
+  }
+  
+  async addClientIgnoredProperty(clientId: number, sharedPropertyId: number, reason?: string): Promise<ClientIgnoredProperty> {
+    // Upsert the ignored property
+    await db
+      .insert(clientIgnoredProperties)
+      .values({ clientId, sharedPropertyId, reason })
+      .onConflictDoUpdate({
+        target: [clientIgnoredProperties.clientId, clientIgnoredProperties.sharedPropertyId],
+        set: reason ? { reason } : {} // Only update reason if provided
+      });
+    
+    // Always fetch and return the canonical record
+    const [result] = await db
+      .select()
+      .from(clientIgnoredProperties)
+      .where(
+        and(
+          eq(clientIgnoredProperties.clientId, clientId),
+          eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId)
+        )
+      )
+      .limit(1);
+    
+    // Guarantee a valid result (should never be undefined after upsert)
+    if (!result) {
+      throw new Error(`Failed to create or fetch ignored property for client ${clientId} and property ${sharedPropertyId}`);
+    }
+    
+    return result;
+  }
+  
+  async removeClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(clientIgnoredProperties)
+        .where(
+          and(
+            eq(clientIgnoredProperties.clientId, clientId),
+            eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId)
+          )
+        )
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('[removeClientIgnoredProperty] Error:', error);
+      return false;
+    }
+  }
+  
+  async isClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(clientIgnoredProperties)
+      .where(
+        and(
+          eq(clientIgnoredProperties.clientId, clientId),
+          eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId)
         )
       )
       .limit(1);
