@@ -96,7 +96,7 @@ export default function PrivatePropertiesPage() {
   // Mutation for toggling favorite status
   const toggleFavoriteMutation = useMutation({
     mutationFn: async ({ propertyId, isFavorite }: { propertyId: number; isFavorite: boolean }) => {
-      return await apiRequest(`/api/shared-properties/${propertyId}/favorite`, {
+      return await apiRequest(`/api/properties/${propertyId}/favorite`, {
         method: 'PATCH',
         data: { isFavorite }
       });
@@ -137,7 +137,7 @@ export default function PrivatePropertiesPage() {
   // Mutation for deleting property
   const deleteMutation = useMutation({
     mutationFn: async (propertyId: number) => {
-      return await apiRequest(`/api/shared-properties/${propertyId}`, {
+      return await apiRequest(`/api/properties/${propertyId}`, {
         method: 'DELETE'
       });
     },
