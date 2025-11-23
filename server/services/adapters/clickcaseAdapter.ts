@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { chromium } from 'playwright';
 import type { PropertyListing } from '../portalIngestionService';
 
 const BASE_URL = 'https://www.clickcase.it';
@@ -9,81 +9,132 @@ export class ClickCaseAdapter {
   portalId = 'clickcase';
 
   async search(params: { city?: string; maxItems?: number }): Promise<PropertyListing[]> {
-    console.log('[CLICKCASE] 🔍 Scraping ClickCase (100% private properties)');
+    console.log('[CLICKCASE] 🔍 Scraping ClickCase with Playwright (JavaScript-capable)');
     const listings: PropertyListing[] = [];
+    let browser = null;
 
     try {
-      const response = await axios.get(`${BASE_URL}/ricerca`, {
-        params: {
-          city: params.city || 'milano',
-          type: 'casa',
-          contract: 'vendita'
-        },
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Accept': 'text/html,application/xhtml+xml',
-        },
-        timeout: 15000,
+      const city = params.city || 'milano';
+      const searchUrl = `${BASE_URL}/ricerca?city=${city}&type=casa&contract=vendita`;
+      
+      console.log(`[CLICKCASE] 🌐 Opening: ${searchUrl}`);
+      
+      browser = await chromium.launch({ headless: true });
+      const context = await browser.newContext({
+        userAgent: USER_AGENT,
+      });
+      const page = await context.newPage();
+      
+      // Navigate and wait for content to load
+      await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      
+      // Wait for property cards to appear (up to 10 seconds)
+      await page.waitForSelector('div[class*="property"], div[class*="card"], div[class*="listing"]', { timeout: 10000 }).catch(() => {
+        console.log('[CLICKCASE] ⚠️ Property selector not found, continuing with available content');
       });
       
-      console.log(`[CLICKCASE] Fetching URL (params auto-encoded by axios)`);
-
-      const html = response.data;
+      // Extract all property items using DOM
+      const properties = await page.evaluate(() => {
+        const items: any[] = [];
+        
+        // Strategy 1: Find by common property listing classes
+        const selectors = [
+          'div[class*="property-card"]',
+          'div[class*="listing-card"]',
+          'div[class*="annuncio"]',
+          'article[class*="property"]',
+          'div.property-card',
+          'div.listing-card'
+        ];
+        
+        for (const selector of selectors) {
+          const elements = document.querySelectorAll(selector);
+          if (elements.length > 0) {
+            console.log(`Found ${elements.length} items with selector: ${selector}`);
+            
+            elements.forEach((el: any) => {
+              try {
+                const titleEl = el.querySelector('h2, h3, [class*="title"], a[class*="title"]');
+                const priceEl = el.querySelector('[class*="price"]');
+                const addressEl = el.querySelector('[class*="address"], [class*="location"], .location');
+                const sizeEl = el.querySelector('[class*="size"], [class*="mq"]');
+                const linkEl = el.querySelector('a[href]');
+                
+                const item = {
+                  title: titleEl?.textContent?.trim() || '',
+                  price: priceEl?.textContent?.trim() || '',
+                  address: addressEl?.textContent?.trim() || '',
+                  size: sizeEl?.textContent?.trim() || '',
+                  url: linkEl?.getAttribute('href') || '',
+                };
+                
+                if (item.title || item.price) {
+                  items.push(item);
+                }
+              } catch (e) {
+                // Skip items with extraction errors
+              }
+            });
+            
+            if (items.length > 0) break;
+          }
+        }
+        
+        return items;
+      });
       
-      // Estrae annunci dalla pagina (regex per dati strutturati)
-      const propertyRegex = /class="property-card"[^>]*data-id="([^"]*)"[^>]*>(.*?)<\/div>/gs;
-      let match;
+      console.log(`[CLICKCASE] 📊 Found ${properties.length} property items`);
+      
+      // Parse and convert to PropertyListing format
       let count = 0;
-
-      while ((match = propertyRegex.exec(html)) !== null && count < (params.maxItems || 100)) {
+      for (const prop of properties) {
+        if (count >= (params.maxItems || 100)) break;
+        
         try {
-          const id = match[1];
-          const itemHtml = match[2];
+          // Extract price as number
+          const priceStr = prop.price.match(/[\d.,]+/)?.[0] || '0';
+          const price = parseInt(priceStr.replace(/\D/g, '')) || 0;
           
-          // Estrae titolo
-          const titleMatch = itemHtml.match(/<h\d[^>]*>([^<]*)<\/h\d>/);
-          const title = titleMatch ? titleMatch[1].trim() : 'N/A';
-
-          // Estrae URL
-          const urlMatch = itemHtml.match(/<a[^>]*href="([^"]*)"[^>]*>/);
-          const url = urlMatch ? `${BASE_URL}${urlMatch[1]}` : '';
-
-          // Estrae prezzo
-          const priceMatch = itemHtml.match(/€\s*([\d.,]+)/);
-          const price = priceMatch ? parseInt(priceMatch[1].replace(/\D/g, '')) : 0;
-
-          // Estrae indirizzo
-          const addressMatch = itemHtml.match(/<span class="location">([^<]*)<\/span>/);
-          const address = addressMatch ? addressMatch[1].trim() : '';
-
-          // Estrae mq
-          const meterMatch = itemHtml.match(/(\d+)\s*m(?:q|²)/i);
-          const size = meterMatch ? parseInt(meterMatch[1]) : 0;
-
-          const listing: PropertyListing = {
-            externalId: id,
-            title,
-            address,
-            city: params.city || 'milano',
-            price,
-            size,
-            url,
-            description: title,
-            portal: 'clickcase',
-            ownerType: 'private', // Always private on ClickCase
-            source: 'clickcase',
-          };
-
-          listings.push(listing);
-          count++;
+          // Extract size as number
+          const sizeMatch = prop.size.match(/(\d+)/);
+          const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
+          
+          // Clean URL
+          let fullUrl = prop.url;
+          if (fullUrl && !fullUrl.startsWith('http')) {
+            fullUrl = BASE_URL + fullUrl;
+          }
+          
+          if (price > 0 || prop.title) {
+            const listing: PropertyListing = {
+              externalId: `click-${count}`,
+              title: prop.title,
+              address: prop.address,
+              city,
+              price,
+              size,
+              url: fullUrl,
+              description: prop.title,
+              portal: 'clickcase',
+              ownerType: 'private',
+              source: 'clickcase',
+            };
+            
+            listings.push(listing);
+            count++;
+          }
         } catch (e) {
           console.warn('[CLICKCASE] ⚠️ Failed to parse item:', e);
         }
       }
-
-      console.log(`[CLICKCASE] ✅ Found ${listings.length} PRIVATE properties`);
+      
+      console.log(`[CLICKCASE] ✅ Successfully parsed ${listings.length} PRIVATE properties`);
     } catch (error) {
-      console.error('[CLICKCASE] ❌ Error scraping:', error);
+      console.error('[CLICKCASE] ❌ Error scraping:', error instanceof Error ? error.message : error);
+    } finally {
+      if (browser) {
+        await browser.close().catch(e => console.error('[CLICKCASE] Error closing browser:', e));
+      }
     }
 
     return listings;

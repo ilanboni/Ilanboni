@@ -64,11 +64,11 @@ The application features a modern full-stack architecture.
 - Filters all properties to 4km radius from Duomo (45.464211, 9.191383)
 
 **Data Sources & Automatic Classification (5 sources):**
-1. **CasaDaPrivato.it** (Direct HTTP, no Apify) → 🟢 Private (ownerType='private')
-2. **ClickCase.it** (Direct HTTP, no Apify) → 🟢 Private (ownerType='private')  
-3. **Idealista.it - Private** (Apify igolaizola, privateOnly=true) → 🟢 Private (ownerType='private')
-4. **Idealista.it - Agencies** (Apify igolaizola, privateOnly=false) → 🔴 Single-agency (ownerType='agency')
-5. **Immobiliare.it** (Apify igolaizola) → Automatic classification:
+1. **CasaDaPrivato.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') [*Currently 0 results - Future Enhancement*]
+2. **ClickCase.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') [*Currently 0 results - Future Enhancement*]
+3. **Idealista.it - Private** (Apify igolaizola, privateOnly=true) → 🟢 Private (ownerType='private') ✅ WORKING
+4. **Idealista.it - Agencies** (Apify igolaizola, privateOnly=false) → 🔴 Single-agency (ownerType='agency') ✅ WORKING
+5. **Immobiliare.it** (Apify igolaizola) → Automatic classification: ✅ WORKING
    - 🟢 **Private** (ownerType='private', no agencies)
    - 🟡 **Multi-agency** (isMultiagency=true, 7+ agencies)
    - 🔴 **Single-agency** (isMultiagency=false, 1-6 agencies)
@@ -80,20 +80,22 @@ The application features a modern full-stack architecture.
 - ✅ Distance calculation and 4km filtering
 - ✅ Detailed logging with emoji indicators and statistics
 - ✅ Graceful error handling with fallback recovery
+- ⚙️ Playwright integration for JavaScript-heavy sites (CasaDaPrivato, ClickCase) - implementation done but needs DOM selectors refinement
 
 **Implementation Files:**
-- `server/services/adapters/casadaprivatoAdapter.ts` - Direct HTTP + regex parsing
-- `server/services/adapters/clickcaseAdapter.ts` - Direct HTTP + regex parsing
-- `server/services/adapters/igolaIdealistaAdapter.ts` - Idealista (private + agencies) via Apify
-- `server/services/adapters/immobiliareApifyAdapter.ts` - Immobiliare.it agencies via Apify
+- `server/services/adapters/casadaprivatoAdapter.ts` - Playwright + CSS selector parsing (0 results - needs selector fixing)
+- `server/services/adapters/clickcaseAdapter.ts` - Playwright + CSS selector parsing (0 results - needs selector fixing)
+- `server/services/adapters/igolaIdealistaAdapter.ts` - Idealista (private + agencies) via Apify ✅
+- `server/services/adapters/immobiliareApifyAdapter.ts` - Immobiliare.it agencies via Apify ✅
 - `server/services/dailyPrivatePropertiesScheduler.ts` - Main orchestrator with classification
 - `server/index.ts` - Scheduler initialization at server startup
+- `server/routes.ts` - Test endpoint: GET `/api/test-scrape-private`
 
 **Output Statistics Logged:**
 ```
 [DAILY-SCHEDULER] 📈 Results:
   Saved: N properties
-    🟢 Private: X (from CasaDaPrivato, ClickCase, Idealista privati, Immobiliare)
+    🟢 Private: X (from Idealista privati, Immobiliare private, + CasaDaPrivato/ClickCase when fixed)
     🟡 Multi-agency (7+): Y (Immobiliare only)
     🔴 Single-agency: Z (Idealista agenzie, Immobiliare 1-6 agencies)
   Discarded (outside 4km radius): N
@@ -101,10 +103,17 @@ The application features a modern full-stack architecture.
 ```
 
 **Scheduler Methods:**
-- `scrapeCasaDaPrivato()` - Direct HTTP scraping
-- `scrapeClickCase()` - Direct HTTP scraping
-- `scrapeIdealistaPrivate()` - Apify with `privateOnly: true`
-- `scrapeIdealistaAgencies()` - Apify with `privateOnly: false` ← NEW
-- `scrapeImmobiliareAgencies()` - Apify with full dataset
+- `scrapeCasaDaPrivato()` - Playwright scraping (⚙️ needs CSS selector refinement)
+- `scrapeClickCase()` - Playwright scraping (⚙️ needs CSS selector refinement)
+- `scrapeIdealistaPrivate()` - Apify with `privateOnly: true` ✅
+- `scrapeIdealistaAgencies()` - Apify with `privateOnly: false` ✅
+- `scrapeImmobiliareAgencies()` - Apify with full dataset ✅
 - `classifyProperty()` - Automatic classification logic
 - `filterAndSaveProperties()` - Geocoding, distance calc, classification, saving
+
+**Future Enhancements:**
+- **CasaDaPrivato & ClickCase Refinement**: These adapters are implemented with Playwright but currently return 0 results. Need to:
+  - Inspect actual DOM selectors on target websites
+  - Adjust wait strategies (may need `waitForSelector()` or similar)
+  - Verify if sites load content via AJAX/fetch after initial page load
+  - Consider switching to Apify actors if available for these sources

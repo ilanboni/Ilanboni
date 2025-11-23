@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { chromium } from 'playwright';
 import type { PropertyListing } from '../portalIngestionService';
 
 const BASE_URL = 'https://www.casadaprivato.it';
@@ -9,78 +9,132 @@ export class CasaDaPrivatoAdapter {
   portalId = 'casadaprivato';
 
   async search(params: { city?: string; maxItems?: number }): Promise<PropertyListing[]> {
-    console.log('[CASADAPRIVATO] 🔍 Scraping CasaDaPrivato (100% private properties)');
+    console.log('[CASADAPRIVATO] 🔍 Scraping CasaDaPrivato with Playwright (JavaScript-capable)');
     const listings: PropertyListing[] = [];
+    let browser = null;
 
     try {
-      const response = await axios.get(`${BASE_URL}/ricerca`, {
-        params: {
-          city: params.city || 'milano',
-          type: 'casa',
-          contract: 'vendita'
-        },
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Accept': 'text/html,application/xhtml+xml',
-        },
-        timeout: 15000,
+      const city = params.city || 'milano';
+      const url = `${BASE_URL}/annunci-vendita/immobili/${city}-${city}`;
+      
+      console.log(`[CASADAPRIVATO] 🌐 Opening: ${url}`);
+      
+      browser = await chromium.launch({ headless: true });
+      const context = await browser.newContext({
+        userAgent: USER_AGENT,
+      });
+      const page = await context.newPage();
+      
+      // Navigate and wait for content to load
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      
+      // Wait for property cards to appear (up to 10 seconds)
+      await page.waitForSelector('div[class*="listing"], div[class*="annuncio"], div[class*="property"]', { timeout: 10000 }).catch(() => {
+        console.log('[CASADAPRIVATO] ⚠️ Property selector not found, continuing with available content');
       });
       
-      console.log(`[CASADAPRIVATO] Fetching URL (params auto-encoded by axios)`);
-
-      const html = response.data;
+      // Extract all property items using multiple selector strategies
+      const properties = await page.evaluate(() => {
+        const items: any[] = [];
+        
+        // Strategy 1: Find by common property listing classes
+        const selectors = [
+          'div[class*="listing-item"]',
+          'div[class*="annuncio"]',
+          'div[class*="property-card"]',
+          'article[class*="listing"]',
+          'div.listing-item',
+          'div.annuncio'
+        ];
+        
+        for (const selector of selectors) {
+          const elements = document.querySelectorAll(selector);
+          if (elements.length > 0) {
+            console.log(`Found ${elements.length} items with selector: ${selector}`);
+            
+            elements.forEach((el: any) => {
+              try {
+                const titleEl = el.querySelector('h2, h3, [class*="title"], a[class*="title"]');
+                const priceEl = el.querySelector('[class*="price"], span:contains("€")');
+                const addressEl = el.querySelector('[class*="address"], [class*="location"], .address');
+                const sizeEl = el.querySelector('[class*="size"], [class*="mq"]');
+                const linkEl = el.querySelector('a[href]');
+                
+                const item = {
+                  title: titleEl?.textContent?.trim() || '',
+                  price: priceEl?.textContent?.trim() || '',
+                  address: addressEl?.textContent?.trim() || '',
+                  size: sizeEl?.textContent?.trim() || '',
+                  url: linkEl?.getAttribute('href') || '',
+                };
+                
+                if (item.title || item.price) {
+                  items.push(item);
+                }
+              } catch (e) {
+                // Skip items with extraction errors
+              }
+            });
+            
+            if (items.length > 0) break;
+          }
+        }
+        
+        return items;
+      });
       
-      // Estrae annunci dalla pagina (regex per dati strutturati)
-      const propertyRegex = /class="listing-item"[^>]*data-id="([^"]*)"[^>]*>(.*?)<\/div>/gs;
-      let match;
+      console.log(`[CASADAPRIVATO] 📊 Found ${properties.length} property items`);
+      
+      // Parse and convert to PropertyListing format
       let count = 0;
-
-      while ((match = propertyRegex.exec(html)) !== null && count < (params.maxItems || 100)) {
+      for (const prop of properties) {
+        if (count >= (params.maxItems || 100)) break;
+        
         try {
-          const id = match[1];
-          const itemHtml = match[2];
+          // Extract price as number
+          const priceStr = prop.price.match(/[\d.,]+/)?.[0] || '0';
+          const price = parseInt(priceStr.replace(/\D/g, '')) || 0;
           
-          // Estrae titolo
-          const titleMatch = itemHtml.match(/<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/);
-          const title = titleMatch ? titleMatch[2].trim() : 'N/A';
-          const url = titleMatch ? `${BASE_URL}${titleMatch[1]}` : '';
-
-          // Estrae prezzo
-          const priceMatch = itemHtml.match(/€\s*([\d.,]+)/);
-          const price = priceMatch ? parseInt(priceMatch[1].replace(/\D/g, '')) : 0;
-
-          // Estrae indirizzo
-          const addressMatch = itemHtml.match(/<span class="address">([^<]*)<\/span>/);
-          const address = addressMatch ? addressMatch[1].trim() : '';
-
-          // Estrae mq
-          const meterMatch = itemHtml.match(/(\d+)\s*mq/i);
-          const size = meterMatch ? parseInt(meterMatch[1]) : 0;
-
-          const listing: PropertyListing = {
-            externalId: id,
-            title,
-            address,
-            city: params.city || 'milano',
-            price,
-            size,
-            url,
-            description: title,
-            portal: 'casadaprivato',
-            ownerType: 'private', // Always private on CasaDaPrivato
-            source: 'casadaprivato',
-          };
-
-          listings.push(listing);
-          count++;
+          // Extract size as number
+          const sizeMatch = prop.size.match(/(\d+)/);
+          const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
+          
+          // Clean URL
+          let fullUrl = prop.url;
+          if (fullUrl && !fullUrl.startsWith('http')) {
+            fullUrl = BASE_URL + fullUrl;
+          }
+          
+          if (price > 0 || prop.title) {
+            const listing: PropertyListing = {
+              externalId: `casa-${count}`,
+              title: prop.title,
+              address: prop.address,
+              city,
+              price,
+              size,
+              url: fullUrl,
+              description: prop.title,
+              portal: 'casadaprivato',
+              ownerType: 'private',
+              source: 'casadaprivato',
+            };
+            
+            listings.push(listing);
+            count++;
+          }
         } catch (e) {
           console.warn('[CASADAPRIVATO] ⚠️ Failed to parse item:', e);
         }
       }
-
-      console.log(`[CASADAPRIVATO] ✅ Found ${listings.length} PRIVATE properties`);
+      
+      console.log(`[CASADAPRIVATO] ✅ Successfully parsed ${listings.length} PRIVATE properties`);
     } catch (error) {
-      console.error('[CASADAPRIVATO] ❌ Error scraping:', error);
+      console.error('[CASADAPRIVATO] ❌ Error scraping:', error instanceof Error ? error.message : error);
+    } finally {
+      if (browser) {
+        await browser.close().catch(e => console.error('[CASADAPRIVATO] Error closing browser:', e));
+      }
     }
 
     return listings;
