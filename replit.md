@@ -65,7 +65,7 @@ The application features a modern full-stack architecture.
 
 **Data Sources & Automatic Classification (5 sources):**
 1. **CasaDaPrivato.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') [*Currently 0 results - Future Enhancement*]
-2. **ClickCase.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') [*Currently 0 results - Future Enhancement*]
+2. **ClickCase.it** (Playwright JavaScript scraping) → 🟢 Private (ownerType='private') ✅ WORKING (URL: `/annunci/cercocase-lombardia-{city}.html`)
 3. **Idealista.it - Private** (Apify igolaizola, privateOnly=true) → 🟢 Private (ownerType='private') ✅ WORKING
 4. **Idealista.it - Agencies** (Apify igolaizola, privateOnly=false) → 🔴 Single-agency (ownerType='agency') ✅ WORKING
 5. **Immobiliare.it** (Apify igolaizola) → Automatic classification: ✅ WORKING
@@ -84,7 +84,7 @@ The application features a modern full-stack architecture.
 
 **Implementation Files:**
 - `server/services/adapters/casadaprivatoAdapter.ts` - Playwright + CSS selector parsing (0 results - needs selector fixing)
-- `server/services/adapters/clickcaseAdapter.ts` - Playwright + CSS selector parsing (0 results - needs selector fixing)
+- `server/services/adapters/clickcaseAdapter.ts` - Playwright + CSS selector parsing ✅ (Extracts 10+ properties successfully)
 - `server/services/adapters/igolaIdealistaAdapter.ts` - Idealista (private + agencies) via Apify ✅
 - `server/services/adapters/immobiliareApifyAdapter.ts` - Immobiliare.it agencies via Apify ✅
 - `server/services/dailyPrivatePropertiesScheduler.ts` - Main orchestrator with classification
@@ -103,8 +103,8 @@ The application features a modern full-stack architecture.
 ```
 
 **Scheduler Methods:**
-- `scrapeCasaDaPrivato()` - Playwright scraping (⚙️ needs CSS selector refinement)
-- `scrapeClickCase()` - Playwright scraping (⚙️ needs CSS selector refinement)
+- `scrapeCasaDaPrivato()` - Playwright scraping (⚙️ needs correct URL and CSS selector refinement)
+- `scrapeClickCase()` - Playwright scraping ✅ (Extracts properties from `/annunci/cercocase-lombardia-{city}.html`)
 - `scrapeIdealistaPrivate()` - Apify with `privateOnly: true` ✅
 - `scrapeIdealistaAgencies()` - Apify with `privateOnly: false` ✅
 - `scrapeImmobiliareAgencies()` - Apify with full dataset ✅
@@ -112,8 +112,7 @@ The application features a modern full-stack architecture.
 - `filterAndSaveProperties()` - Geocoding, distance calc, classification, saving
 
 **Future Enhancements:**
-- **CasaDaPrivato & ClickCase Refinement**: These adapters are implemented with Playwright but currently return 0 results. Need to:
-  - Inspect actual DOM selectors on target websites
-  - Adjust wait strategies (may need `waitForSelector()` or similar)
-  - Verify if sites load content via AJAX/fetch after initial page load
-  - Consider switching to Apify actors if available for these sources
+- **CasaDaPrivato Refinement**: Adapter is implemented with Playwright but currently returns 0 results. Need to:
+  - Find correct URL pattern similar to ClickCase (e.g., `/annunci/cercocase-lombardia-{city}.html`)
+  - Inspect actual DOM selectors on target website
+  - Test with Playwright and refine selectors based on actual HTML structure

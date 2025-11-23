@@ -15,7 +15,7 @@ export class ClickCaseAdapter {
 
     try {
       const city = params.city || 'milano';
-      const searchUrl = `${BASE_URL}/ricerca?city=${city}&type=casa&contract=vendita`;
+      const searchUrl = `${BASE_URL}/annunci/cercocase-lombardia-${city}.html`;
       
       console.log(`[CLICKCASE] 🌐 Opening: ${searchUrl}`);
       
@@ -28,8 +28,8 @@ export class ClickCaseAdapter {
       // Navigate and wait for content to load
       await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
       
-      // Wait for property cards to appear (up to 10 seconds)
-      await page.waitForSelector('div[class*="property"], div[class*="card"], div[class*="listing"]', { timeout: 10000 }).catch(() => {
+      // Wait for property listings to load
+      await page.waitForSelector('h3 a', { timeout: 10000 }).catch(() => {
         console.log('[CLICKCASE] ⚠️ Property selector not found, continuing with available content');
       });
       
@@ -37,48 +37,51 @@ export class ClickCaseAdapter {
       const properties = await page.evaluate(() => {
         const items: any[] = [];
         
-        // Strategy 1: Find by common property listing classes
-        const selectors = [
-          'div[class*="property-card"]',
-          'div[class*="listing-card"]',
-          'div[class*="annuncio"]',
-          'article[class*="property"]',
-          'div.property-card',
-          'div.listing-card'
-        ];
+        // ClickCase structure: each property is a section with h3 > a (title), price div, and details
+        const propertyContainers = document.querySelectorAll('h3');
         
-        for (const selector of selectors) {
-          const elements = document.querySelectorAll(selector);
-          if (elements.length > 0) {
-            console.log(`Found ${elements.length} items with selector: ${selector}`);
+        propertyContainers.forEach((h3: any) => {
+          try {
+            const titleLink = h3.querySelector('a');
+            const title = titleLink?.textContent?.trim() || '';
+            const url = titleLink?.getAttribute('href') || '';
             
-            elements.forEach((el: any) => {
-              try {
-                const titleEl = el.querySelector('h2, h3, [class*="title"], a[class*="title"]');
-                const priceEl = el.querySelector('[class*="price"]');
-                const addressEl = el.querySelector('[class*="address"], [class*="location"], .location');
-                const sizeEl = el.querySelector('[class*="size"], [class*="mq"]');
-                const linkEl = el.querySelector('a[href]');
-                
-                const item = {
-                  title: titleEl?.textContent?.trim() || '',
-                  price: priceEl?.textContent?.trim() || '',
-                  address: addressEl?.textContent?.trim() || '',
-                  size: sizeEl?.textContent?.trim() || '',
-                  url: linkEl?.getAttribute('href') || '',
-                };
-                
-                if (item.title || item.price) {
-                  items.push(item);
-                }
-              } catch (e) {
-                // Skip items with extraction errors
-              }
-            });
+            // Get the parent container
+            let container = h3.closest('article') || h3.closest('div[class*="card"]') || h3.parentElement?.parentElement;
+            if (!container) container = h3;
             
-            if (items.length > 0) break;
+            // Find price - usually after h3 or in sibling divs
+            let priceText = '';
+            const priceEl = container?.querySelector('[class*="price"]') || 
+                           Array.from(container?.querySelectorAll('*') || []).find((el: any) => 
+                             el.textContent?.includes('€')
+                           );
+            if (priceEl) priceText = priceEl.textContent?.trim() || '';
+            
+            // Find address - look for zone/location text
+            let address = '';
+            const addressPattern = container?.textContent?.match(/Milano[\s\S]*?(?=\n|$|classe|Classe)/i);
+            if (addressPattern) address = addressPattern[0].replace(/^Milano\s*[-–]\s*/, '').trim();
+            
+            // Find size - look for m² pattern
+            const sizeMatch = container?.textContent?.match(/(\d+)\s*m²/);
+            const size = sizeMatch ? sizeMatch[1] : '';
+            
+            const item = {
+              title,
+              price: priceText,
+              address,
+              size,
+              url,
+            };
+            
+            if (title && priceText) {
+              items.push(item);
+            }
+          } catch (e) {
+            // Skip items with extraction errors
           }
-        }
+        });
         
         return items;
       });
