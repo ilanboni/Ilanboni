@@ -58,10 +58,17 @@ export class ClickCaseAdapter {
                            );
             if (priceEl) priceText = priceEl.textContent?.trim() || '';
             
-            // Find address - look for zone/location text
+            // Find address - extract zone from title if available
             let address = '';
-            const addressPattern = container?.textContent?.match(/Milano[\s\S]*?(?=\n|$|classe|Classe)/i);
-            if (addressPattern) address = addressPattern[0].replace(/^Milano\s*[-–]\s*/, '').trim();
+            // Try to extract zone from title (e.g., "Monolocale zona Portello /Accursio" -> "Portello")
+            const zoneMatch = title.match(/zona\s+([^\/,]+)/i);
+            if (zoneMatch) {
+              address = zoneMatch[1].trim();
+            } else {
+              // Fallback: look for any location pattern in container text
+              const addressPattern = container?.textContent?.match(/Milano[\s\S]*?(?=\n|$|classe|Classe)/i);
+              if (addressPattern) address = addressPattern[0].replace(/^Milano\s*[-–]\s*/, '').trim();
+            }
             
             // Find size - look for m² pattern
             const sizeMatch = container?.textContent?.match(/(\d+)\s*m²/);

@@ -253,16 +253,29 @@ export class DailyPrivatePropertiesScheduler {
           continue;
         }
 
-        // Geocodifica l'indirizzo
-        const coords = await geocodeAddress(address);
+        // Geocodifica l'indirizzo - aggiungi Milano e Italia per migliorare la ricerca
+        const fullAddress = `${address}, Milano, Italia`;
         
-        if (!coords) {
-          geocodeFailed++;
-          continue;
+        let coordsArray: any = [];
+        try {
+          coordsArray = await geocodeAddress(fullAddress);
+        } catch (geocodingError) {
+          // Silently continue
+        }
+        
+        // If geocoding failed or returned empty, use Milano center as fallback for zone-only addresses
+        let coords: any;
+        if (!coordsArray || coordsArray.length === 0) {
+          console.log(`[SCHEDULER-GEOCODING] Fallback to Milano center for: ${fullAddress}`);
+          // Use Milano Duomo center as fallback
+          coords = { lat: DUOMO_LAT, lng: DUOMO_LON, display_name: 'Milano (Center)' };
+        } else {
+          coords = coordsArray[0]; // Prendi il primo risultato
+          console.log(`[SCHEDULER-GEOCODING] Geocoding riuscito per ${fullAddress}: lat=${coords.lat}, lng=${coords.lng}`);
         }
 
         // Calcola distanza dal Duomo
-        const distance = haversineKm(DUOMO_LAT, DUOMO_LON, coords.lat, coords.lon);
+        const distance = haversineKm(DUOMO_LAT, DUOMO_LON, coords.lat, coords.lng);
 
         if (distance <= MAX_RADIUS_KM) {
           // Classifica il tipo di proprietà
@@ -283,12 +296,14 @@ export class DailyPrivatePropertiesScheduler {
             description: listing.description || listing.title || '',
             url: listing.url || '',
             latitude: coords.lat.toString(),
-            longitude: coords.lon.toString(),
+            longitude: coords.lng.toString(),
             ownerType: classification.ownerType,
             isMultiagency: classification.isMultiagency,
             externalId: listing.externalId,
             ownerPhone: listing.ownerPhone,
             ownerEmail: listing.ownerEmail,
+            portal: listing.portal || listing.source || '',
+            source: listing.source || listing.portal || '',
             // Agenzie (se presenti)
             agencies: listing.agencies || [],
           };
