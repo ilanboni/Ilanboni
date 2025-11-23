@@ -2289,6 +2289,14 @@ export class DatabaseStorage implements IStorage {
         .set({ propertyId: null })
         .where(eq(sellers.propertyId, id));
       
+      // 8.5. Elimina i record in private_contact_tracking collegati
+      console.log(`[DELETE PROPERTY] Eliminazione private_contact_tracking per immobile ${id}`);
+      await db.delete(privateContactTracking).where(eq(privateContactTracking.propertyId, id));
+      
+      // 8.6. Elimina i campaign messages collegati
+      console.log(`[DELETE PROPERTY] Eliminazione campaign_messages per immobile ${id}`);
+      await db.delete(campaignMessages).where(eq(campaignMessages.propertyId, id));
+      
       // 9. Infine elimina l'immobile stesso
       console.log(`[DELETE PROPERTY] Eliminazione immobile ${id}`);
       const result = await db.delete(properties).where(eq(properties.id, id)).returning();
