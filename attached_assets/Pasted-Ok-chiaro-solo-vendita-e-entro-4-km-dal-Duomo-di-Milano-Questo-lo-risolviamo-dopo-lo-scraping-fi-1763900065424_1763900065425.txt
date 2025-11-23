@@ -1,0 +1,222 @@
+Ok, chiaro: solo vendita e entro 4 km dal Duomo di Milano.
+Questo lo risolviamo dopo lo scraping, filtrando con le coordinate.
+Ti spiego come fare in modo pratico dentro l’actor.
+
+1. Punto di riferimento: Duomo di Milano
+Usiamo le coordinate del Duomo:
+const DUOMO_LAT = 45.464211;
+const DUOMO_LON = 9.191383;
+const MAX_RADIUS_KM = 4;
+
+
+2. Strategia tecnica
+
+
+Lo scraper prende tutti gli annunci in vendita su Milano (come già impostato).
+
+
+Per ogni annuncio:
+
+
+cerchi di ricostruire un indirizzo abbastanza preciso (es. “Milano, Zona Loreto” → “Milano Zona Loreto”).
+
+
+mandi l’indirizzo a un geocoder (OpenCage, PositionStack, Google, ecc.).
+
+
+calcoli la distanza dal Duomo.
+
+
+se la distanza è ≤ 4 km, salvi l’annuncio nel dataset; se no lo scarti.
+
+
+
+
+Su Apify è comodo usare una API esterna di geocoding con una chiave (che metti in APIFY_API/input o env).
+
+3. Funzione per la distanza (Haversine)
+Aggiungi nel tuo main.js:
+const haversineKm = (lat1, lon1, lat2, lon2) => {
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const R = 6371; // raggio medio Terra in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+};
+
+
+4. Geocoding: esempio generico
+Mettiamo che tu usi un servizio tipo OpenCage (è solo un esempio, puoi sostituire con quello che preferisci):
+import fetch from 'node-fetch';
+
+const geocodeAddress = async (address, apiKey) => {
+    if (!address) return null;
+    const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${apiKey}&limit=1&language=it`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.results || !data.results.length) return null;
+    const { lat, lng } = data.results[0].geometry;
+    return { lat, lon: lng };
+};
+
+Nel tuo Actor.main leggi la chiave dal input o da env:
+const {
+    city = 'milano',
+    area = 'milano',
+    contract = 'vendita',
+    modeClickCase = 'solo_vendita',
+    maxPagesCasa = 3,
+    maxPagesClick = 3,
+    geocodingApiKey,
+} = input;
+
+if (!geocodingApiKey) {
+    log.error('Manca geocodingApiKey nell’input, non posso filtrare per raggio.');
+}
+
+
+5. Filtrare prima di salvare sul Dataset
+Modifica handleCasaDetail
+Alla fine della funzione, invece di fare subito Dataset.pushData, fai:
+const finalItem = {
+    ...basic,
+    title: titleDetail,
+    city: city || basic.city || null,
+    zone: zone || basic.zone || null,
+    contract,
+    type,
+    mq,
+    rooms,
+    source_detail: 'casadaprivato',
+};
+
+const locationString = `${finalItem.city || 'Milano'} ${finalItem.zone || ''}`.trim();
+
+if (!Actor.getInput) {
+    // niente, ma in realtà hai l'input in chiusura scope, quindi fai:
+}
+
+const input = await Actor.getInput(); // se non ce l’hai già nello scope superiore, salvalo in una variabile globale.
+
+const coords = input.geocodingApiKey
+    ? await geocodeAddress(locationString, input.geocodingApiKey)
+    : null;
+
+if (!coords) {
+    log.warning(`Geocoding fallito per: ${locationString}`);
+    return; // scarto l’annuncio se non riesco a geocodificarlo
+}
+
+const distanceKm = haversineKm(DUOMO_LAT, DUOMO_LON, coords.lat, coords.lon);
+
+if (distanceKm <= MAX_RADIUS_KM) {
+    await Dataset.pushData({
+        ...finalItem,
+        lat: coords.lat,
+        lon: coords.lon,
+        distance_km: distanceKm,
+    });
+} else {
+    log.info(`Scartato (distanza ${distanceKm.toFixed(2)} km): ${finalItem.title}`);
+}
+
+
+Nota: per evitare di chiamare Actor.getInput() dentro ogni handler, fai così:
+
+
+in alto nel file dichiari una variabile let GLOBAL_INPUT;
+
+
+dentro Actor.main fai GLOBAL_INPUT = input;
+
+
+dentro gli handler usi GLOBAL_INPUT.geocodingApiKey.
+
+
+
+Stesso discorso per handleClickDetail
+Alla fine:
+const finalItem = {
+    ...basic,
+    title: titleDetail,
+    source_detail: 'clickcase',
+    raw_details: details,
+};
+
+const locationString = `${finalItem.city || 'Milano'} ${finalItem.zone || ''}`.trim();
+
+const coords = GLOBAL_INPUT.geocodingApiKey
+    ? await geocodeAddress(locationString, GLOBAL_INPUT.geocodingApiKey)
+    : null;
+
+if (!coords) {
+    log.warning(`Geocoding fallito per: ${locationString}`);
+    return;
+}
+
+const distanceKm = haversineKm(DUOMO_LAT, DUOMO_LON, coords.lat, coords.lon);
+
+if (distanceKm <= MAX_RADIUS_KM) {
+    await Dataset.pushData({
+        ...finalItem,
+        lat: coords.lat,
+        lon: coords.lon,
+        distance_km: distanceKm,
+    });
+} else {
+    log.info(`Scartato (distanza ${distanceKm.toFixed(2)} km): ${finalItem.title}`);
+}
+
+
+6. Input schema: aggiungi la chiave di geocoding
+Nel tuo INPUT_SCHEMA.json aggiungi:
+"geocodingApiKey": {
+  "title": "API key per geocoding",
+  "type": "string",
+  "description": "Chiave del servizio di geocoding (es. OpenCage, PositionStack, ecc.)"
+}
+
+
+7. In sintesi cosa succede
+
+
+L’actor raccoglie solo annunci di vendita da CasaDaPrivato e ClickCase (già impostato).
+
+
+Per ogni annuncio:
+
+
+costruisce “Milano + zona”,
+
+
+geocodifica (una chiamata all’API),
+
+
+calcola la distanza dal Duomo,
+
+
+tiene solo quelli entro 4 km.
+
+
+
+
+Risultato: nel dataset finale ti trovi solo immobili davvero “Duomo & dintorni”, non tutta la provincia.
+
+Se vuoi, nel messaggio dopo ti posso riscrivere un main.js già aggiornato con:
+
+
+variabile GLOBAL_INPUT,
+
+
+funzioni geocodeAddress + haversineKm,
+
+
+filtro raggio già integrato.
+
+
