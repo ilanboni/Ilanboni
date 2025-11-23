@@ -3697,10 +3697,10 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(properties.createdAt));
     
-    // Filter properties within 8km radius of Duomo di Milano (covers central Milan + suburbs)
+    // Filter properties within 4km radius of Duomo di Milano
     const DUOMO_LAT = 45.464204;
     const DUOMO_LNG = 9.191383;
-    const RADIUS_KM = 8;
+    const RADIUS_KM = 4;
     const duomoPoint = point([DUOMO_LNG, DUOMO_LAT]);
     
     const filteredByRadius = privateProps.filter((p: any) => {
