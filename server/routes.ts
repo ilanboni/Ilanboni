@@ -8344,18 +8344,16 @@ Genera un suggerimento professionale in italiano per un agente immobiliare su do
         .select()
         .from(sharedProperties)
         .limit(100);
+      
+      // Importa la funzione di matching centralizzata per GEOGRAPHIC check
+      const { isSharedPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
         
       // Processa le proprietà in memoria (molto più veloce)
       const rankedProperties = sharedProps.map((property) => {
         // Filtra i buyer interessati in memoria (non in DB)
+        // CRITICAL: Usa isSharedPropertyMatchingBuyerCriteria che include geographic matching (searchArea)
         const interestedBuyers = allBuyers.filter(buyer => {
-          if (!property.size || !property.price) return false;
-          
-          // Usa la stessa logica di matching del sistema principale
-          const matchesSize = !buyer.minSize || property.size >= buyer.minSize * 0.8; // -20% tolleranza
-          const matchesPrice = !buyer.maxPrice || property.price <= buyer.maxPrice * 1.2; // +20% tolleranza
-          
-          return matchesSize && matchesPrice;
+          return isSharedPropertyMatchingBuyerCriteria(property, buyer);
         });
         
         // Calcola match percentage medio
