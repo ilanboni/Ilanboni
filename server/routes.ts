@@ -2246,14 +2246,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 5000);
+          parsed.description = descMatch[1].substring(0, 10000);
+          console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
-          // Fallback: extract from main content divs (common patterns)
-          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
-                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,5000})<\/p>/i);
+          // Fallback: extract from main content divs (common patterns) - increased to capture more
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
+                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{50,10000}?)<\/p>/i) ||
+                              html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
           if (contentMatch) {
-            parsed.description = contentMatch[1].trim().substring(0, 5000);
+            // Remove HTML tags for cleaner text
+            let desc = contentMatch[1].trim();
+            desc = desc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+            parsed.description = desc.substring(0, 10000);
+            console.log("[AUTO-IMPORT] Description from content div, length:", parsed.description.length);
           }
         }
 
@@ -2440,14 +2446,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 5000);
+          parsed.description = descMatch[1].substring(0, 10000);
+          console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
-          // Fallback: extract from main content divs (common patterns)
-          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
-                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,5000})<\/p>/i);
+          // Fallback: extract from main content divs (common patterns) - increased to capture more
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
+                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{50,10000}?)<\/p>/i) ||
+                              html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
           if (contentMatch) {
-            parsed.description = contentMatch[1].trim().substring(0, 5000);
+            // Remove HTML tags for cleaner text
+            let desc = contentMatch[1].trim();
+            desc = desc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+            parsed.description = desc.substring(0, 10000);
+            console.log("[AUTO-IMPORT] Description from content div, length:", parsed.description.length);
           }
         }
 
@@ -2730,14 +2742,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 5000);
+          parsed.description = descMatch[1].substring(0, 10000);
+          console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
-          // Fallback: extract from main content divs (common patterns)
-          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
-                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,5000})<\/p>/i);
+          // Fallback: extract from main content divs (common patterns) - increased to capture more
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
+                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{50,10000}?)<\/p>/i) ||
+                              html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
           if (contentMatch) {
-            parsed.description = contentMatch[1].trim().substring(0, 5000);
+            // Remove HTML tags for cleaner text
+            let desc = contentMatch[1].trim();
+            desc = desc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+            parsed.description = desc.substring(0, 10000);
+            console.log("[AUTO-IMPORT] Description from content div, length:", parsed.description.length);
           }
         }
 
@@ -2832,6 +2850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extracted: true,
         url,
         data: {
+          url,
           address: parsed.address,
           price: parsed.price,
           type: parsed.type,

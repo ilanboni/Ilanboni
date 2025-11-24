@@ -40,6 +40,7 @@ export function AutoImportPropertyDialog() {
         setExtracted(true);
         setPreview(result.preview);
         setEditedData({
+          url: result.data.url,
           address: result.data.address,
           price: result.data.price,
           type: result.data.type,
