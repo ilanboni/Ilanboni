@@ -15,12 +15,17 @@ export function CasafariImportDialog() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch saved properties from Casafari
-  const { data: propertiesData, isLoading: loadingProperties } = useQuery({
+  // Fetch alert-based properties from Casafari
+  const { data: alertsData, isLoading: loadingAlerts } = useQuery({
     queryKey: ["/api/casafari/saved-properties"],
     queryFn: async () => {
       const response = await apiRequest("/api/casafari/saved-properties", { method: "GET" });
-      return (await response.json()) as { success: boolean; count: number; properties: any[] };
+      return (await response.json()) as { 
+        success: boolean; 
+        count: number; 
+        alerts: any[];
+        allProperties: any[];
+      };
     },
     enabled: open,
     staleTime: 5 * 60 * 1000
@@ -57,11 +62,12 @@ export function CasafariImportDialog() {
   });
 
   const handleSelectAll = () => {
-    if (selectedProperties.size === propertiesData?.properties?.length) {
+    const allProps = alertsData?.allProperties || [];
+    if (selectedProperties.size === allProps.length) {
       setSelectedProperties(new Set());
     } else {
       setSelectedProperties(new Set(
-        propertiesData?.properties?.map((p: any) => p.externalId || p.address) || []
+        allProps.map((p: any) => p.externalId || p.address)
       ));
     }
   };
@@ -85,14 +91,15 @@ export function CasafariImportDialog() {
       return;
     }
 
-    const itemsToImport = propertiesData?.properties?.filter((p: any) =>
+    const itemsToImport = (alertsData?.allProperties || []).filter((p: any) =>
       selectedProperties.has(p.externalId || p.address)
-    ) || [];
+    );
 
     importMutation.mutate(itemsToImport);
   };
 
-  const properties = propertiesData?.properties || [];
+  const alerts = alertsData?.alerts || [];
+  const allProperties = alertsData?.allProperties || [];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -102,21 +109,21 @@ export function CasafariImportDialog() {
           Casafari
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Importa Immobili Salvati da Casafari</DialogTitle>
+          <DialogTitle>Importa Immobili da Alert Casafari</DialogTitle>
         </DialogHeader>
 
-        {loadingProperties ? (
+        {loadingAlerts ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-            <span className="ml-2">Caricamento immobili salvati...</span>
+            <span className="ml-2">Caricamento alert e immobili da Casafari...</span>
           </div>
-        ) : properties.length === 0 ? (
+        ) : alerts.length === 0 ? (
           <Alert>
             <AlertCircle className="w-4 h-4" />
             <AlertDescription>
-              Nessun immobile salvato trovato in Casafari. Salva immobili in Casafari e riprova.
+              Nessun alert trovato in Casafari. Crea un alert di ricerca in Casafari e riprova.
             </AlertDescription>
           </Alert>
         ) : (
@@ -124,36 +131,44 @@ export function CasafariImportDialog() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Checkbox 
-                  checked={selectedProperties.size === properties.length && properties.length > 0}
+                  checked={selectedProperties.size === allProperties.length && allProperties.length > 0}
                   onCheckedChange={handleSelectAll}
                 />
                 <span className="text-sm font-medium">
-                  Seleziona tutto ({selectedProperties.size}/{properties.length})
+                  Seleziona tutto ({selectedProperties.size}/{allProperties.length})
                 </span>
               </div>
             </div>
 
-            <ScrollArea className="h-80 border rounded-md p-4">
-              <div className="space-y-3">
-                {properties.map((property: any) => {
-                  const id = property.externalId || property.address;
-                  return (
-                    <div key={id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                      <Checkbox 
-                        checked={selectedProperties.has(id)}
-                        onCheckedChange={() => handleSelectProperty(id)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{property.address}</div>
-                        <div className="text-xs text-gray-600">
-                          {property.price ? `€${property.price.toLocaleString('it-IT')}` : 'Prezzo non disponibile'} • 
-                          {property.size ? ` ${property.size}m²` : ''} •
-                          {property.bedrooms ? ` ${property.bedrooms}🛏️` : ''}
-                        </div>
-                      </div>
+            <ScrollArea className="h-96 border rounded-md p-4">
+              <div className="space-y-4">
+                {alerts.map((alert: any) => (
+                  <div key={alert.id} className="border-l-2 border-blue-300 pl-4 pb-4">
+                    <h3 className="font-semibold text-sm mb-2">{alert.name}</h3>
+                    <p className="text-xs text-gray-500 mb-3">{alert.properties?.length || 0} immobili trovati</p>
+                    <div className="space-y-2">
+                      {alert.properties?.map((property: any) => {
+                        const id = property.externalId || property.address;
+                        return (
+                          <div key={id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer text-sm">
+                            <Checkbox 
+                              checked={selectedProperties.has(id)}
+                              onCheckedChange={() => handleSelectProperty(id)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{property.address}</div>
+                              <div className="text-xs text-gray-600">
+                                {property.price ? `€${property.price.toLocaleString('it-IT')}` : 'Prezzo non disp.'} • 
+                                {property.size ? ` ${property.size}m²` : ''} •
+                                {property.bedrooms ? ` ${property.bedrooms}🛏️` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </ScrollArea>
 

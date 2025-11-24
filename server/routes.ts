@@ -5948,23 +5948,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get saved properties from Casafari
+  // Get saved properties from Casafari (grouped by alerts)
   app.get("/api/casafari/saved-properties", async (req: Request, res: Response) => {
     try {
       const { CasafariAdapter } = await import('./services/adapters/casafariAdapter');
       const adapter = new CasafariAdapter();
       
-      console.log('[GET /api/casafari/saved-properties] Fetching saved properties...');
-      const savedProps = await adapter.getSavedProperties();
+      console.log('[GET /api/casafari/saved-properties] Fetching alerts and properties...');
+      const result = await adapter.getSavedProperties();
       
-      res.json({
-        success: true,
-        count: savedProps.length,
-        properties: savedProps
-      });
+      // Return the result directly (it already has success, count, alerts, allProperties)
+      res.json(result);
     } catch (error) {
       console.error('[GET /api/casafari/saved-properties]', error);
-      res.status(500).json({ error: "Errore nel recupero delle proprietà salvate" });
+      res.status(500).json({ success: false, error: "Errore nel recupero degli alert e proprietà", count: 0, alerts: [], allProperties: [] });
     }
   });
 

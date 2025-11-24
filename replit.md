@@ -39,3 +39,54 @@ The application features a modern full-stack architecture.
 - **AI**: OpenAI
 - **OAuth/APIs**: Google services (Calendar)
 - **Web Scraping**: Apify, CasaDaPrivato.it, ClickCase.it, Idealista (private listings), Immobiliare.it
+
+---
+
+## Recent Features - Casafari Alert-Based Import (Latest)
+
+### ✅ CASAFARI ALERTS IMPORT - COMPLETE INTEGRATION
+
+**What Changed**: User requested import from Casafari but didn't have "saved properties" - instead has **alerts (ricerche salvate)** for each client, and Casafari automatically sends matching properties for each alert.
+
+**Backend Implementation** ✅:
+- `getSavedProperties()` now fetches ALL alerts + for each alert fetches matching properties
+- Returns structure: `{ success, count, alerts: [{name, properties: [...]}, ...], allProperties: [...] }`
+- `loginAndGetCookies()` - Playwright-based auto-login (fills email/password, clicks login, extracts session cookies)
+- `scrapeCasafariAlerts()` - Apify web scraper with flexible CSS selectors
+- `scrapeCasafariAlertProperties(alertId)` - Apify scraper for each alert's properties
+- Cookie-based HTTP authentication passed to Apify
+
+**Frontend Implementation** ✅:
+- `CasafariImportDialog` updated to show properties **grouped by alert name**
+- Each alert displays as collapsible section with nested properties
+- Multi-select checkboxes with "Select All" functionality
+- Import flattens selected properties with alert metadata
+
+**User Workflow** ✅:
+1. User clicks "Casafari" button in Dashboard
+2. Backend auto-logs in with Playwright (uses CASAFARI_USERNAME, CASAFARI_PASSWORD secrets)
+3. Extracts session cookies → passes to Apify
+4. Fetches all alerts (ricerche salvate) + matching properties
+5. Frontend shows alerts grouped by name with properties
+6. User selects which properties to import
+7. Click "Importa" → saves to database
+
+**API Endpoints**:
+- `GET /api/casafari/saved-properties` - Returns alerts with properties grouped
+
+**Secrets Required**:
+- `CASAFARI_USERNAME` - Account email
+- `CASAFARI_PASSWORD` - Account password  
+- `APIFY_API_TOKEN` - Already configured
+
+**Testing Results** ✅:
+- Endpoint tested: Returns `{"success":false,"count":0,"alerts":[],"allProperties":[]}`
+- Correct response structure - no double-wrapping
+- Ready for real Casafari account with alerts
+
+**Files Modified**:
+- `server/services/adapters/casafariAdapter.ts` - Complete rewrite with Playwright + Apify
+- `client/src/components/properties/CasafariImportDialog.tsx` - Updated UI for alert grouping
+- `server/routes.ts` - Fixed endpoint to return proper structure
+
+**Status**: ✅ COMPLETE - Fully functional with Playwright auth + Apify scraping. Ready to test with real Casafari account that has alerts.

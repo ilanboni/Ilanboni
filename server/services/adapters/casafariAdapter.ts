@@ -141,11 +141,12 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Fetch user's saved properties from Casafari using Apify scraping + auth
+   * Fetch user's alert-based properties from Casafari using Apify scraping + auth
+   * Returns properties grouped by alert/search name
    */
-  async getSavedProperties(): Promise<PropertyListing[]> {
+  async getSavedProperties(): Promise<any> {
     try {
-      console.log('[CASAFARI] Fetching saved properties via Apify scraper with authentication...');
+      console.log('[CASAFARI] Fetching alerts and their properties via Apify scraper with authentication...');
       
       const { getApifyService } = await import('../apifyService');
       const apifyService = getApifyService();
@@ -153,21 +154,67 @@ export class CasafariAdapter implements PortalAdapter {
       // Get auth cookies first
       const cookies = await this.loginAndGetCookies();
       if (!cookies || cookies.length === 0) {
-        console.warn('[CASAFARI] Failed to authenticate, cannot scrape saved properties');
-        return [];
+        console.warn('[CASAFARI] Failed to authenticate, cannot scrape alerts');
+        return { success: false, count: 0, alerts: [], allProperties: [] };
       }
       
       console.log(`[CASAFARI] Successfully authenticated, got ${cookies.length} cookies`);
       
-      // Scrape Casafari saved properties with authentication
-      const savedProps = await this.scrapeCasafariSavedProperties(apifyService, cookies);
+      // Fetch all alerts (ricerche salvate)
+      const alerts = await this.scrapeCasafariAlerts(apifyService, cookies);
+      console.log(`[CASAFARI] Found ${alerts.length} alerts`);
       
-      console.log(`[CASAFARI] Found ${savedProps.length} saved properties via Apify`);
-      return savedProps.slice(0, 100);
+      if (alerts.length === 0) {
+        console.log('[CASAFARI] No alerts found');
+        return { success: true, count: 0, alerts: [], allProperties: [] };
+      }
+      
+      // For each alert, fetch its properties
+      const alertsWithProperties = [];
+      let totalProperties = 0;
+      
+      for (const alert of alerts) {
+        try {
+          console.log(`[CASAFARI] Fetching properties for alert: ${alert.name} (ID: ${alert.id})`);
+          const properties = await this.scrapeCasafariAlertProperties(apifyService, alert.id, cookies);
+          console.log(`[CASAFARI] Found ${properties.length} properties for alert: ${alert.name}`);
+          
+          alertsWithProperties.push({
+            ...alert,
+            properties: properties
+          });
+          
+          totalProperties += properties.length;
+        } catch (error) {
+          console.error(`[CASAFARI] Error fetching properties for alert ${alert.id}:`, error);
+          alertsWithProperties.push({
+            ...alert,
+            properties: []
+          });
+        }
+      }
+      
+      // Flatten all properties for import
+      const allProperties = alertsWithProperties
+        .flatMap(alert => 
+          alert.properties.map((prop: any) => ({
+            ...prop,
+            alertName: alert.name,
+            alertId: alert.id
+          }))
+        );
+      
+      console.log(`[CASAFARI] Total: ${alertsWithProperties.length} alerts, ${totalProperties} properties`);
+      return {
+        success: true,
+        count: totalProperties,
+        alerts: alertsWithProperties,
+        allProperties: allProperties
+      };
 
     } catch (error) {
-      console.error('[CASAFARI] Error fetching saved properties:', error);
-      return [];
+      console.error('[CASAFARI] Error fetching alerts and properties:', error);
+      return { success: false, count: 0, alerts: [], allProperties: [] };
     }
   }
 
