@@ -141,30 +141,22 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Fetch user's saved properties from Casafari
+   * Fetch user's saved properties from Casafari using Apify scraping
    */
   async getSavedProperties(): Promise<PropertyListing[]> {
     try {
-      const client = await this.getClient();
-      console.log('[CASAFARI] Fetching saved properties...');
-
-      // Try to get saved properties (if available in API)
-      if (!client.getSavedProperties) {
-        console.log('[CASAFARI] getSavedProperties not available in SDK');
-        return [];
-      }
-
-      const savedProps = await client.getSavedProperties();
-      console.log(`[CASAFARI] Found ${savedProps?.length || 0} saved properties`);
-
-      if (!Array.isArray(savedProps)) {
-        return [];
-      }
-
-      return savedProps
-        .filter((p: any) => p.operations?.includes('sale'))
-        .map((p: any) => this.transformResult(p))
-        .slice(0, 100); // Limit to 100
+      console.log('[CASAFARI] Fetching saved properties via Apify scraper...');
+      
+      // Use Apify to scrape Casafari saved properties page
+      const { ApifyService } = await import('../apifyService');
+      const apifyService = ApifyService.getInstance();
+      
+      // Scrape Casafari saved properties
+      // This would use a custom Apify actor or web scraper to get the saved list
+      const savedProps = await this.scrapeCasafariSavedProperties(apifyService);
+      
+      console.log(`[CASAFARI] Found ${savedProps.length} saved properties via Apify`);
+      return savedProps.slice(0, 100);
 
     } catch (error) {
       console.error('[CASAFARI] Error fetching saved properties:', error);
@@ -173,27 +165,20 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Fetch user's saved searches/alerts from Casafari
+   * Fetch user's saved searches/alerts from Casafari using Apify
    */
   async getAlerts(): Promise<any[]> {
     try {
-      const client = await this.getClient();
-      console.log('[CASAFARI] Fetching user alerts...');
-
-      // Try to get alerts (if available in API)
-      if (!client.getAlerts && !client.getSearchAlerts) {
-        console.log('[CASAFARI] getAlerts not available in SDK');
-        return [];
-      }
-
-      const alerts = await (client.getAlerts?.() || client.getSearchAlerts?.());
-      console.log(`[CASAFARI] Found ${alerts?.length || 0} alerts`);
-
-      if (!Array.isArray(alerts)) {
-        return [];
-      }
-
-      return alerts.slice(0, 50); // Limit to 50 alerts
+      console.log('[CASAFARI] Fetching user alerts via Apify scraper...');
+      
+      const { ApifyService } = await import('../apifyService');
+      const apifyService = ApifyService.getInstance();
+      
+      // Scrape Casafari alerts/searches page
+      const alerts = await this.scrapeCasafariAlerts(apifyService);
+      
+      console.log(`[CASAFARI] Found ${alerts.length} alerts via Apify`);
+      return alerts.slice(0, 50);
 
     } catch (error) {
       console.error('[CASAFARI] Error fetching alerts:', error);
@@ -202,36 +187,213 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Get properties matching an alert/saved search
+   * Get properties matching an alert/saved search using Apify
    */
   async getAlertProperties(alertId: number): Promise<PropertyListing[]> {
     try {
-      const client = await this.getClient();
-      console.log(`[CASAFARI] Fetching properties for alert ${alertId}...`);
+      console.log(`[CASAFARI] Fetching properties for alert ${alertId} via Apify...`);
 
-      if (!client.getAlertProperties && !client.getFeed) {
-        console.log('[CASAFARI] getAlertProperties not available in SDK');
-        return [];
-      }
-
-      // Try to get properties via alert or feed
-      const props = await (client.getAlertProperties?.(alertId) || 
-                          client.getFeed?.(alertId, { limit: 50 }));
+      const { ApifyService } = await import('../apifyService');
+      const apifyService = ApifyService.getInstance();
       
-      if (!props?.results && !Array.isArray(props)) {
-        return [];
-      }
-
-      const results = props.results || props;
-      console.log(`[CASAFARI] Found ${results.length} properties for alert`);
-
-      return results
-        .filter((p: any) => p.operations?.includes('sale'))
-        .map((p: any) => this.transformResult(p))
-        .slice(0, 100);
+      // Scrape alert properties
+      const props = await this.scrapeCasafariAlertProperties(apifyService, alertId);
+      
+      console.log(`[CASAFARI] Found ${props.length} properties for alert via Apify`);
+      return props.slice(0, 100);
 
     } catch (error) {
       console.error(`[CASAFARI] Error fetching alert properties:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Scrape Casafari saved properties using Apify web scraper
+   */
+  private async scrapeCasafariSavedProperties(apifyService: any): Promise<PropertyListing[]> {
+    try {
+      // Use a generic web scraper or Cheerio-based Apify actor
+      // This scrapes the user's saved properties list from Casafari
+      const input = {
+        startUrls: [
+          { url: 'https://app.casafari.com/my-properties' }
+        ],
+        pageFunction: `
+          async function pageFunction(context) {
+            const { $ } = context;
+            const properties = [];
+            
+            // Parse saved properties from the page
+            $('[data-test="saved-property"]').each((i, elem) => {
+              const address = $(elem).find('[data-test="address"]').text();
+              const price = $(elem).find('[data-test="price"]').text();
+              const size = $(elem).find('[data-test="size"]').text();
+              const bedrooms = $(elem).find('[data-test="bedrooms"]').text();
+              const url = $(elem).find('a').attr('href');
+              
+              if (address) {
+                properties.push({ address, price, size, bedrooms, url });
+              }
+            });
+            
+            return properties;
+          }
+        `,
+        proxyConfiguration: {
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL']
+        },
+        maxRequestsPerCrawl: 1,
+        customData: {
+          title: 'Casafari Saved Properties'
+        }
+      };
+
+      // Run with timeout to avoid hanging
+      const results = await Promise.race([
+        this.runApifyWebScraper(apifyService, input),
+        new Promise<PropertyListing[]>((_, reject) => 
+          setTimeout(() => reject(new Error('Apify scraper timeout')), 60000)
+        )
+      ]);
+
+      return results;
+    } catch (error) {
+      console.error('[CASAFARI-SCRAPER] Error scraping saved properties:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Scrape Casafari alerts/saved searches using Apify
+   */
+  private async scrapeCasafariAlerts(apifyService: any): Promise<any[]> {
+    try {
+      const input = {
+        startUrls: [
+          { url: 'https://app.casafari.com/my-searches' }
+        ],
+        pageFunction: `
+          async function pageFunction(context) {
+            const { $ } = context;
+            const alerts = [];
+            
+            $('[data-test="saved-search"]').each((i, elem) => {
+              const name = $(elem).find('[data-test="name"]').text();
+              const criteria = $(elem).find('[data-test="criteria"]').text();
+              const propertyCount = $(elem).find('[data-test="count"]').text();
+              const url = $(elem).find('a').attr('href');
+              
+              if (name) {
+                alerts.push({ name, criteria, propertyCount, url, id: i });
+              }
+            });
+            
+            return alerts;
+          }
+        `,
+        proxyConfiguration: {
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL']
+        },
+        maxRequestsPerCrawl: 1
+      };
+
+      const results = await Promise.race([
+        this.runApifyWebScraper(apifyService, input),
+        new Promise<any[]>((_, reject) => 
+          setTimeout(() => reject(new Error('Apify alerts scraper timeout')), 60000)
+        )
+      ]);
+
+      return results;
+    } catch (error) {
+      console.error('[CASAFARI-SCRAPER] Error scraping alerts:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Scrape properties for a specific alert using Apify
+   */
+  private async scrapeCasafariAlertProperties(apifyService: any, alertId: number): Promise<PropertyListing[]> {
+    try {
+      const input = {
+        startUrls: [
+          { url: `https://app.casafari.com/my-searches/${alertId}` }
+        ],
+        pageFunction: `
+          async function pageFunction(context) {
+            const { $ } = context;
+            const properties = [];
+            
+            $('[data-test="property-card"]').each((i, elem) => {
+              const address = $(elem).find('[data-test="address"]').text();
+              const price = $(elem).find('[data-test="price"]').text();
+              const size = $(elem).find('[data-test="size"]').text();
+              const bedrooms = $(elem).find('[data-test="bedrooms"]').text();
+              const url = $(elem).find('a').attr('href');
+              
+              if (address) {
+                properties.push({ address, price, size, bedrooms, url });
+              }
+            });
+            
+            return properties;
+          }
+        `,
+        proxyConfiguration: {
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL']
+        },
+        maxRequestsPerCrawl: 1
+      };
+
+      const results = await Promise.race([
+        this.runApifyWebScraper(apifyService, input),
+        new Promise<PropertyListing[]>((_, reject) => 
+          setTimeout(() => reject(new Error('Apify alert properties scraper timeout')), 60000)
+        )
+      ]);
+
+      return results;
+    } catch (error) {
+      console.error('[CASAFARI-SCRAPER] Error scraping alert properties:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Generic Apify web scraper runner
+   */
+  private async runApifyWebScraper(apifyService: any, input: any): Promise<PropertyListing[]> {
+    try {
+      // Use a generic web scraper actor or Cheerio actor
+      const actorId = 'apify/web-scraper'; // or any web scraper actor
+      
+      const run = await apifyService.client.actor(actorId).call(input);
+      const { items } = await apifyService.client.dataset(run.defaultDatasetId).listItems({ limit: 100 });
+      
+      console.log(`[CASAFARI-SCRAPER] Scraped ${items.length} items from Casafari`);
+      
+      return items
+        .filter((item: any) => item.address)
+        .map((item: any) => ({
+          externalId: `casafari-${item.url}`,
+          title: item.address,
+          address: item.address,
+          city: 'Milano',
+          price: parseInt(item.price?.replace(/\D/g, '')) || 0,
+          size: parseInt(item.size?.replace(/\D/g, '')) || 0,
+          bedrooms: parseInt(item.bedrooms?.replace(/\D/g, '')) || undefined,
+          type: 'apartment',
+          url: item.url,
+          description: `${item.address} - ${item.price} - ${item.size}`,
+          ownerType: 'agency' as const
+        }));
+    } catch (error) {
+      console.error('[CASAFARI-SCRAPER] Web scraper error:', error);
       return [];
     }
   }
