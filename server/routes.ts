@@ -2286,12 +2286,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
               desc = sections[0]; // Take first/main section
             }
             
-            parsed.description = desc.substring(0, 10000).trim();
-            console.log("[AUTO-IMPORT] Description from content fallback, length:", parsed.description.length, "truncated_meta:", isTruncated);
+            desc = desc.substring(0, 10000).trim();
+            
+            // If we extracted meaningful content, use it. Otherwise fall through to meta
+            if (desc.length > 50) {
+              parsed.description = desc;
+              console.log("[AUTO-IMPORT] Description from content fallback, length:", parsed.description.length);
+            } else if (descMatch && descMatch[1].length > 50) {
+              // Fallback to meta if extraction yielded insufficient content
+              parsed.description = descMatch[1].substring(0, 10000);
+              console.log("[AUTO-IMPORT] Description from meta tags (truncated fallback), length:", parsed.description.length);
+            }
           } else if (descMatch && descMatch[1].length > 50) {
-            // Last resort: use truncated meta if no fallback found
+            // Last resort: use meta description if no content pattern matched
             parsed.description = descMatch[1].substring(0, 10000);
             console.log("[AUTO-IMPORT] Description from meta tags (truncated), length:", parsed.description.length);
+          }
+        }
+
+        // If description is truncated (meta tag), try Playwright to get full description from rendered DOM
+        if (parsed.description && parsed.description.length < 300 && (parsed.description.endsWith(',') || parsed.description.endsWith('.'))) {
+          console.log("[AUTO-IMPORT] Description is truncated (" + parsed.description.length + " chars), trying Playwright...");
+          try {
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext({
+              userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            });
+            const page = await context.newPage();
+            page.setDefaultTimeout(15000);
+
+            try {
+              await page.goto(url, { waitUntil: 'networkidle' });
+              console.log("[AUTO-IMPORT] Playwright loaded page for description extraction...");
+              
+              // Method 1: Look for description in common class names
+              let descText = await page.locator('[class*="description"], [class*="desc"], [class*="content"]').first().textContent().catch(() => null);
+              
+              // Method 2: Get all body text and search for description pattern
+              if (!descText) {
+                const bodyText = await page.textContent('body');
+                if (bodyText && bodyText.length > 100) {
+                  // Take the main content (skip navigation, footer, etc.)
+                  const sections = bodyText.split(/(?:contatti|agente|telefo|whatsapp|email|visita|annunci|vedi anche|related|javascript|script|cookie|pagine correlate|partner)/i);
+                  descText = sections[0];
+                }
+              }
+
+              if (descText && descText.trim().length > parsed.description.length) {
+                // Clean up the extracted text
+                descText = descText.trim()
+                  .replace(/\s+/g, ' ')
+                  .replace(/<[^>]*>/g, '')
+                  .substring(0, 10000);
+                
+                if (descText.length > 300) {
+                  parsed.description = descText;
+                  console.log("[AUTO-IMPORT] Full description extracted via Playwright, length:", parsed.description.length);
+                }
+              }
+            } finally {
+              await context.close();
+              await browser.close();
+            }
+          } catch (playwrightError) {
+            console.log("[AUTO-IMPORT] Playwright description extraction failed:", (playwrightError as Error).message, "- keeping meta description");
+            // Silently fail - keep existing meta description
           }
         }
 
