@@ -2498,8 +2498,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.price = parseInt(priceMatch[1].replace(/\./g, ''));
         }
 
+        // If price not found, try to extract from URL patterns (e.g. "100000" in URL)
         if (parsed.price === 0) {
-          return res.status(400).json({ error: "Impossibile estrarre il prezzo dal link" });
+          const urlPriceMatch = url.match(/(\d{5,})/);
+          if (urlPriceMatch) {
+            parsed.price = parseInt(urlPriceMatch[1]);
+          }
         }
 
         const bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|bedrooms|rooms)/i);
@@ -2522,8 +2526,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.address = addressMatch[0].trim().substring(0, 100);
         }
 
+        // If address still not found, use URL hostname as fallback
         if (!parsed.address) {
-          return res.status(400).json({ error: "Impossibile estrarre l'indirizzo dal link" });
+          const urlHostMatch = new URL(url).hostname.replace(/www\./, '');
+          parsed.address = urlHostMatch || "Milano (estratta da URL)";
         }
 
         // Extract description from meta tags first
