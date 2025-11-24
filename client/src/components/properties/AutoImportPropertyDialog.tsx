@@ -229,44 +229,14 @@ export function AutoImportPropertyDialog() {
               )}
             </Button>
           </div>
-        ) : !preview?.isComplete && editedData?.address && editedData?.price === 0 ? (
-          // Minimal form when only price is missing
-          <div className="space-y-4 py-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm font-semibold text-blue-900">
-                {editedData.address}
-              </p>
-              <p className="text-xs text-blue-700 mt-2">
-                Superficie: {editedData.size}m² | Tipo: {editedData.type}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Prezzo (EUR)</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  value={editedData?.price || ""}
-                  onChange={(e) => setEditedData({ ...editedData, price: Number(e.target.value) || 0 })}
-                  placeholder="450000"
-                  className="flex-1"
-                  data-testid="input-quick-price"
-                  autoFocus
-                />
-                <Button
-                  onClick={() => saveMutation.mutate(undefined)}
-                  disabled={saveMutation.isPending}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
-                  data-testid="button-save-quick"
-                >
-                  {saveMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
+        ) : saveMutation.isPending ? (
+          // Saving in progress
+          <div className="space-y-4 py-4 flex flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <p className="text-sm font-semibold text-gray-700">Salvataggio in corso...</p>
+            <p className="text-xs text-gray-500 text-center">
+              {editedData?.address}
+            </p>
           </div>
         ) : (
           <div className="space-y-4 py-4">

@@ -2445,6 +2445,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Return empty data - let user fill in manually
       }
 
+      // If price still not found, try to extract from description text (as last resort)
+      if (parsed.price === 0 && parsed.description) {
+        // Look for patterns like "€ 250.000", "250.000 euro", "€250000", etc.
+        const pricePatterns = [
+          /€\s*([0-9.]+)\s*(?:euro)?/i,           // € 250.000 or € 250000
+          /([0-9.]+)\s*(?:€|euro)/i,               // 250.000 € or 250.000 euro
+          /prezzo[:\s]*€?\s*([0-9.]+)/i,           // prezzo: 250.000
+          /in\s+vendita\s+a\s*€?\s*([0-9.]+)/i     // in vendita a 250.000
+        ];
+        
+        for (const pattern of pricePatterns) {
+          const match = parsed.description.match(pattern);
+          if (match) {
+            // Parse Italian format: 250.000 -> 250000
+            const priceStr = match[1].replace(/\./g, '').replace(/,/g, '.');
+            const extractedPrice = parseInt(parseFloat(priceStr));
+            if (extractedPrice > 10000) { // Sanity check - price should be > 10k
+              parsed.price = extractedPrice;
+              console.log("[PARSE-URL] Price extracted from description text:", parsed.price);
+              break;
+            }
+          }
+        }
+      }
+
       // If address still not found, try to extract from description
       if (!parsed.address && parsed.description) {
         const descAddressMatch = parsed.description.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s\d]+?)(?=[,\.]|$)/i);
@@ -2713,6 +2738,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       } catch (parseError) {
         console.log("[PARSE-AGENCY-URL] Parsing error:", parseError);
+      }
+
+      // If price still not found, try to extract from description text (as last resort)
+      if (parsed.price === 0 && parsed.description) {
+        // Look for patterns like "€ 250.000", "250.000 euro", "€250000", etc.
+        const pricePatterns = [
+          /€\s*([0-9.]+)\s*(?:euro)?/i,           // € 250.000 or € 250000
+          /([0-9.]+)\s*(?:€|euro)/i,               // 250.000 € or 250.000 euro
+          /prezzo[:\s]*€?\s*([0-9.]+)/i,           // prezzo: 250.000
+          /in\s+vendita\s+a\s*€?\s*([0-9.]+)/i     // in vendita a 250.000
+        ];
+        
+        for (const pattern of pricePatterns) {
+          const match = parsed.description.match(pattern);
+          if (match) {
+            // Parse Italian format: 250.000 -> 250000
+            const priceStr = match[1].replace(/\./g, '').replace(/,/g, '.');
+            const extractedPrice = parseInt(parseFloat(priceStr));
+            if (extractedPrice > 10000) { // Sanity check - price should be > 10k
+              parsed.price = extractedPrice;
+              console.log("[PARSE-AGENCY-URL] Price extracted from description text:", parsed.price);
+              break;
+            }
+          }
+        }
       }
 
       res.json(parsed);
@@ -2993,6 +3043,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!parsed.address) {
           const urlHostMatch = new URL(url).hostname.replace(/www\./, '');
           parsed.address = urlHostMatch || "Milano (estratta da URL)";
+        }
+
+        // If price still not found, try to extract from description text (as last resort)
+        if (parsed.price === 0 && parsed.description) {
+          // Look for patterns like "€ 250.000", "250.000 euro", "€250000", etc.
+          const pricePatterns = [
+            /€\s*([0-9.]+)\s*(?:euro)?/i,           // € 250.000 or € 250000
+            /([0-9.]+)\s*(?:€|euro)/i,               // 250.000 € or 250.000 euro
+            /prezzo[:\s]*€?\s*([0-9.]+)/i,           // prezzo: 250.000
+            /in\s+vendita\s+a\s*€?\s*([0-9.]+)/i     // in vendita a 250.000
+          ];
+          
+          for (const pattern of pricePatterns) {
+            const match = parsed.description.match(pattern);
+            if (match) {
+              // Parse Italian format: 250.000 -> 250000
+              const priceStr = match[1].replace(/\./g, '').replace(/,/g, '.');
+              const extractedPrice = parseInt(parseFloat(priceStr));
+              if (extractedPrice > 10000) { // Sanity check - price should be > 10k
+                parsed.price = extractedPrice;
+                console.log("[AUTO-IMPORT] Price extracted from description text:", parsed.price);
+                break;
+              }
+            }
+          }
         }
 
         // Detect if it's a private seller or agency
