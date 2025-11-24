@@ -47,6 +47,7 @@ export function AutoImportPropertyDialog() {
           bathrooms: result.data.bathrooms,
           size: result.data.size,
           floor: result.data.floor,
+          condition: result.data.condition,
           ownerPhone: result.data.ownerPhone,
           ownerName: result.data.ownerName,
           agencyName: result.data.agencyName,
@@ -83,6 +84,7 @@ export function AutoImportPropertyDialog() {
         bathrooms: dataToSave.bathrooms ? Number(dataToSave.bathrooms) : undefined,
         size: dataToSave.size ? Number(dataToSave.size) : undefined,
         floor: dataToSave.floor || undefined,
+        condition: dataToSave.condition || undefined,
         description: dataToSave.description,
         ...(isAgency ? {
           agencyName: dataToSave.agencyName,
@@ -341,6 +343,24 @@ export function AutoImportPropertyDialog() {
                     value={editedData?.size || ""}
                     onChange={(e) => setEditedData({ ...editedData, size: e.target.value ? Number(e.target.value) : undefined })}
                     placeholder="0"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Piano</Label>
+                  <Input
+                    value={editedData?.floor || ""}
+                    onChange={(e) => setEditedData({ ...editedData, floor: e.target.value })}
+                    placeholder="Es: quarto piano"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Stato</Label>
+                  <Input
+                    value={editedData?.condition || ""}
+                    onChange={(e) => setEditedData({ ...editedData, condition: e.target.value })}
+                    placeholder="Es: Ristrutturato, Ottimo stato"
                   />
                 </div>
 

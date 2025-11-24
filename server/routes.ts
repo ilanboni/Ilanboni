@@ -2272,7 +2272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add manual private property
   app.post("/api/properties/manual-private", async (req: Request, res: Response) => {
     try {
-      const { url, address, city, type, price, bedrooms, bathrooms, size, floor, description, ownerPhone, ownerName, ownerEmail } = req.body;
+      const { url, address, city, type, price, bedrooms, bathrooms, size, floor, condition, description, ownerPhone, ownerName, ownerEmail } = req.body;
 
       if (!url || !address || !type || price === undefined) {
         return res.status(400).json({ error: "Campi obbligatori mancanti" });
@@ -2286,6 +2286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         price: Number(price),
         size: size ? Number(size) : undefined,
         floor,
+        condition,
         bedrooms: bedrooms ? Number(bedrooms) : undefined,
         bathrooms: bathrooms ? Number(bathrooms) : undefined,
         description,
@@ -2379,21 +2380,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.price = parseInt(priceMatch[1].replace(/\./g, ''));
         }
 
-        // Extract bedrooms with more variations
-        let bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|room|rooms|locali?|bedrooms)/i);
+        // Extract bedrooms from description/content
+        let bedroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:camere|camere\s+da\s+letto|rooms?|locali?|bedrooms)(?:\s|<|\.|\,)/i);
         if (bedroomsMatch) {
           parsed.bedrooms = parseInt(bedroomsMatch[1]);
           console.log("[AUTO-IMPORT] Bedrooms extracted:", parsed.bedrooms);
         }
 
-        // Extract bathrooms with more variations
-        let bathroomsMatch = html.match(/(\d+)\s*(?:bagn[io]?|bathrooms?|wc|toilets?|servizi)/i);
+        // Extract bathrooms from description/content
+        let bathroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)(?:\s|<|\.|\,)/i);
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
           console.log("[AUTO-IMPORT] Bathrooms extracted:", parsed.bathrooms);
         }
 
-        // Extract floor with variations (piano terra, 1º piano, secondo piano, quarto piano, etc.)
+        // Extract floor with variations (primo piano, secondo piano, quarto piano, etc.)
         let floorMatch = html.match(/(?:primo|secondo|terzo|quarto|quinto|sesto|settimo|ottavo|nono|decimo)\s+piano/i) ||
                         html.match(/(\d+)(?:º|ª|st|nd|rd|th)?\s+(?:piano|floor)/i) ||
                         html.match(/(?:piano|floor)\s+(?:terra|rialzato|ground)/i);
@@ -2402,12 +2403,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Floor extracted:", parsed.floor);
         }
 
+        // Extract condition/status (stato dell'immobile)
+        let conditionMatch = html.match(/(completamente\s+ristrutturato|ristrutturato|ottimo\s+stato|buone?\s+condizioni?|da\s+ristrutturare|da\s+rinovare|nuovo|abitabile)/i);
+        if (conditionMatch) {
+          parsed.condition = conditionMatch[1].trim().substring(0, 50);
+          console.log("[AUTO-IMPORT] Condition extracted:", parsed.condition);
+        }
+
         const sizeMatch = html.match(/(\d+)\s*(?:m²|mq|m2)/i);
         if (sizeMatch) {
           parsed.size = parseInt(sizeMatch[1]);
         }
 
-        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([^<"]*)/i);
+        // Extract address - only via+street name+number, avoid description
+        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s]+?\d+)/i);
         if (addressMatch) {
           parsed.address = addressMatch[0].trim().substring(0, 100);
         }
@@ -2639,21 +2648,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Price extraction failed - user will need to enter manually");
         }
 
-        // Extract bedrooms with more variations
-        let bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|room|rooms|locali?|bedrooms)/i);
+        // Extract bedrooms from description/content
+        let bedroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:camere|camere\s+da\s+letto|rooms?|locali?|bedrooms)(?:\s|<|\.|\,)/i);
         if (bedroomsMatch) {
           parsed.bedrooms = parseInt(bedroomsMatch[1]);
           console.log("[AUTO-IMPORT] Bedrooms extracted:", parsed.bedrooms);
         }
 
-        // Extract bathrooms with more variations
-        let bathroomsMatch = html.match(/(\d+)\s*(?:bagn[io]?|bathrooms?|wc|toilets?|servizi)/i);
+        // Extract bathrooms from description/content
+        let bathroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)(?:\s|<|\.|\,)/i);
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
           console.log("[AUTO-IMPORT] Bathrooms extracted:", parsed.bathrooms);
         }
 
-        // Extract floor with variations (piano terra, 1º piano, secondo piano, quarto piano, etc.)
+        // Extract floor with variations (primo piano, secondo piano, quarto piano, etc.)
         let floorMatch = html.match(/(?:primo|secondo|terzo|quarto|quinto|sesto|settimo|ottavo|nono|decimo)\s+piano/i) ||
                         html.match(/(\d+)(?:º|ª|st|nd|rd|th)?\s+(?:piano|floor)/i) ||
                         html.match(/(?:piano|floor)\s+(?:terra|rialzato|ground)/i);
@@ -2662,12 +2671,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Floor extracted:", parsed.floor);
         }
 
+        // Extract condition/status (stato dell'immobile)
+        let conditionMatch = html.match(/(completamente\s+ristrutturato|ristrutturato|ottimo\s+stato|buone?\s+condizioni?|da\s+ristrutturare|da\s+rinovare|nuovo|abitabile)/i);
+        if (conditionMatch) {
+          parsed.condition = conditionMatch[1].trim().substring(0, 50);
+          console.log("[AUTO-IMPORT] Condition extracted:", parsed.condition);
+        }
+
         const sizeMatch = html.match(/(\d+)\s*(?:m²|mq|m2)/i);
         if (sizeMatch) {
           parsed.size = parseInt(sizeMatch[1]);
         }
 
-        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([^<"]*)/i);
+        // Extract address - only via+street name+number, avoid description
+        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s]+?\d+)/i);
         if (addressMatch) {
           parsed.address = addressMatch[0].trim().substring(0, 100);
         }
@@ -2791,6 +2808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bathrooms: parsed.bathrooms,
           size: parsed.size,
           floor: parsed.floor,
+          condition: parsed.condition,
           description: parsed.description,
           ownerPhone: parsed.ownerPhone,
           ownerName: parsed.ownerName,
@@ -2828,7 +2846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add manual agency property with multi-agency detection
   app.post("/api/properties/manual-agency", async (req: Request, res: Response) => {
     try {
-      const { url, address, city, type, price, bedrooms, bathrooms, size, floor, description, agencyName, agencyUrl, agencyPhone, agencyEmail, multiAgencies } = req.body;
+      const { url, address, city, type, price, bedrooms, bathrooms, size, floor, condition, description, agencyName, agencyUrl, agencyPhone, agencyEmail, multiAgencies } = req.body;
 
       if (!url || !address || !type || price === undefined || !agencyName) {
         return res.status(400).json({ error: "Campi obbligatori mancanti: url, address, type, price, agencyName" });
@@ -2861,6 +2879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: Number(price),
           size: size ? Number(size) : undefined,
           floor,
+          condition,
           bedrooms: bedrooms ? Number(bedrooms) : undefined,
           bathrooms: bathrooms ? Number(bathrooms) : undefined,
           description,

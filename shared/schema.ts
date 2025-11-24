@@ -216,6 +216,7 @@ export const sharedProperties = pgTable("shared_properties", {
   description: text("description"), // property description
   bedrooms: integer("bedrooms"), // number of bedrooms
   bathrooms: integer("bathrooms"), // number of bathrooms
+  condition: text("condition"), // property condition (Ristrutturato, Ottimo stato, etc.)
   agency1Name: text("agency1_name"),
   agency1Link: text("agency1_link"),
   agency2Name: text("agency2_name"),

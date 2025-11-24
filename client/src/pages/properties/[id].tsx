@@ -670,6 +670,14 @@ export default function PropertyDetailPage() {
                       <div>{property?.bathrooms || "N/D"}</div>
                     </div>
                     <div>
+                      <div className="text-sm text-gray-500 mb-1">Piano</div>
+                      <div>{property?.floor || "N/D"}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 mb-1">Stato</div>
+                      <div>{property?.condition || "N/D"}</div>
+                    </div>
+                    <div>
                       <div className="text-sm text-gray-500 mb-1">Anno di costruzione</div>
                       <div>{property?.yearBuilt || "N/D"}</div>
                     </div>
