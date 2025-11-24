@@ -36,40 +36,39 @@ The application features a modern full-stack architecture.
     - **Natural Language Processing (NLP)**: AI-driven processing of client property requests, extracting structured filters.
     - **Automated Property Ingestion**: Architecture for automatic import from real estate portals.
 
-## Recent Changes (2025-11-23)
+## Recent Changes (2025-11-24)
 
-**✅ COMPLETE: Per-Client Property Management System**
+**✅ BUG FIX: Private Properties List Not Displaying**
 
-**New Feature - Client-Specific Ignore Functionality:**
-- ✅ Added `clientIgnoredProperties` table with composite primary key (clientId, sharedPropertyId)
-- ✅ Implemented storage methods: `getClientIgnoredProperties()`, `addClientIgnoredProperty()`, `removeClientIgnoredProperty()`, `isClientIgnoredProperty()`
-- ✅ Created API endpoints:
-  - GET `/api/clients/:id/ignored-properties` - List all ignored properties for a client
-  - POST `/api/clients/:id/ignored-properties` - Add property to ignore list
-  - DELETE `/api/clients/:id/ignored-properties/:propertyId` - Remove from ignore list
-- ✅ Updated matching properties query to automatically exclude client-ignored properties
-- ✅ Added UI buttons to client property cards:
-  - Red "Ignora" button (toggles to "Ripristina" when ignored)
-  - Heart "Preferito" button for per-client favorites
-  - Real-time sync with backend mutations
-- ✅ Per-client state management using React hooks and TanStack Query
-- ✅ Dual-system implementation: Global property favorites + Client-specific ignore list
+**Issue Resolved:**
+- ✅ Fixed `getPrivateProperties()` function in `server/storage.ts` (line 3771)
+  - Was searching in wrong table: `properties` instead of `sharedProperties`
+  - Now correctly queries `sharedProperties` table where `ownerType = 'private'`
+  - Now includes properties without GPS coordinates in the list
+  - Dramatically simplified implementation (removed unnecessary Property→SharedProperty conversion)
+- ✅ Corrected database entry with erroneous price (31198957 → €450,000)
+- ✅ Auto-import form now shows minimalist UI for incomplete data (only requests missing price field)
+- ✅ Playwright-based price extraction for JavaScript-rendered sites (e.g., Idealista.it)
 
 **Implementation Files Updated:**
-- `shared/schema.ts` - Added `clientIgnoredProperties` table schema
-- `server/storage.ts` - Added 4 new storage methods for ignore operations
-- `server/routes.ts` - Added 3 new API endpoints for ignore management
-- `client/src/pages/clients/[id].tsx` - Added UI buttons and React mutations for ignore/favorite
-- Database created: `client_ignored_properties` table
+- `server/storage.ts` - Rewrote `getPrivateProperties()` to use correct table
+- `client/src/components/properties/AutoImportPropertyDialog.tsx` - Added minimal form UI for incomplete data
+
+**Testing Verified:**
+- Auto-import endpoint successfully extracts: address ✅, size ✅, description ✅, price ✅
+- Manual property import (via Immobiliare.it) successfully saves to database
+- Private properties list (`GET /api/properties/private`) now returns correct data
+- Properties without GPS coordinates now properly included in list
+- Test property: "via Odoardo Tabacchi 11" (€675,000) visible in private properties list
 
 **Key Design Decisions:**
-- Per-client ignore list (not global) - same property can be shown to different clients
-- Automatic filtering in matching query - clients never see ignored properties
-- Separate from favorites system - ignore removes from view, favorites mark for priority follow-up
-- Real-time UI updates with toast notifications
+- Changed from geographic filtering (exclude no-coordinates) to inclusion (show all private properties)
+- Simplified function by removing unnecessary table conversions
+- Per-client ignore list remains separate and functional
 
 **Database Statistics:**
 - Total properties: 1,075 from 5 sources
 - All sources functioning and scraping daily
-- 4km geographic filtering from Duomo di Milano
+- 4km geographic filtering from Duomo di Milano for properties with GPS
 - Automatic classification: green (private), yellow (multi-agency), red (single-agency)
+- Private properties now correctly visible regardless of GPS availability

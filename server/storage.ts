@@ -3769,17 +3769,17 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getPrivateProperties(): Promise<SharedProperty[]> {
-    // Get private properties from the main properties table (not sharedProperties)
+    // Get private properties from sharedProperties table where ownerType = 'private'
     const privateProps = await db
       .select()
-      .from(properties)
+      .from(sharedProperties)
       .where(
         and(
-          eq(properties.ownerType, 'private'),
-          eq(properties.status, 'available')
+          eq(sharedProperties.ownerType, 'private'),
+          eq(sharedProperties.isIgnored, false)
         )
       )
-      .orderBy(desc(properties.createdAt));
+      .orderBy(desc(sharedProperties.createdAt));
     
     // Filter properties within 4km radius of Duomo di Milano
     const DUOMO_LAT = 45.464204;
@@ -3790,90 +3790,26 @@ export class DatabaseStorage implements IStorage {
     const filteredByRadius = privateProps.filter((p: any) => {
       let lat, lng;
       
-      // Try to get coordinates from location object first (for manual properties)
+      // Try to get coordinates from location object first
       if (p.location && typeof p.location === 'object') {
         lat = p.location.lat;
         lng = p.location.lng;
-      } 
-      // Otherwise try to get from latitude/longitude columns (for Idealista properties)
-      else if (p.latitude && p.longitude) {
-        lat = typeof p.latitude === 'string' ? parseFloat(p.latitude) : p.latitude;
-        lng = typeof p.longitude === 'string' ? parseFloat(p.longitude) : p.longitude;
       }
       
-      // If no valid coordinates, exclude the property
+      // If no valid coordinates, still include the property (will be shown in list but may not have map pin)
       if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
-        return false;
+        return true; // Include properties without coordinates
       }
       
       // Calculate distance from Duomo
       const propertyPoint = point([lng, lat]);
       const dist = distance(duomoPoint, propertyPoint, { units: 'kilometers' });
       
-      // Include only if within 8km radius
+      // Include only if within 4km radius
       return dist <= RADIUS_KM;
     });
     
-    // Helper function to derive portalSource from source/portal fields
-    const derivePortalSource = (source: string | null, portal: string | null): string | null => {
-      const sourceStr = (source || '').toLowerCase();
-      const portalStr = (portal || '').toLowerCase();
-      
-      if (sourceStr.includes('idealista') || portalStr.includes('idealista')) {
-        return 'Idealista.it';
-      }
-      if (sourceStr.includes('immobiliare') || portalStr.includes('immobiliare')) {
-        return 'Immobiliare.it';
-      }
-      if (sourceStr.includes('clickcase') || portalStr.includes('clickcase')) {
-        return 'ClickCase.it';
-      }
-      if (sourceStr.includes('casadaprivato') || portalStr.includes('casadaprivato')) {
-        return 'CasaDaPrivato.it';
-      }
-      if (sourceStr === 'manual') {
-        return 'Manuale';
-      }
-      return null;
-    };
-    
-    // Convert Property to SharedProperty format for frontend compatibility
-    return filteredByRadius.map((p: any) => ({
-      id: p.id,
-      propertyId: p.id,
-      address: p.address || '',
-      city: p.city || 'Milano',
-      province: p.province || 'MI',
-      type: p.type || 'apartment',
-      size: p.size,
-      price: p.price,
-      rooms: p.bedrooms, // ⚠️ CORREZIONE: properties usa 'bedrooms', sharedProperties usa 'rooms'
-      bathrooms: p.bathrooms,
-      description: p.description,
-      images: p.images || [],
-      location: p.location,
-      agencyName: p.ownerName || 'Privato',
-      agencyUrl: p.url || p.externalLink || '',
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-      externalId: p.externalId,
-      source: p.source || 'manual',
-      portalSource: derivePortalSource(p.source, p.portal), // Deriva da source/portal
-      classificationColor: 'green' as const,
-      isIgnored: false,
-      isFavorite: p.isFavorite || false,
-      isAcquired: false,
-      matchBuyers: false,
-      ownerName: p.ownerName,
-      ownerPhone: p.ownerPhone,
-      ownerEmail: p.ownerEmail,
-      ownerType: 'private', // Hardcoded since we're converting private properties only
-      elevator: p.elevator,
-      balconyOrTerrace: p.balconyOrTerrace,
-      parking: p.parking,
-      garden: p.garden,
-      url: p.url || p.externalLink
-    } as SharedProperty));
+    return filteredByRadius as SharedProperty[];
   }
 }
 
