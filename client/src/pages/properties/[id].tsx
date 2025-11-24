@@ -122,14 +122,19 @@ type AppointmentFormData = z.infer<typeof appointmentFormSchema>;
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id);
-  const [_, setLocation] = useLocation();
+  const [location] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [showCreateAppointmentDialog, setShowCreateAppointmentDialog] = useState(false);
   const [appointmentCommunication, setAppointmentCommunication] = useState<any>(null);
   const [selectedCommunication, setSelectedCommunication] = useState<any>(null);
   const [isCommDetailsDialogOpen, setIsCommDetailsDialogOpen] = useState(false);
-  console.log("PropertyDetailPage - ID:", id);
+  
+  // Leggi il parametro type dalla query string
+  const queryParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const isSharedProperty = queryParams.get('type') === 'shared';
+  
+  console.log("PropertyDetailPage - ID:", id, "isShared:", isSharedProperty);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -208,11 +213,15 @@ export default function PropertyDetailPage() {
   
   // Fetch property details with key tied to ID to ensure refresh on ID change
   const { data: property, isLoading: isPropertyLoading } = useQuery<PropertyWithDetails>({
-    queryKey: [`property-${id}`, id],
+    queryKey: [`property-${id}`, id, isSharedProperty],
     queryFn: async () => {
-      console.log("Caricamento proprietà ID:", id);
+      console.log("Caricamento proprietà ID:", id, "isShared:", isSharedProperty);
       
-      const response = await fetch(`/api/properties/${id}`);
+      const url = isSharedProperty 
+        ? `/api/properties/${id}?type=shared`
+        : `/api/properties/${id}`;
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }

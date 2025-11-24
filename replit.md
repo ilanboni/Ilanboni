@@ -38,9 +38,14 @@ The application features a modern full-stack architecture.
 
 ## Recent Changes (2025-11-24)
 
-**✅ BUG FIX: Private Properties List Not Displaying**
+**✅ BUG FIX: Private Properties Detail Page Showing Wrong Data**
 
 **Issue Resolved:**
+- ✅ Fixed critical dual-table ID conflict: Same IDs existed in `properties` and `sharedProperties` with different data (e.g., ID 10039: "via Gallarate" in properties vs "Viale Monte Nero" in sharedProperties)
+- ✅ Implemented query parameter routing system:
+  - Frontend passes `?type=shared` when navigating to private properties
+  - Backend endpoint checks parameter and routes to correct table
+  - Property detail page now reads and passes `?type=shared` parameter correctly
 - ✅ Fixed `getPrivateProperties()` function in `server/storage.ts` (line 3771)
   - Was searching in wrong table: `properties` instead of `sharedProperties`
   - Now correctly queries `sharedProperties` table where `ownerType = 'private'`
@@ -52,19 +57,23 @@ The application features a modern full-stack architecture.
 
 **Implementation Files Updated:**
 - `server/storage.ts` - Rewrote `getPrivateProperties()` to use correct table
-- `client/src/components/properties/AutoImportPropertyDialog.tsx` - Added minimal form UI for incomplete data
+- `server/routes.ts` - Added `?type=shared` parameter handling in GET `/api/properties/:id` endpoint
+- `client/src/pages/properties/[id].tsx` - Added query parameter reading and passing to fetch
+- `client/src/pages/properties/private/index.tsx` - Added `?type=shared` to all private property links
 
 **Testing Verified:**
 - Auto-import endpoint successfully extracts: address ✅, size ✅, description ✅, price ✅
 - Manual property import (via Immobiliare.it) successfully saves to database
 - Private properties list (`GET /api/properties/private`) now returns correct data
 - Properties without GPS coordinates now properly included in list
-- Test property: "via Odoardo Tabacchi 11" (€675,000) visible in private properties list
+- Detail page shows correct data from `sharedProperties` table when `?type=shared` parameter present ✅
+- Test property: "Viale Monte Nero 73" (€620,000) now displays correct info ✅
 
 **Key Design Decisions:**
 - Changed from geographic filtering (exclude no-coordinates) to inclusion (show all private properties)
 - Simplified function by removing unnecessary table conversions
 - Per-client ignore list remains separate and functional
+- Query parameter routing ensures clean separation between properties from different tables
 
 **Database Statistics:**
 - Total properties: 1,075 from 5 sources
