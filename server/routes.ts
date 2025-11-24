@@ -2245,11 +2245,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract description from meta tags first
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
-        if (descMatch && descMatch[1].length > 50) {
+        
+        // Check if meta description is truncated (ends with comma/punctuation without period)
+        const isTruncated = descMatch && descMatch[1].match(/[,!;:]\s*$/);
+        
+        if (descMatch && descMatch[1].length > 50 && !isTruncated) {
+          // Use meta description if it's complete (doesn't look truncated)
           parsed.description = descMatch[1].substring(0, 10000);
           console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
-          // Fallback: extract from main content divs with many pattern variations
+          // Fallback: extract from main content divs (always try if meta is truncated or missing)
           const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:[^"]*)?(?:description|desc|detail|content|testo|descrizione|body|text|articolo|annuncio)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section|article)>/i) ||
                               html.match(/<p[^>]*class="[^"]*(?:description|desc|text)[^"]*"[^>]*>([\s\S]{100,10000}?)<\/p>/i) ||
                               html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{100,10000}?)<\/p>/i) ||
@@ -2271,7 +2276,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             
             parsed.description = desc.substring(0, 10000).trim();
-            console.log("[AUTO-IMPORT] Description from content, length:", parsed.description.length);
+            console.log("[AUTO-IMPORT] Description from content fallback, length:", parsed.description.length, "truncated_meta:", isTruncated);
+          } else if (descMatch && descMatch[1].length > 50) {
+            // Last resort: use truncated meta if no fallback found
+            parsed.description = descMatch[1].substring(0, 10000);
+            console.log("[AUTO-IMPORT] Description from meta tags (truncated), length:", parsed.description.length);
           }
         }
 

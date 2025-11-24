@@ -18,11 +18,12 @@ This project is a comprehensive real estate management system designed to stream
    - Status: Applied to all 3 locations
    
 3. **Description - COMPLETE** ✅: Fixed truncation at 191 characters
-   - **KEY FIX**: Lowered meta tag threshold from 200 to 50 characters
-   - Now accepts meta descriptions >= 50 chars (previously required >= 200)
-   - Fallback: Searches body content if meta description too short
-   - Max stored: 10,000 characters (up from 5,000 in some locations)
-   - Status: Applied to all 3 locations in routes.ts
+   - **KEY FIX #1**: Lowered meta tag threshold from 200 to 50 characters
+   - **KEY FIX #2**: Added intelligent truncation detection - if meta ends with comma/punctuation, uses fallback extraction from body HTML
+   - Now accepts meta descriptions >= 50 chars AND auto-detects if truncated (ends with `,!;:`)
+   - Fallback: Searches body content if meta description appears truncated
+   - Max stored: 10,000 characters
+   - Status: Applied to all 3 locations in routes.ts (parse-url, auto-import, parse-agency)
    
 4. **Floor Field** ✅: Italian format support (primo piano, quarto piano, 3º piano, piano terra)
    - Pattern includes: primo/secondo/terzo/quarto/quinto/sesto/settimo/ottavo/nono/decimo + piano
