@@ -19,7 +19,7 @@ export function CasafariImportDialog() {
   const { data: propertiesData, isLoading: loadingProperties } = useQuery({
     queryKey: ["/api/casafari/saved-properties"],
     queryFn: async () => {
-      const response = await apiRequest("/api/casafari/saved-properties");
+      const response = await apiRequest("/api/casafari/saved-properties", { method: "GET" });
       return (await response.json()) as { success: boolean; count: number; properties: any[] };
     },
     enabled: open,

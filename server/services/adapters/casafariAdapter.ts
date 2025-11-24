@@ -148,8 +148,8 @@ export class CasafariAdapter implements PortalAdapter {
       console.log('[CASAFARI] Fetching saved properties via Apify scraper...');
       
       // Use Apify to scrape Casafari saved properties page
-      const { ApifyService } = await import('../apifyService');
-      const apifyService = ApifyService.getInstance();
+      const { getApifyService } = await import('../apifyService');
+      const apifyService = getApifyService();
       
       // Scrape Casafari saved properties
       // This would use a custom Apify actor or web scraper to get the saved list
@@ -171,8 +171,8 @@ export class CasafariAdapter implements PortalAdapter {
     try {
       console.log('[CASAFARI] Fetching user alerts via Apify scraper...');
       
-      const { ApifyService } = await import('../apifyService');
-      const apifyService = ApifyService.getInstance();
+      const { getApifyService } = await import('../apifyService');
+      const apifyService = getApifyService();
       
       // Scrape Casafari alerts/searches page
       const alerts = await this.scrapeCasafariAlerts(apifyService);
@@ -193,8 +193,8 @@ export class CasafariAdapter implements PortalAdapter {
     try {
       console.log(`[CASAFARI] Fetching properties for alert ${alertId} via Apify...`);
 
-      const { ApifyService } = await import('../apifyService');
-      const apifyService = ApifyService.getInstance();
+      const { getApifyService } = await import('../apifyService');
+      const apifyService = getApifyService();
       
       // Scrape alert properties
       const props = await this.scrapeCasafariAlertProperties(apifyService, alertId);
