@@ -502,7 +502,7 @@ export default function PrivatePropertiesPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => navigate(`/properties/${property.id}`)}
+                                  onClick={() => navigate(`/properties/${property.id}?type=shared`)}
                                 >
                                   Dettagli
                                 </Button>
@@ -607,7 +607,7 @@ export default function PrivatePropertiesPage() {
                         <Button
                           size="sm"
                           className="flex-1"
-                          onClick={() => navigate(`/properties/${property.id}`)}
+                          onClick={() => navigate(`/properties/${property.id}?type=shared`)}
                         >
                           Dettagli
                         </Button>

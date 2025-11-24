@@ -2873,9 +2873,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID immobile non valido" });
       }
       
-      const property = await storage.getPropertyWithDetails(propertyId);
+      // Controlla se il query parameter type=shared indica che è da sharedProperties
+      const isShared = req.query.type === 'shared';
       
+      if (isShared) {
+        // Cerca direttamente in sharedProperties
+        const sharedProperty = await db.select().from(sharedProperties).where(eq(sharedProperties.id, propertyId)).limit(1);
+        if (sharedProperty.length > 0) {
+          res.json(sharedProperty[0]);
+          return;
+        }
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      // Prova prima nella tabella properties
+      let property = await storage.getPropertyWithDetails(propertyId);
+      
+      // Se non lo trova in properties, cerca in sharedProperties come fallback
       if (!property) {
+        const sharedProperty = await db.select().from(sharedProperties).where(eq(sharedProperties.id, propertyId)).limit(1);
+        if (sharedProperty.length > 0) {
+          // Ritorna l'immobile da sharedProperties come SharedProperty
+          res.json(sharedProperty[0]);
+          return;
+        }
         return res.status(404).json({ error: "Immobile non trovato" });
       }
       
