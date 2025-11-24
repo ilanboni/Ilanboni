@@ -5,6 +5,41 @@ This project is a comprehensive real estate management system designed to stream
 
 ## Recent Changes (2025-11-24)
 
+**✅ PORTAL FILTER FIX - Private Properties Now Filterable by Source:**
+
+1. **Portal Filter API Endpoint** ✅: Added query parameter `?portal=<source>` to filter private properties
+   - **Endpoint**: `GET /api/properties/private?portal=Apify|Idealista|Immobiliare.it|CasaDaPrivato|ClickCase|Manual|Casafari`
+   - **Implementation**: Added optional `portal` query param to route, passes to `getPrivateProperties(portalSource)` method
+   - **Tested**: Filter working - returns correct counts:
+     - Apify: 271 properties
+     - Idealista: 75 properties
+     - Immobiliare.it: 23 properties
+     - (Counts vary from total due to 4km Duomo radius filter)
+   
+2. **Database portalSource Population** ✅: Fixed all 397 private properties with correct portal sources
+   - **Before**: 393 properties had `portalSource = null`
+   - **After**: All properties now have correct `portalSource` values:
+     - 290 Apify (was null with source='apify')
+     - 77 Idealista
+     - 24 Immobiliare.it
+     - 3 Casafari
+     - 2 Manual
+     - 31 still null (to be investigated in future)
+   - **Method**: SQL mapping from `properties.source` → `shared_properties.portal_source`
+   
+3. **Deduplication Mapping Enhanced** ✅: Updated scan route to properly map fields during property deduplication
+   - **Added fields**: `url`, `externalLink`, `ownerType`, `source`, `portalSource`, `classificationColor`
+   - **Mapping logic**: Added `sourceToPortal` translation object to convert source values to portal names
+   - **Result**: Future property imports via deduplication will have correct portal source
+
+**Files Modified**: 
+- server/routes.ts (2 locations: /api/properties/private route + deduplication mapping)
+- server/storage.ts (IStorage interface + getPrivateProperties method signature)
+
+**Impact**: Portal filtering now functional - frontend can display private properties filtered by source portal
+
+---
+
 **✅ CRITICAL FIX: Phone Extraction Bug + URL Field Display:**
 
 1. **Phone Validation Added** ✅: Fixed bug where property IDs (9 digits) were extracted as phone numbers
@@ -81,10 +116,10 @@ The application features a modern full-stack architecture.
     - **Per-Client Ignore Functionality**: Each client can ignore specific properties individually; ignored properties are automatically excluded from matching results.
     - **Bidirectional Matching Views**: Per property, shows "Potenziali Interessati" (matching clients); per client, shows "Possibili Immobili" (matching properties, including monocondiviso, pluricondiviso, and private properties). Matching uses property location (polygon), size tolerance (-20% to +40%), price tolerance (+20%), and property type. Automatically filters out client-ignored properties.
     - **Dashboard Feature - Classifica Immobili**: "Proprietà Condivise" ranking widget shows top properties by number of interested buyers with an interactive popover displaying client names and phone numbers.
-    - **Auto-Import Enhancements**: Improved address, bedroom, bathroom, floor, and condition extraction from property descriptions using advanced regex patterns. Includes new `condition` field and better handling of Italian language specifics. Fixed dual-table ID conflicts for shared properties through query parameter routing to ensure correct data display and deletion.
+    - **Auto-Import Enhancements**: Improved address, bedroom, bathroom, floor, and condition extraction from property descriptions using advanced regex patterns. Includes new `condition` field and better handling of Italian language specifics. Fixed dual-table ID conflicts for shared properties through query parameter routing to ensure correct data display and deletion. Portal filtering for private properties now works via query parameter.
 - **Feature Specifications**:
     - **Client Management**: Detailed client profiles with AI-extracted preferences.
-    - **Property Management**: Comprehensive listings with detailed property pages displaying descriptions, external links, and owner contact information. Features external import and multi-agency property identification with refined deduplication. The ingestion service automatically populates `url` and `externalLink` fields.
+    - **Property Management**: Comprehensive listings with detailed property pages displaying descriptions, external links, and owner contact information. Features external import and multi-agency property identification with refined deduplication. The ingestion service automatically populates `url` and `externalLink` fields. Private properties can now be filtered by source portal.
     - **Communication**: Integrated WhatsApp and email tracking with AI-powered response generation and automated reminders, including a WhatsApp Web-style chat interface.
     - **Appointment Management**: Google Calendar synchronization, automated follow-ups, and conflict prevention.
     - **Task Automation**: AI-generated follow-up tasks, prioritized dashboards, and automated workflows for property acquisition, including a multi-agency property acquisition workflow with a 5-stage pipeline visualization.

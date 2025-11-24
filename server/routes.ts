@@ -2162,7 +2162,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get private properties (green classification) - MUST be before /:id route
   app.get("/api/properties/private", async (req: Request, res: Response) => {
     try {
-      const properties = await storage.getPrivateProperties();
+      const portal = req.query.portal as string | undefined;
+      const properties = await storage.getPrivateProperties(portal);
       // No need to enrich - getPrivateProperties() already returns properly formatted SharedProperty objects
       res.json(properties);
     } catch (error) {
@@ -13238,6 +13239,17 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
             sourcePropertyId: p.id
           }));
           
+          // Map source from properties table to portalSource for shared_properties
+          const sourceToPortal: Record<string, string> = {
+            'casadaprivato': 'CasaDaPrivato',
+            'clickcase': 'ClickCase',
+            'idealista': 'Idealista',
+            'immobiliare': 'Immobiliare.it',
+            'casafari': 'Casafari',
+            'manual': 'Manual',
+            'apify': 'Apify'
+          };
+          
           sharedPropsToInsert.push({
             propertyId: firstProperty.id,
             address: firstProperty.address,
@@ -13256,7 +13268,13 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
             ownerName: firstProperty.ownerName || null,
             ownerPhone: firstProperty.ownerPhone || null,
             ownerEmail: firstProperty.ownerEmail || null,
-            ownerNotes: `Immobile pluricondiviso rilevato automaticamente. Match score: ${cluster.matchScore.toFixed(0)}%. Motivi: ${cluster.matchReasons.join(', ')}`
+            ownerNotes: `Immobile pluricondiviso rilevato automaticamente. Match score: ${cluster.matchScore.toFixed(0)}%. Motivi: ${cluster.matchReasons.join(', ')}`,
+            url: firstProperty.url || firstProperty.externalLink || null,
+            externalLink: firstProperty.externalLink || firstProperty.url || null,
+            ownerType: firstProperty.ownerType || 'agency',
+            source: firstProperty.source || null,
+            portalSource: sourceToPortal[firstProperty.source || 'unknown'] || firstProperty.source || null,
+            classificationColor: firstProperty.ownerType === 'private' ? 'green' : (cluster.isMultiagency ? 'yellow' : 'red')
           });
         }
       }

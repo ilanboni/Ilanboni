@@ -198,7 +198,7 @@ export interface IStorage {
   // Advanced property matching methods
   getMatchingPropertiesForClient(clientId: number): Promise<SharedProperty[]>;
   getMultiAgencyProperties(): Promise<SharedProperty[]>;
-  getPrivateProperties(): Promise<SharedProperty[]>;
+  getPrivateProperties(portalSource?: string): Promise<SharedProperty[]>;
 }
 
 // In-memory storage implementation
@@ -3768,17 +3768,22 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sharedProperties.createdAt));
   }
   
-  async getPrivateProperties(): Promise<SharedProperty[]> {
+  async getPrivateProperties(portalSource?: string): Promise<SharedProperty[]> {
     // Get private properties from sharedProperties table where ownerType = 'private'
+    const whereConditions: any[] = [
+      eq(sharedProperties.ownerType, 'private'),
+      eq(sharedProperties.isIgnored, false)
+    ];
+    
+    // Add portal filter if provided
+    if (portalSource) {
+      whereConditions.push(eq(sharedProperties.portalSource, portalSource));
+    }
+    
     const privateProps = await db
       .select()
       .from(sharedProperties)
-      .where(
-        and(
-          eq(sharedProperties.ownerType, 'private'),
-          eq(sharedProperties.isIgnored, false)
-        )
-      )
+      .where(and(...whereConditions))
       .orderBy(desc(sharedProperties.createdAt));
     
     // Filter properties within 4km radius of Duomo di Milano
