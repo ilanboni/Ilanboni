@@ -2235,8 +2235,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.ownerPhone = phoneMatch[0].trim();
         }
 
-        // Address from meta tags or common patterns
-        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([^<"]*)/i);
+        // Address from meta tags or common patterns - stop at first . or ,
+        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([^.,<"]*)/i);
         if (addressMatch) {
           parsed.address = addressMatch[0].trim().substring(0, 100);
         }
@@ -2436,8 +2436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.size = parseInt(sizeMatch[1]);
         }
 
-        // Extract address - only via+street name+number, avoid description
-        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s]+?\d+)/i);
+        // Extract address - only via+street name+number, avoid description - STOP at first . or ,
+        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s]+?\d+)(?=[.,\s]|<)/i);
         if (addressMatch) {
           parsed.address = addressMatch[0].trim().substring(0, 100);
         }
