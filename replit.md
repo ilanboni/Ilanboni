@@ -38,6 +38,39 @@ The application features a modern full-stack architecture.
 
 ## Recent Changes (2025-11-24)
 
+**✅ BUG FIX: Auto-Import Not Extracting All Data (Description, Rooms, Bathrooms, Phone)**
+
+**Issue Resolved:**
+- ✅ Fixed phone extraction regex - now removes URLs and numeric IDs from HTML before searching
+  - Prevents extracting property IDs (like 102541589) as phone numbers
+  - Added context-aware patterns: looks for "telefono", "phone", "contatti" keywords
+  - Applied fix to both private sellers and agencies
+- ✅ Enhanced bedroom extraction regex - now matches Italian variants:
+  - "camere", "camere da letto", "room", "rooms", "locali", "locale", "bedrooms"
+- ✅ Enhanced bathroom extraction regex - now matches Italian variants:
+  - "bagno", "bagni", "bathrooms", "wc", "toilets", "servizi"
+- ✅ Description extraction - now pulls from:
+  - Meta tags (name="description", property="og:description")
+  - Content divs with classes: description, desc, detail, content, testo, descrizione
+  - Fallback to section/paragraph patterns
+- ✅ All extracted data now properly returned and displayed in form
+
+**Implementation Files Updated:**
+- `server/routes.ts` - Lines 2382-2393 (bedrooms/bathrooms), Lines 2691-2703 (agency phone), Lines 2715-2738 (owner phone)
+
+**Data Now Fully Extracted:**
+- ✅ Address with street type and number
+- ✅ Price (via JSON patterns or € symbol parsing)
+- ✅ Bedrooms (with Italian locale variations)
+- ✅ Bathrooms (with Italian locale variations)
+- ✅ Description (from meta tags or content)
+- ✅ Property type (apartment, villa, loft, etc.)
+- ✅ Size/surface area in m²
+- ✅ Owner/Agency name
+- ✅ Phone number (without extracting URL IDs)
+
+---
+
 **✅ BUG FIX: Private Properties Detail Page Showing Wrong Data**
 
 **Issue Resolved:**

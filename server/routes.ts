@@ -2376,14 +2376,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.price = parseInt(priceMatch[1].replace(/\./g, ''));
         }
 
-        const bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|bedrooms|rooms)/i);
+        // Extract bedrooms with more variations
+        let bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|room|rooms|locali?|bedrooms)/i);
         if (bedroomsMatch) {
           parsed.bedrooms = parseInt(bedroomsMatch[1]);
+          console.log("[AUTO-IMPORT] Bedrooms extracted:", parsed.bedrooms);
         }
 
-        const bathroomsMatch = html.match(/(\d+)\s*(?:bagni|bathrooms|wc)/i);
+        // Extract bathrooms with more variations
+        let bathroomsMatch = html.match(/(\d+)\s*(?:bagn[io]?|bathrooms?|wc|toilets?|servizi)/i);
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
+          console.log("[AUTO-IMPORT] Bathrooms extracted:", parsed.bathrooms);
         }
 
         const sizeMatch = html.match(/(\d+)\s*(?:m²|mq|m2)/i);
@@ -2623,14 +2627,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Price extraction failed - user will need to enter manually");
         }
 
-        const bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|bedrooms|rooms)/i);
+        // Extract bedrooms with more variations
+        let bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|room|rooms|locali?|bedrooms)/i);
         if (bedroomsMatch) {
           parsed.bedrooms = parseInt(bedroomsMatch[1]);
+          console.log("[AUTO-IMPORT] Bedrooms extracted:", parsed.bedrooms);
         }
 
-        const bathroomsMatch = html.match(/(\d+)\s*(?:bagni|bathrooms|wc)/i);
+        // Extract bathrooms with more variations
+        let bathroomsMatch = html.match(/(\d+)\s*(?:bagn[io]?|bathrooms?|wc|toilets?|servizi)/i);
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
+          console.log("[AUTO-IMPORT] Bathrooms extracted:", parsed.bathrooms);
         }
 
         const sizeMatch = html.match(/(\d+)\s*(?:m²|mq|m2)/i);
@@ -2677,9 +2685,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             parsed.agencyName = agencyMatch[1].trim().substring(0, 100);
           }
 
-          const phoneMatch = html.match(/(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
+          // Extract agency phone with same protection against URL IDs
+          const htmlWithoutUrls2 = html.replace(/https?:\/\/[^\s<]+/g, '').replace(/\/\d{6,10}(?:\?|\/|$)/g, '');
+          let phoneMatch = htmlWithoutUrls2.match(/(?:telefono|phone|tel|numero|call|contatti|contact)\s*[:\s]*(\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
+          
+          // If not found with context, try a more specific pattern
+          if (!phoneMatch) {
+            phoneMatch = htmlWithoutUrls2.match(/(?:\+39|0039|0)\s?3[\s-]?[0-9]{2,3}[\s-]?[0-9]{3,4}[\s-]?[0-9]{3,4}/i);
+          }
+          
           if (phoneMatch) {
-            parsed.agencyPhone = phoneMatch[0].trim();
+            parsed.agencyPhone = phoneMatch[0].trim().replace(/[\s-]/g, '');
+            console.log("[AUTO-IMPORT] Agency phone extracted:", parsed.agencyPhone);
           }
 
           // Search for multiple agencies
@@ -2705,9 +2722,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.classificationColor = parsed.multiAgencies.length > 1 ? "yellow" : "red";
         } else {
           // Treat as private seller
-          const phoneMatch = html.match(/(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
+          // Extract phone: look for patterns like +39 3XX XXXXXX or 0039 3XX XXXXXX or 3XX XXXXXX
+          // Avoid extracting IDs from URLs by looking only in non-URL parts
+          
+          // First, remove all URLs and numeric IDs from HTML to avoid false positives
+          const htmlWithoutUrls = html.replace(/https?:\/\/[^\s<]+/g, '').replace(/\/\d{6,10}(?:\?|\/|$)/g, '');
+          
+          // Then search for phone pattern
+          let phoneMatch = htmlWithoutUrls.match(/(?:telefono|phone|cel|cellulare|contatti|contact)\s*[:\s]*(\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
+          
+          // If not found with context, try a more specific pattern (must start with +39, 0039, or 3)
+          if (!phoneMatch) {
+            phoneMatch = htmlWithoutUrls.match(/(?:\+39|0039|0)\s?3[\s-]?[0-9]{2,3}[\s-]?[0-9]{3,4}[\s-]?[0-9]{3,4}/i);
+          }
+          
+          // Last attempt: look for standalone +39 or 0039 numbers
+          if (!phoneMatch) {
+            phoneMatch = htmlWithoutUrls.match(/[\+]?39[\s-]?3[\s-]?[0-9]{2}[\s-]?[0-9]{4}[\s-]?[0-9]{4}/i);
+          }
+          
           if (phoneMatch) {
-            parsed.ownerPhone = phoneMatch[0].trim();
+            parsed.ownerPhone = phoneMatch[0].trim().replace(/[\s-]/g, '');
+            console.log("[AUTO-IMPORT] Owner phone extracted:", parsed.ownerPhone);
           }
 
           parsed.ownerType = "private";
