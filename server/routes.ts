@@ -2192,14 +2192,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerPhone: ""
       };
 
-      // IDEALISTA: Anti-bot detection prevents automated parsing
-      // Return URL only - user can edit other fields manually after import
-      if (url.includes('idealista.it')) {
-        console.log("[PARSE-URL] Idealista detected - returning URL only (anti-bot protection)");
-        return res.json(parsed); // Return with URL in parsed.url
-      }
-
-      // NORMAL FLOW for non-Idealista sites
+      // TRY TO EXTRACT DATA from all URLs (including Idealista)
+      // Fallback to Playwright scraper if initial fetch fails
       try {
         const response = await fetch(url, {
           headers: {

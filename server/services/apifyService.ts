@@ -624,57 +624,116 @@ export class ApifyService {
   }
 
   /**
-   * Scrapes a single Idealista URL to extract price using Apify
+   * Scrapes a single Idealista URL to extract price using Playwright
    * Returns just the price or 0 if extraction fails
    */
   async scrapeSingleIdealistaUrl(url: string): Promise<number> {
-    console.log(`[APIFY-SINGLE-URL] Attempting to scrape Idealista URL: ${url}`);
+    console.log(`[IDEALISTA-SCRAPER] Attempting to scrape Idealista URL: ${url}`);
     
     // Extract property ID from URL for reference
     const propertyIdMatch = url.match(/\/immobile\/(\d+)/);
     const propertyId = propertyIdMatch ? propertyIdMatch[1] : 'unknown';
     
+    const { chromium } = await import('playwright');
+    let browser;
+    
     try {
-      // Use Idealista actor to scrape single URL
-      const idealistaActorId = 'igolaizola/idealista-scraper';
-      
-      // For single URL scraping, we pass it as part of the location or use custom input
-      // The actor might not support single URLs, so we'll try to extract from the URL search capability
-      const input = {
-        // Pass URL as a search parameter (some actors support this)
-        location: url, // Some actors accept URLs
-        country: 'it',
-        maxItems: 1,
-        propertyType: 'homes',
-        operation: 'sale',
-        proxyConfiguration: {
-          useApifyProxy: true,
-          apifyProxyGroups: ['RESIDENTIAL']
+      // Launch browser
+      browser = await chromium.launch({ headless: true });
+      const page = await browser.newPage();
+
+      // Navigate to the URL
+      console.log(`[IDEALISTA-SCRAPER] Navigating to ${url}`);
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+
+      // Wait a bit for JavaScript to render
+      await page.waitForTimeout(2000);
+
+      // Try multiple selectors to find the price
+      const selectors = [
+        // Common Idealista selectors for price
+        '[data-price]',
+        '.price-tag',
+        '.big-price',
+        'h1[class*="price"]',
+        'span[class*="precio"]',
+        'span[class*="prezzo"]',
+        'h1[class*="prezzo"]',
+        // Generic patterns
+        'div[class*="price"] > span:first-child',
+        'div[class*="prezzo"] > span:first-child'
+      ];
+
+      let price = 0;
+      let found = false;
+
+      // Try each selector
+      for (const selector of selectors) {
+        try {
+          const element = await page.$(selector);
+          if (element) {
+            const text = await element.textContent();
+            if (text) {
+              console.log(`[IDEALISTA-SCRAPER] Found text with selector "${selector}": ${text}`);
+              // Extract numbers from text (handles "535.000 €" or "€535.000")
+              const numberMatch = text.match(/[\d.,]+/);
+              if (numberMatch) {
+                // Remove dots (thousand separators) and replace comma with dot for decimals
+                const cleanPrice = numberMatch[0]
+                  .replace(/\./g, '') // Remove thousand separators
+                  .replace(/,/g, '');  // Remove any remaining commas
+                const parsed = parseInt(cleanPrice);
+                if (parsed > 10000) { // Sanity check - real estate price should be > 10k
+                  price = parsed;
+                  found = true;
+                  console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price: €${price}`);
+                  break;
+                }
+              }
+            }
+          }
+        } catch (selectorError) {
+          // Try next selector
+          continue;
         }
-      };
-
-      try {
-        console.log(`[APIFY-SINGLE-URL] Running Apify actor for property ${propertyId}...`);
-        const run = await this.client.actor(idealistaActorId).call(input);
-        console.log(`[APIFY-SINGLE-URL] Actor completed: ${run.id}`);
-
-        const { items } = await this.client.dataset(run.defaultDatasetId).listItems({ limit: 10 });
-        console.log(`[APIFY-SINGLE-URL] Retrieved ${items.length} items from Apify`);
-
-        if (items.length > 0) {
-          const price = items[0].price || 0;
-          console.log(`[APIFY-SINGLE-URL] Extracted price: ${price} for property ${propertyId}`);
-          return typeof price === 'number' ? price : parseInt(String(price).replace(/[^0-9]/g, ''));
-        }
-      } catch (runError) {
-        console.log(`[APIFY-SINGLE-URL] Actor run failed, trying generic approach: ${(runError as Error).message}`);
       }
 
-      // Fallback: Try using a generic web scraper or abort gracefully
-      return 0;
+      // If selectors didn't work, try extracting from page text using regex
+      if (!found) {
+        console.log(`[IDEALISTA-SCRAPER] Selectors failed, trying text extraction...`);
+        const bodyText = await page.textContent('body');
+        if (bodyText) {
+          // Look for price pattern like "535.000 €" or "€535.000"
+          const priceMatch = bodyText.match(/[\d.,]+\s*€|€\s*[\d.,]+/);
+          if (priceMatch) {
+            const numberMatch = priceMatch[0].match(/[\d.,]+/);
+            if (numberMatch) {
+              const cleanPrice = numberMatch[0]
+                .replace(/\./g, '')
+                .replace(/,/g, '');
+              const parsed = parseInt(cleanPrice);
+              if (parsed > 10000) {
+                price = parsed;
+                found = true;
+                console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price from text: €${price}`);
+              }
+            }
+          }
+        }
+      }
+
+      if (!found) {
+        console.log(`[IDEALISTA-SCRAPER] ⚠️ Could not extract price for property ${propertyId}`);
+      }
+
+      return price;
     } catch (error) {
-      console.error(`[APIFY-SINGLE-URL] Error scraping single URL: ${(error as Error).message}`);
+      console.error(`[IDEALISTA-SCRAPER] Error scraping URL: ${(error as Error).message}`);
       return 0;
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
     }
   }
 }

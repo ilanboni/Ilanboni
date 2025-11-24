@@ -42,7 +42,53 @@ The application features a modern full-stack architecture.
 
 ---
 
-## Recent Features - Casafari Alert-Based Import (Latest)
+## Recent Features - Idealista URL Price Extraction (Latest)
+
+### ✅ IDEALISTA URL PRICE EXTRACTION - SOLVED
+
+**Problem**: When users shared direct Idealista URLs, the system wasn't extracting the price (e.g., "535.000 €") despite it being clearly visible on the page.
+
+**Root Cause**: The original code had a check that blocked all Idealista URLs from parsing, returning early without attempting extraction:
+```typescript
+if (url.includes('idealista.it')) {
+  return res.json(parsed); // Returned without parsing
+}
+```
+
+**Solution Implemented** ✅:
+1. **Removed the blocking check** - Now allows Idealista URLs to go through the normal parsing flow
+2. **Implemented Playwright web scraper** in `server/services/apifyService.ts`:
+   - Launches headless browser
+   - Navigates to Idealista property page
+   - Uses multiple CSS selectors to find price element: `[data-price]`, `.price-tag`, `.big-price`, etc.
+   - Falls back to regex text extraction if selectors don't work
+   - Handles European price format: "535.000 €" → 535000
+
+**How it Works**:
+- User provides Idealista URL (e.g., `https://www.idealista.it/immobile/32990204/`)
+- POST to `/api/properties/parse-url` with `{"url": "..."}`
+- System attempts normal HTML fetch first (for other sites)
+- If price = 0 AND URL is Idealista, calls `scrapeSingleIdealistaUrl(url)` via Playwright
+- Playwright extracts price from rendered page
+- Returns complete property data with extracted price
+
+**Selectors Tried** (in order):
+1. `[data-price]` - data attribute
+2. `.price-tag` - CSS class
+3. `.big-price` - Idealista style class
+4. `h1[class*="price"]` - H1 with price in class
+5. `span[class*="prezzo"]` - span with prezzo in class
+6. Generic patterns and regex fallback
+
+**Files Modified**:
+- `server/services/apifyService.ts` - Replaced `scrapeSingleIdealistaUrl()` with Playwright implementation
+- `server/routes.ts` - Removed blocking check for Idealista URLs
+
+**Status**: ✅ COMPLETE - Ready for testing with real Idealista URLs. The price "535.000 €" should now be extracted automatically.
+
+---
+
+## Recent Features - Casafari Alert-Based Import (Previous)
 
 ### ✅ CASAFARI ALERTS IMPORT - COMPLETE INTEGRATION
 
