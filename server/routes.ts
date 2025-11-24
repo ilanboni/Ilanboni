@@ -2481,16 +2481,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const response = await fetch(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'it-IT,it;q=0.9',
+            'Referer': 'https://www.google.com/',
+            'Connection': 'keep-alive'
           },
-          timeout: 5000
+          timeout: 8000
         });
 
-        if (!response.ok) {
-          return res.status(400).json({ error: "Impossibile accedere al link" });
+        // Try to parse even if response is not ok (403, etc.)
+        let html = "";
+        try {
+          html = await response.text();
+        } catch (e) {
+          console.log("[AUTO-IMPORT] Failed to get HTML body");
+          html = "";
         }
-
-        const html = await response.text();
+        
+        // If we couldn't get HTML, try to extract from URL at least
+        if (!html || html.length < 100) {
+          const urlId = url.match(/(\d{6,})/)?.[1];
+          if (urlId) {
+            parsed.address = `Immobile ID: ${urlId}`;
+          } else {
+            parsed.address = url.split('/').filter(p => p).pop() || "Immobile dal link";
+          }
+          // Still continue to return preview with minimal data
+        } else {
         
         // Extract all common patterns
         const priceMatch = html.match(/[€€][\s]*([0-9.]+)/i);
@@ -2596,7 +2614,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.ownerType = "private";
           parsed.classificationColor = "green";
         }
-
+        
+        } // Close else block for html parsing
       } catch (parseError) {
         console.log("[AUTO-IMPORT] Parsing error (non-critical):", parseError);
         // Don't fail - just return with whatever we could parse
