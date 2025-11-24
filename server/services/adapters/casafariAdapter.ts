@@ -141,19 +141,26 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Fetch user's saved properties from Casafari using Apify scraping
+   * Fetch user's saved properties from Casafari using Apify scraping + auth
    */
   async getSavedProperties(): Promise<PropertyListing[]> {
     try {
-      console.log('[CASAFARI] Fetching saved properties via Apify scraper...');
+      console.log('[CASAFARI] Fetching saved properties via Apify scraper with authentication...');
       
-      // Use Apify to scrape Casafari saved properties page
       const { getApifyService } = await import('../apifyService');
       const apifyService = getApifyService();
       
-      // Scrape Casafari saved properties
-      // This would use a custom Apify actor or web scraper to get the saved list
-      const savedProps = await this.scrapeCasafariSavedProperties(apifyService);
+      // Get auth cookies first
+      const cookies = await this.loginAndGetCookies();
+      if (!cookies || cookies.length === 0) {
+        console.warn('[CASAFARI] Failed to authenticate, cannot scrape saved properties');
+        return [];
+      }
+      
+      console.log(`[CASAFARI] Successfully authenticated, got ${cookies.length} cookies`);
+      
+      // Scrape Casafari saved properties with authentication
+      const savedProps = await this.scrapeCasafariSavedProperties(apifyService, cookies);
       
       console.log(`[CASAFARI] Found ${savedProps.length} saved properties via Apify`);
       return savedProps.slice(0, 100);
@@ -165,17 +172,24 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Fetch user's saved searches/alerts from Casafari using Apify
+   * Fetch user's saved searches/alerts from Casafari using Apify with auth
    */
   async getAlerts(): Promise<any[]> {
     try {
-      console.log('[CASAFARI] Fetching user alerts via Apify scraper...');
+      console.log('[CASAFARI] Fetching user alerts via Apify scraper with authentication...');
       
       const { getApifyService } = await import('../apifyService');
       const apifyService = getApifyService();
       
-      // Scrape Casafari alerts/searches page
-      const alerts = await this.scrapeCasafariAlerts(apifyService);
+      // Get auth cookies first
+      const cookies = await this.loginAndGetCookies();
+      if (!cookies || cookies.length === 0) {
+        console.warn('[CASAFARI] Failed to authenticate, cannot scrape alerts');
+        return [];
+      }
+      
+      // Scrape Casafari alerts/searches page with authentication
+      const alerts = await this.scrapeCasafariAlerts(apifyService, cookies);
       
       console.log(`[CASAFARI] Found ${alerts.length} alerts via Apify`);
       return alerts.slice(0, 50);
@@ -187,17 +201,24 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Get properties matching an alert/saved search using Apify
+   * Get properties matching an alert/saved search using Apify with auth
    */
   async getAlertProperties(alertId: number): Promise<PropertyListing[]> {
     try {
-      console.log(`[CASAFARI] Fetching properties for alert ${alertId} via Apify...`);
+      console.log(`[CASAFARI] Fetching properties for alert ${alertId} via Apify with authentication...`);
 
       const { getApifyService } = await import('../apifyService');
       const apifyService = getApifyService();
       
-      // Scrape alert properties
-      const props = await this.scrapeCasafariAlertProperties(apifyService, alertId);
+      // Get auth cookies first
+      const cookies = await this.loginAndGetCookies();
+      if (!cookies || cookies.length === 0) {
+        console.warn('[CASAFARI] Failed to authenticate, cannot scrape alert properties');
+        return [];
+      }
+      
+      // Scrape alert properties with authentication
+      const props = await this.scrapeCasafariAlertProperties(apifyService, alertId, cookies);
       
       console.log(`[CASAFARI] Found ${props.length} properties for alert via Apify`);
       return props.slice(0, 100);
@@ -211,10 +232,10 @@ export class CasafariAdapter implements PortalAdapter {
   /**
    * Scrape Casafari saved properties using Apify web scraper
    */
-  private async scrapeCasafariSavedProperties(apifyService: any): Promise<PropertyListing[]> {
+  private async scrapeCasafariSavedProperties(apifyService: any, cookies: string): Promise<PropertyListing[]> {
     try {
       // Use a generic web scraper or Cheerio-based Apify actor
-      // This scrapes the user's saved properties list from Casafari
+      // This scrapes the user's saved properties list from Casafari with authentication
       const input = {
         startUrls: [
           { url: 'https://app.casafari.com/my-properties' }
@@ -224,25 +245,34 @@ export class CasafariAdapter implements PortalAdapter {
             const { $ } = context;
             const properties = [];
             
-            // Parse saved properties from the page
-            $('[data-test="saved-property"]').each((i, elem) => {
-              const address = $(elem).find('[data-test="address"]').text();
-              const price = $(elem).find('[data-test="price"]').text();
-              const size = $(elem).find('[data-test="size"]').text();
-              const bedrooms = $(elem).find('[data-test="bedrooms"]').text();
-              const url = $(elem).find('a').attr('href');
+            // Parse saved properties from the page - try multiple selectors
+            const propertyElements = $('[class*="property"]').length > 0 
+              ? $('[class*="property"]') 
+              : $('[class*="item"]');
+            
+            propertyElements.each((i, elem) => {
+              const $elem = $(elem);
+              const address = $elem.find('[class*="address"]').text() || $elem.find('h3').text() || $elem.text().split('\\n')[0];
+              const priceText = $elem.find('[class*="price"]').text() || '';
+              const sizeText = $elem.find('[class*="size"]').text() || '';
+              const bedroomsText = $elem.find('[class*="bed"]').text() || '';
+              const url = $elem.find('a').attr('href') || '';
               
-              if (address) {
-                properties.push({ address, price, size, bedrooms, url });
+              if (address && address.trim().length > 5) {
+                properties.push({ address: address.trim(), price: priceText, size: sizeText, bedrooms: bedroomsText, url });
               }
             });
             
+            console.log('Scraped properties count:', properties.length);
             return properties;
           }
         `,
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL']
+        },
+        headerParameters: {
+          'Cookie': '${cookies}'
         },
         maxRequestsPerCrawl: 1,
         customData: {
@@ -252,7 +282,7 @@ export class CasafariAdapter implements PortalAdapter {
 
       // Run with timeout to avoid hanging
       const results = await Promise.race([
-        this.runApifyWebScraper(apifyService, input),
+        this.runApifyWebScraper(apifyService, input, cookies),
         new Promise<PropertyListing[]>((_, reject) => 
           setTimeout(() => reject(new Error('Apify scraper timeout')), 60000)
         )
@@ -266,9 +296,9 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Scrape Casafari alerts/saved searches using Apify
+   * Scrape Casafari alerts/saved searches using Apify with auth
    */
-  private async scrapeCasafariAlerts(apifyService: any): Promise<any[]> {
+  private async scrapeCasafariAlerts(apifyService: any, cookies: string): Promise<any[]> {
     try {
       const input = {
         startUrls: [
@@ -279,14 +309,20 @@ export class CasafariAdapter implements PortalAdapter {
             const { $ } = context;
             const alerts = [];
             
-            $('[data-test="saved-search"]').each((i, elem) => {
-              const name = $(elem).find('[data-test="name"]').text();
-              const criteria = $(elem).find('[data-test="criteria"]').text();
-              const propertyCount = $(elem).find('[data-test="count"]').text();
-              const url = $(elem).find('a').attr('href');
+            // Try multiple selectors for saved searches
+            const searchElements = $('[class*="search"]').length > 0 
+              ? $('[class*="search"]') 
+              : $('[class*="alert"]');
+            
+            searchElements.each((i, elem) => {
+              const $elem = $(elem);
+              const name = $elem.find('[class*="name"]').text() || $elem.find('h3').text() || '';
+              const criteria = $elem.find('[class*="criteria"]').text() || '';
+              const propertyCount = $elem.find('[class*="count"]').text() || '';
+              const url = $elem.find('a').attr('href') || '';
               
-              if (name) {
-                alerts.push({ name, criteria, propertyCount, url, id: i });
+              if (name && name.trim().length > 0) {
+                alerts.push({ name: name.trim(), criteria, propertyCount, url, id: i });
               }
             });
             
@@ -297,11 +333,14 @@ export class CasafariAdapter implements PortalAdapter {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL']
         },
+        headerParameters: {
+          'Cookie': '${cookies}'
+        },
         maxRequestsPerCrawl: 1
       };
 
       const results = await Promise.race([
-        this.runApifyWebScraper(apifyService, input),
+        this.runApifyWebScraper(apifyService, input, cookies),
         new Promise<any[]>((_, reject) => 
           setTimeout(() => reject(new Error('Apify alerts scraper timeout')), 60000)
         )
@@ -315,9 +354,9 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Scrape properties for a specific alert using Apify
+   * Scrape properties for a specific alert using Apify with auth
    */
-  private async scrapeCasafariAlertProperties(apifyService: any, alertId: number): Promise<PropertyListing[]> {
+  private async scrapeCasafariAlertProperties(apifyService: any, alertId: number, cookies: string): Promise<PropertyListing[]> {
     try {
       const input = {
         startUrls: [
@@ -328,15 +367,21 @@ export class CasafariAdapter implements PortalAdapter {
             const { $ } = context;
             const properties = [];
             
-            $('[data-test="property-card"]').each((i, elem) => {
-              const address = $(elem).find('[data-test="address"]').text();
-              const price = $(elem).find('[data-test="price"]').text();
-              const size = $(elem).find('[data-test="size"]').text();
-              const bedrooms = $(elem).find('[data-test="bedrooms"]').text();
-              const url = $(elem).find('a').attr('href');
+            // Try multiple selectors for property cards
+            const propertyElements = $('[class*="property"]').length > 0 
+              ? $('[class*="property"]') 
+              : $('[class*="card"]');
+            
+            propertyElements.each((i, elem) => {
+              const $elem = $(elem);
+              const address = $elem.find('[class*="address"]').text() || $elem.find('h3').text() || '';
+              const priceText = $elem.find('[class*="price"]').text() || '';
+              const sizeText = $elem.find('[class*="size"]').text() || '';
+              const bedroomsText = $elem.find('[class*="bed"]').text() || '';
+              const url = $elem.find('a').attr('href') || '';
               
-              if (address) {
-                properties.push({ address, price, size, bedrooms, url });
+              if (address && address.trim().length > 5) {
+                properties.push({ address: address.trim(), price: priceText, size: sizeText, bedrooms: bedroomsText, url });
               }
             });
             
@@ -347,11 +392,14 @@ export class CasafariAdapter implements PortalAdapter {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL']
         },
+        headerParameters: {
+          'Cookie': '${cookies}'
+        },
         maxRequestsPerCrawl: 1
       };
 
       const results = await Promise.race([
-        this.runApifyWebScraper(apifyService, input),
+        this.runApifyWebScraper(apifyService, input, cookies),
         new Promise<PropertyListing[]>((_, reject) => 
           setTimeout(() => reject(new Error('Apify alert properties scraper timeout')), 60000)
         )
@@ -365,12 +413,20 @@ export class CasafariAdapter implements PortalAdapter {
   }
 
   /**
-   * Generic Apify web scraper runner
+   * Generic Apify web scraper runner with cookies support
    */
-  private async runApifyWebScraper(apifyService: any, input: any): Promise<PropertyListing[]> {
+  private async runApifyWebScraper(apifyService: any, input: any, cookies?: string): Promise<PropertyListing[]> {
     try {
       // Use a generic web scraper actor or Cheerio actor
-      const actorId = 'apify/web-scraper'; // or any web scraper actor
+      const actorId = 'apify/web-scraper';
+      
+      // Add cookies to input if provided
+      if (cookies) {
+        input.headerParameters = input.headerParameters || {};
+        input.headerParameters['Cookie'] = cookies;
+      }
+      
+      console.log(`[CASAFARI-SCRAPER] Calling Apify with cookies: ${cookies ? 'YES' : 'NO'}`);
       
       const run = await apifyService.client.actor(actorId).call(input);
       const { items } = await apifyService.client.dataset(run.defaultDatasetId).listItems({ limit: 100 });
@@ -378,9 +434,9 @@ export class CasafariAdapter implements PortalAdapter {
       console.log(`[CASAFARI-SCRAPER] Scraped ${items.length} items from Casafari`);
       
       return items
-        .filter((item: any) => item.address)
+        .filter((item: any) => item.address && item.address.trim().length > 0)
         .map((item: any) => ({
-          externalId: `casafari-${item.url}`,
+          externalId: `casafari-${item.url || item.address}`,
           title: item.address,
           address: item.address,
           city: 'Milano',
@@ -388,13 +444,69 @@ export class CasafariAdapter implements PortalAdapter {
           size: parseInt(item.size?.replace(/\D/g, '')) || 0,
           bedrooms: parseInt(item.bedrooms?.replace(/\D/g, '')) || undefined,
           type: 'apartment',
-          url: item.url,
-          description: `${item.address} - ${item.price} - ${item.size}`,
+          url: item.url || '',
+          description: `${item.address}${item.price ? ' - ' + item.price : ''}${item.size ? ' - ' + item.size : ''}`,
           ownerType: 'agency' as const
         }));
     } catch (error) {
       console.error('[CASAFARI-SCRAPER] Web scraper error:', error);
       return [];
+    }
+  }
+
+  /**
+   * Login to Casafari and get authentication cookies using Playwright
+   */
+  private async loginAndGetCookies(): Promise<string> {
+    try {
+      console.log('[CASAFARI-LOGIN] Attempting login with Playwright...');
+      
+      const { chromium } = await import('playwright');
+      const browser = await chromium.launch({ headless: true });
+      const page = await browser.newPage();
+
+      try {
+        const username = process.env.CASAFARI_USERNAME;
+        const password = process.env.CASAFARI_PASSWORD;
+
+        if (!username || !password) {
+          throw new Error('CASAFARI_USERNAME or CASAFARI_PASSWORD not configured');
+        }
+
+        // Navigate to login page
+        console.log('[CASAFARI-LOGIN] Navigating to login page...');
+        await page.goto('https://app.casafari.com/login', { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+        // Fill login form
+        console.log('[CASAFARI-LOGIN] Filling login credentials...');
+        await page.fill('input[type="email"], input[name="email"], input[placeholder*="email" i]', username);
+        await page.fill('input[type="password"], input[name="password"], input[placeholder*="password" i]', password);
+
+        // Click login button
+        console.log('[CASAFARI-LOGIN] Clicking login button...');
+        await page.click('button[type="submit"], button:has-text("Login"), button:has-text("Accedi")');
+
+        // Wait for navigation - wait until we're on the main app page
+        console.log('[CASAFARI-LOGIN] Waiting for login to complete...');
+        await page.waitForURL((url: URL) => !url.toString().includes('/login'), { timeout: 30000 });
+
+        // Extract cookies
+        const cookies = await page.context().cookies();
+        const cookieString = cookies
+          .map((c: any) => `${c.name}=${c.value}`)
+          .join('; ');
+
+        console.log(`[CASAFARI-LOGIN] ✅ Login successful! Extracted ${cookies.length} cookies`);
+        console.log(`[CASAFARI-LOGIN] Cookie names: ${cookies.map((c: any) => c.name).join(', ')}`);
+
+        return cookieString;
+      } finally {
+        await page.close();
+        await browser.close();
+      }
+    } catch (error) {
+      console.error('[CASAFARI-LOGIN] Login failed:', error instanceof Error ? error.message : error);
+      return '';
     }
   }
 
