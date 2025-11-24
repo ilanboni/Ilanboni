@@ -149,7 +149,7 @@ export function AutoImportPropertyDialog() {
     setTimeout(() => handleReset(), 300);
   };
 
-  const isFormComplete = editedData?.address && editedData?.price > 0;
+  const isFormComplete = editedData?.address;
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
@@ -229,12 +229,12 @@ export function AutoImportPropertyDialog() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Prezzo (EUR) *</Label>
+              <Label className="text-sm font-semibold">Prezzo (EUR)</Label>
               <div className="flex gap-2">
                 <Input
                   type="number"
                   value={editedData?.price || ""}
-                  onChange={(e) => setEditedData({ ...editedData, price: Number(e.target.value) })}
+                  onChange={(e) => setEditedData({ ...editedData, price: Number(e.target.value) || 0 })}
                   placeholder="450000"
                   className="flex-1"
                   data-testid="input-quick-price"
@@ -242,7 +242,7 @@ export function AutoImportPropertyDialog() {
                 />
                 <Button
                   onClick={() => saveMutation.mutate(undefined)}
-                  disabled={saveMutation.isPending || !editedData?.price}
+                  disabled={saveMutation.isPending}
                   className="gap-2 bg-green-600 hover:bg-green-700"
                   data-testid="button-save-quick"
                 >
@@ -301,11 +301,11 @@ export function AutoImportPropertyDialog() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Prezzo *</Label>
+                  <Label className="text-xs">Prezzo</Label>
                   <Input
                     type="number"
                     value={editedData?.price || ""}
-                    onChange={(e) => setEditedData({ ...editedData, price: Number(e.target.value) })}
+                    onChange={(e) => setEditedData({ ...editedData, price: Number(e.target.value) || 0 })}
                     placeholder="0"
                     data-testid="input-price"
                   />
