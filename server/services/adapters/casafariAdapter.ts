@@ -509,7 +509,6 @@ export class CasafariAdapter implements PortalAdapter {
       console.log('[CASAFARI-LOGIN] Attempting login with Playwright...');
       
       const { chromium } = await import('playwright');
-      // Launch with SSL certificate error ignoring
       const browser = await chromium.launch({ 
         headless: true,
         args: [
@@ -529,40 +528,186 @@ export class CasafariAdapter implements PortalAdapter {
           throw new Error('CASAFARI_USERNAME or CASAFARI_PASSWORD not configured');
         }
 
-        // Navigate to login page (ignore SSL errors for Casafari)
+        // Set viewport to standard size (not needed for Playwright headless)
+        
+        // Navigate to login page
         console.log('[CASAFARI-LOGIN] Navigating to login page...');
-        await page.goto('https://app.casafari.com/login', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(err => {
-          console.log('[CASAFARI-LOGIN] Ignoring SSL error:', err.message);
-          return null;
+        await page.goto('https://app.casafari.com/login', { waitUntil: 'networkidle2', timeout: 30000 }).catch(err => {
+          console.log('[CASAFARI-LOGIN] Ignoring SSL error during navigation:', err.message);
         });
         
-        // Check if we're on a login page by waiting for input fields
-        const emailInput = await page.$('input[type="email"], input[name="email"], input[placeholder*="email" i]').catch(() => null);
-        if (!emailInput) {
-          console.log('[CASAFARI-LOGIN] Email input not found, trying alternative approach');
+        // CRITICAL: Wait for form elements to be rendered by React/Vue
+        // This is essential because Casafari uses React and renders forms dynamically
+        console.log('[CASAFARI-LOGIN] Waiting for form elements to render...');
+        try {
+          await page.waitForFunction(
+            () => {
+              const inputs = document.querySelectorAll('input');
+              const buttons = document.querySelectorAll('button');
+              return inputs.length > 0 || buttons.length > 0;
+            },
+            { timeout: 30000 }  // Increased timeout for Puppeteer
+          );
+          console.log('[CASAFARI-LOGIN] ✅ Form elements found! React/Vue rendering complete.');
+        } catch (err) {
+          console.log('[CASAFARI-LOGIN] ⚠️ Timeout waiting for form elements, taking screenshot and continuing anyway...');
+          await page.screenshot({ path: '/tmp/casafari-login-timeout.png' }).catch(() => {});
         }
-
-        // Fill login form
+        
+        // Extra wait for dynamic content
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Get page content for debugging
+        const url = page.url();
+        console.log('[CASAFARI-LOGIN] Current URL:', url);
+        
+        // Use page.evaluate to check DOM state from JavaScript context
+        const domStatus = await page.evaluate(() => {
+          const inputs = document.querySelectorAll('input');
+          const buttons = document.querySelectorAll('button');
+          const allDivs = document.querySelectorAll('div');
+          
+          // Get all input details
+          const inputDetails = Array.from(inputs).slice(0, 10).map((input: any, i) => ({
+            index: i,
+            type: (input as HTMLInputElement).getAttribute('type'),
+            name: (input as HTMLInputElement).getAttribute('name'),
+            id: (input as HTMLInputElement).getAttribute('id'),
+            placeholder: (input as HTMLInputElement).getAttribute('placeholder'),
+            visible: (input as HTMLElement).offsetParent !== null
+          }));
+          
+          return {
+            totalInputs: inputs.length,
+            totalButtons: buttons.length,
+            totalDivs: allDivs.length,
+            inputDetails,
+            bodyHeight: document.body.offsetHeight,
+            bodyWidth: document.body.offsetWidth
+          };
+        });
+        
+        console.log(`[CASAFARI-LOGIN] DOM Status:`, JSON.stringify(domStatus, null, 2));
+        
+        // Try to find input elements with Puppeteer
+        const allInputs = await page.$$('input');
+        console.log(`[CASAFARI-LOGIN] Puppeteer found ${allInputs.length} input elements on the page`);
+        
+        // Also check for any interactive elements
+        const allButtons = await page.$$('button');
+        console.log(`[CASAFARI-LOGIN] Puppeteer found ${allButtons.length} button elements on the page`);
+        
+        // Check for iframes
+        const iframes = await page.$$('iframe');
+        console.log(`[CASAFARI-LOGIN] Found ${iframes.length} iframe elements on the page`);
+        
+        // Get HTML of forms for debugging
+        const formElement = await page.$('form');
+        if (formElement) {
+          const formContent = await page.evaluate((el: any) => el.innerHTML, formElement);
+          console.log('[CASAFARI-LOGIN] Form HTML (first 1000 chars):', (formContent as string).substring(0, 1000));
+        } else {
+          console.log('[CASAFARI-LOGIN] No form element found on page');
+        }
+        
+        // If no inputs found with Puppeteer, try different strategies
+        if (allInputs.length === 0 && domStatus.totalInputs === 0) {
+          console.log('[CASAFARI-LOGIN] No inputs found in page! Taking screenshot for manual inspection...');
+          await page.screenshot({ path: '/tmp/casafari-login-no-inputs.png' }).catch(() => {});
+          throw new Error(`Casafari login page has no input elements. Page loaded but forms not rendered. DOM inputs: ${domStatus.totalInputs}, buttons: ${domStatus.totalButtons}, divs: ${domStatus.totalDivs}`);
+        }
+        
+        // Find email input - try multiple strategies
+        let emailSelector: string | null = null;
+        
+        // Strategy 1: type="email"
+        let emailInput = await page.$('input[type="email"]');
+        if (emailInput) emailSelector = 'input[type="email"]';
+        
+        // Strategy 2: name contains "email"
+        if (!emailSelector) {
+          emailInput = await page.$('input[name*="email" i]');
+          if (emailInput) emailSelector = 'input[name*="email" i]';
+        }
+        
+        // Strategy 3: placeholder contains "email"
+        if (!emailSelector) {
+          emailInput = await page.$('input[placeholder*="email" i]');
+          if (emailInput) emailSelector = 'input[placeholder*="email" i]';
+        }
+        
+        // Strategy 4: first input
+        if (!emailSelector && allInputs.length > 0) {
+          emailSelector = 'input:first-of-type';
+        }
+        
+        if (!emailSelector) {
+          console.log('[CASAFARI-LOGIN] Could not find email input element');
+          await page.screenshot({ path: '/tmp/casafari-login-debug.png' }).catch(() => {});
+          throw new Error('Email input not found after trying multiple selectors');
+        }
+        
+        console.log(`[CASAFARI-LOGIN] Found email input with selector: ${emailSelector}`);
+        
+        // Fill login form using Puppeteer type() method
         console.log('[CASAFARI-LOGIN] Filling login credentials...');
-        await page.fill('input[type="email"], input[name="email"], input[placeholder*="email" i]', username);
-        await page.fill('input[type="password"], input[name="password"], input[placeholder*="password" i]', password);
-
-        // Click login button
+        await page.type(emailSelector, username, { delay: 50 });
+        
+        // Find and fill password input
+        let passwordSelector = 'input[type="password"]';
+        const passwordInput = await page.$(passwordSelector);
+        if (!passwordInput) {
+          passwordSelector = 'input[name*="password" i]';
+          if (!await page.$(passwordSelector)) {
+            throw new Error('Password input not found');
+          }
+        }
+        
+        await page.type(passwordSelector, password, { delay: 50 });
+        
+        // Click login button - try multiple selectors
         console.log('[CASAFARI-LOGIN] Clicking login button...');
-        await page.click('button[type="submit"], button:has-text("Login"), button:has-text("Accedi")');
+        let loginClicked = false;
+        const selectors = ['button[type="submit"]', 'button:contains("Accedi")', 'button:contains("Login")'];
+        
+        for (const selector of selectors) {
+          try {
+            await page.click(selector);
+            loginClicked = true;
+            console.log(`[CASAFARI-LOGIN] Clicked login button with selector: ${selector}`);
+            break;
+          } catch (e) {
+            // Continue to next selector
+          }
+        }
+        
+        if (!loginClicked && allButtons.length > 0) {
+          // Try clicking first button as fallback
+          console.log(`[CASAFARI-LOGIN] Clicking first button as fallback...`);
+          await page.click('button');
+        }
 
         // Wait for navigation - wait until we're on the main app page
         console.log('[CASAFARI-LOGIN] Waiting for login to complete...');
-        await page.waitForURL((url: URL) => !url.toString().includes('/login'), { timeout: 30000 });
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {
+          console.log('[CASAFARI-LOGIN] Navigation timeout, continuing anyway...');
+        });
+        
+        // Verify we're no longer on login page
+        const finalUrl = page.url();
+        if (finalUrl.includes('/login')) {
+          console.log('[CASAFARI-LOGIN] ⚠️ Still on login page, login may have failed');
+        }
 
-        // Extract cookies
-        const cookies = await page.context().cookies();
+        // Extract cookies using Puppeteer
+        const cookies = await page.cookies();
         const cookieString = cookies
           .map((c: any) => `${c.name}=${c.value}`)
           .join('; ');
 
-        console.log(`[CASAFARI-LOGIN] ✅ Login successful! Extracted ${cookies.length} cookies`);
+        console.log(`[CASAFARI-LOGIN] ✅ Login completed! Extracted ${cookies.length} cookies`);
         console.log(`[CASAFARI-LOGIN] Cookie names: ${cookies.map((c: any) => c.name).join(', ')}`);
+        console.log(`[CASAFARI-LOGIN] Final URL: ${finalUrl}`);
 
         return cookieString;
       } finally {

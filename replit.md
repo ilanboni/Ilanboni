@@ -89,4 +89,24 @@ The application features a modern full-stack architecture.
 - `client/src/components/properties/CasafariImportDialog.tsx` - Updated UI for alert grouping
 - `server/routes.ts` - Fixed endpoint to return proper structure
 
-**Status**: ✅ COMPLETE - Fully functional with Playwright auth + Apify scraping. Ready to test with real Casafari account that has alerts.
+**Status**: ⚠️ PARTIAL - Backend infrastructure complete, but login limited by Casafari's anti-bot detection.
+
+**Known Limitation - Casafari Anti-Bot Protection**:
+- Casafari employs strict anti-bot detection that prevents standard Playwright/Puppeteer automation
+- The login form fails to render (0 input elements found) even though page loads (49KB HTML received)
+- Tested solutions:
+  - ✅ Playwright with `waitForFunction()` and multiple retry strategies
+  - ✅ Puppeteer with stealth plugin (puppeteer-extra-plugin-stealth)
+  - ❌ Both fail - forms never render, likely due to JavaScript-based anti-bot detection
+- Current behavior: Endpoint returns empty response (no error, but no properties either)
+
+**Recommended Workarounds**:
+1. **Manual Cookie Auth**: Users provide cookies directly from browser
+2. **Casafari API**: Investigate if Casafari exposes official API for alerts
+3. **Scheduled Export**: User manually exports alerts as CSV from Casafari, backend imports
+4. **Browser Extension**: Create Chrome extension that periodically exports alerts
+
+**Files**:
+- `server/services/adapters/casafariAdapter.ts` - Full implementation with login + scraping
+- `client/src/components/properties/CasafariImportDialog.tsx` - UI ready for data
+- Endpoint `GET /api/casafari/saved-properties` - Returns correct structure, no data due to auth limitation
