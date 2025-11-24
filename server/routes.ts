@@ -2245,21 +2245,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract description from meta tags first
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
-        if (descMatch) {
+        if (descMatch && descMatch[1].length > 200) {
           parsed.description = descMatch[1].substring(0, 10000);
           console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
-          // Fallback: extract from main content divs (common patterns) - increased to capture more
-          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
-                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{50,10000}?)<\/p>/i) ||
-                              html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+          // Fallback: extract from main content divs with many pattern variations
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:[^"]*)?(?:description|desc|detail|content|testo|descrizione|body|text|articolo|annuncio)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section|article)>/i) ||
+                              html.match(/<p[^>]*class="[^"]*(?:description|desc|text)[^"]*"[^>]*>([\s\S]{100,10000}?)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{100,10000}?)<\/p>/i) ||
+                              html.match(/<article[^>]*>([\s\S]{100,10000}?)<\/article>/i) ||
+                              html.match(/<div[^>]*>[\s\S]{200,10000}?(?:immobile|appartamento|proprietà|caratteristiche|features)[^<]*[\s\S]{200,10000}?<\/div>/i) ||
+                              // Last resort: find any long text block (300+ chars) in body
+                              html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          
           if (contentMatch) {
             // Remove HTML tags for cleaner text
             let desc = contentMatch[1].trim();
             desc = desc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-            parsed.description = desc.substring(0, 10000);
-            console.log("[AUTO-IMPORT] Description from content div, length:", parsed.description.length);
+            
+            // If we got the full body, find the longest paragraph-like text
+            if (desc.length > 5000) {
+              // Split by common delimiters and find longest coherent section
+              const sections = desc.split(/(?:contatti|agente|telefo|whatsapp|email|visita|annunci|vedi anche|related)/i);
+              desc = sections[0]; // Take first/main section
+            }
+            
+            parsed.description = desc.substring(0, 10000).trim();
+            console.log("[AUTO-IMPORT] Description from content, length:", parsed.description.length);
           }
         }
 
@@ -2408,8 +2420,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Extract bathrooms - look for "1 bagno" or "2 bagni"
-        let bathroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)(?:\s|<|\.|\,)/i);
+        // Extract bathrooms - look for "1 bagno" or "2 bagni" - MORE FLEXIBLE, support various patterns
+        let bathroomsMatch = html.match(/(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)/i);
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
           console.log("[AUTO-IMPORT] Bathrooms extracted:", parsed.bathrooms);
@@ -2445,21 +2457,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract description from meta tags first
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
-        if (descMatch) {
+        if (descMatch && descMatch[1].length > 200) {
           parsed.description = descMatch[1].substring(0, 10000);
           console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
-          // Fallback: extract from main content divs (common patterns) - increased to capture more
-          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
-                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{50,10000}?)<\/p>/i) ||
-                              html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+          // Fallback: extract from main content divs with many pattern variations
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:[^"]*)?(?:description|desc|detail|content|testo|descrizione|body|text|articolo|annuncio)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section|article)>/i) ||
+                              html.match(/<p[^>]*class="[^"]*(?:description|desc|text)[^"]*"[^>]*>([\s\S]{100,10000}?)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{100,10000}?)<\/p>/i) ||
+                              html.match(/<article[^>]*>([\s\S]{100,10000}?)<\/article>/i) ||
+                              html.match(/<div[^>]*>[\s\S]{200,10000}?(?:immobile|appartamento|proprietà|caratteristiche|features)[^<]*[\s\S]{200,10000}?<\/div>/i) ||
+                              // Last resort: find any long text block (300+ chars) in body
+                              html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          
           if (contentMatch) {
             // Remove HTML tags for cleaner text
             let desc = contentMatch[1].trim();
             desc = desc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-            parsed.description = desc.substring(0, 10000);
-            console.log("[AUTO-IMPORT] Description from content div, length:", parsed.description.length);
+            
+            // If we got the full body, find the longest paragraph-like text
+            if (desc.length > 5000) {
+              // Split by common delimiters and find longest coherent section
+              const sections = desc.split(/(?:contatti|agente|telefo|whatsapp|email|visita|annunci|vedi anche|related)/i);
+              desc = sections[0]; // Take first/main section
+            }
+            
+            parsed.description = desc.substring(0, 10000).trim();
+            console.log("[AUTO-IMPORT] Description from content, length:", parsed.description.length);
           }
         }
 
@@ -2697,8 +2721,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Extract bathrooms - look for "1 bagno" or "2 bagni"
-        let bathroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)(?:\s|<|\.|\,)/i);
+        // Extract bathrooms - look for "1 bagno" or "2 bagni" - MORE FLEXIBLE, support various patterns
+        let bathroomsMatch = html.match(/(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)/i);
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
           console.log("[AUTO-IMPORT] Bathrooms extracted:", parsed.bathrooms);
@@ -2741,21 +2765,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract description from meta tags first
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
-        if (descMatch) {
+        if (descMatch && descMatch[1].length > 200) {
           parsed.description = descMatch[1].substring(0, 10000);
           console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
-          // Fallback: extract from main content divs (common patterns) - increased to capture more
-          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
-                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{50,10000}?)<\/p>/i) ||
-                              html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+          // Fallback: extract from main content divs with many pattern variations
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:[^"]*)?(?:description|desc|detail|content|testo|descrizione|body|text|articolo|annuncio)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section|article)>/i) ||
+                              html.match(/<p[^>]*class="[^"]*(?:description|desc|text)[^"]*"[^>]*>([\s\S]{100,10000}?)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{100,10000}?)<\/p>/i) ||
+                              html.match(/<article[^>]*>([\s\S]{100,10000}?)<\/article>/i) ||
+                              html.match(/<div[^>]*>[\s\S]{200,10000}?(?:immobile|appartamento|proprietà|caratteristiche|features)[^<]*[\s\S]{200,10000}?<\/div>/i) ||
+                              // Last resort: find any long text block (300+ chars) in body
+                              html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+          
           if (contentMatch) {
             // Remove HTML tags for cleaner text
             let desc = contentMatch[1].trim();
             desc = desc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-            parsed.description = desc.substring(0, 10000);
-            console.log("[AUTO-IMPORT] Description from content div, length:", parsed.description.length);
+            
+            // If we got the full body, find the longest paragraph-like text
+            if (desc.length > 5000) {
+              // Split by common delimiters and find longest coherent section
+              const sections = desc.split(/(?:contatti|agente|telefo|whatsapp|email|visita|annunci|vedi anche|related)/i);
+              desc = sections[0]; // Take first/main section
+            }
+            
+            parsed.description = desc.substring(0, 10000).trim();
+            console.log("[AUTO-IMPORT] Description from content, length:", parsed.description.length);
           }
         }
 
