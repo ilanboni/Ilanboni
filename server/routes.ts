@@ -2313,6 +2313,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
+        // Try Playwright to get phone number from rendered DOM (often hidden behind click)
+        if (!parsed.ownerPhone) {
+          console.log("[PARSE-URL] Phone not found in HTML, trying Playwright to extract from rendered page...");
+          try {
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext({
+              userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            });
+            const page = await context.newPage();
+            page.setDefaultTimeout(15000);
+
+            try {
+              await page.goto(url, { waitUntil: 'networkidle' });
+              console.log("[PARSE-URL] Playwright loaded page for phone extraction...");
+              
+              // Try to click on "Visualizza telefono" button if it exists
+              try {
+                const phoneButton = await page.locator('button:has-text("Visualizza telefono"), button:has-text("Show phone")').first();
+                if (phoneButton) {
+                  await phoneButton.click().catch(() => null);
+                  await page.waitForTimeout(1000); // Wait for content to load
+                }
+              } catch (e) {
+                console.log("[PARSE-URL] No 'Visualizza telefono' button found or click failed");
+              }
+              
+              // Try to click on any element with phone-related selectors
+              try {
+                const phoneElements = await page.locator('[data-testid*="phone"], [class*="phone-button"], button[title*="telefono"]').first();
+                if (phoneElements) {
+                  await phoneElements.click().catch(() => null);
+                  await page.waitForTimeout(500);
+                }
+              } catch (e) {
+                console.log("[PARSE-URL] No additional phone button found");
+              }
+              
+              // Get all text from the page
+              const bodyText = await page.textContent('body');
+              if (bodyText) {
+                // Look for ALL phone patterns in rendered content (get first valid one)
+                const phoneRegex = /(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/g;
+                const phoneMatches = bodyText.match(phoneRegex);
+                
+                if (phoneMatches && phoneMatches.length > 0) {
+                  for (const phoneMatch of phoneMatches) {
+                    const cleanPhone = phoneMatch.trim().replace(/[\s-]/g, '');
+                    const isValidPhone = /^3\d{9}$/.test(cleanPhone) || 
+                                        /^0\d{8,9}$/.test(cleanPhone) || 
+                                        /^\+?39\d{8,9}$/.test(cleanPhone);
+                    
+                    if (isValidPhone) {
+                      parsed.ownerPhone = cleanPhone;
+                      console.log("[PARSE-URL] Phone extracted via Playwright:", cleanPhone);
+                      break; // Use first valid phone found
+                    }
+                  }
+                }
+              }
+            } finally {
+              await context.close();
+              await browser.close();
+            }
+          } catch (playwrightError) {
+            console.log("[PARSE-URL] Playwright phone extraction failed:", (playwrightError as Error).message);
+          }
+        }
+
         // If description is truncated (meta tag), try Playwright to get full description from rendered DOM
         if (parsed.description && parsed.description.length < 300 && (parsed.description.endsWith(',') || parsed.description.endsWith('.'))) {
           console.log("[AUTO-IMPORT] Description is truncated (" + parsed.description.length + " chars), trying Playwright...");
