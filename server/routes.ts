@@ -2445,6 +2445,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Return empty data - let user fill in manually
       }
 
+      // If address still not found, try to extract from description
+      if (!parsed.address && parsed.description) {
+        const descAddressMatch = parsed.description.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s\d]+?)(?=[,\.]|$)/i);
+        if (descAddressMatch) {
+          parsed.address = descAddressMatch[0].trim().substring(0, 100);
+          console.log("[PARSE-URL] Address extracted from description:", parsed.address);
+        }
+      }
+
       res.json(parsed);
     } catch (error) {
       console.error("[POST /api/properties/parse-url]", error);
@@ -2649,6 +2658,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             parsed.description = desc.substring(0, 10000).trim();
             console.log("[AUTO-IMPORT] Description from content, length:", parsed.description.length);
+          }
+        }
+
+        // If address still not found, try to extract from description
+        if (!parsed.address && parsed.description) {
+          const descAddressMatch = parsed.description.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s\d]+?)(?=[,\.]|$)/i);
+          if (descAddressMatch) {
+            parsed.address = descAddressMatch[0].trim().substring(0, 100);
+            console.log("[PARSE-AGENCY-URL] Address extracted from description:", parsed.address);
           }
         }
 
@@ -2929,12 +2947,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Address extracted (clean):", parsed.address);
         }
 
-        // If address still not found, use URL hostname as fallback
-        if (!parsed.address) {
-          const urlHostMatch = new URL(url).hostname.replace(/www\./, '');
-          parsed.address = urlHostMatch || "Milano (estratta da URL)";
-        }
-
         // Extract description from meta tags first
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
@@ -2966,6 +2978,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             parsed.description = desc.substring(0, 10000).trim();
             console.log("[AUTO-IMPORT] Description from content, length:", parsed.description.length);
           }
+        }
+
+        // If address still not found, try to extract from description (now that it's been extracted)
+        if (!parsed.address && parsed.description) {
+          const descAddressMatch = parsed.description.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s\d]+?)(?=[,\.]|$)/i);
+          if (descAddressMatch) {
+            parsed.address = descAddressMatch[0].trim().substring(0, 100);
+            console.log("[AUTO-IMPORT] Address extracted from description:", parsed.address);
+          }
+        }
+
+        // If address still not found, use URL hostname as fallback
+        if (!parsed.address) {
+          const urlHostMatch = new URL(url).hostname.replace(/www\./, '');
+          parsed.address = urlHostMatch || "Milano (estratta da URL)";
         }
 
         // Detect if it's a private seller or agency
