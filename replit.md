@@ -5,15 +5,22 @@ This project is a comprehensive real estate management system designed to stream
 
 ## Recent Changes (2025-11-24)
 
-**✅ IDEALISTA URL PARSING - Simplified Approach Due to Anti-Bot Protection:**
+**✅ IDEALISTA URL PARSING - Auto-Import Without Price Requirement:**
 
-1. **Pragmatic Solution** ✅: Idealista implements strong anti-bot detection that prevents automated parsing
-   - **Issue**: Playwright and fetch-based parsing both fail due to Idealista's JavaScript rendering and bot detection
-   - **Solution**: Return URL only - user can manually edit other fields after import
-   - **Implementation**: Simplified Idealista handler returns the URL (saved in `externalLink`) with empty fields
-   - **Behavior**: When importing an Idealista URL, users get the link immediately and can fill in address, price, bedrooms, bathrooms, size, and description manually
-   - **Files Changed**: server/routes.ts (simplified /api/properties/parse-url Idealista handling)
-   - **Impact**: Idealista imports work reliably - link is saved and users have a quick manual edit flow
+1. **Fully Automated Solution** ✅: Idealista imports now work without user interaction for price entry
+   - **Issue**: Idealista has strong anti-bot detection preventing automated data extraction
+   - **Solution 1 (Backend)**: Simplified Idealista handler returns URL + empty fields, but allows fetch to extract price when possible
+   - **Solution 2 (Frontend)**: Auto-save when address is available, even if price = 0
+   - **Implementation**: 
+     - Backend (/api/properties/auto-import): Uses fetch + Playwright fallback to extract all available data
+     - Frontend (AutoImportPropertyDialog): Auto-saves to database when indirizzo is present, regardless of price
+   - **Behavior**: When importing an Idealista URL:
+     1. System extracts what it can (address, bedrooms, bathrooms, size, description)
+     2. If address found → **saves immediately** without asking for price
+     3. If address not found → shows minimal form asking for address only
+     4. Users can edit the property after import to add/modify price
+   - **Files Changed**: server/routes.ts, client/src/components/properties/AutoImportPropertyDialog.tsx
+   - **Impact**: Zero-friction Idealista imports - properties are saved automatically as long as address is available
 
 ---
 

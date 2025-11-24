@@ -39,10 +39,14 @@ export function AutoImportPropertyDialog() {
         // Altrimenti mostra il form per completare
         setExtracted(true);
         setPreview(result.preview);
-        setEditedData({
-          url: result.data.url || url, // Copia automaticamente l'URL di input se non estratto dal backend
+        
+        // Se abbiamo un indirizzo ma non il prezzo, salva automaticamente con 0
+        const shouldAutoSave = result.data.address && !result.data.price;
+        
+        const newEditedData = {
+          url: result.data.url || url,
           address: result.data.address,
-          price: result.data.price,
+          price: result.data.price || 0,
           type: result.data.type,
           bedrooms: result.data.bedrooms,
           bathrooms: result.data.bathrooms,
@@ -54,7 +58,16 @@ export function AutoImportPropertyDialog() {
           agencyName: result.data.agencyName,
           agencyPhone: result.data.agencyPhone,
           description: result.data.description
-        });
+        };
+        
+        setEditedData(newEditedData);
+        
+        // Se abbiamo indirizzo ma non prezzo, salva direttamente
+        if (shouldAutoSave) {
+          setTimeout(() => {
+            saveMutation.mutate({ data: newEditedData });
+          }, 300);
+        }
       }
     },
     onError: (error: any) => {
