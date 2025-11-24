@@ -2192,6 +2192,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerPhone: ""
       };
 
+      // SPECIAL HANDLING: Idealista requires Playwright from the start (JavaScript rendering)
+      if (url.includes('idealista.it')) {
+        console.log("[PARSE-URL] 🔴 Idealista detected, using Playwright directly...");
+        try {
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          });
+          const page = await context.newPage();
+          page.setDefaultTimeout(20000);
+
+          try {
+            await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+            console.log("[PARSE-URL] Idealista page loaded via Playwright");
+            
+            const pageText = await page.textContent('body');
+            if (!pageText) {
+              console.log("[PARSE-URL] Idealista page text is empty");
+              await context.close();
+              await browser.close();
+              return res.json(parsed);
+            }
+
+            // Extract from rendered content using Playwright - Idealista specific patterns
+            // Split text into lines for analysis
+            const lines = pageText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            
+            // Address pattern: Find line with via/viale/corso + digits (postal code)
+            for (const line of lines) {
+              if (/(?:via|viale|corso|piazza|largo).+\d{5}/i.test(line)) {
+                parsed.address = line.substring(0, 100);
+                console.log("[PARSE-URL] Idealista address:", parsed.address);
+                break;
+              }
+            }
+            // Fallback: get first line with via/viale/corso
+            if (!parsed.address) {
+              const addressMatch = pageText.match(/(?:via|viale|corso|piazza|largo)[^\n]*(?:\d{5})?/i);
+              if (addressMatch) {
+                parsed.address = addressMatch[0].trim().substring(0, 100);
+                console.log("[PARSE-URL] Idealista address (fallback):", parsed.address);
+              }
+            }
+
+            // Price - look for € followed by numbers
+            const priceMatch = pageText.match(/€\s*([\d.]+)(?:\s|€)?/);
+            if (priceMatch) {
+              parsed.price = parseInt(priceMatch[1].replace(/\./g, '')) || 0;
+              if (parsed.price < 1000) parsed.price = 0; // Sanity check - probably not a real price
+              console.log("[PARSE-URL] Idealista price:", parsed.price);
+            }
+
+            // Bedrooms - word "camera" or "locale" or specific patterns
+            const bedroomsMatch = pageText.match(/(\d+)[\s]*(?:camera da letto|camere|locali|rooms|bedrooms|letto)/i);
+            if (bedroomsMatch) {
+              parsed.bedrooms = parseInt(bedroomsMatch[1]);
+              console.log("[PARSE-URL] Idealista bedrooms:", parsed.bedrooms);
+            } else {
+              // Check for monolocale, bilocale patterns
+              if (/monolocale/i.test(pageText)) parsed.bedrooms = 1;
+              else if (/bilocale/i.test(pageText)) parsed.bedrooms = 2;
+              else if (/trilocale/i.test(pageText)) parsed.bedrooms = 3;
+              if (parsed.bedrooms) console.log("[PARSE-URL] Idealista bedrooms (pattern):", parsed.bedrooms);
+            }
+
+            // Bathrooms
+            const bathroomsMatch = pageText.match(/(\d+)\s*(?:bagno|bagni|bathroom|bathrooms|wc|toilette|servizi)/i);
+            if (bathroomsMatch) {
+              parsed.bathrooms = parseInt(bathroomsMatch[1]);
+              console.log("[PARSE-URL] Idealista bathrooms:", parsed.bathrooms);
+            }
+
+            // Size - m², mq, m2
+            const sizeMatch = pageText.match(/(\d+)\s*(?:m²|mq|m2)\b/i);
+            if (sizeMatch) {
+              parsed.size = parseInt(sizeMatch[1]);
+              if (parsed.size < 20) parsed.size = undefined; // Sanity check
+              console.log("[PARSE-URL] Idealista size:", parsed.size);
+            }
+
+            // Description - extract large text blocks
+            const bodyContent = pageText.substring(0, 20000); // Limit to first 20k chars to avoid huge extracts
+            const descMatch = bodyContent.match(/([\s\S]{150,1000}?)[.,]?\s+(?:contatti|agente|telefono|email|visualizza|venditore|proprietario)/i) ||
+                              bodyContent.match(/([\s\S]{300,2000}?)(?:\n\n|\n[a-z]{5,}:|contatti|agente|telefono)/i);
+            if (descMatch && descMatch[1]) {
+              parsed.description = descMatch[1].trim().substring(0, 5000);
+              console.log("[PARSE-URL] Idealista description length:", parsed.description.length);
+            }
+
+            // Phone
+            const phoneRegex = /(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/g;
+            const phoneMatches = pageText.match(phoneRegex);
+            if (phoneMatches && phoneMatches.length > 0) {
+              for (const phoneMatch of phoneMatches) {
+                const cleanPhone = phoneMatch.trim().replace(/[\s-]/g, '');
+                const isValidPhone = /^3\d{9}$/.test(cleanPhone) || 
+                                    /^0\d{8,9}$/.test(cleanPhone) || 
+                                    /^\+?39\d{8,9}$/.test(cleanPhone);
+                
+                if (isValidPhone) {
+                  parsed.ownerPhone = cleanPhone;
+                  console.log("[PARSE-URL] Idealista phone:", cleanPhone);
+                  break;
+                }
+              }
+            }
+
+          } finally {
+            await context.close();
+            await browser.close();
+          }
+
+          return res.json(parsed);
+        } catch (idealError) {
+          console.error("[PARSE-URL] Idealista Playwright parsing failed:", (idealError as Error).message);
+          return res.json(parsed); // Return partial data on failure
+        }
+      }
+
+      // NORMAL FLOW for non-Idealista sites
       try {
         const response = await fetch(url, {
           headers: {
