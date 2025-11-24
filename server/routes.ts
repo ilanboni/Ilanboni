@@ -2436,6 +2436,221 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto-import property: Extract everything and save directly
+  app.post("/api/properties/auto-import", async (req: Request, res: Response) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL non fornito" });
+      }
+
+      const parsed: any = {
+        address: "",
+        price: 0,
+        bedrooms: undefined,
+        bathrooms: undefined,
+        size: undefined,
+        description: "",
+        agencyName: "",
+        agencyPhone: "",
+        agencyUrl: "",
+        ownerPhone: "",
+        ownerName: "",
+        multiAgencies: [],
+        type: "apartment"
+      };
+
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          },
+          timeout: 5000
+        });
+
+        if (!response.ok) {
+          return res.status(400).json({ error: "Impossibile accedere al link" });
+        }
+
+        const html = await response.text();
+        
+        // Extract all common patterns
+        const priceMatch = html.match(/[€€][\s]*([0-9.]+)/i);
+        if (priceMatch) {
+          parsed.price = parseInt(priceMatch[1].replace(/\./g, ''));
+        }
+
+        if (parsed.price === 0) {
+          return res.status(400).json({ error: "Impossibile estrarre il prezzo dal link" });
+        }
+
+        const bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|bedrooms|rooms)/i);
+        if (bedroomsMatch) {
+          parsed.bedrooms = parseInt(bedroomsMatch[1]);
+        }
+
+        const bathroomsMatch = html.match(/(\d+)\s*(?:bagni|bathrooms|wc)/i);
+        if (bathroomsMatch) {
+          parsed.bathrooms = parseInt(bathroomsMatch[1]);
+        }
+
+        const sizeMatch = html.match(/(\d+)\s*(?:m²|mq|m2)/i);
+        if (sizeMatch) {
+          parsed.size = parseInt(sizeMatch[1]);
+        }
+
+        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([^<"]*)/i);
+        if (addressMatch) {
+          parsed.address = addressMatch[0].trim().substring(0, 100);
+        }
+
+        if (!parsed.address) {
+          return res.status(400).json({ error: "Impossibile estrarre l'indirizzo dal link" });
+        }
+
+        const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
+                         html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
+        if (descMatch) {
+          parsed.description = descMatch[1].substring(0, 500);
+        }
+
+        // Detect if it's a private seller or agency
+        const isPrivate = html.match(/(?:privato|proprietario|proprietaria|da privato)/i) !== null;
+        const hasAgency = html.match(/(?:agenzia|agenzia immobiliare|ufficio|studio|partners?)/i) !== null;
+
+        // Extract agency info if it looks like agency listing
+        if (hasAgency && !isPrivate) {
+          const agencyMatch = html.match(/(?:agenzia|agenzia immobiliare|ufficio|studio|partners?)\s+([^<"\n]*)/i) ||
+                             html.match(/<h1[^>]*>([^<]*agenzia[^<]*)<\/h1>/i) ||
+                             html.match(/<title>([^<]*)<\/title>/i);
+          if (agencyMatch) {
+            parsed.agencyName = agencyMatch[1].trim().substring(0, 100);
+          }
+
+          const phoneMatch = html.match(/(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
+          if (phoneMatch) {
+            parsed.agencyPhone = phoneMatch[0].trim();
+          }
+
+          // Search for multiple agencies
+          const agencyPattern = /(?:agenzia|agente|mediatore|proptech)\s+([^<"]+)/gi;
+          const agencies: Set<string> = new Set();
+          let match;
+          while ((match = agencyPattern.exec(html)) !== null) {
+            const name = match[1].trim().substring(0, 100);
+            if (name.length > 2 && name.length < 100 && !name.includes('</')) {
+              agencies.add(name);
+            }
+          }
+
+          if (agencies.size > 0) {
+            parsed.multiAgencies = Array.from(agencies).slice(0, 5).map((name: string) => ({
+              name,
+              url: undefined,
+              phone: undefined
+            }));
+          }
+
+          parsed.ownerType = "agency";
+          parsed.classificationColor = parsed.multiAgencies.length > 1 ? "yellow" : "red";
+        } else {
+          // Treat as private seller
+          const phoneMatch = html.match(/(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
+          if (phoneMatch) {
+            parsed.ownerPhone = phoneMatch[0].trim();
+          }
+
+          parsed.ownerType = "private";
+          parsed.classificationColor = "green";
+        }
+
+      } catch (parseError) {
+        console.log("[AUTO-IMPORT] Parsing error:", parseError);
+        return res.status(400).json({ error: "Errore durante il parsing del link" });
+      }
+
+      // Now save to database
+      try {
+        // Create as shared property
+        const sharedProperty = await storage.createSharedProperty({
+          address: parsed.address,
+          city: "Milano",
+          type: parsed.type,
+          price: Number(parsed.price),
+          size: parsed.size ? Number(parsed.size) : undefined,
+          floor: undefined,
+          ownerName: parsed.ownerName,
+          ownerPhone: parsed.ownerPhone,
+          ownerEmail: undefined,
+          agencyName: parsed.agencyName,
+          agencyUrl: parsed.agencyUrl || url,
+          url,
+          ownerType: parsed.ownerType,
+          portalSource: "Manual",
+          externalId: `auto-import-${Date.now()}`,
+          classificationColor: parsed.classificationColor,
+          matchBuyers: true
+        });
+
+        // Create regular property for geocoding
+        if (parsed.description) {
+          try {
+            await storage.createProperty({
+              address: parsed.address,
+              city: "Milano",
+              type: parsed.type,
+              price: Number(parsed.price),
+              bedrooms: parsed.bedrooms ? Number(parsed.bedrooms) : undefined,
+              bathrooms: parsed.bathrooms ? Number(parsed.bathrooms) : undefined,
+              size: parsed.size ? Number(parsed.size) : undefined,
+              floor: undefined,
+              description: parsed.description,
+              ownerName: parsed.ownerName,
+              ownerPhone: parsed.ownerPhone,
+              ownerEmail: undefined,
+              ownerType: parsed.ownerType,
+              source: "manual",
+              url,
+              externalId: `auto-import-${Date.now()}`,
+              geocodeStatus: "pending",
+              agencyName: parsed.agencyName,
+              agencyUrl: parsed.agencyUrl || url
+            });
+          } catch (err) {
+            console.log("[AUTO-IMPORT] Property creation skipped:", err);
+          }
+        }
+
+        res.status(201).json({
+          success: true,
+          property: sharedProperty,
+          preview: {
+            title: `${parsed.address} - €${parsed.price.toLocaleString('it-IT')}`,
+            classification: parsed.classificationColor === "green" ? "🟢 Privato" : parsed.classificationColor === "yellow" ? "🟡 Multi-Agenzia" : "🔴 Singola Agenzia",
+            details: {
+              indirizzo: parsed.address,
+              prezzo: `€${parsed.price.toLocaleString('it-IT')}`,
+              tipo: parsed.type,
+              camere: parsed.bedrooms,
+              bagni: parsed.bathrooms,
+              superficie: parsed.size ? `${parsed.size}m²` : "N/A",
+              agenzia: parsed.agencyName || parsed.ownerName || "Non specificato",
+              telefono: parsed.agencyPhone || parsed.ownerPhone || "N/A"
+            },
+            multiAgencies: parsed.multiAgencies?.length || 0
+          }
+        });
+      } catch (err) {
+        console.error("[AUTO-IMPORT] Save error:", err);
+        return res.status(500).json({ error: "Errore durante il salvataggio della proprietà" });
+      }
+
+    } catch (error) {
+      console.error("[POST /api/properties/auto-import]", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Errore durante l'import automatico" });
+    }
+  });
+
   // Add manual agency property with multi-agency detection
   app.post("/api/properties/manual-agency", async (req: Request, res: Response) => {
     try {

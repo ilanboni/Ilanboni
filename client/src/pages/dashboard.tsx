@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Helmet } from "react-helmet";
+import { AutoImportPropertyDialog } from "@/components/properties/AutoImportPropertyDialog";
 import { AddManualPrivatePropertyDialog } from "@/components/properties/AddManualPrivatePropertyDialog";
 import { AddManualAgencyPropertyDialog } from "@/components/properties/AddManualAgencyPropertyDialog";
 
@@ -46,6 +47,7 @@ export default function Dashboard() {
               <span className="text-sm">Nuovo Cliente</span>
             </Button>
           </Link>
+          <AutoImportPropertyDialog />
           <Link href="/properties/new" className="flex-1 sm:flex-none">
             <Button variant="secondary" className="w-full tap-target">
               <i className="fas fa-plus mr-1.5 sm:mr-2 text-sm"></i>
