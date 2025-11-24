@@ -2509,7 +2509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Using Playwright to bypass bot protection...");
           try {
             const browser = await chromium.launch({ headless: true });
-            const context = await browser.createContext({
+            const context = await browser.newContext({
               userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             });
             const page = await context.newPage();
@@ -2531,6 +2531,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Still continue with fallback
           }
         }
+
+        // If price still not found after HTTP fetch, try Playwright to get rendered DOM
+        if (parsed.price === 0 && html && html.length > 100) {
+          console.log("[AUTO-IMPORT] Price not found in HTML, trying Playwright to read DOM...");
+          try {
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext({
+              userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            });
+            const page = await context.newPage();
+            page.setDefaultTimeout(15000);
+
+            try {
+              await page.goto(url, { waitUntil: 'networkidle' });
+              console.log("[AUTO-IMPORT] Using Playwright to extract price from rendered DOM...");
+              
+              // Try multiple ways to find price in DOM
+              // Method 1: Look for price in common class names
+              let priceText = await page.locator('[class*="price"], [data-price]').first().textContent().catch(() => null);
+              
+              // Method 2: Look in spans/divs with price pattern
+              if (!priceText) {
+                priceText = await page.locator('text=/€|EUR/i').first().textContent().catch(() => null);
+              }
+
+              // Method 3: Get all text and search for price pattern
+              if (!priceText) {
+                const bodyText = await page.textContent('body');
+                if (bodyText) {
+                  // Look for pattern like "€ 450.000" or "450.000 €"
+                  const match = bodyText.match(/€\s*([0-9,.]+)|([0-9,.]+)\s*€/i);
+                  if (match) {
+                    priceText = match[1] || match[2];
+                  }
+                }
+              }
+
+              if (priceText) {
+                // Parse the price (handle Italian format: 450.000)
+                const priceStr = priceText.replace(/[€EUR\s]/g, '').replace(/\./g, '').replace(/,/g, '.');
+                parsed.price = parseInt(parseFloat(priceStr));
+                console.log("[AUTO-IMPORT] Price extracted from Playwright DOM:", parsed.price);
+              }
+            } finally {
+              await context.close();
+              await browser.close();
+            }
+          } catch (playwrightError) {
+            console.log("[AUTO-IMPORT] Playwright price extraction failed:", (playwrightError as Error).message);
+          }
+        }
         
         // If we still don't have HTML, try to extract minimal data from URL
         if (!html || html.length < 100) {
@@ -2545,17 +2596,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
         
         // Extract all common patterns
-        const priceMatch = html.match(/[€€][\s]*([0-9.]+)/i);
+        // First, try to extract from JSON data (Idealista embeds price in JSON)
+        let priceMatch = html.match(/"price"\s*:\s*(\d+)/i) || 
+                        html.match(/"prezzo"\s*:\s*(\d+)/i) ||
+                        html.match(/priceAmount['"]*:\s*(\d+)/i);
+        
         if (priceMatch) {
-          parsed.price = parseInt(priceMatch[1].replace(/\./g, ''));
+          parsed.price = parseInt(priceMatch[1]);
+          console.log("[AUTO-IMPORT] Price found in JSON:", parsed.price);
         }
 
-        // If price not found, try to extract from URL patterns (e.g. "100000" in URL)
+        // If not found in JSON, try € symbol pattern (handles Italian format: 450.000)
         if (parsed.price === 0) {
-          const urlPriceMatch = url.match(/(\d{5,})/);
-          if (urlPriceMatch) {
-            parsed.price = parseInt(urlPriceMatch[1]);
+          priceMatch = html.match(/[€€]\s*([0-9,.]+)/i);
+          if (priceMatch) {
+            // Parse Italian format: 450.000 -> 450000
+            const priceStr = priceMatch[1].replace(/\./g, '').replace(/,/g, '.');
+            parsed.price = parseInt(parseFloat(priceStr));
+            console.log("[AUTO-IMPORT] Price found with € symbol:", parsed.price);
           }
+        }
+
+        // Last resort: extract from URL (but be careful - URL contains property ID which can look like a price)
+        // Skip this for now to avoid false positives - let the user manually enter price if not found
+        if (parsed.price === 0) {
+          console.log("[AUTO-IMPORT] Price extraction failed - user will need to enter manually");
         }
 
         const bedroomsMatch = html.match(/(\d+)\s*(?:camere|camere da letto|bedrooms|rooms)/i);
