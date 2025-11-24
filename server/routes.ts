@@ -3192,13 +3192,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID immobile non valido" });
       }
       
-      const property = await storage.getProperty(propertyId);
-      if (!property) {
-        return res.status(404).json({ error: "Immobile non trovato" });
-      }
+      // Controlla se il query parameter type=shared indica che è da sharedProperties
+      const isShared = req.query.type === 'shared';
       
-      await storage.deleteProperty(propertyId);
-      res.status(204).send();
+      if (isShared) {
+        // Elimina da sharedProperties
+        const success = await storage.deleteSharedProperty(propertyId);
+        if (!success) {
+          return res.status(404).json({ error: "Immobile non trovato" });
+        }
+        res.status(204).send();
+      } else {
+        // Elimina da properties
+        const property = await storage.getProperty(propertyId);
+        if (!property) {
+          return res.status(404).json({ error: "Immobile non trovato" });
+        }
+        
+        await storage.deleteProperty(propertyId);
+        res.status(204).send();
+      }
     } catch (error) {
       console.error(`[DELETE /api/properties/${req.params.id}]`, error);
       res.status(500).json({ error: "Errore durante l'eliminazione dell'immobile" });

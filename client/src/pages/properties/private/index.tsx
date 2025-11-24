@@ -167,7 +167,7 @@ export default function PrivatePropertiesPage() {
   // Mutation for deleting property
   const deleteMutation = useMutation({
     mutationFn: async (propertyId: number) => {
-      return await apiRequest(`/api/properties/${propertyId}`, {
+      return await apiRequest(`/api/properties/${propertyId}?type=shared`, {
         method: 'DELETE'
       });
     },

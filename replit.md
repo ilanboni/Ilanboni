@@ -38,6 +38,26 @@ The application features a modern full-stack architecture.
 
 ## Recent Changes (2025-11-24)
 
+**✅ BUG FIX: Delete Endpoint Not Recognizing Shared Properties**
+
+**Issue Resolved:**
+- ✅ Fixed DELETE endpoint to handle `?type=shared` query parameter
+  - Same issue as GET: dual-table ID conflict required routing logic
+  - Frontend now passes `?type=shared` when deleting private properties
+  - Backend DELETE endpoint checks parameter and routes to correct table
+  - Private properties can now be deleted without 404 errors
+
+**Implementation Files Updated:**
+- `server/routes.ts` - Lines 3191-3222 (added parameter check in DELETE endpoint)
+- `client/src/pages/properties/private/index.tsx` - Line 173 (added `?type=shared` to DELETE URL)
+
+**Testing:**
+- ✅ Delete private property (Viale Monte Nero) - returns 204 (success) instead of 404
+- ✅ Delete shared property - still works correctly
+- ✅ Cache invalidation updates list after deletion
+
+---
+
 **✅ BUG FIX: Auto-Import Not Extracting All Data (Description, Rooms, Bathrooms, Phone)**
 
 **Issue Resolved:**
