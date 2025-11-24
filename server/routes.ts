@@ -2245,7 +2245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract description from meta tags first
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
-        if (descMatch && descMatch[1].length > 200) {
+        if (descMatch && descMatch[1].length > 50) {
           parsed.description = descMatch[1].substring(0, 10000);
           console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
@@ -2457,7 +2457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract description from meta tags first
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
-        if (descMatch && descMatch[1].length > 200) {
+        if (descMatch && descMatch[1].length > 50) {
           parsed.description = descMatch[1].substring(0, 10000);
           console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
@@ -2765,7 +2765,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract description from meta tags first
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
-        if (descMatch && descMatch[1].length > 200) {
+        if (descMatch && descMatch[1].length > 50) {
           parsed.description = descMatch[1].substring(0, 10000);
           console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {

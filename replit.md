@@ -5,23 +5,36 @@ This project is a comprehensive real estate management system designed to stream
 
 ## Recent Changes (2025-11-24)
 
-**✅ COMPLETE AUTO-IMPORT FIX - All 5 Bugs Fixed:**
+**✅ COMPLETE AUTO-IMPORT FIX - All 5 Bugs Fixed + Description Threshold Lowered:**
 
-1. **Address Title - CLEAN**: Shows ONLY street address (e.g., "Viale Monte Nero 73")
-   - Backend: Regex stops extraction at first `.` or `,`
+1. **Address Title - CLEAN** ✅: Shows ONLY street address (e.g., "Viale Monte Nero 73")
+   - Backend: Regex stops extraction at first `.` or `,` using lookahead `(?=[.,\s]|<)`
    - Frontend: `renderAddress()` double-extracts clean address from DB field
+   - Status: Applied to 3 locations (parse-url, auto-import, parse-agency)
    
-2. **Bedrooms/Bathrooms - CORRECT**: Now handles numeric ("2 camere") AND Italian types ("bilocale"→2)
+2. **Bedrooms/Bathrooms - CORRECT** ✅: Now handles numeric ("2 camere") AND Italian types ("bilocale"→2)
    - Type mapping: monolocale=1, bilocale=2, trilocale=3, quadrilocale=4, quindilocale=5
-   - Fallback logic: tries numeric first, then Italian type names
+   - Bathroom regex: Flexible pattern `/(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)/i`
+   - Status: Applied to all 3 locations
    
-3. **Description - COMPLETE**: Full text preserved (increased from 800 to 5000 characters)
+3. **Description - COMPLETE** ✅: Fixed truncation at 191 characters
+   - **KEY FIX**: Lowered meta tag threshold from 200 to 50 characters
+   - Now accepts meta descriptions >= 50 chars (previously required >= 200)
+   - Fallback: Searches body content if meta description too short
+   - Max stored: 10,000 characters (up from 5,000 in some locations)
+   - Status: Applied to all 3 locations in routes.ts
    
-4. **Floor Field**: Italian format support (primo piano, quarto piano, 3º piano, piano terra)
+4. **Floor Field** ✅: Italian format support (primo piano, quarto piano, 3º piano, piano terra)
+   - Pattern includes: primo/secondo/terzo/quarto/quinto/sesto/settimo/ottavo/nono/decimo + piano
+   - Status: Applied to all 3 locations
    
-5. **Condition/Stato Field**: Auto-extracts property status (Ristrutturato, Ottimo stato, Buone condizioni, etc.)
+5. **Condition/Stato Field** ✅: Auto-extracts property status (Ristrutturato, Ottimo stato, Buone condizioni, etc.)
+   - Pattern: `/(completamente\s+ristrutturato|ristrutturato|ottimo\s+stato|buone?\s+condizioni?|da\s+ristrutturare|da\s+rinovare|nuovo|abitabile)/i`
+   - Status: Applied to all 3 locations
 
-**Files Changed**: server/routes.ts (2 locations), client/src/pages/properties/[id].tsx, client/src/components/properties/AutoImportPropertyDialog.tsx
+6. **URL Field** ✅: External listing URL included in auto-import response
+
+**Files Changed**: server/routes.ts (3 locations: parse-url, auto-import, parse-agency endpoints)
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
