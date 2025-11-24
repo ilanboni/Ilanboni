@@ -3070,6 +3070,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
+        // If price STILL not found AND it's an Idealista URL, try Apify as last resort
+        if (parsed.price === 0 && url.includes('idealista.it')) {
+          console.log("[AUTO-IMPORT] Attempting Apify fallback for Idealista price extraction...");
+          try {
+            const { getApifyService } = await import('./services/apifyService');
+            const apifyService = getApifyService();
+            const apifyPrice = await Promise.race([
+              apifyService.scrapeSingleIdealistaUrl(url),
+              new Promise<number>((_, reject) => 
+                setTimeout(() => reject(new Error('Apify timeout')), 30000)
+              )
+            ]);
+            if (apifyPrice > 0) {
+              parsed.price = apifyPrice;
+              console.log("[AUTO-IMPORT] Price extracted via Apify:", parsed.price);
+            } else {
+              console.log("[AUTO-IMPORT] Apify returned 0, keeping price as 0");
+            }
+          } catch (apifyError) {
+            console.log("[AUTO-IMPORT] Apify fallback failed:", (apifyError as Error).message);
+            // Continue with price=0 - will be auto-saved anyway
+          }
+        }
+
         // Detect if it's a private seller or agency
         const isPrivate = html.match(/(?:privato|proprietario|proprietaria|da privato)/i) !== null;
         const hasAgency = html.match(/(?:agenzia|agenzia immobiliare|ufficio|studio|partners?)/i) !== null;

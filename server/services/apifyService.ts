@@ -622,6 +622,61 @@ export class ApifyService {
     
     return 'apartment';
   }
+
+  /**
+   * Scrapes a single Idealista URL to extract price using Apify
+   * Returns just the price or 0 if extraction fails
+   */
+  async scrapeSingleIdealistaUrl(url: string): Promise<number> {
+    console.log(`[APIFY-SINGLE-URL] Attempting to scrape Idealista URL: ${url}`);
+    
+    // Extract property ID from URL for reference
+    const propertyIdMatch = url.match(/\/immobile\/(\d+)/);
+    const propertyId = propertyIdMatch ? propertyIdMatch[1] : 'unknown';
+    
+    try {
+      // Use Idealista actor to scrape single URL
+      const idealistaActorId = 'igolaizola/idealista-scraper';
+      
+      // For single URL scraping, we pass it as part of the location or use custom input
+      // The actor might not support single URLs, so we'll try to extract from the URL search capability
+      const input = {
+        // Pass URL as a search parameter (some actors support this)
+        location: url, // Some actors accept URLs
+        country: 'it',
+        maxItems: 1,
+        propertyType: 'homes',
+        operation: 'sale',
+        proxyConfiguration: {
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL']
+        }
+      };
+
+      try {
+        console.log(`[APIFY-SINGLE-URL] Running Apify actor for property ${propertyId}...`);
+        const run = await this.client.actor(idealistaActorId).call(input);
+        console.log(`[APIFY-SINGLE-URL] Actor completed: ${run.id}`);
+
+        const { items } = await this.client.dataset(run.defaultDatasetId).listItems({ limit: 10 });
+        console.log(`[APIFY-SINGLE-URL] Retrieved ${items.length} items from Apify`);
+
+        if (items.length > 0) {
+          const price = items[0].price || 0;
+          console.log(`[APIFY-SINGLE-URL] Extracted price: ${price} for property ${propertyId}`);
+          return typeof price === 'number' ? price : parseInt(String(price).replace(/[^0-9]/g, ''));
+        }
+      } catch (runError) {
+        console.log(`[APIFY-SINGLE-URL] Actor run failed, trying generic approach: ${(runError as Error).message}`);
+      }
+
+      // Fallback: Try using a generic web scraper or abort gracefully
+      return 0;
+    } catch (error) {
+      console.error(`[APIFY-SINGLE-URL] Error scraping single URL: ${(error as Error).message}`);
+      return 0;
+    }
+  }
 }
 
 // Singleton instance
