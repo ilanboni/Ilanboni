@@ -27,21 +27,31 @@ export function AutoImportPropertyDialog() {
       });
     },
     onSuccess: (result: any) => {
-      setExtracted(true);
-      setPreview(result.preview);
-      setEditedData({
-        address: result.data.address,
-        price: result.data.price,
-        type: result.data.type,
-        bedrooms: result.data.bedrooms,
-        bathrooms: result.data.bathrooms,
-        size: result.data.size,
-        ownerPhone: result.data.ownerPhone,
-        ownerName: result.data.ownerName,
-        agencyName: result.data.agencyName,
-        agencyPhone: result.data.agencyPhone,
-        description: result.data.description
-      });
+      // Se i dati sono completi, salva direttamente
+      if (result.preview?.isComplete) {
+        saveMutation.mutate({
+          extracted: true,
+          data: result.data,
+          url: result.url
+        });
+      } else {
+        // Altrimenti mostra il form per completare
+        setExtracted(true);
+        setPreview(result.preview);
+        setEditedData({
+          address: result.data.address,
+          price: result.data.price,
+          type: result.data.type,
+          bedrooms: result.data.bedrooms,
+          bathrooms: result.data.bathrooms,
+          size: result.data.size,
+          ownerPhone: result.data.ownerPhone,
+          ownerName: result.data.ownerName,
+          agencyName: result.data.agencyName,
+          agencyPhone: result.data.agencyPhone,
+          description: result.data.description
+        });
+      }
     },
     onError: (error: any) => {
       console.error("Errore import:", error);
@@ -54,28 +64,31 @@ export function AutoImportPropertyDialog() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const isAgency = editedData.agencyName && editedData.agencyName !== "" && editedData.agencyName !== "Da completare";
+    mutationFn: async (saveData?: any) => {
+      const dataToSave = editedData || saveData?.data;
+      const urlToSave = url || saveData?.url;
+      
+      const isAgency = dataToSave.agencyName && dataToSave.agencyName !== "" && dataToSave.agencyName !== "Da completare";
       const endpoint = isAgency ? "/api/properties/manual-agency" : "/api/properties/manual-private";
       
       const payload = {
-        url: url,
-        address: editedData.address,
+        url: urlToSave,
+        address: dataToSave.address,
         city: "Milano",
-        type: editedData.type || "apartment",
-        price: Number(editedData.price),
-        bedrooms: editedData.bedrooms ? Number(editedData.bedrooms) : undefined,
-        bathrooms: editedData.bathrooms ? Number(editedData.bathrooms) : undefined,
-        size: editedData.size ? Number(editedData.size) : undefined,
+        type: dataToSave.type || "apartment",
+        price: Number(dataToSave.price),
+        bedrooms: dataToSave.bedrooms ? Number(dataToSave.bedrooms) : undefined,
+        bathrooms: dataToSave.bathrooms ? Number(dataToSave.bathrooms) : undefined,
+        size: dataToSave.size ? Number(dataToSave.size) : undefined,
         floor: undefined,
-        description: editedData.description,
+        description: dataToSave.description,
         ...(isAgency ? {
-          agencyName: editedData.agencyName,
-          agencyPhone: editedData.agencyPhone,
-          agencyUrl: url
+          agencyName: dataToSave.agencyName,
+          agencyPhone: dataToSave.agencyPhone,
+          agencyUrl: urlToSave
         } : {
-          ownerPhone: editedData.ownerPhone,
-          ownerName: editedData.ownerName,
+          ownerPhone: dataToSave.ownerPhone,
+          ownerName: dataToSave.ownerName,
           ownerEmail: undefined
         })
       };
@@ -85,14 +98,15 @@ export function AutoImportPropertyDialog() {
         data: payload
       });
     },
-    onSuccess: () => {
+    onSuccess: (result, saveData) => {
+      const dataToSave = editedData || saveData?.data;
       queryClient.invalidateQueries({ queryKey: ["/api/shared-properties"] });
       queryClient.invalidateQueries({ queryKey: ["/api/properties/private"] });
       queryClient.invalidateQueries({ queryKey: ["/api/properties/multi-agency"] });
       
       toast({
         title: "✅ Immobile importato!",
-        description: `${editedData.address} - €${editedData.price.toLocaleString('it-IT')}`,
+        description: `${dataToSave.address} - €${dataToSave.price.toLocaleString('it-IT')}`,
       });
       handleClose();
     },
