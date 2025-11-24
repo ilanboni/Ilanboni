@@ -2181,6 +2181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Try to fetch and parse the page
       const parsed: any = {
+        url: url, // Include the URL in response
         address: "",
         price: 0,
         bedrooms: undefined,
@@ -2232,7 +2233,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Phone pattern: look for common phone patterns
         const phoneMatch = html.match(/(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
         if (phoneMatch) {
-          parsed.ownerPhone = phoneMatch[0].trim();
+          const cleanPhone = phoneMatch[0].trim().replace(/[\s-]/g, '');
+          // Validate: must start with 3 (mobile) or 0 (landline) or +39
+          const isValidPhone = /^3\d{9}$/.test(cleanPhone) || // 3XX XXXXXX
+                              /^0\d{8,9}$/.test(cleanPhone) || // 0XX XXXXXX
+                              /^\+?39\d{8,9}$/.test(cleanPhone); // +39 variants
+          
+          if (isValidPhone) {
+            parsed.ownerPhone = cleanPhone;
+          }
         }
 
         // Address from meta tags or common patterns - stop at first . or ,
@@ -2576,7 +2585,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract agency phone
         const phoneMatch = html.match(/(?:\+39|0039|0)?[\s-]?(?:3[0-9]{2}|[0-9]{2,4})[\s-]?(?:[0-9]{3}[\s-]?){1,2}[0-9]{3,4}/i);
         if (phoneMatch) {
-          parsed.agencyPhone = phoneMatch[0].trim();
+          const cleanPhone = phoneMatch[0].trim().replace(/[\s-]/g, '');
+          // Validate: must start with 3 (mobile) or 0 (landline) or +39
+          const isValidPhone = /^3\d{9}$/.test(cleanPhone) || // 3XX XXXXXX
+                              /^0\d{8,9}$/.test(cleanPhone) || // 0XX XXXXXX
+                              /^\+?39\d{8,9}$/.test(cleanPhone); // +39 variants
+          
+          if (isValidPhone) {
+            parsed.agencyPhone = cleanPhone;
+          }
         }
 
         // Search for other agencies - look for agency links/logos
@@ -2944,8 +2961,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           if (phoneMatch) {
-            parsed.ownerPhone = phoneMatch[0].trim().replace(/[\s-]/g, '');
-            console.log("[AUTO-IMPORT] Owner phone extracted:", parsed.ownerPhone);
+            const cleanPhone = phoneMatch[0].trim().replace(/[\s-]/g, '');
+            // Validate: must be 10 digits starting with 3 (mobile) or 0 (landline) or +39
+            // Italian mobile: 3XX XXXXXX (10 digits)
+            // Italian landline: 0XX XXXXXX (9-10 digits)
+            // International: +39 3XX XXXXXX
+            const isValidPhone = /^3\d{9}$/.test(cleanPhone) || // 3XX XXXXXX
+                                /^0\d{8,9}$/.test(cleanPhone) || // 0XX XXXXXX
+                                /^\+?39\d{8,9}$/.test(cleanPhone); // +39 variants
+            
+            if (isValidPhone) {
+              parsed.ownerPhone = cleanPhone;
+              console.log("[AUTO-IMPORT] Owner phone extracted:", parsed.ownerPhone);
+            } else {
+              console.log("[AUTO-IMPORT] Phone format invalid, rejected:", cleanPhone);
+            }
           }
 
           parsed.ownerType = "private";

@@ -5,6 +5,28 @@ This project is a comprehensive real estate management system designed to stream
 
 ## Recent Changes (2025-11-24)
 
+**✅ CRITICAL FIX: Phone Extraction Bug + URL Field Display:**
+
+1. **Phone Validation Added** ✅: Fixed bug where property IDs (9 digits) were extracted as phone numbers
+   - **Bug**: Number 124470413 (property ID) was incorrectly extracted as ownerPhone
+   - **Fix**: Added validation in ALL 3 extraction endpoints (parse-url, parse-agency, auto-import)
+   - **Implementation**: Validates phone starts with 3 (mobile: 3XX XXXXXX) or 0 (landline: 0XX XXXXXX)
+   - **Result**: Invalid numbers are rejected, field remains empty unless valid number found
+   
+2. **URL Field Now in Response** ✅: External listing URL now included in parse-url API response
+   - **Added**: `url: url` to parsed response object in /api/properties/parse-url endpoint
+   - **Result**: URL is now passed from backend to frontend for display in property detail page
+   - **Tested**: Confirmed URL "https://www.immobiliare.it/annunci/124470413/" is in API response
+   
+3. **UI Already Supports Display** ✅: Property detail page already has UI for link + phone
+   - **External Link**: Displayed at lines 732-753 with "Visualizza su Immobiliare.it" button
+   - **Owner Phone**: Displayed at lines 767-781 as clickable `tel:` link with phone icon
+   - **Database**: Link saved as `externalLink` field in shared_properties table
+
+**Files Modified**: server/routes.ts (3 locations: parse-url, parse-agency, auto-import endpoints)
+
+---
+
 **✅ COMPLETE AUTO-IMPORT FIX - All 5 Bugs Fixed + Description Threshold Lowered:**
 
 1. **Address Title - CLEAN** ✅: Shows ONLY street address (e.g., "Viale Monte Nero 73")
