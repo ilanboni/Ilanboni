@@ -153,6 +153,13 @@ export function AutoImportPropertyDialog() {
                 <p className="text-lg font-bold">{preview?.classification}</p>
               </div>
 
+              {preview?.description && (
+                <div className="bg-white p-3 rounded border border-gray-200">
+                  <p className="text-sm font-semibold text-gray-600 mb-2">Descrizione</p>
+                  <p className="text-sm text-gray-700 line-clamp-3">{preview?.description}</p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-600">Dettagli</p>
                 <dl className="space-y-1 text-sm">

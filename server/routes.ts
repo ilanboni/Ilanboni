@@ -2241,10 +2241,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Description from meta or og:description
-        const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
+        // Extract description from meta tags first
+        let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 500);
+          parsed.description = descMatch[1].substring(0, 800);
+        } else {
+          // Fallback: extract from main content divs (common patterns)
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
+                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,500})<\/p>/i);
+          if (contentMatch) {
+            parsed.description = contentMatch[1].trim().substring(0, 800);
+          }
         }
 
       } catch (parseError) {
@@ -2386,10 +2395,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.address = addressMatch[0].trim().substring(0, 100);
         }
 
-        const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
+        // Extract description from meta tags first
+        let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 500);
+          parsed.description = descMatch[1].substring(0, 800);
+        } else {
+          // Fallback: extract from main content divs (common patterns)
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
+                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,500})<\/p>/i);
+          if (contentMatch) {
+            parsed.description = contentMatch[1].trim().substring(0, 800);
+          }
         }
 
         // Extract agency info - look for common agency name patterns
@@ -2508,10 +2526,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Impossibile estrarre l'indirizzo dal link" });
         }
 
-        const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
+        // Extract description from meta tags first
+        let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 500);
+          parsed.description = descMatch[1].substring(0, 800);
+        } else {
+          // Fallback: extract from main content divs (common patterns)
+          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
+                              html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
+                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,500})<\/p>/i);
+          if (contentMatch) {
+            parsed.description = contentMatch[1].trim().substring(0, 800);
+          }
         }
 
         // Detect if it's a private seller or agency
@@ -2627,6 +2654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           preview: {
             title: `${parsed.address} - €${parsed.price.toLocaleString('it-IT')}`,
             classification: parsed.classificationColor === "green" ? "🟢 Privato" : parsed.classificationColor === "yellow" ? "🟡 Multi-Agenzia" : "🔴 Singola Agenzia",
+            description: parsed.description,
             details: {
               indirizzo: parsed.address,
               prezzo: `€${parsed.price.toLocaleString('it-IT')}`,
