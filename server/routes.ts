@@ -73,6 +73,7 @@ import { manualWebhookHandler } from "./routes/manualWebhook";
 import diagnosticWebhookRouter from "./diagnostic-webhook";
 import { backfillInboundTasks, createInboundTask } from "./services/inboundTaskManager";
 import { taskSyncScheduler } from "./services/taskSyncScheduler";
+import { chromium } from "playwright";
 import { authBearer } from "./middleware/auth";
 import { createTasksFromMatches, getDefaultDeps } from "./lib/taskEngine";
 import { isPropertyMatchingBuyerCriteria, calculatePropertyMatchPercentage } from "./lib/matchingLogic";
@@ -2479,28 +2480,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       try {
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'it-IT,it;q=0.9',
-            'Referer': 'https://www.google.com/',
-            'Connection': 'keep-alive'
-          },
-          timeout: 8000
-        });
-
-        // Try to parse even if response is not ok (403, etc.)
         let html = "";
+
+        // First, try simple fetch
         try {
-          html = await response.text();
+          console.log("[AUTO-IMPORT] Attempting HTTP fetch...");
+          const response = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'it-IT,it;q=0.9',
+              'Referer': 'https://www.google.com/',
+              'Connection': 'keep-alive'
+            },
+            timeout: 8000
+          });
+
+          if (response.ok) {
+            html = await response.text();
+            console.log("[AUTO-IMPORT] HTTP fetch successful, got " + html.length + " bytes");
+          }
         } catch (e) {
-          console.log("[AUTO-IMPORT] Failed to get HTML body");
-          html = "";
+          console.log("[AUTO-IMPORT] HTTP fetch failed, will try Playwright:", (e as Error).message);
+        }
+
+        // If HTTP fetch failed or returned empty, use Playwright
+        if (!html || html.length < 100) {
+          console.log("[AUTO-IMPORT] Using Playwright to bypass bot protection...");
+          try {
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.createContext({
+              userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            });
+            const page = await context.newPage();
+
+            // Set timeout to 15 seconds for Playwright
+            page.setDefaultTimeout(15000);
+
+            try {
+              await page.goto(url, { waitUntil: 'networkidle' });
+              console.log("[AUTO-IMPORT] Playwright page loaded, extracting HTML...");
+              html = await page.content();
+              console.log("[AUTO-IMPORT] Playwright got " + html.length + " bytes");
+            } finally {
+              await context.close();
+              await browser.close();
+            }
+          } catch (playwrightError) {
+            console.log("[AUTO-IMPORT] Playwright also failed:", (playwrightError as Error).message);
+            // Still continue with fallback
+          }
         }
         
-        // If we couldn't get HTML, try to extract from URL at least
+        // If we still don't have HTML, try to extract minimal data from URL
         if (!html || html.length < 100) {
+          console.log("[AUTO-IMPORT] No HTML available, extracting from URL only");
           const urlId = url.match(/(\d{6,})/)?.[1];
           if (urlId) {
             parsed.address = `Immobile ID: ${urlId}`;
