@@ -17,11 +17,12 @@ This project is a comprehensive real estate management system designed to stream
    - Bathroom regex: Flexible pattern `/(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)/i`
    - Status: Applied to all 3 locations
    
-3. **Description - COMPLETE** ✅: Fixed truncation at 191 characters
-   - **KEY FIX #1**: Lowered meta tag threshold from 200 to 50 characters
-   - **KEY FIX #2**: Added intelligent truncation detection - if meta ends with comma/punctuation, uses fallback extraction from body HTML
-   - Now accepts meta descriptions >= 50 chars AND auto-detects if truncated (ends with `,!;:`)
-   - Fallback: Searches body content if meta description appears truncated
+3. **Description - COMPLETE** ✅: Fixed truncation at 191 characters - **THREE KEY FIXES**:
+   - **FIX #1**: Lowered meta tag threshold from 200 to 50 characters
+   - **FIX #2**: Added intelligent truncation detection (ends with `,!;:`) - CORRECTED boolean logic
+   - **FIX #3**: Aggressive fallback extraction - if specific HTML patterns fail, extracts ALL text from body and removes scripts/styles
+   - Now accepts meta descriptions >= 50 chars AND auto-detects if truncated
+   - If truncated, uses fallback extraction from body HTML
    - Max stored: 10,000 characters
    - Status: Applied to all 3 locations in routes.ts (parse-url, auto-import, parse-agency)
    

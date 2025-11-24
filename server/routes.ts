@@ -2247,7 +2247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         
         // Check if meta description is truncated (ends with comma/punctuation without period)
-        const isTruncated = descMatch && descMatch[1].match(/[,!;:]\s*$/);
+        const isTruncated = descMatch && descMatch[1].match(/[,!;:]\s*$/) !== null;
         
         if (descMatch && descMatch[1].length > 50 && !isTruncated) {
           // Use meta description if it's complete (doesn't look truncated)
@@ -2255,7 +2255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Description from meta tags, length:", parsed.description.length);
         } else {
           // Fallback: extract from main content divs (always try if meta is truncated or missing)
-          const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:[^"]*)?(?:description|desc|detail|content|testo|descrizione|body|text|articolo|annuncio)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section|article)>/i) ||
+          let contentMatch = html.match(/<div[^>]*(?:class|id)="(?:[^"]*)?(?:description|desc|detail|content|testo|descrizione|body|text|articolo|annuncio)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section|article)>/i) ||
                               html.match(/<p[^>]*class="[^"]*(?:description|desc|text)[^"]*"[^>]*>([\s\S]{100,10000}?)<\/p>/i) ||
                               html.match(/<section[^>]*>[\s\S]*?<p>([\s\S]{100,10000}?)<\/p>/i) ||
                               html.match(/<article[^>]*>([\s\S]{100,10000}?)<\/article>/i) ||
@@ -2263,15 +2263,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               // Last resort: find any long text block (300+ chars) in body
                               html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
           
-          if (contentMatch) {
+          // If specific patterns don't work, try aggressive extraction from body
+          if (!contentMatch || (contentMatch[1] && contentMatch[1].trim().length === 0)) {
+            const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+            if (bodyMatch) {
+              contentMatch = bodyMatch;
+            }
+          }
+          
+          if (contentMatch && contentMatch[1].trim().length > 0) {
             // Remove HTML tags for cleaner text
             let desc = contentMatch[1].trim();
+            // Remove scripts and styles first
+            desc = desc.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
             desc = desc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
             
             // If we got the full body, find the longest paragraph-like text
             if (desc.length > 5000) {
               // Split by common delimiters and find longest coherent section
-              const sections = desc.split(/(?:contatti|agente|telefo|whatsapp|email|visita|annunci|vedi anche|related)/i);
+              const sections = desc.split(/(?:contatti|agente|telefo|whatsapp|email|visita|annunci|vedi anche|related|javascript|script|cookie)/i);
               desc = sections[0]; // Take first/main section
             }
             
