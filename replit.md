@@ -38,6 +38,47 @@ The application features a modern full-stack architecture.
 
 ## Recent Changes (2025-11-24)
 
+**✅ FEATURE COMPLETE: Auto-Import Now Extracts Description, Bedrooms, Bathrooms, and Floor**
+
+**Issue Resolved:**
+- ✅ Added `description`, `bedrooms`, `bathrooms` columns to `sharedProperties` table
+  - Previously missing columns prevented description/bedrooms/bathrooms from being saved
+  - Now fully extracted and persisted to database
+- ✅ Auto-import now extracts floor information (piano terra, 1º piano, 2º piano, etc.)
+  - Added floor extraction regex with Italian language variants
+  - Handles: "piano terra", "piano rialzato", "1º/2º/3º piano", "primo/secondo/terzo piano"
+- ✅ Backend endpoints now save ALL extracted data to sharedProperties:
+  - `manual-private`: saves description, bedrooms, bathrooms, floor
+  - `manual-agency`: saves description, bedrooms, bathrooms, floor
+- ✅ Frontend passes floor, bedrooms, bathrooms in import payload
+- ✅ Database schema synchronized with new columns
+
+**Implementation Files Updated:**
+- `shared/schema.ts` - Added description, bedrooms, bathrooms to sharedProperties (lines 219-221)
+- `server/routes.ts` - Floor extraction regex (lines 2396-2404)
+- `server/routes.ts` - Manual-private save updated (lines 2285-2304)
+- `server/routes.ts` - Manual-agency save updated (lines 2861-2879)
+- `server/routes.ts` - Auto-import response includes floor (line 2798)
+- `client/src/components/properties/AutoImportPropertyDialog.tsx` - Frontend passes floor in payload (lines 52, 88)
+- Database: Added columns via SQL ALTER TABLE
+
+**Data Now Fully Extracted & Persisted:**
+- ✅ Address
+- ✅ Price
+- ✅ Bedrooms
+- ✅ Bathrooms
+- ✅ Floor (new)
+- ✅ Description (now saved to sharedProperties)
+- ✅ Size/Surface area
+- ✅ Property type
+
+**Testing:**
+- Try importing a private property with the "Rapido" button
+- Should see all extracted data populated in the import form
+- Delete still works correctly with `?type=shared` parameter
+
+---
+
 **✅ BUG FIX: Delete Endpoint Not Recognizing Shared Properties**
 
 **Issue Resolved:**

@@ -2286,6 +2286,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         price: Number(price),
         size: size ? Number(size) : undefined,
         floor,
+        bedrooms: bedrooms ? Number(bedrooms) : undefined,
+        bathrooms: bathrooms ? Number(bathrooms) : undefined,
+        description,
         ownerName,
         ownerPhone,
         ownerEmail,
@@ -2388,6 +2391,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
           console.log("[AUTO-IMPORT] Bathrooms extracted:", parsed.bathrooms);
+        }
+
+        // Extract floor with variations (piano terra, 1º piano, secondo piano, quarto piano, etc.)
+        let floorMatch = html.match(/(?:primo|secondo|terzo|quarto|quinto|sesto|settimo|ottavo|nono|decimo)\s+piano/i) ||
+                        html.match(/(\d+)(?:º|ª|st|nd|rd|th)?\s+(?:piano|floor)/i) ||
+                        html.match(/(?:piano|floor)\s+(?:terra|rialzato|ground)/i);
+        if (floorMatch) {
+          parsed.floor = floorMatch[0].trim().substring(0, 50);
+          console.log("[AUTO-IMPORT] Floor extracted:", parsed.floor);
         }
 
         const sizeMatch = html.match(/(\d+)\s*(?:m²|mq|m2)/i);
@@ -2641,6 +2653,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Bathrooms extracted:", parsed.bathrooms);
         }
 
+        // Extract floor with variations (piano terra, 1º piano, secondo piano, quarto piano, etc.)
+        let floorMatch = html.match(/(?:primo|secondo|terzo|quarto|quinto|sesto|settimo|ottavo|nono|decimo)\s+piano/i) ||
+                        html.match(/(\d+)(?:º|ª|st|nd|rd|th)?\s+(?:piano|floor)/i) ||
+                        html.match(/(?:piano|floor)\s+(?:terra|rialzato|ground)/i);
+        if (floorMatch) {
+          parsed.floor = floorMatch[0].trim().substring(0, 50);
+          console.log("[AUTO-IMPORT] Floor extracted:", parsed.floor);
+        }
+
         const sizeMatch = html.match(/(\d+)\s*(?:m²|mq|m2)/i);
         if (sizeMatch) {
           parsed.size = parseInt(sizeMatch[1]);
@@ -2769,6 +2790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bedrooms: parsed.bedrooms,
           bathrooms: parsed.bathrooms,
           size: parsed.size,
+          floor: parsed.floor,
           description: parsed.description,
           ownerPhone: parsed.ownerPhone,
           ownerName: parsed.ownerName,
@@ -2839,6 +2861,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: Number(price),
           size: size ? Number(size) : undefined,
           floor,
+          bedrooms: bedrooms ? Number(bedrooms) : undefined,
+          bathrooms: bathrooms ? Number(bathrooms) : undefined,
+          description,
           url,
           ownerType: "agency",
           portalSource: "Manual",

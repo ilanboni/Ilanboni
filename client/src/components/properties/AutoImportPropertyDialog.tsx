@@ -46,6 +46,7 @@ export function AutoImportPropertyDialog() {
           bedrooms: result.data.bedrooms,
           bathrooms: result.data.bathrooms,
           size: result.data.size,
+          floor: result.data.floor,
           ownerPhone: result.data.ownerPhone,
           ownerName: result.data.ownerName,
           agencyName: result.data.agencyName,
@@ -81,7 +82,7 @@ export function AutoImportPropertyDialog() {
         bedrooms: dataToSave.bedrooms ? Number(dataToSave.bedrooms) : undefined,
         bathrooms: dataToSave.bathrooms ? Number(dataToSave.bathrooms) : undefined,
         size: dataToSave.size ? Number(dataToSave.size) : undefined,
-        floor: undefined,
+        floor: dataToSave.floor || undefined,
         description: dataToSave.description,
         ...(isAgency ? {
           agencyName: dataToSave.agencyName,

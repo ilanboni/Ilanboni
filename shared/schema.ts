@@ -213,6 +213,9 @@ export const sharedProperties = pgTable("shared_properties", {
   ownerEmail: text("owner_email"),
   ownerNotes: text("owner_notes"),
   floor: text("floor"), // piano dell'appartamento
+  description: text("description"), // property description
+  bedrooms: integer("bedrooms"), // number of bedrooms
+  bathrooms: integer("bathrooms"), // number of bathrooms
   agency1Name: text("agency1_name"),
   agency1Link: text("agency1_link"),
   agency2Name: text("agency2_name"),
