@@ -21,10 +21,11 @@ export function AutoImportPropertyDialog() {
 
   const importMutation = useMutation({
     mutationFn: async (importUrl: string) => {
-      return await apiRequest("/api/properties/auto-import", {
+      const response = await apiRequest("/api/properties/auto-import", {
         method: "POST",
         data: { url: importUrl }
       });
+      return await response.json();
     },
     onSuccess: (result: any) => {
       // Se i dati sono completi, salva direttamente
