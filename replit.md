@@ -5,6 +5,18 @@ This project is a comprehensive real estate management system designed to stream
 
 ## Recent Changes (2025-11-24)
 
+**✅ IDEALISTA URL PARSING - Simplified Approach Due to Anti-Bot Protection:**
+
+1. **Pragmatic Solution** ✅: Idealista implements strong anti-bot detection that prevents automated parsing
+   - **Issue**: Playwright and fetch-based parsing both fail due to Idealista's JavaScript rendering and bot detection
+   - **Solution**: Return URL only - user can manually edit other fields after import
+   - **Implementation**: Simplified Idealista handler returns the URL (saved in `externalLink`) with empty fields
+   - **Behavior**: When importing an Idealista URL, users get the link immediately and can fill in address, price, bedrooms, bathrooms, size, and description manually
+   - **Files Changed**: server/routes.ts (simplified /api/properties/parse-url Idealista handling)
+   - **Impact**: Idealista imports work reliably - link is saved and users have a quick manual edit flow
+
+---
+
 **✅ PORTAL FILTER FIX - Private Properties Now Filterable by Source:**
 
 1. **Portal Filter API Endpoint** ✅: Added query parameter `?portal=<source>` to filter private properties
