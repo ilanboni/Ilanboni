@@ -3,6 +3,26 @@
 ## Overview
 This project is a comprehensive real estate management system designed to streamline operations for property agents and enhance client interaction. It provides a full-stack solution for managing properties, clients, communications, and appointments. Key capabilities include WhatsApp integration, Google Calendar synchronization, AI-powered assistance for property matching and client interaction, and automated workflows for property acquisition and management. The system aims to leverage AI to improve efficiency and client satisfaction in the real estate sector, with a focus on comprehensive property data aggregation and intelligent client-property matching.
 
+## Recent Changes (2025-11-24)
+
+**✅ COMPLETE AUTO-IMPORT FIX - All 5 Bugs Fixed:**
+
+1. **Address Title - CLEAN**: Shows ONLY street address (e.g., "Viale Monte Nero 73")
+   - Backend: Regex stops extraction at first `.` or `,`
+   - Frontend: `renderAddress()` double-extracts clean address from DB field
+   
+2. **Bedrooms/Bathrooms - CORRECT**: Now handles numeric ("2 camere") AND Italian types ("bilocale"→2)
+   - Type mapping: monolocale=1, bilocale=2, trilocale=3, quadrilocale=4, quindilocale=5
+   - Fallback logic: tries numeric first, then Italian type names
+   
+3. **Description - COMPLETE**: Full text preserved (increased from 800 to 5000 characters)
+   
+4. **Floor Field**: Italian format support (primo piano, quarto piano, 3º piano, piano terra)
+   
+5. **Condition/Stato Field**: Auto-extracts property status (Ristrutturato, Ottimo stato, Buone condizioni, etc.)
+
+**Files Changed**: server/routes.ts (2 locations), client/src/pages/properties/[id].tsx, client/src/components/properties/AutoImportPropertyDialog.tsx
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 

@@ -567,13 +567,23 @@ export default function PropertyDetailPage() {
     }
   };
   
-  // Formatta l'indirizzo per la visualizzazione
+  // Formatta l'indirizzo per la visualizzazione - estrai SOLO indirizzo, no descrizione
   const renderAddress = () => {
     if (!property) return "";
     
-    console.log("Rendering address:", property.address);
+    const address = property.address;
+    console.log("Rendering address:", address);
     
-    return property.address;
+    // Extract only the street address part (via/viale/corso/etc + name + number)
+    // Stop at first . or , which indicates start of description
+    const cleanMatch = address.match(/^([^.,]+(?:via|viale|corso|piazza|largo)[^.,]+?)(?=[.,]|$)/i);
+    if (cleanMatch) {
+      return cleanMatch[1].trim();
+    }
+    
+    // Fallback: return everything before first . or ,
+    const parts = address.split(/[.,]/);
+    return parts[0].trim();
   };
   
   // Form submission handler
@@ -584,7 +594,7 @@ export default function PropertyDetailPage() {
   return (
     <div className="container mx-auto py-6 space-y-6 pb-16">
       <Helmet>
-        <title>{property ? `${property.address} - ${property.city}` : "Dettaglio immobile"}</title>
+        <title>{property ? `${renderAddress()} - ${property.city}` : "Dettaglio immobile"}</title>
       </Helmet>
       
       <div className="flex items-center justify-between">

@@ -2246,14 +2246,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 800);
+          parsed.description = descMatch[1].substring(0, 5000);
         } else {
           // Fallback: extract from main content divs (common patterns)
           const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
                               html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,500})<\/p>/i);
+                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,5000})<\/p>/i);
           if (contentMatch) {
-            parsed.description = contentMatch[1].trim().substring(0, 800);
+            parsed.description = contentMatch[1].trim().substring(0, 5000);
           }
         }
 
@@ -2380,14 +2380,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.price = parseInt(priceMatch[1].replace(/\./g, ''));
         }
 
-        // Extract bedrooms from description/content
+        // Extract bedrooms: support both "2 camere" AND "bilocale/trilocale/monolocale"
         let bedroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:camere|camere\s+da\s+letto|rooms?|locali?|bedrooms)(?:\s|<|\.|\,)/i);
         if (bedroomsMatch) {
           parsed.bedrooms = parseInt(bedroomsMatch[1]);
-          console.log("[AUTO-IMPORT] Bedrooms extracted:", parsed.bedrooms);
+          console.log("[AUTO-IMPORT] Bedrooms extracted (number):", parsed.bedrooms);
+        } else {
+          // Try bilocale/trilocale/quadrilocale format
+          const typeMatch = html.match(/(monolocale|bilocale|trilocale|quadrilocale|quindilocale)/i);
+          if (typeMatch) {
+            const typeStr = typeMatch[1].toLowerCase();
+            const typeMap: {[key: string]: number} = {
+              'monolocale': 1,
+              'bilocale': 2,
+              'trilocale': 3,
+              'quadrilocale': 4,
+              'quindilocale': 5
+            };
+            parsed.bedrooms = typeMap[typeStr];
+            console.log("[AUTO-IMPORT] Bedrooms extracted (type):", parsed.bedrooms, "from", typeStr);
+          }
         }
 
-        // Extract bathrooms from description/content
+        // Extract bathrooms - look for "1 bagno" or "2 bagni"
         let bathroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)(?:\s|<|\.|\,)/i);
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
@@ -2425,14 +2440,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 800);
+          parsed.description = descMatch[1].substring(0, 5000);
         } else {
           // Fallback: extract from main content divs (common patterns)
           const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
                               html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,500})<\/p>/i);
+                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,5000})<\/p>/i);
           if (contentMatch) {
-            parsed.description = contentMatch[1].trim().substring(0, 800);
+            parsed.description = contentMatch[1].trim().substring(0, 5000);
           }
         }
 
@@ -2648,14 +2663,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("[AUTO-IMPORT] Price extraction failed - user will need to enter manually");
         }
 
-        // Extract bedrooms from description/content
+        // Extract bedrooms: support both "2 camere" AND "bilocale/trilocale/monolocale"
         let bedroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:camere|camere\s+da\s+letto|rooms?|locali?|bedrooms)(?:\s|<|\.|\,)/i);
         if (bedroomsMatch) {
           parsed.bedrooms = parseInt(bedroomsMatch[1]);
-          console.log("[AUTO-IMPORT] Bedrooms extracted:", parsed.bedrooms);
+          console.log("[AUTO-IMPORT] Bedrooms extracted (number):", parsed.bedrooms);
+        } else {
+          // Try bilocale/trilocale/quadrilocale format
+          const typeMatch = html.match(/(monolocale|bilocale|trilocale|quadrilocale|quindilocale)/i);
+          if (typeMatch) {
+            const typeStr = typeMatch[1].toLowerCase();
+            const typeMap: {[key: string]: number} = {
+              'monolocale': 1,
+              'bilocale': 2,
+              'trilocale': 3,
+              'quadrilocale': 4,
+              'quindilocale': 5
+            };
+            parsed.bedrooms = typeMap[typeStr];
+            console.log("[AUTO-IMPORT] Bedrooms extracted (type):", parsed.bedrooms, "from", typeStr);
+          }
         }
 
-        // Extract bathrooms from description/content
+        // Extract bathrooms - look for "1 bagno" or "2 bagni"
         let bathroomsMatch = html.match(/(?:^|\s|>)(\d+)\s*(?:bagn[io]|bagni|bathrooms?|wc|toilets?|servizi)(?:\s|<|\.|\,)/i);
         if (bathroomsMatch) {
           parsed.bathrooms = parseInt(bathroomsMatch[1]);
@@ -2683,10 +2713,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.size = parseInt(sizeMatch[1]);
         }
 
-        // Extract address - only via+street name+number, avoid description
-        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s]+?\d+)/i);
+        // Extract address - ONLY via/viale/corso/piazza/largo + street name + number, STOP before first . or ,
+        const addressMatch = html.match(/(?:via|viale|corso|piazza|largo)\s+([A-Za-zàèìòù\s]+?\d+)(?=[.,\s]|<)/i);
         if (addressMatch) {
           parsed.address = addressMatch[0].trim().substring(0, 100);
+          console.log("[AUTO-IMPORT] Address extracted (clean):", parsed.address);
         }
 
         // If address still not found, use URL hostname as fallback
@@ -2699,14 +2730,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let descMatch = html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || 
                          html.match(/<meta\s+property="og:description"\s+content="([^"]*)"/i);
         if (descMatch) {
-          parsed.description = descMatch[1].substring(0, 800);
+          parsed.description = descMatch[1].substring(0, 5000);
         } else {
           // Fallback: extract from main content divs (common patterns)
           const contentMatch = html.match(/<div[^>]*(?:class|id)="(?:description|desc|detail|content|testo|descrizione)[^"]*"[^>]*>([^<]*)<\/div>/i) ||
                               html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]*)<\/p>/i) ||
-                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,500})<\/p>/i);
+                              html.match(/<section[^>]*>[\s\S]*?<p>([^<]{50,5000})<\/p>/i);
           if (contentMatch) {
-            parsed.description = contentMatch[1].trim().substring(0, 800);
+            parsed.description = contentMatch[1].trim().substring(0, 5000);
           }
         }
 
