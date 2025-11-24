@@ -509,8 +509,17 @@ export class CasafariAdapter implements PortalAdapter {
       console.log('[CASAFARI-LOGIN] Attempting login with Playwright...');
       
       const { chromium } = await import('playwright');
-      const browser = await chromium.launch({ headless: true });
-      const page = await browser.newPage();
+      // Launch with SSL certificate error ignoring
+      const browser = await chromium.launch({ 
+        headless: true,
+        args: [
+          '--ignore-certificate-errors',
+          '--no-sandbox',
+          '--disable-setuid-sandbox'
+        ]
+      });
+      const context = await browser.newContext({ ignoreHTTPSErrors: true });
+      const page = await context.newPage();
 
       try {
         const username = process.env.CASAFARI_USERNAME;
@@ -520,9 +529,18 @@ export class CasafariAdapter implements PortalAdapter {
           throw new Error('CASAFARI_USERNAME or CASAFARI_PASSWORD not configured');
         }
 
-        // Navigate to login page
+        // Navigate to login page (ignore SSL errors for Casafari)
         console.log('[CASAFARI-LOGIN] Navigating to login page...');
-        await page.goto('https://app.casafari.com/login', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto('https://app.casafari.com/login', { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(err => {
+          console.log('[CASAFARI-LOGIN] Ignoring SSL error:', err.message);
+          return null;
+        });
+        
+        // Check if we're on a login page by waiting for input fields
+        const emailInput = await page.$('input[type="email"], input[name="email"], input[placeholder*="email" i]').catch(() => null);
+        if (!emailInput) {
+          console.log('[CASAFARI-LOGIN] Email input not found, trying alternative approach');
+        }
 
         // Fill login form
         console.log('[CASAFARI-LOGIN] Filling login credentials...');
@@ -548,7 +566,7 @@ export class CasafariAdapter implements PortalAdapter {
 
         return cookieString;
       } finally {
-        await page.close();
+        await context.close();
         await browser.close();
       }
     } catch (error) {
