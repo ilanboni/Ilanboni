@@ -5948,6 +5948,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get saved properties from Casafari
+  app.get("/api/casafari/saved-properties", async (req: Request, res: Response) => {
+    try {
+      const { CasafariAdapter } = await import('./services/adapters/casafariAdapter');
+      const adapter = new CasafariAdapter();
+      
+      console.log('[GET /api/casafari/saved-properties] Fetching saved properties...');
+      const savedProps = await adapter.getSavedProperties();
+      
+      res.json({
+        success: true,
+        count: savedProps.length,
+        properties: savedProps
+      });
+    } catch (error) {
+      console.error('[GET /api/casafari/saved-properties]', error);
+      res.status(500).json({ error: "Errore nel recupero delle proprietà salvate" });
+    }
+  });
+
+  // Get alerts from Casafari
+  app.get("/api/casafari/alerts", async (req: Request, res: Response) => {
+    try {
+      const { CasafariAdapter } = await import('./services/adapters/casafariAdapter');
+      const adapter = new CasafariAdapter();
+      
+      console.log('[GET /api/casafari/alerts] Fetching alerts...');
+      const alerts = await adapter.getAlerts();
+      
+      res.json({
+        success: true,
+        count: alerts.length,
+        alerts
+      });
+    } catch (error) {
+      console.error('[GET /api/casafari/alerts]', error);
+      res.status(500).json({ error: "Errore nel recupero degli alert" });
+    }
+  });
+
   // Import properties from Casafari API data
   app.post("/api/import-casafari", async (req: Request, res: Response) => {
     try {

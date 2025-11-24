@@ -57,6 +57,53 @@ This project is a comprehensive real estate management system designed to stream
 
 **Impact**: **1-click Idealista imports** - No form filling, no price entry, dialog auto-closes. System saves property immediately with address + details. Price editable after if needed. ✅ SHIPPED
 
+**✅ CASAFARI SAVED PROPERTIES IMPORT - COMING SOON:**
+
+1. **Backend Features Added**:
+   - `GET /api/casafari/saved-properties` - Fetches user's saved properties from Casafari
+   - `GET /api/casafari/alerts` - Fetches user's saved searches/alerts from Casafari
+   - New methods in CasafariAdapter:
+     - `getSavedProperties()` - Retrieves saved properties list
+     - `getAlerts()` - Retrieves saved searches/alerts
+     - `getAlertProperties(alertId)` - Gets properties matching an alert
+
+2. **Frontend Features**:
+   - New CasafariImportDialog component
+   - "Casafari" button in Dashboard (next to "Rapido" import)
+   - Dialog shows saved properties with:
+     - Checkboxes for multi-select
+     - Property details (address, price, size, bedrooms)
+     - "Select All" functionality
+     - One-click import to database
+
+3. **User Workflow**:
+   1. User clicks "Casafari" button on Dashboard
+   2. Dialog loads saved properties from Casafari account
+   3. User selects which properties to import (or "Select All")
+   4. Clicks "Importa" button
+   5. Properties imported to database with all available data
+   6. Toast confirmation shows import results
+
+4. **Implementation Status**:
+   - ✅ Backend endpoints functional
+   - ✅ Frontend dialog created and integrated
+   - ✅ Multi-select UI working
+   - 🔄 Casafari SDK methods need SDK API verification for full data retrieval
+   - ⏳ Alert import (per-client saved searches) - planned for next phase
+
+**Files Added**:
+- client/src/components/properties/CasafariImportDialog.tsx
+
+**Files Modified**:
+- server/services/adapters/casafariAdapter.ts (added 3 new methods)
+- server/routes.ts (added 2 new GET endpoints)
+- client/src/pages/dashboard.tsx (integrated CasafariImportDialog)
+
+**Next Steps**:
+- Test Casafari API methods with real account
+- Implement per-client alert import
+- Add alert properties bulk import feature
+
 ---
 
 ## User Preferences

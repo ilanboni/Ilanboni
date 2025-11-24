@@ -140,6 +140,102 @@ export class CasafariAdapter implements PortalAdapter {
     }
   }
 
+  /**
+   * Fetch user's saved properties from Casafari
+   */
+  async getSavedProperties(): Promise<PropertyListing[]> {
+    try {
+      const client = await this.getClient();
+      console.log('[CASAFARI] Fetching saved properties...');
+
+      // Try to get saved properties (if available in API)
+      if (!client.getSavedProperties) {
+        console.log('[CASAFARI] getSavedProperties not available in SDK');
+        return [];
+      }
+
+      const savedProps = await client.getSavedProperties();
+      console.log(`[CASAFARI] Found ${savedProps?.length || 0} saved properties`);
+
+      if (!Array.isArray(savedProps)) {
+        return [];
+      }
+
+      return savedProps
+        .filter((p: any) => p.operations?.includes('sale'))
+        .map((p: any) => this.transformResult(p))
+        .slice(0, 100); // Limit to 100
+
+    } catch (error) {
+      console.error('[CASAFARI] Error fetching saved properties:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch user's saved searches/alerts from Casafari
+   */
+  async getAlerts(): Promise<any[]> {
+    try {
+      const client = await this.getClient();
+      console.log('[CASAFARI] Fetching user alerts...');
+
+      // Try to get alerts (if available in API)
+      if (!client.getAlerts && !client.getSearchAlerts) {
+        console.log('[CASAFARI] getAlerts not available in SDK');
+        return [];
+      }
+
+      const alerts = await (client.getAlerts?.() || client.getSearchAlerts?.());
+      console.log(`[CASAFARI] Found ${alerts?.length || 0} alerts`);
+
+      if (!Array.isArray(alerts)) {
+        return [];
+      }
+
+      return alerts.slice(0, 50); // Limit to 50 alerts
+
+    } catch (error) {
+      console.error('[CASAFARI] Error fetching alerts:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get properties matching an alert/saved search
+   */
+  async getAlertProperties(alertId: number): Promise<PropertyListing[]> {
+    try {
+      const client = await this.getClient();
+      console.log(`[CASAFARI] Fetching properties for alert ${alertId}...`);
+
+      if (!client.getAlertProperties && !client.getFeed) {
+        console.log('[CASAFARI] getAlertProperties not available in SDK');
+        return [];
+      }
+
+      // Try to get properties via alert or feed
+      const props = await (client.getAlertProperties?.(alertId) || 
+                          client.getFeed?.(alertId, { limit: 50 }));
+      
+      if (!props?.results && !Array.isArray(props)) {
+        return [];
+      }
+
+      const results = props.results || props;
+      console.log(`[CASAFARI] Found ${results.length} properties for alert`);
+
+      return results
+        .filter((p: any) => p.operations?.includes('sale'))
+        .map((p: any) => this.transformResult(p))
+        .slice(0, 100);
+
+    } catch (error) {
+      console.error(`[CASAFARI] Error fetching alert properties:`, error);
+      return [];
+    }
+  }
+
   private async getOrCreateFeed(criteria: SearchCriteria & { privateOnly?: boolean }): Promise<number> {
     const client = await this.getClient();
 
