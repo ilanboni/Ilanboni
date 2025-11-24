@@ -2399,7 +2399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerName,
         ownerPhone,
         ownerEmail,
-        url,
+        externalLink: url, // Map url to externalLink
         ownerType: "private", // Mark as private seller
         portalSource: "Manual",
         externalId: `manual-${Date.now()}`,
@@ -3078,7 +3078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bedrooms: bedrooms ? Number(bedrooms) : undefined,
           bathrooms: bathrooms ? Number(bathrooms) : undefined,
           description,
-          url,
+          externalLink: url, // Map url to externalLink
           ownerType: "agency",
           portalSource: "Manual",
           externalId: `manual-agency-${Date.now()}`,
