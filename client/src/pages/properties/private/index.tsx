@@ -25,6 +25,36 @@ const DUOMO_LAT = 45.464204;
 const DUOMO_LNG = 9.191383;
 const RADIUS_KM = 4;
 
+// Pulisce l'indirizzo per mostrare solo la parte essenziale
+function cleanAddress(address: string): string {
+  if (!address) return '';
+  
+  // Rimuovi HTML entities
+  let cleaned = address
+    .replace(/&#8212;/g, '-')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+  
+  // Estrai solo la parte prima del primo punto o comma
+  const partBeforePunct = cleaned.split(/[.,]/)[0].trim();
+  
+  // Se la parte è troppo lunga, potrebbe contenere dettagli inutili - tronca dopo la strada
+  // Estrai: Via/Corso/Viale + [nome] + [numero]
+  const match = partBeforePunct.match(/^(via|corso|viale|piazza|largo|via\s+|corso\s+|viale\s+|piazza\s+|largo\s+)\s*(.+?)(\s+\d+[a-z]?)?$/i);
+  
+  if (match) {
+    const type = match[1].trim();
+    const name = match[2].trim();
+    const number = match[3]?.trim() || '';
+    return `${type.charAt(0).toUpperCase()}${type.slice(1).toLowerCase()} ${name}${number}`;
+  }
+  
+  // Fallback: ritorna la parte prima della punteggiatura, capitalizzata
+  return partBeforePunct.charAt(0).toUpperCase() + partBeforePunct.slice(1);
+}
+
 // Calcola distanza in km usando formula di Haversine
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Raggio della Terra in km
@@ -455,7 +485,7 @@ export default function PrivatePropertiesPage() {
                         >
                           <Popup>
                             <div className="min-w-[250px]">
-                              <h3 className="font-semibold text-sm mb-1">{property.address}</h3>
+                              <h3 className="font-semibold text-sm mb-1">{cleanAddress(property.address)}</h3>
                               <p className="text-xs text-gray-600 mb-2">{property.city}</p>
                               {property.price && (
                                 <p className="text-sm font-bold text-green-600 mb-2">
@@ -525,7 +555,7 @@ export default function PrivatePropertiesPage() {
                     <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
-                          <CardTitle className="text-base">{property.address}</CardTitle>
+                          <CardTitle className="text-base">{cleanAddress(property.address)}</CardTitle>
                           <Button
                             size="sm"
                             variant="ghost"
