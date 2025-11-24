@@ -235,6 +235,7 @@ export const sharedProperties = pgTable("shared_properties", {
   externalId: text("external_id"), // ID from external portal (Immobiliare, Idealista, etc.)
   portalSource: text("portal_source"), // "Immobiliare.it", "Idealista.it", etc.
   url: text("url"), // Link to external listing
+  externalLink: text("external_link"), // Link to external listing (alternative field)
   imageUrls: jsonb("image_urls"), // Array of image URLs from scraping
   ownerType: text("owner_type"), // "private" or "agency"
   isMultiagency: boolean("is_multiagency").default(false), // true if 7+ agencies

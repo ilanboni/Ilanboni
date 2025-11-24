@@ -33,14 +33,14 @@ export function AutoImportPropertyDialog() {
         saveMutation.mutate({
           extracted: true,
           data: result.data,
-          url: result.url
+          url: result.url || url
         });
       } else {
         // Altrimenti mostra il form per completare
         setExtracted(true);
         setPreview(result.preview);
         setEditedData({
-          url: result.data.url,
+          url: result.data.url || url, // Copia automaticamente l'URL di input se non estratto dal backend
           address: result.data.address,
           price: result.data.price,
           type: result.data.type,
@@ -280,6 +280,16 @@ export function AutoImportPropertyDialog() {
               <p className="text-sm font-semibold text-gray-600">Completa i dati</p>
               
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-2">
+                  <Label className="text-xs">Link Immobile</Label>
+                  <Input
+                    value={editedData?.url || ""}
+                    onChange={(e) => setEditedData({ ...editedData, url: e.target.value })}
+                    placeholder="https://www.immobiliare.it/..."
+                    data-testid="input-auto-import-link"
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label className="text-xs">Indirizzo *</Label>
                   <Input
