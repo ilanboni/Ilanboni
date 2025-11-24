@@ -345,7 +345,7 @@ export function AutoImportPropertyDialog() {
               </Button>
               <Button
                 className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
-                onClick={() => saveMutation.mutate()}
+                onClick={() => saveMutation.mutate(undefined)}
                 disabled={saveMutation.isPending || !isFormComplete}
                 data-testid="button-save-auto-import"
               >
