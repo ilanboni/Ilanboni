@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -11,8 +13,9 @@ import { Zap, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 export function AutoImportPropertyDialog() {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
-  const [imported, setImported] = useState(false);
+  const [extracted, setExtracted] = useState(false);
   const [preview, setPreview] = useState<any>(null);
+  const [editedData, setEditedData] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -24,22 +27,80 @@ export function AutoImportPropertyDialog() {
       });
     },
     onSuccess: (result: any) => {
-      setImported(true);
+      setExtracted(true);
       setPreview(result.preview);
-      queryClient.invalidateQueries({ queryKey: ["/api/shared-properties"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/properties/private"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/properties/multi-agency"] });
-      
-      toast({
-        title: "✅ Immobile importato!",
-        description: result.preview?.title,
+      setEditedData({
+        address: result.data.address,
+        price: result.data.price,
+        type: result.data.type,
+        bedrooms: result.data.bedrooms,
+        bathrooms: result.data.bathrooms,
+        size: result.data.size,
+        ownerPhone: result.data.ownerPhone,
+        ownerName: result.data.ownerName,
+        agencyName: result.data.agencyName,
+        agencyPhone: result.data.agencyPhone,
+        description: result.data.description
       });
     },
     onError: (error: any) => {
       console.error("Errore import:", error);
       toast({
         title: "❌ Errore",
-        description: error?.message || "Non è stato possibile importare l'immobile dal link",
+        description: "Non è stato possibile estrarre i dati dal link",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const isAgency = editedData.agencyName && editedData.agencyName !== "" && editedData.agencyName !== "Da completare";
+      const endpoint = isAgency ? "/api/properties/manual-agency" : "/api/properties/manual-private";
+      
+      const payload = {
+        url: url,
+        address: editedData.address,
+        city: "Milano",
+        type: editedData.type || "apartment",
+        price: Number(editedData.price),
+        bedrooms: editedData.bedrooms ? Number(editedData.bedrooms) : undefined,
+        bathrooms: editedData.bathrooms ? Number(editedData.bathrooms) : undefined,
+        size: editedData.size ? Number(editedData.size) : undefined,
+        floor: undefined,
+        description: editedData.description,
+        ...(isAgency ? {
+          agencyName: editedData.agencyName,
+          agencyPhone: editedData.agencyPhone,
+          agencyUrl: url
+        } : {
+          ownerPhone: editedData.ownerPhone,
+          ownerName: editedData.ownerName,
+          ownerEmail: undefined
+        })
+      };
+
+      return await apiRequest(endpoint, {
+        method: "POST",
+        data: payload
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shared-properties"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties/private"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties/multi-agency"] });
+      
+      toast({
+        title: "✅ Immobile importato!",
+        description: `${editedData.address} - €${editedData.price.toLocaleString('it-IT')}`,
+      });
+      handleClose();
+    },
+    onError: (error: any) => {
+      console.error("Errore save:", error);
+      toast({
+        title: "❌ Errore",
+        description: error?.message || "Non è stato possibile salvare l'immobile",
         variant: "destructive",
       });
     },
@@ -59,14 +120,17 @@ export function AutoImportPropertyDialog() {
 
   const handleReset = () => {
     setUrl("");
-    setImported(false);
+    setExtracted(false);
     setPreview(null);
+    setEditedData(null);
   };
 
   const handleClose = () => {
     setOpen(false);
     setTimeout(() => handleReset(), 300);
   };
+
+  const isFormComplete = editedData?.address && editedData?.price > 0;
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
@@ -82,18 +146,18 @@ export function AutoImportPropertyDialog() {
           <span>Rapido</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-blue-600" />
             Import Veloce
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Incolla un link e il sistema importa tutto automaticamente
+            Incolla un link e il sistema estrae i dati automaticamente
           </p>
         </DialogHeader>
 
-        {!imported ? (
+        {!extracted ? (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Link Immobile *</label>
@@ -128,112 +192,160 @@ export function AutoImportPropertyDialog() {
               ) : (
                 <>
                   <Zap className="h-4 w-4" />
-                  Estrai e Salva
+                  Estrai Dati
                 </>
               )}
             </Button>
           </div>
         ) : (
           <div className="space-y-4 py-4">
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                <strong>Proprietà salvata!</strong>
+            <Alert className="border-blue-200 bg-blue-50">
+              <AlertTriangle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 text-xs">
+                {!preview?.isComplete 
+                  ? "Alcuni dati non sono stati estratti. Completali qui sotto e salva."
+                  : "Dati completi estratti dal link!"
+                }
               </AlertDescription>
             </Alert>
 
-            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-              <div>
-                <p className="text-sm font-semibold text-gray-600">Titolo</p>
-                <p className="font-bold text-base">{preview?.title}</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-gray-600">Classificazione</p>
-                <p className="text-lg font-bold">{preview?.classification}</p>
-              </div>
-
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <p className="text-sm font-semibold text-gray-600">Preview</p>
+              <p className="text-lg font-bold">{preview?.title}</p>
+              <p className="text-md">{preview?.classification}</p>
               {preview?.description && (
-                <div className="bg-white p-3 rounded border border-gray-200">
-                  <p className="text-sm font-semibold text-gray-600 mb-2">Descrizione</p>
-                  <p className="text-sm text-gray-700 line-clamp-3">{preview?.description}</p>
-                </div>
+                <p className="text-sm text-gray-700">{preview?.description}</p>
               )}
+            </div>
 
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-600">Dettagli</p>
-                <dl className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-gray-600">Indirizzo:</dt>
-                    <dd className="font-medium">{preview?.details?.indirizzo}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-gray-600">Prezzo:</dt>
-                    <dd className="font-medium">{preview?.details?.prezzo}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-gray-600">Tipo:</dt>
-                    <dd className="font-medium">{preview?.details?.tipo}</dd>
-                  </div>
-                  {preview?.details?.camere && (
-                    <div className="flex justify-between">
-                      <dt className="text-gray-600">Camere:</dt>
-                      <dd className="font-medium">{preview?.details?.camere}</dd>
-                    </div>
-                  )}
-                  {preview?.details?.bagni && (
-                    <div className="flex justify-between">
-                      <dt className="text-gray-600">Bagni:</dt>
-                      <dd className="font-medium">{preview?.details?.bagni}</dd>
-                    </div>
-                  )}
-                  {preview?.details?.superficie && (
-                    <div className="flex justify-between">
-                      <dt className="text-gray-600">Superficie:</dt>
-                      <dd className="font-medium">{preview?.details?.superficie}</dd>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <dt className="text-gray-600">Agenzia/Privato:</dt>
-                    <dd className="font-medium">{preview?.details?.agenzia}</dd>
-                  </div>
-                  {preview?.multiAgencies > 0 && (
-                    <div className="flex justify-between">
-                      <dt className="text-gray-600">Agenzie rilevate:</dt>
-                      <dd className="font-medium">{preview?.multiAgencies}</dd>
-                    </div>
-                  )}
-                </dl>
+            <div className="space-y-4 bg-white p-4 rounded-lg border border-gray-200">
+              <p className="text-sm font-semibold text-gray-600">Completa i dati</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">Indirizzo *</Label>
+                  <Input
+                    value={editedData?.address || ""}
+                    onChange={(e) => setEditedData({ ...editedData, address: e.target.value })}
+                    placeholder="Via Esempio, 123"
+                    data-testid="input-address"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Prezzo *</Label>
+                  <Input
+                    type="number"
+                    value={editedData?.price || ""}
+                    onChange={(e) => setEditedData({ ...editedData, price: Number(e.target.value) })}
+                    placeholder="0"
+                    data-testid="input-price"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Tipo</Label>
+                  <Select value={editedData?.type} onValueChange={(value) => setEditedData({ ...editedData, type: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="apartment">Appartamento</SelectItem>
+                      <SelectItem value="penthouse">Attico</SelectItem>
+                      <SelectItem value="villa">Villa</SelectItem>
+                      <SelectItem value="loft">Loft</SelectItem>
+                      <SelectItem value="other">Altro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Camere</Label>
+                  <Input
+                    type="number"
+                    value={editedData?.bedrooms || ""}
+                    onChange={(e) => setEditedData({ ...editedData, bedrooms: e.target.value ? Number(e.target.value) : undefined })}
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Bagni</Label>
+                  <Input
+                    type="number"
+                    value={editedData?.bathrooms || ""}
+                    onChange={(e) => setEditedData({ ...editedData, bathrooms: e.target.value ? Number(e.target.value) : undefined })}
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Superficie (m²)</Label>
+                  <Input
+                    type="number"
+                    value={editedData?.size || ""}
+                    onChange={(e) => setEditedData({ ...editedData, size: e.target.value ? Number(e.target.value) : undefined })}
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="space-y-2 col-span-2">
+                  <Label className="text-xs">Nome Proprietario / Agenzia</Label>
+                  <Input
+                    value={editedData?.ownerName || editedData?.agencyName || ""}
+                    onChange={(e) => setEditedData({ ...editedData, ownerName: e.target.value, agencyName: e.target.value })}
+                    placeholder="Nome"
+                  />
+                </div>
+
+                <div className="space-y-2 col-span-2">
+                  <Label className="text-xs">Telefono</Label>
+                  <Input
+                    value={editedData?.ownerPhone || editedData?.agencyPhone || ""}
+                    onChange={(e) => setEditedData({ ...editedData, ownerPhone: e.target.value, agencyPhone: e.target.value })}
+                    placeholder="+39..."
+                  />
+                </div>
+
+                <div className="space-y-2 col-span-2">
+                  <Label className="text-xs">Descrizione</Label>
+                  <textarea
+                    value={editedData?.description || ""}
+                    onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
+                    placeholder="Descrizione immobile"
+                    className="w-full p-2 border border-gray-300 rounded text-sm"
+                    rows={3}
+                  />
+                </div>
               </div>
-
-              <Alert className="border-blue-200 bg-blue-50">
-                <AlertTriangle className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="text-blue-800 text-xs">
-                  La proprietà è stata salvata e sarà disponibile nei matching dei tuoi buyer
-                </AlertDescription>
-              </Alert>
             </div>
 
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => {
-                  handleClose();
-                }}
+                onClick={handleClose}
                 data-testid="button-close-auto-import"
               >
-                Chiudi
+                Annulla
               </Button>
               <Button
-                className="flex-1 gap-2"
-                onClick={() => {
-                  handleReset();
-                }}
-                data-testid="button-import-another"
+                className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending || !isFormComplete}
+                data-testid="button-save-auto-import"
               >
-                <Zap className="h-4 w-4" />
-                Importa Altro
+                {saveMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Salvataggio...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Salva Immobile
+                  </>
+                )}
               </Button>
             </div>
           </div>

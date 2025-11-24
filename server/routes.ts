@@ -2598,86 +2598,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
       } catch (parseError) {
-        console.log("[AUTO-IMPORT] Parsing error:", parseError);
-        return res.status(400).json({ error: "Errore durante il parsing del link" });
+        console.log("[AUTO-IMPORT] Parsing error (non-critical):", parseError);
+        // Don't fail - just return with whatever we could parse
       }
 
-      // Now save to database
-      try {
-        // Create as shared property
-        const sharedProperty = await storage.createSharedProperty({
+      // Always return preview (even if partially extracted)
+      // Don't save to database yet - let frontend decide
+      res.status(200).json({
+        success: true,
+        extracted: true,
+        url,
+        data: {
           address: parsed.address,
-          city: "Milano",
+          price: parsed.price,
           type: parsed.type,
-          price: Number(parsed.price),
-          size: parsed.size ? Number(parsed.size) : undefined,
-          floor: undefined,
-          ownerName: parsed.ownerName,
+          bedrooms: parsed.bedrooms,
+          bathrooms: parsed.bathrooms,
+          size: parsed.size,
+          description: parsed.description,
           ownerPhone: parsed.ownerPhone,
-          ownerEmail: undefined,
+          ownerName: parsed.ownerName,
           agencyName: parsed.agencyName,
-          agencyUrl: parsed.agencyUrl || url,
-          url,
+          agencyPhone: parsed.agencyPhone,
           ownerType: parsed.ownerType,
-          portalSource: "Manual",
-          externalId: `auto-import-${Date.now()}`,
           classificationColor: parsed.classificationColor,
-          matchBuyers: true
-        });
-
-        // Create regular property for geocoding
-        if (parsed.description) {
-          try {
-            await storage.createProperty({
-              address: parsed.address,
-              city: "Milano",
-              type: parsed.type,
-              price: Number(parsed.price),
-              bedrooms: parsed.bedrooms ? Number(parsed.bedrooms) : undefined,
-              bathrooms: parsed.bathrooms ? Number(parsed.bathrooms) : undefined,
-              size: parsed.size ? Number(parsed.size) : undefined,
-              floor: undefined,
-              description: parsed.description,
-              ownerName: parsed.ownerName,
-              ownerPhone: parsed.ownerPhone,
-              ownerEmail: undefined,
-              ownerType: parsed.ownerType,
-              source: "manual",
-              url,
-              externalId: `auto-import-${Date.now()}`,
-              geocodeStatus: "pending",
-              agencyName: parsed.agencyName,
-              agencyUrl: parsed.agencyUrl || url
-            });
-          } catch (err) {
-            console.log("[AUTO-IMPORT] Property creation skipped:", err);
-          }
+          multiAgencies: parsed.multiAgencies
+        },
+        preview: {
+          title: parsed.address && parsed.price ? `${parsed.address} - €${parsed.price.toLocaleString('it-IT')}` : "Immobile estratto dal link",
+          classification: parsed.classificationColor === "green" ? "🟢 Privato" : parsed.classificationColor === "yellow" ? "🟡 Multi-Agenzia" : "🔴 Singola Agenzia",
+          description: parsed.description,
+          details: {
+            indirizzo: parsed.address || "Da completare",
+            prezzo: parsed.price > 0 ? `€${parsed.price.toLocaleString('it-IT')}` : "Da completare",
+            tipo: parsed.type,
+            camere: parsed.bedrooms || undefined,
+            bagni: parsed.bathrooms || undefined,
+            superficie: parsed.size ? `${parsed.size}m²` : undefined,
+            agenzia: parsed.agencyName || parsed.ownerName || "Da completare",
+            telefono: parsed.agencyPhone || parsed.ownerPhone || undefined
+          },
+          multiAgencies: parsed.multiAgencies?.length || 0,
+          isComplete: parsed.address && parsed.price > 0
         }
-
-        res.status(201).json({
-          success: true,
-          property: sharedProperty,
-          preview: {
-            title: `${parsed.address} - €${parsed.price.toLocaleString('it-IT')}`,
-            classification: parsed.classificationColor === "green" ? "🟢 Privato" : parsed.classificationColor === "yellow" ? "🟡 Multi-Agenzia" : "🔴 Singola Agenzia",
-            description: parsed.description,
-            details: {
-              indirizzo: parsed.address,
-              prezzo: `€${parsed.price.toLocaleString('it-IT')}`,
-              tipo: parsed.type,
-              camere: parsed.bedrooms,
-              bagni: parsed.bathrooms,
-              superficie: parsed.size ? `${parsed.size}m²` : "N/A",
-              agenzia: parsed.agencyName || parsed.ownerName || "Non specificato",
-              telefono: parsed.agencyPhone || parsed.ownerPhone || "N/A"
-            },
-            multiAgencies: parsed.multiAgencies?.length || 0
-          }
-        });
-      } catch (err) {
-        console.error("[AUTO-IMPORT] Save error:", err);
-        return res.status(500).json({ error: "Errore durante il salvataggio della proprietà" });
-      }
+      });
 
     } catch (error) {
       console.error("[POST /api/properties/auto-import]", error);
