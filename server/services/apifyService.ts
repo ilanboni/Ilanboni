@@ -624,116 +624,75 @@ export class ApifyService {
   }
 
   /**
-   * Scrapes a single Idealista URL to extract price using Playwright
+   * Scrapes a single Idealista URL using Apify's Idealista scraper
    * Returns just the price or 0 if extraction fails
    */
   async scrapeSingleIdealistaUrl(url: string): Promise<number> {
-    console.log(`[IDEALISTA-SCRAPER] Attempting to scrape Idealista URL: ${url}`);
+    console.log(`[IDEALISTA-SCRAPER] Attempting to scrape single Idealista URL: ${url}`);
     
     // Extract property ID from URL for reference
     const propertyIdMatch = url.match(/\/immobile\/(\d+)/);
     const propertyId = propertyIdMatch ? propertyIdMatch[1] : 'unknown';
     
-    const { chromium } = await import('playwright');
-    let browser;
-    
     try {
-      // Launch browser
-      browser = await chromium.launch({ headless: true });
-      const page = await browser.newPage();
-
-      // Navigate to the URL
-      console.log(`[IDEALISTA-SCRAPER] Navigating to ${url}`);
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-
-      // Wait a bit for JavaScript to render
-      await page.waitForTimeout(2000);
-
-      // Try multiple selectors to find the price
-      const selectors = [
-        // Common Idealista selectors for price
-        '[data-price]',
-        '.price-tag',
-        '.big-price',
-        'h1[class*="price"]',
-        'span[class*="precio"]',
-        'span[class*="prezzo"]',
-        'h1[class*="prezzo"]',
-        // Generic patterns
-        'div[class*="price"] > span:first-child',
-        'div[class*="prezzo"] > span:first-child'
-      ];
-
-      let price = 0;
-      let found = false;
-
-      // Try each selector
-      for (const selector of selectors) {
-        try {
-          const element = await page.$(selector);
-          if (element) {
-            const text = await element.textContent();
-            if (text) {
-              console.log(`[IDEALISTA-SCRAPER] Found text with selector "${selector}": ${text}`);
-              // Extract numbers from text (handles "535.000 €" or "€535.000")
-              const numberMatch = text.match(/[\d.,]+/);
-              if (numberMatch) {
-                // Remove dots (thousand separators) and replace comma with dot for decimals
-                const cleanPrice = numberMatch[0]
-                  .replace(/\./g, '') // Remove thousand separators
-                  .replace(/,/g, '');  // Remove any remaining commas
-                const parsed = parseInt(cleanPrice);
-                if (parsed > 10000) { // Sanity check - real estate price should be > 10k
-                  price = parsed;
-                  found = true;
-                  console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price: €${price}`);
-                  break;
-                }
-              }
-            }
-          }
-        } catch (selectorError) {
-          // Try next selector
-          continue;
+      // Use Apify's Idealista scraper with the specific URL
+      const idealistaActorId = 'igolaizola/idealista-scraper';
+      
+      const input = {
+        searchUrls: [url],  // Pass the single URL directly
+        maxItems: 1,
+        proxyConfiguration: {
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL']
         }
-      }
-
-      // If selectors didn't work, try extracting from page text using regex
-      if (!found) {
-        console.log(`[IDEALISTA-SCRAPER] Selectors failed, trying text extraction...`);
-        const bodyText = await page.textContent('body');
-        if (bodyText) {
-          // Look for price pattern like "535.000 €" or "€535.000"
-          const priceMatch = bodyText.match(/[\d.,]+\s*€|€\s*[\d.,]+/);
-          if (priceMatch) {
-            const numberMatch = priceMatch[0].match(/[\d.,]+/);
-            if (numberMatch) {
-              const cleanPrice = numberMatch[0]
-                .replace(/\./g, '')
-                .replace(/,/g, '');
-              const parsed = parseInt(cleanPrice);
-              if (parsed > 10000) {
-                price = parsed;
-                found = true;
-                console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price from text: €${price}`);
-              }
-            }
+      };
+      
+      console.log(`[IDEALISTA-SCRAPER] Calling Apify with URL: ${url}`);
+      const run = await this.client.actor(idealistaActorId).call(input);
+      console.log(`[IDEALISTA-SCRAPER] Apify run completed: ${run.id}`);
+      
+      // Fetch the result
+      const { items } = await this.client.dataset(run.defaultDatasetId).listItems({
+        limit: 1
+      });
+      
+      console.log(`[IDEALISTA-SCRAPER] Apify returned ${items.length} items`);
+      
+      if (items.length > 0) {
+        const item = items[0];
+        console.log(`[IDEALISTA-SCRAPER] Item data:`, JSON.stringify({
+          price: item.price,
+          title: item.title,
+          url: item.url
+        }));
+        
+        // Extract price from various possible fields
+        let price: number = 0;
+        const priceValue = item.price || item.listPrice || item.priceAmount;
+        
+        if (priceValue) {
+          if (typeof priceValue === 'string') {
+            // Parse string price (handles "535000" or "535.000")
+            price = parseInt(priceValue.replace(/\./g, '').replace(/,/g, ''));
+          } else if (typeof priceValue === 'number') {
+            price = Math.floor(priceValue);
           }
         }
+        
+        if (price > 10000) {
+          console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price via Apify: €${price}`);
+          return price;
+        } else {
+          console.log(`[IDEALISTA-SCRAPER] ⚠️ Price too low or not found: ${price}`);
+          return 0;
+        }
+      } else {
+        console.log(`[IDEALISTA-SCRAPER] ⚠️ Apify returned no items for property ${propertyId}`);
+        return 0;
       }
-
-      if (!found) {
-        console.log(`[IDEALISTA-SCRAPER] ⚠️ Could not extract price for property ${propertyId}`);
-      }
-
-      return price;
     } catch (error) {
-      console.error(`[IDEALISTA-SCRAPER] Error scraping URL: ${(error as Error).message}`);
+      console.error(`[IDEALISTA-SCRAPER] Apify scraping failed: ${(error as Error).message}`);
       return 0;
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
     }
   }
 }

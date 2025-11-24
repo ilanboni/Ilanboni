@@ -2203,8 +2203,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         if (!response.ok) {
-          return res.json(parsed); // Return empty parsed data
-        }
+          // For non-Idealista URLs, return early with minimal data
+          if (!url.includes('idealista.it')) {
+            return res.json(parsed);
+          }
+          // For Idealista: continue to Apify fallback below (don't return yet)
+        } else if (response.ok) {
 
         const html = await response.text();
         
@@ -2433,6 +2437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Silently fail - keep existing meta description
           }
         }
+        } // Close else if (response.ok)
 
       } catch (parseError) {
         console.log("[PARSE-URL] Parsing error (non-critical):", parseError);
@@ -2470,6 +2475,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (descAddressMatch) {
           parsed.address = descAddressMatch[0].trim().substring(0, 100);
           console.log("[PARSE-URL] Address extracted from description:", parsed.address);
+        }
+      }
+
+      // If price still not found for Idealista URLs, try Apify as last resort
+      if (parsed.price === 0 && url.includes('idealista.it')) {
+        console.log("[PARSE-URL] Price still 0 for Idealista URL, trying Apify scraper...");
+        try {
+          const { getApifyService } = await import('./services/apifyService');
+          const apifyService = getApifyService();
+          const apifyPrice = await apifyService.scrapeSingleIdealistaUrl(url);
+          if (apifyPrice > 0) {
+            parsed.price = apifyPrice;
+            console.log("[PARSE-URL] ✅ Price extracted via Apify:", apifyPrice);
+          }
+        } catch (apifyError) {
+          console.log("[PARSE-URL] Apify extraction failed:", (apifyError as Error).message);
         }
       }
 
@@ -2895,7 +2916,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // If we still don't have HTML, try to extract minimal data from URL
-        if (!html || html.length < 100) {
+        // BUT: For Idealista URLs, skip this and go straight to Apify fallback (Idealista blocks bot fetches)
+        if (!url.includes('idealista.it') && (!html || html.length < 100)) {
           console.log("[AUTO-IMPORT] No HTML available, extracting from URL only");
           const urlId = url.match(/(\d{6,})/)?.[1];
           if (urlId) {
@@ -2904,9 +2926,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             parsed.address = url.split('/').filter(p => p).pop() || "Immobile dal link";
           }
           // Still continue to return preview with minimal data
-        } else {
+        }
         
-        // Extract all common patterns
+        // Extract all common patterns (for all URLs, including Idealista with small HTML)
         // First, try to extract from JSON data (Idealista embeds price in JSON)
         let priceMatch = html.match(/"price"\s*:\s*(\d+)/i) || 
                         html.match(/"prezzo"\s*:\s*(\d+)/i) ||
@@ -3178,8 +3200,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           parsed.ownerType = "private";
           parsed.classificationColor = "green";
         }
-        
-        } // Close else block for html parsing
       } catch (parseError) {
         console.log("[AUTO-IMPORT] Parsing error (non-critical):", parseError);
         // Don't fail - just return with whatever we could parse
