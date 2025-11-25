@@ -2124,8 +2124,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Ottieni tutti gli immobili
   app.get("/api/properties", async (req: Request, res: Response) => {
     try {
+      // Pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 100;
+      
       // Filtraggio opzionale
-      const filters: { status?: string; search?: string; ownerType?: string } = {};
+      const filters: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number } = {
+        page,
+        limit
+      };
       
       if (req.query.status) {
         filters.status = req.query.status as string;
@@ -2139,8 +2146,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filters.ownerType = req.query.ownerType as string;
       }
       
-      const properties = await storage.getProperties(filters);
-      res.json(properties);
+      const result = await storage.getProperties(filters);
+      res.json(result);
     } catch (error) {
       console.error("[GET /api/properties]", error);
       res.status(500).json({ error: "Errore durante il recupero degli immobili" });

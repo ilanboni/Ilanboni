@@ -2083,12 +2083,11 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async getProperties(filters?: { status?: string; search?: string; ownerType?: string }): Promise<Property[]> {
-    let query = db.select().from(properties);
+  async getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }> {
+    // Build where conditions
+    const conditions: SQL[] = [];
     
     if (filters) {
-      const conditions: SQL[] = [];
-      
       if (filters.status) {
         conditions.push(eq(properties.status, filters.status));
       }
@@ -2120,13 +2119,39 @@ export class DatabaseStorage implements IStorage {
           }
         }
       }
-      
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
     }
     
-    return await query.orderBy(desc(properties.updatedAt));
+    // Get total count
+    let countQuery = db.select({ count: count() }).from(properties);
+    if (conditions.length > 0) {
+      countQuery = countQuery.where(and(...conditions));
+    }
+    const [{ count: total }] = await countQuery;
+    
+    // Get paginated results
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 100;
+    const offset = (page - 1) * limit;
+    
+    let query = db.select().from(properties);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    const propertiesList = await query
+      .orderBy(desc(properties.updatedAt))
+      .limit(limit)
+      .offset(offset);
+    
+    const totalPages = Math.ceil(total / limit);
+    
+    return {
+      properties: propertiesList,
+      total,
+      page,
+      limit,
+      totalPages
+    };
   }
 
   async getPropertiesByIds(ids: number[]): Promise<Property[]> {
