@@ -810,20 +810,20 @@ export class MemStorage implements IStorage {
       const showMultiShared = filters.showMultiShared !== false;
       
       properties = properties.filter((property) => {
-        // Private properties (ownerType = 'private')
-        if (property.ownerType === 'private') {
-          return showPrivate;
-        }
-        // Multi-shared properties (isMultiagency = true)
+        // Pluricondivisi: is_multiagency = true (more than one agency)
         if (property.isMultiagency) {
           return showMultiShared;
         }
-        // Mono-shared properties (agency/shared but not multi-agency)
-        if (property.ownerType === 'agency' || property.isShared) {
+        // Monocondivisi: ownerType = 'agency' AND NOT multiagency (single agency)
+        if (property.ownerType === 'agency') {
           return showMonoShared;
         }
-        // Default: show if mono-shared is enabled
-        return showMonoShared;
+        // Privati: ownerType = 'private' (private owners)
+        if (property.ownerType === 'private') {
+          return showPrivate;
+        }
+        // Default: show if private is enabled
+        return showPrivate;
       });
     }
     
@@ -2165,12 +2165,20 @@ export class DatabaseStorage implements IStorage {
       const typeConditions: SQL[] = [];
       
       if (showPrivate) {
-        // Private properties: ownerType = 'private'
-        typeConditions.push(eq(properties.ownerType, 'private'));
+        // Privati: ownerType = 'private' (gestiti da privati)
+        typeConditions.push(
+          and(
+            eq(properties.ownerType, 'private'),
+            or(
+              eq(properties.isMultiagency, false),
+              sql`${properties.isMultiagency} IS NULL`
+            )
+          )!
+        );
       }
       
       if (showMonoShared) {
-        // Mono-shared: agency properties that are NOT multi-agency
+        // Monocondivisi: ownerType = 'agency' AND NOT multiagency (una sola agenzia)
         typeConditions.push(
           and(
             eq(properties.ownerType, 'agency'),
@@ -2183,7 +2191,7 @@ export class DatabaseStorage implements IStorage {
       }
       
       if (showMultiShared) {
-        // Multi-shared: isMultiagency = true
+        // Pluricondivisi: isMultiagency = true (più agenzie)
         typeConditions.push(eq(properties.isMultiagency, true));
       }
       

@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Search, Filter, ChevronLeft, ChevronRight, User, Building2, Users } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Helmet } from "react-helmet";
@@ -296,7 +296,7 @@ export default function PropertiesPage() {
                 data-testid="switch-private"
               />
               <Label htmlFor="filter-private" className="flex items-center gap-1.5 text-sm cursor-pointer">
-                <User className="h-4 w-4 text-blue-600" />
+                <span className="inline-block w-3 h-3 rounded bg-green-500"></span>
                 <span>Privati</span>
               </Label>
             </div>
@@ -309,7 +309,7 @@ export default function PropertiesPage() {
                 data-testid="switch-mono-shared"
               />
               <Label htmlFor="filter-mono" className="flex items-center gap-1.5 text-sm cursor-pointer">
-                <Building2 className="h-4 w-4 text-green-600" />
+                <span className="inline-block w-3 h-3 rounded bg-red-500"></span>
                 <span>Monocondivisi</span>
               </Label>
             </div>
@@ -322,7 +322,7 @@ export default function PropertiesPage() {
                 data-testid="switch-multi-shared"
               />
               <Label htmlFor="filter-multi" className="flex items-center gap-1.5 text-sm cursor-pointer">
-                <Users className="h-4 w-4 text-purple-600" />
+                <span className="inline-block w-3 h-3 rounded bg-yellow-500"></span>
                 <span>Pluricondivisi</span>
               </Label>
             </div>
