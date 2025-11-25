@@ -3901,6 +3901,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Elimina più immobili in batch
+  app.post("/api/properties/bulk-delete", async (req: Request, res: Response) => {
+    try {
+      const { ids } = req.body;
+      
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "IDs immobili non validi" });
+      }
+      
+      console.log(`[BULK-DELETE] Eliminazione di ${ids.length} immobili: ${ids.join(', ')}`);
+      
+      let deleted = 0;
+      let failed = 0;
+      
+      for (const id of ids) {
+        try {
+          const propertyId = parseInt(id);
+          if (isNaN(propertyId)) {
+            failed++;
+            continue;
+          }
+          
+          const property = await storage.getProperty(propertyId);
+          if (property) {
+            await storage.deleteProperty(propertyId);
+            deleted++;
+          } else {
+            failed++;
+          }
+        } catch (err) {
+          console.error(`[BULK-DELETE] Errore eliminazione immobile ${id}:`, err);
+          failed++;
+        }
+      }
+      
+      console.log(`[BULK-DELETE] Completato: ${deleted} eliminati, ${failed} falliti`);
+      
+      res.json({ 
+        success: true, 
+        deleted, 
+        failed,
+        message: `${deleted} immobili eliminati con successo`
+      });
+    } catch (error) {
+      console.error('[BULK-DELETE] Errore:', error);
+      res.status(500).json({ error: "Errore durante l'eliminazione degli immobili" });
+    }
+  });
+  
   // Endpoint per trovare clienti potenziali per un immobile
   app.get("/api/properties/:id/matching-buyers", async (req: Request, res: Response) => {
     try {

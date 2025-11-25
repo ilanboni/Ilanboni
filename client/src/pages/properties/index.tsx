@@ -18,11 +18,14 @@ import {
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, Trash2, CheckSquare, XSquare } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Helmet } from "react-helmet";
@@ -44,6 +47,12 @@ export default function PropertiesPage() {
   const [showPrivate, setShowPrivate] = useState(true);
   const [showMonoShared, setShowMonoShared] = useState(true);
   const [showMultiShared, setShowMultiShared] = useState(true);
+  
+  // Multi-select state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   
   // Debounce search query to avoid excessive API calls
   useEffect(() => {
@@ -157,7 +166,7 @@ export default function PropertiesPage() {
   
   const handleDeleteProperty = async (property: PropertyWithDetails) => {
     try {
-      await apiRequest('DELETE', `/api/properties/${property.id}`);
+      await apiRequest(`/api/properties/${property.id}`, { method: 'DELETE' });
       
       toast({
         title: "Immobile eliminato",
@@ -176,7 +185,7 @@ export default function PropertiesPage() {
   
   const handleSendToClients = async (property: PropertyWithDetails) => {
     try {
-      await apiRequest('POST', `/api/properties/${property.id}/match`, null);
+      await apiRequest(`/api/properties/${property.id}/match`, { method: 'POST' });
       
       toast({
         title: "Invio completato",
@@ -188,6 +197,65 @@ export default function PropertiesPage() {
         description: "Si è verificato un errore durante l'invio dell'immobile ai clienti.",
         variant: "destructive",
       });
+    }
+  };
+  
+  // Multi-select handlers
+  const handleSelectProperty = (property: PropertyWithDetails, selected: boolean) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(property.id);
+      } else {
+        newSet.delete(property.id);
+      }
+      return newSet;
+    });
+  };
+  
+  const handleSelectAll = () => {
+    if (properties && properties.length > 0) {
+      const allIds = new Set<number>(properties.map((p: PropertyWithDetails) => p.id));
+      setSelectedIds(allIds);
+    }
+  };
+  
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+  
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectionMode(!selectionMode);
+  };
+  
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsBulkDeleting(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+      await apiRequest('/api/properties/bulk-delete', { method: 'POST', data: { ids: idsArray } });
+      
+      toast({
+        title: "Eliminazione completata",
+        description: `${idsArray.length} immobili sono stati eliminati con successo.`,
+      });
+      
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      setShowBulkDeleteDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'eliminazione degli immobili.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
   
@@ -227,13 +295,50 @@ export default function PropertiesPage() {
             Gestisci il tuo portafoglio immobiliare
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex items-center gap-2">
+          <Button 
+            variant={selectionMode ? "secondary" : "outline"}
+            onClick={toggleSelectionMode}
+            data-testid="button-selection-mode"
+          >
+            <CheckSquare className="mr-2 h-4 w-4" />
+            {selectionMode ? "Esci selezione" : "Seleziona"}
+          </Button>
           <Button onClick={() => navigate("/properties/new")}>
             <Plus className="mr-2 h-4 w-4" />
             Nuovo Immobile
           </Button>
         </div>
       </div>
+      
+      {/* Selection Mode Bar */}
+      {selectionMode && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-blue-800">
+              {selectedIds.size} immobili selezionati
+            </span>
+            <Button variant="outline" size="sm" onClick={handleSelectAll} data-testid="button-select-all">
+              <CheckSquare className="mr-2 h-4 w-4" />
+              Seleziona tutti
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDeselectAll} data-testid="button-deselect-all">
+              <XSquare className="mr-2 h-4 w-4" />
+              Deseleziona tutti
+            </Button>
+          </div>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            disabled={selectedIds.size === 0}
+            onClick={() => setShowBulkDeleteDialog(true)}
+            data-testid="button-bulk-delete"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Elimina selezionati ({selectedIds.size})
+          </Button>
+        </div>
+      )}
       
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
@@ -368,6 +473,9 @@ export default function PropertiesPage() {
               onEdit={handleEditProperty}
               onDelete={handleDeleteProperty}
               onSendToClients={handleSendToClients}
+              selectionMode={selectionMode}
+              isSelected={selectedIds.has(property.id)}
+              onSelect={handleSelectProperty}
             />
           ))}
         </div>
@@ -430,6 +538,35 @@ export default function PropertiesPage() {
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conferma eliminazione</DialogTitle>
+            <DialogDescription>
+              Stai per eliminare <strong>{selectedIds.size}</strong> immobili. Questa azione non può essere annullata.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowBulkDeleteDialog(false)}
+              disabled={isBulkDeleting}
+            >
+              Annulla
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              data-testid="button-confirm-bulk-delete"
+            >
+              {isBulkDeleting ? "Eliminazione..." : `Elimina ${selectedIds.size} immobili`}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

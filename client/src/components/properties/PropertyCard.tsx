@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +48,9 @@ interface PropertyCardProps {
   onDelete: (property: PropertyWithDetails) => void;
   onSendToClients: (property: PropertyWithDetails) => void;
   compact?: boolean;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: (property: PropertyWithDetails, selected: boolean) => void;
 }
 
 export default function PropertyCard({
@@ -55,7 +59,10 @@ export default function PropertyCard({
   onEdit,
   onDelete,
   onSendToClients,
-  compact = false
+  compact = false,
+  selectionMode = false,
+  isSelected = false,
+  onSelect
 }: PropertyCardProps) {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   
@@ -116,10 +123,19 @@ export default function PropertyCard({
   
   // Full card view
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}>
       <CardHeader>
         <div className="flex justify-between items-start">
-          <div>
+          {selectionMode && (
+            <div className="mr-3 pt-1">
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelect?.(property, !!checked)}
+                data-testid={`checkbox-property-${property.id}`}
+              />
+            </div>
+          )}
+          <div className="flex-1">
             <CardTitle>{property.address}</CardTitle>
             <CardDescription className="mt-1">
               <div className="flex items-center">
