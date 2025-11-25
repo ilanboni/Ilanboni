@@ -2178,19 +2178,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(buyers)
         .innerJoin(clients, eq(buyers.clientId, clients.id));
       
+      // Load all agency properties to check if private properties are also published by agencies
+      const agencyProperties = await db
+        .select({
+          address: sharedProperties.address,
+          price: sharedProperties.price
+        })
+        .from(sharedProperties)
+        .where(eq(sharedProperties.ownerType, 'agency'));
+      
+      // Helper function to normalize addresses for comparison
+      const normalizeAddress = (addr: string | null): string => {
+        if (!addr) return '';
+        return addr.toLowerCase().trim().replace(/\s+/g, ' ');
+      };
+      
+      // Create a Set of "normalized_address|price" keys for fast lookup
+      const agencyPropertiesSet = new Set(
+        agencyProperties.map(p => `${normalizeAddress(p.address)}|${p.price || 0}`)
+      );
+      
       // Import matching logic
       const { isSharedPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
       
-      // Calculate matchingBuyersCount for each property
+      // Calculate matchingBuyersCount and isAlsoFromAgency for each property
       const propertiesWithMatches = properties.map(property => {
         const matchingBuyersCount = allBuyers.filter(row => {
           const buyer = row.buyers;
           return isSharedPropertyMatchingBuyerCriteria(property, buyer);
         }).length;
         
+        // Check if this private property is also published by an agency (with normalized comparison)
+        const propertyKey = `${normalizeAddress(property.address)}|${property.price || 0}`;
+        const isAlsoFromAgency = agencyPropertiesSet.has(propertyKey);
+        
         return {
           ...property,
-          matchingBuyersCount
+          matchingBuyersCount,
+          isAlsoFromAgency
         };
       });
       
@@ -2198,6 +2223,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("[GET /api/properties/private]", error);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà private" });
+    }
+  });
+
+  // Get all properties ranked by matching buyers count - MUST be before /:id route
+  app.get("/api/properties/ranking", async (req: Request, res: Response) => {
+    try {
+      // Parse pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = (page - 1) * limit;
+      
+      // Get all shared properties (mono, pluri, private)
+      const allSharedProperties = await db
+        .select()
+        .from(sharedProperties)
+        .where(eq(sharedProperties.isIgnored, false));
+      
+      // Load all buyers to calculate matching count
+      const allBuyers = await db
+        .select()
+        .from(buyers)
+        .innerJoin(clients, eq(buyers.clientId, clients.id));
+      
+      // Import matching logic
+      const { isSharedPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+      
+      // Calculate matchingBuyersCount and determine propertyType for each property
+      const propertiesWithMatches = allSharedProperties.map(property => {
+        const matchingBuyersCount = allBuyers.filter(row => {
+          const buyer = row.buyers;
+          return isSharedPropertyMatchingBuyerCriteria(property, buyer);
+        }).length;
+        
+        // Determine property type based on owner_type and is_multiagency
+        let propertyType: 'private' | 'mono' | 'pluri';
+        if (property.ownerType === 'private') {
+          propertyType = 'private';
+        } else if (property.isMultiagency) {
+          propertyType = 'pluri';
+        } else {
+          propertyType = 'mono';
+        }
+        
+        return {
+          ...property,
+          matchingBuyersCount,
+          propertyType
+        };
+      });
+      
+      // Sort by matchingBuyersCount descending
+      propertiesWithMatches.sort((a, b) => b.matchingBuyersCount - a.matchingBuyersCount);
+      
+      // Apply pagination
+      const total = propertiesWithMatches.length;
+      const totalPages = Math.ceil(total / limit);
+      const paginatedProperties = propertiesWithMatches.slice(offset, offset + limit);
+      
+      res.json({
+        properties: paginatedProperties,
+        total,
+        page,
+        limit,
+        totalPages
+      });
+    } catch (error) {
+      console.error("[GET /api/properties/ranking]", error);
+      res.status(500).json({ error: "Errore durante il recupero della classifica immobili" });
     }
   });
 

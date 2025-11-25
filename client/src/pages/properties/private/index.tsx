@@ -112,7 +112,7 @@ export default function PrivatePropertiesPage() {
     portalFilter?: string;
     isFavorite?: boolean;
   }>({
-    sortOrder: "most-matches",
+    sortOrder: "newest",
     onlyWithPhone: false,
     portalFilter: "all",
     isFavorite: false
@@ -590,6 +590,14 @@ export default function PrivatePropertiesPage() {
                             >
                               <User className="h-3 w-3 mr-1" />
                               {(property as any).matchingBuyersCount} matching
+                            </Badge>
+                          )}
+                          {(property as any).isAlsoFromAgency !== undefined && (
+                            <Badge 
+                              variant={(property as any).isAlsoFromAgency ? "secondary" : "default"}
+                              className={(property as any).isAlsoFromAgency ? "text-xs bg-orange-500 text-white" : "text-xs bg-green-600 text-white"}
+                            >
+                              {(property as any).isAlsoFromAgency ? "Privato + Agenzia" : "Solo Privato"}
                             </Badge>
                           )}
                           {property.size && (
