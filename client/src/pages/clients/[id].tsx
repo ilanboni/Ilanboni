@@ -2103,7 +2103,10 @@ export default function ClientDetailPage() {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {savedScrapedProperties
-                        .filter(property => !showOnlyPrivateProperties || property.ownerType === 'private')
+                        .filter(property => 
+                          (!showOnlyPrivateProperties || property.ownerType === 'private') &&
+                          !ignoredProperties.has(property.id)
+                        )
                         .map((property, idx) => {
                         // Determine color based on ownerType and isMultiagency
                         let bgColor = 'bg-gray-50';
