@@ -2171,6 +2171,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Errore durante il recupero delle proprietà private" });
     }
   });
+
+  // Update old private properties with missing external links
+  app.post("/api/properties/private/update-missing-links", async (req: Request, res: Response) => {
+    try {
+      console.log("[POST /api/properties/private/update-missing-links] Starting update of old private properties");
+      
+      // Get all private properties without external_link but with url
+      const { rows } = await db.execute(sql`
+        SELECT id, url FROM shared_properties 
+        WHERE external_link IS NULL AND url IS NOT NULL
+        AND owner_type = 'private'
+      `);
+      
+      if (!rows || rows.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: "Nessun immobile da aggiornare",
+          updatedCount: 0
+        });
+      }
+      
+      console.log(`[POST /api/properties/private/update-missing-links] Found ${rows.length} properties to update`);
+      
+      let updatedCount = 0;
+      
+      // Update each property
+      for (const row of rows) {
+        try {
+          const propertyId = (row as any).id;
+          const url = (row as any).url;
+          
+          // Update external_link with url value
+          await db.execute(sql`
+            UPDATE shared_properties 
+            SET external_link = ${url}
+            WHERE id = ${propertyId}
+          `);
+          
+          updatedCount++;
+          console.log(`[POST /api/properties/private/update-missing-links] Updated property ${propertyId}`);
+        } catch (err) {
+          console.warn(`[POST /api/properties/private/update-missing-links] Error updating property:`, err);
+        }
+      }
+      
+      console.log(`[POST /api/properties/private/update-missing-links] Successfully updated ${updatedCount} properties`);
+      
+      res.json({ 
+        success: true, 
+        message: `Aggiornati ${updatedCount} immobili privati con i link mancanti`,
+        updatedCount
+      });
+    } catch (error) {
+      console.error("[POST /api/properties/private/update-missing-links]", error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento dei link" });
+    }
+  });
   
   // Parse URL to extract property data
   app.post("/api/properties/parse-url", async (req: Request, res: Response) => {
