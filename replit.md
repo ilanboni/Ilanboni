@@ -8,7 +8,45 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### November 25, 2025: Private Properties Sorting by Matching Buyers
+### November 25, 2025: Unified Ranking Page & Private Properties Enhancement
+- **Request**: Create unified ranking page showing all property types (private, mono-shared, multi-shared) sorted by matching buyer count with server-side pagination, and enhance private properties page with chronological ordering and source distinction badges
+- **Implementation**:
+  - **New Ranking Endpoint** (`/api/properties/ranking`):
+    - Server-side pagination with `page` and `limit` parameters
+    - Returns all properties (private, mono-shared, multi-shared) with calculated `matchingBuyersCount`
+    - Normalized `isAlsoFromAgency` flag using address/price comparison (trim, lowercase, whitespace collapse)
+    - Paginated response structure: `{properties, total, page, limit, totalPages}`
+  - **New Ranking Page** (`/properties/ranking`):
+    - Client-side filters for property type (mono/pluri/private) with toggle switches
+    - Stats dashboard showing total properties, with matches, and favorites
+    - Property type badges (blue for private, green for mono-shared, purple for multi-shared)
+    - Manual refresh button with cache invalidation
+    - Favorite toggle with optimistic cache updates
+    - String-based query key pattern: `['/api/properties/ranking', 'page-${page}-limit-${limit}']` to ensure TanStack Query cache coherence
+    - Navigation link added to sidebar menu
+  - **Private Properties Enhancement** (`/api/properties/private` & `/properties/private`):
+    - Changed default sort order to **chronological** (newest first) instead of matching count
+    - Added `isAlsoFromAgency` flag to distinguish exclusive private listings from those also published by agencies
+    - Visual badges: Green "Solo Privato" for exclusive listings, Orange "Privato + Agenzia" for duplicates
+    - Address normalization ensures reliable duplicate detection across sources
+- **Files Modified**:
+  - `server/routes.ts`: New ranking endpoint + enhanced private endpoint with isAlsoFromAgency
+  - `client/src/pages/properties/ranking.tsx`: New ranking page with filters, pagination, and cache management
+  - `client/src/pages/properties/private/index.tsx`: Chronological sorting + badge display
+  - `client/src/App.tsx`: Ranking route registration
+  - `client/src/components/layouts/Sidebar.tsx`: Navigation link
+- **Technical Details**:
+  - **Query Key Pattern**: Centralized `rankingQueryKey(page, limit)` helper using string-based params to avoid object reference issues in TanStack Query cache operations
+  - **Performance**: Backend loads all buyers once and calculates matching in-memory (acceptable for current scale of ~3,000 properties, ~40 buyers)
+  - **Cache Coherence**: All cache operations (optimistic updates, invalidations, refetch) use the same query key helper to ensure consistency
+  - **Data-testid Attributes**: Comprehensive test IDs added for automated testing
+- **Results**: 
+  - Unified view of all property types with intelligent filtering
+  - Clear visual distinction between exclusive private listings and agency duplicates
+  - Efficient pagination prevents UI blocking with large datasets
+  - Reliable cache management ensures smooth user interactions (favorite toggles, pagination, manual refresh)
+
+### November 25, 2025 (earlier): Private Properties Sorting by Matching Buyers
 - **Request**: Sort private properties by number of potential matching buyers instead of date
 - **Implementation**:
   - Modified `/api/properties/private` endpoint to calculate `matchingBuyersCount` for each property
