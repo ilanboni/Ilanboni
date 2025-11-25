@@ -6,6 +6,16 @@ This project is a comprehensive real estate management system designed to stream
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### November 25, 2025: Geographic Tolerance & Property Classification Fix
+- **Fixed**: Via Vittoria Colonna 51 (ID 6298) now appears in matching properties for buyer 80 (client 121)
+- **Root Cause**: 24,847 properties were incorrectly classified as `owner_type = 'agency'` despite having no `owner_name` (imported from Apify)
+- **Solution**: Reclassified all properties with `owner_type = 'agency'` AND empty `owner_name` to `owner_type = 'private'`
+- **Impact**: Matching properties for buyers increased from 431 to 539 properties
+- **Enhancement**: Implemented 200m geographic tolerance for polygon zones - properties within 200m of polygon edges are now included (previously only properties inside polygons were matched)
+- **Technical**: Added support for both `Feature` and `FeatureCollection` GeoJSON formats in searchArea, using `@turf/point-to-line-distance` for accurate edge-distance calculations
+
 ## System Architecture
 The application features a modern full-stack architecture.
 - **Frontend**: React with TypeScript, Vite, Tailwind CSS, shadcn/ui, Wouter for routing, TanStack Query for server state, Leaflet for maps, and React Hook Form with Zod for form management. It includes mobile-responsive optimizations.

@@ -29,8 +29,9 @@ import { db } from "./db";
 import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql } from "drizzle-orm";
 import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import { point } from '@turf/helpers';
+import { point, lineString } from '@turf/helpers';
 import distance from '@turf/distance';
+import pointToLineDistance from '@turf/point-to-line-distance';
 
 // Storage interface with CRUD methods for all entities
 export interface IStorage {
@@ -3629,7 +3630,7 @@ export class DatabaseStorage implements IStorage {
     const allProperties = [...sharedProps, ...convertedPrivateProps];
     
     // Filter using advanced matching logic with tolerances
-    // size: -20% to +30%, price: +20%, zone: 1km radius
+    // size: -20% to +30%, price: +20%, zone: 200m from polygon edge
     const matches = allProperties.filter(prop => {
       // Size tolerance: -20% to +30%
       // Only reject if BOTH values exist AND property is out of range
@@ -3678,21 +3679,49 @@ export class DatabaseStorage implements IStorage {
           
           const searchArea = buyer.searchArea as any;
           
-          // Check if searchArea is a FeatureCollection (polygon zones)
+          // Normalize to array of features (handle both Feature and FeatureCollection)
+          let features: any[] = [];
           if (searchArea.type === 'FeatureCollection' && searchArea.features) {
+            features = searchArea.features;
+          } else if (searchArea.type === 'Feature') {
+            features = [searchArea];
+          }
+          
+          // Check if searchArea contains polygon zones
+          if (features.length > 0) {
             const propertyPoint = point([propLng, propLat]);
             let isInAnyZone = false;
             
-            for (const feature of searchArea.features) {
+            for (const feature of features) {
               if (booleanPointInPolygon(propertyPoint, feature)) {
                 isInAnyZone = true;
                 break;
               }
             }
             
-            // Reject if property is outside all search zones
+            // If not in zone, check distance tolerance (200m = ~2-3 minutes walk)
             if (!isInAnyZone) {
-              return false;
+              const DISTANCE_TOLERANCE_KM = 0.2; // 200 meters
+              let minDistance = Infinity;
+              
+              for (const feature of features) {
+                // Skip non-polygon features
+                if (feature.geometry?.type !== 'Polygon') continue;
+                
+                // Get polygon coordinates (array of rings, use first ring)
+                const coordinates = feature.geometry?.coordinates?.[0] || [];
+                if (coordinates.length < 2) continue;
+                
+                // Calculate distance to polygon edge (not just vertices)
+                const line = lineString(coordinates);
+                const d = pointToLineDistance(propertyPoint, line, { units: 'kilometers' });
+                if (d < minDistance) minDistance = d;
+              }
+              
+              // Reject only if property is more than 200m from any zone
+              if (minDistance > DISTANCE_TOLERANCE_KM) {
+                return false;
+              }
             }
           }
           // If searchArea is a single point with radius, calculate haversine distance
