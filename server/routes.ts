@@ -2129,10 +2129,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 100;
       const sortBy = req.query.sortBy as string | undefined;
       
+      // Property type filters
+      const showPrivate = req.query.showPrivate !== 'false';
+      const showMonoShared = req.query.showMonoShared !== 'false';
+      const showMultiShared = req.query.showMultiShared !== 'false';
+      
       // Filtraggio opzionale
-      const filters: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number } = {
+      const filters: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number; showPrivate?: boolean; showMonoShared?: boolean; showMultiShared?: boolean } = {
         page,
-        limit
+        limit,
+        showPrivate,
+        showMonoShared,
+        showMultiShared
       };
       
       if (req.query.status) {

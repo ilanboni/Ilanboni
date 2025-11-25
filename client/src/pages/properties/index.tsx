@@ -22,7 +22,9 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Filter, ChevronLeft, ChevronRight, User, Building2, Users } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Helmet } from "react-helmet";
 import { queryClient } from "@/lib/queryClient";
 
@@ -38,6 +40,11 @@ export default function PropertiesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
   
+  // Property type filters (all enabled by default)
+  const [showPrivate, setShowPrivate] = useState(true);
+  const [showMonoShared, setShowMonoShared] = useState(true);
+  const [showMultiShared, setShowMultiShared] = useState(true);
+  
   // Debounce search query to avoid excessive API calls
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -51,14 +58,17 @@ export default function PropertiesPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter]);
+  }, [statusFilter, showPrivate, showMonoShared, showMultiShared]);
   
   // State for dialog
   const [propertyToView, setPropertyToView] = useState<PropertyWithDetails | null>(null);
   
+  // Build property type filter string for query key
+  const propertyTypeFilter = `private=${showPrivate}&mono=${showMonoShared}&multi=${showMultiShared}`;
+  
   // Fetch properties
   const { data: paginationData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['/api/properties', statusFilter, debouncedSearchQuery, currentPage, sortOrder],
+    queryKey: ['/api/properties', statusFilter, debouncedSearchQuery, currentPage, sortOrder, propertyTypeFilter],
     queryFn: async () => {
       // Build query parameters
       const params = new URLSearchParams();
@@ -81,6 +91,11 @@ export default function PropertiesPage() {
       if (sortOrder === 'matching') {
         params.append('sortBy', 'matching');
       }
+      
+      // Add property type filters
+      params.append('showPrivate', showPrivate.toString());
+      params.append('showMonoShared', showMonoShared.toString());
+      params.append('showMultiShared', showMultiShared.toString());
       
       const url = `/api/properties?${params.toString()}`;
       const response = await fetch(url);
@@ -222,47 +237,95 @@ export default function PropertiesPage() {
       
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Cerca immobile per indirizzo, città..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
+        <div className="flex flex-col gap-4">
+          {/* Top Row: Search and Status/Sort Controls */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Cerca immobile per indirizzo, città..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+                data-testid="input-search"
+              />
+            </div>
+            
+            {/* Filter Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <Tabs 
+                value={statusFilter} 
+                onValueChange={setStatusFilter}
+                className="w-full sm:w-auto"
+              >
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="all">Tutti</TabsTrigger>
+                  <TabsTrigger value="available">Disponibili</TabsTrigger>
+                  <TabsTrigger value="pending">In Trattativa</TabsTrigger>
+                  <TabsTrigger value="sold">Venduti</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-sort">
+                  <SelectValue placeholder="Ordinamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="matching">Più matching</SelectItem>
+                  <SelectItem value="newest">Più recenti</SelectItem>
+                  <SelectItem value="oldest">Più vecchi</SelectItem>
+                  <SelectItem value="price_asc">Prezzo (crescente)</SelectItem>
+                  <SelectItem value="price_desc">Prezzo (decrescente)</SelectItem>
+                  <SelectItem value="size_asc">Metratura (crescente)</SelectItem>
+                  <SelectItem value="size_desc">Metratura (decrescente)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
-          {/* Filter Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <Tabs 
-              value={statusFilter} 
-              onValueChange={setStatusFilter}
-              className="w-full sm:w-auto"
-            >
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all">Tutti</TabsTrigger>
-                <TabsTrigger value="available">Disponibili</TabsTrigger>
-                <TabsTrigger value="pending">In Trattativa</TabsTrigger>
-                <TabsTrigger value="sold">Venduti</TabsTrigger>
-              </TabsList>
-            </Tabs>
+          {/* Property Type Filters */}
+          <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-100">
+            <span className="text-sm font-medium text-gray-600">Tipo proprietà:</span>
             
-            <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Ordinamento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="matching">Più matching</SelectItem>
-                <SelectItem value="newest">Più recenti</SelectItem>
-                <SelectItem value="oldest">Più vecchi</SelectItem>
-                <SelectItem value="price_asc">Prezzo (crescente)</SelectItem>
-                <SelectItem value="price_desc">Prezzo (decrescente)</SelectItem>
-                <SelectItem value="size_asc">Metratura (crescente)</SelectItem>
-                <SelectItem value="size_desc">Metratura (decrescente)</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="filter-private"
+                checked={showPrivate}
+                onCheckedChange={setShowPrivate}
+                data-testid="switch-private"
+              />
+              <Label htmlFor="filter-private" className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <User className="h-4 w-4 text-blue-600" />
+                <span>Privati</span>
+              </Label>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Switch
+                id="filter-mono"
+                checked={showMonoShared}
+                onCheckedChange={setShowMonoShared}
+                data-testid="switch-mono-shared"
+              />
+              <Label htmlFor="filter-mono" className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Building2 className="h-4 w-4 text-green-600" />
+                <span>Monocondivisi</span>
+              </Label>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Switch
+                id="filter-multi"
+                checked={showMultiShared}
+                onCheckedChange={setShowMultiShared}
+                data-testid="switch-multi-shared"
+              />
+              <Label htmlFor="filter-multi" className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Users className="h-4 w-4 text-purple-600" />
+                <span>Pluricondivisi</span>
+              </Label>
+            </div>
           </div>
         </div>
       </div>

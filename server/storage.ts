@@ -69,7 +69,7 @@ export interface IStorage {
   // Property methods
   getProperty(id: number): Promise<Property | undefined>;
   getPropertyByExternalId(externalId: string): Promise<Property | undefined>;
-  getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }>;
+  getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number; showPrivate?: boolean; showMonoShared?: boolean; showMultiShared?: boolean }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }>;
   getPropertiesByIds(ids: number[]): Promise<Property[]>;
   getPropertyWithDetails(id: number): Promise<PropertyWithDetails | undefined>;
   createProperty(property: InsertProperty): Promise<Property>;
@@ -783,7 +783,7 @@ export class MemStorage implements IStorage {
     );
   }
   
-  async getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }> {
+  async getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number; showPrivate?: boolean; showMonoShared?: boolean; showMultiShared?: boolean }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }> {
     let properties = Array.from(this.propertyStore.values());
     
     if (filters) {
@@ -803,6 +803,28 @@ export class MemStorage implements IStorage {
           property.type.toLowerCase().includes(search)
         );
       }
+      
+      // Apply property type filters
+      const showPrivate = filters.showPrivate !== false;
+      const showMonoShared = filters.showMonoShared !== false;
+      const showMultiShared = filters.showMultiShared !== false;
+      
+      properties = properties.filter((property) => {
+        // Private properties (ownerType = 'private')
+        if (property.ownerType === 'private') {
+          return showPrivate;
+        }
+        // Multi-shared properties (isMultiagency = true)
+        if (property.isMultiagency) {
+          return showMultiShared;
+        }
+        // Mono-shared properties (agency/shared but not multi-agency)
+        if (property.ownerType === 'agency' || property.isShared) {
+          return showMonoShared;
+        }
+        // Default: show if mono-shared is enabled
+        return showMonoShared;
+      });
     }
     
     const total = properties.length;
@@ -2097,7 +2119,7 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }> {
+  async getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number; showPrivate?: boolean; showMonoShared?: boolean; showMultiShared?: boolean }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }> {
     // Build where conditions
     const conditions: SQL[] = [];
     
@@ -2131,6 +2153,47 @@ export class DatabaseStorage implements IStorage {
           } else {
             conditions.push(and(...wordConditions)!);
           }
+        }
+      }
+      
+      // Apply property type filters
+      const showPrivate = filters.showPrivate !== false;
+      const showMonoShared = filters.showMonoShared !== false;
+      const showMultiShared = filters.showMultiShared !== false;
+      
+      // Build property type condition
+      const typeConditions: SQL[] = [];
+      
+      if (showPrivate) {
+        // Private properties: ownerType = 'private'
+        typeConditions.push(eq(properties.ownerType, 'private'));
+      }
+      
+      if (showMonoShared) {
+        // Mono-shared: agency properties that are NOT multi-agency
+        typeConditions.push(
+          and(
+            eq(properties.ownerType, 'agency'),
+            or(
+              eq(properties.isMultiagency, false),
+              sql`${properties.isMultiagency} IS NULL`
+            )
+          )!
+        );
+      }
+      
+      if (showMultiShared) {
+        // Multi-shared: isMultiagency = true
+        typeConditions.push(eq(properties.isMultiagency, true));
+      }
+      
+      // If not all types are shown, add filter
+      if (!showPrivate || !showMonoShared || !showMultiShared) {
+        if (typeConditions.length > 0) {
+          conditions.push(or(...typeConditions)!);
+        } else {
+          // No types selected - return empty result
+          conditions.push(sql`1 = 0`);
         }
       }
     }
