@@ -92,6 +92,35 @@ The application features a modern full-stack architecture.
 
 ---
 
+## Recent Features - Private Properties External Links (Latest Addition)
+
+### ✅ EXTERNAL LINKS FOR IMPORTED PRIVATE PROPERTIES - IMPLEMENTED
+
+**Problem**: Imported private properties from CasaDaPrivato, ClickCase, and Idealista (private) weren't showing external links, while manually added private properties had the `externalLink` field preserved.
+
+**Solution Implemented** ✅:
+1. **Modified dailyPrivatePropertiesScheduler.ts** to save private properties as `SharedProperty` instead of regular `Property`
+2. **Preserved externalLink field** - URL from source (listing.url) is saved as `externalLink` 
+3. **Consistent behavior** - All private properties now show links whether manually added or imported:
+   - CasaDaPrivato imports → Link visible ✓
+   - ClickCase imports → Link visible ✓
+   - Idealista private imports → Link visible ✓
+   - Manually added privates → Link visible ✓ (unchanged)
+
+**Technical Changes**:
+- `dailyPrivatePropertiesScheduler.ts` - Lines 292-314: Added conditional logic to save privates as SharedProperty
+- Private properties now use `createSharedProperty()` with `externalLink` field
+- Agency properties continue to use `createProperty()` as before
+
+**Result**:
+- ✅ All imported private properties now display their source links
+- ✅ Unified data structure for all private properties (SharedProperty with externalLink)
+- ✅ API endpoint `/api/properties/private` now returns externalLink for all imports
+
+**Status**: ✅ **COMPLETE - VERIFIED WORKING** - All imported private properties now have visible external links, matching the behavior of manually added properties.
+
+---
+
 ## Recent Features - Casafari Alert-Based Import (Previous)
 
 ### ✅ CASAFARI ALERTS IMPORT - COMPLETE INTEGRATION

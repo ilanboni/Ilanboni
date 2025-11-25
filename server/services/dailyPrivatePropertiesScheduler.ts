@@ -286,29 +286,53 @@ export class DailyPrivatePropertiesScheduler {
           if (classification.classificationColor === 'yellow') multiagencyCount++;
           if (classification.classificationColor === 'red') monoagencyCount++;
           
-          // Salva nel database
-          const propertyToSave = {
-            address: listing.address || '',
-            city: 'Milano',
-            price: listing.price || 0,
-            size: listing.size || 0,
-            type: 'apartment',
-            description: listing.description || listing.title || '',
-            url: listing.url || '',
-            latitude: coords.lat.toString(),
-            longitude: coords.lng.toString(),
-            ownerType: classification.ownerType,
-            isMultiagency: classification.isMultiagency,
-            externalId: listing.externalId,
-            ownerPhone: listing.ownerPhone,
-            ownerEmail: listing.ownerEmail,
-            portal: listing.portal || listing.source || '',
-            source: listing.source || listing.portal || '',
-            // Agenzie (se presenti)
-            agencies: listing.agencies || [],
-          };
-          
-          await storage.createProperty(propertyToSave);
+          // Salva nel database come SharedProperty (with externalLink per i privati) o Property (per le agenzie)
+          if (classification.ownerType === 'private') {
+            // Salva come SharedProperty con externalLink preservato
+            const sharedPropertyToSave = {
+              address: listing.address || '',
+              city: 'Milano',
+              price: listing.price || 0,
+              size: listing.size || 0,
+              type: 'apartment',
+              description: listing.description || listing.title || '',
+              externalLink: listing.url || '', // Preserva il link come externalLink
+              latitude: coords.lat.toString(),
+              longitude: coords.lng.toString(),
+              ownerType: classification.ownerType,
+              externalId: listing.externalId || `${listing.source}-${Date.now()}`,
+              ownerPhone: listing.ownerPhone,
+              ownerEmail: listing.ownerEmail,
+              ownerName: listing.ownerName,
+              portalSource: listing.portal || listing.source || 'Privato',
+              classificationColor: classification.classificationColor,
+              matchBuyers: true,
+            };
+            await storage.createSharedProperty(sharedPropertyToSave);
+          } else {
+            // Salva come Property normale per le agenzie
+            const propertyToSave = {
+              address: listing.address || '',
+              city: 'Milano',
+              price: listing.price || 0,
+              size: listing.size || 0,
+              type: 'apartment',
+              description: listing.description || listing.title || '',
+              url: listing.url || '',
+              latitude: coords.lat.toString(),
+              longitude: coords.lng.toString(),
+              ownerType: classification.ownerType,
+              isMultiagency: classification.isMultiagency,
+              externalId: listing.externalId,
+              ownerPhone: listing.ownerPhone,
+              ownerEmail: listing.ownerEmail,
+              portal: listing.portal || listing.source || '',
+              source: listing.source || listing.portal || '',
+              // Agenzie (se presenti)
+              agencies: listing.agencies || [],
+            };
+            await storage.createProperty(propertyToSave);
+          }
 
           saved++;
           const classificationEmoji = classification.classificationColor === 'green' ? '🟢' : classification.classificationColor === 'yellow' ? '🟡' : '🔴';
