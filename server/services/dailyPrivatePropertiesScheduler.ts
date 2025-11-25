@@ -319,6 +319,7 @@ export class DailyPrivatePropertiesScheduler {
               type: 'apartment',
               description: listing.description || listing.title || '',
               url: listing.url || '',
+              externalLink: listing.url || '', // Salva anche in externalLink per UI
               latitude: coords.lat.toString(),
               longitude: coords.lng.toString(),
               ownerType: classification.ownerType,
