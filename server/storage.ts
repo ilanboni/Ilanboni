@@ -69,7 +69,7 @@ export interface IStorage {
   // Property methods
   getProperty(id: number): Promise<Property | undefined>;
   getPropertyByExternalId(externalId: string): Promise<Property | undefined>;
-  getProperties(filters?: { status?: string; search?: string; ownerType?: string }): Promise<Property[]>;
+  getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }>;
   getPropertiesByIds(ids: number[]): Promise<Property[]>;
   getPropertyWithDetails(id: number): Promise<PropertyWithDetails | undefined>;
   createProperty(property: InsertProperty): Promise<Property>;
@@ -783,7 +783,7 @@ export class MemStorage implements IStorage {
     );
   }
   
-  async getProperties(filters?: { status?: string; search?: string; ownerType?: string }): Promise<Property[]> {
+  async getProperties(filters?: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number }): Promise<{ properties: Property[], total: number, page: number, limit: number, totalPages: number }> {
     let properties = Array.from(this.propertyStore.values());
     
     if (filters) {
@@ -805,7 +805,21 @@ export class MemStorage implements IStorage {
       }
     }
     
-    return properties;
+    const total = properties.length;
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 100;
+    const totalPages = Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+    
+    const paginatedProperties = properties.slice(offset, offset + limit);
+    
+    return {
+      properties: paginatedProperties,
+      total,
+      page,
+      limit,
+      totalPages
+    };
   }
   
 

@@ -8,7 +8,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### November 25, 2025: Geographic Tolerance & Property Classification Fix
+### November 25, 2025: Properties Page Pagination Implementation
+- **Issue**: Properties page (/properties) was freezing when trying to load all 29,118 properties at once
+- **Solution**: Implemented server-side pagination with default 100 properties per page
+- **Technical Changes**:
+  - Updated `IStorage.getProperties()` interface to return `{properties, total, page, limit, totalPages}` instead of `Property[]`
+  - Implemented pagination in `DatabaseStorage.getProperties()` using SQL LIMIT/OFFSET with separate count query
+  - Updated `MemStorage.getProperties()` to mirror pagination behavior for testing consistency
+  - Modified `/api/properties` route to accept `page` and `limit` query parameters
+  - Frontend updated with pagination controls (Previous/Next buttons) and page information display
+- **Performance**: Query time reduced from 3.5+ seconds (loading all records) to milliseconds with pagination
+- **Impact**: Page now loads instantly without freezing, displaying 100 properties per page across 292 pages
+- **Testing**: End-to-end tests confirm pagination works correctly with proper button states and navigation
+
+### November 25, 2025 (earlier): Geographic Tolerance & Property Classification Fix
 - **Fixed**: Via Vittoria Colonna 51 (ID 6298) now appears in matching properties for buyer 80 (client 121)
 - **Root Cause**: 24,847 properties were incorrectly classified as `owner_type = 'agency'` despite having no `owner_name` (imported from Apify)
 - **Solution**: Reclassified all properties with `owner_type = 'agency'` AND empty `owner_name` to `owner_type = 'private'`
