@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Plus, RefreshCw, Map, List, Star, Phone, Trash2 } from "lucide-react";
+import { MapPin, Plus, RefreshCw, Map, List, Star, Phone, Trash2, User } from "lucide-react";
 import { type SharedProperty } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
@@ -112,7 +112,7 @@ export default function PrivatePropertiesPage() {
     portalFilter?: string;
     isFavorite?: boolean;
   }>({
-    sortOrder: "newest",
+    sortOrder: "most-matches",
     onlyWithPhone: false,
     portalFilter: "all",
     isFavorite: false
@@ -241,6 +241,8 @@ export default function PrivatePropertiesPage() {
     // Sort properties
     return [...filtered].sort((a, b) => {
       switch (filters.sortOrder) {
+        case 'most-matches':
+          return ((b as any).matchingBuyersCount || 0) - ((a as any).matchingBuyersCount || 0);
         case 'newest':
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
         case 'oldest':
@@ -410,10 +412,11 @@ export default function PrivatePropertiesPage() {
                 value={filters.sortOrder} 
                 onValueChange={(value) => setFilters(prev => ({ ...prev, sortOrder: value }))}
               >
-                <SelectTrigger className="w-[180px]" data-testid="select-sort">
+                <SelectTrigger className="w-[200px]" data-testid="select-sort">
                   <SelectValue placeholder="Ordina per" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="most-matches">Più matching</SelectItem>
                   <SelectItem value="newest">Più recenti</SelectItem>
                   <SelectItem value="oldest">Più vecchi</SelectItem>
                   <SelectItem value="price-low">Prezzo: basso-alto</SelectItem>
@@ -580,6 +583,15 @@ export default function PrivatePropertiesPage() {
                           </div>
                         )}
                         <div className="flex gap-2 flex-wrap">
+                          {(property as any).matchingBuyersCount !== undefined && (
+                            <Badge 
+                              variant={(property as any).matchingBuyersCount > 0 ? "default" : "outline"} 
+                              className="text-xs"
+                            >
+                              <User className="h-3 w-3 mr-1" />
+                              {(property as any).matchingBuyersCount} matching
+                            </Badge>
+                          )}
                           {property.size && (
                             <Badge variant="outline" className="text-xs">
                               {property.size}m²

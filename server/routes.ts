@@ -2171,8 +2171,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const portal = req.query.portal as string | undefined;
       const properties = await storage.getPrivateProperties(portal);
-      // No need to enrich - getPrivateProperties() already returns properly formatted SharedProperty objects
-      res.json(properties);
+      
+      // Load all buyers to calculate matching count
+      const allBuyers = await db
+        .select()
+        .from(buyers)
+        .innerJoin(clients, eq(buyers.clientId, clients.id));
+      
+      // Import matching logic
+      const { isSharedPropertyMatchingBuyerCriteria } = await import('./lib/matchingLogic');
+      
+      // Calculate matchingBuyersCount for each property
+      const propertiesWithMatches = properties.map(property => {
+        const matchingBuyersCount = allBuyers.filter(row => {
+          const buyer = row.buyers;
+          return isSharedPropertyMatchingBuyerCriteria(property, buyer);
+        }).length;
+        
+        return {
+          ...property,
+          matchingBuyersCount
+        };
+      });
+      
+      res.json(propertiesWithMatches);
     } catch (error) {
       console.error("[GET /api/properties/private]", error);
       res.status(500).json({ error: "Errore durante il recupero delle proprietà private" });
