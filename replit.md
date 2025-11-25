@@ -8,6 +8,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### November 25, 2025: Main Properties Page - Default Matching Sort
+- **Request**: Sort main properties page (`/properties`) by matching buyers count by default
+- **Implementation**:
+  - Modified `/api/properties` endpoint to support `sortBy=matching` parameter
+  - When `sortBy=matching`, backend calculates `matchingBuyersCount` for each property using `isPropertyMatchingBuyerCriteria`
+  - Properties are sorted server-side by matching count (descending)
+  - Changed default sort order from "newest" to "matching"
+  - Added "Più matching" option to sort dropdown (first option)
+- **Files Modified**:
+  - `server/routes.ts`: Added sortBy=matching support to /api/properties endpoint
+  - `client/src/pages/properties/index.tsx`: Default sort "matching", new dropdown option
+- **Results**: Properties with more potential matching buyers now appear first by default
+
 ### November 25, 2025: Unified Ranking Page & Private Properties Enhancement
 - **Request**: Create unified ranking page showing all property types (private, mono-shared, multi-shared) sorted by matching buyer count with server-side pagination, and enhance private properties page with chronological ordering and source distinction badges
 - **Implementation**:

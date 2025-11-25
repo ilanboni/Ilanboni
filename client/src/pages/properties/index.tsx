@@ -34,7 +34,7 @@ export default function PropertiesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
-  const [sortOrder, setSortOrder] = useState("newest");
+  const [sortOrder, setSortOrder] = useState("matching");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
   
@@ -58,7 +58,7 @@ export default function PropertiesPage() {
   
   // Fetch properties
   const { data: paginationData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['/api/properties', statusFilter, debouncedSearchQuery, currentPage],
+    queryKey: ['/api/properties', statusFilter, debouncedSearchQuery, currentPage, sortOrder],
     queryFn: async () => {
       // Build query parameters
       const params = new URLSearchParams();
@@ -77,6 +77,11 @@ export default function PropertiesPage() {
         params.append('status', statusFilter);
       }
       
+      // Add sortBy parameter for matching sort (server-side)
+      if (sortOrder === 'matching') {
+        params.append('sortBy', 'matching');
+      }
+      
       const url = `/api/properties?${params.toString()}`;
       const response = await fetch(url);
       
@@ -92,6 +97,11 @@ export default function PropertiesPage() {
   const properties = useMemo(() => {
     if (!paginationData || !paginationData.properties || paginationData.properties.length === 0) {
       return [];
+    }
+    
+    // If sorting by matching, the backend already sorted, return as-is
+    if (sortOrder === 'matching') {
+      return paginationData.properties;
     }
     
     return [...paginationData.properties].sort((a, b) => {
@@ -244,6 +254,7 @@ export default function PropertiesPage() {
                 <SelectValue placeholder="Ordinamento" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="matching">Più matching</SelectItem>
                 <SelectItem value="newest">Più recenti</SelectItem>
                 <SelectItem value="oldest">Più vecchi</SelectItem>
                 <SelectItem value="price_asc">Prezzo (crescente)</SelectItem>

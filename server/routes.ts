@@ -2127,6 +2127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Pagination parameters
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 100;
+      const sortBy = req.query.sortBy as string | undefined;
       
       // Filtraggio opzionale
       const filters: { status?: string; search?: string; ownerType?: string; page?: number; limit?: number } = {
@@ -2147,6 +2148,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const result = await storage.getProperties(filters);
+      
+      // If sorting by matching, calculate matchingBuyersCount for each property
+      if (sortBy === 'matching') {
+        const allBuyers = await db
+          .select()
+          .from(buyers)
+          .innerJoin(clients, eq(buyers.clientId, clients.id));
+        
+        const propertiesWithMatching = result.properties.map((property: any) => {
+          let matchingCount = 0;
+          
+          for (const buyerData of allBuyers) {
+            const buyer = buyerData.buyers;
+            const client = buyerData.clients;
+            
+            // Skip inactive clients
+            if (client.status !== 'active') continue;
+            
+            // Use matching logic
+            if (isPropertyMatchingBuyerCriteria(property, buyer)) {
+              matchingCount++;
+            }
+          }
+          
+          return {
+            ...property,
+            matchingBuyersCount: matchingCount
+          };
+        });
+        
+        // Sort by matching count (descending)
+        propertiesWithMatching.sort((a: any, b: any) => b.matchingBuyersCount - a.matchingBuyersCount);
+        
+        return res.json({
+          ...result,
+          properties: propertiesWithMatching
+        });
+      }
+      
       res.json(result);
     } catch (error) {
       console.error("[GET /api/properties]", error);
