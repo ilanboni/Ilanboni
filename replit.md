@@ -8,7 +8,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### November 25, 2025: Properties Page Pagination Implementation
+### November 25, 2025: Matching Tolerances Adjustment
+- **Request**: Adjust property matching tolerances for buyer criteria
+- **Changes**:
+  - Price tolerance: Changed from +20% to **+10%** (e.g., €400k budget now accepts up to €440k)
+  - Size tolerance (minimum): Changed from -20% to **-2%** (e.g., 50mq requirement now accepts down to 49mq)
+  - Size tolerance (maximum): Kept at +40% for flexibility
+- **Files Modified**:
+  - `server/lib/matchingLogic.ts`: Updated `isPropertyMatchingBuyerCriteria` and `isSharedPropertyMatchingBuyerCriteria`
+  - `server/storage.ts`: Updated `getMatchingPropertiesForClient` hardcoded tolerances
+- **Impact**: More precise matching reduces false positives while maintaining reasonable flexibility
+- **Example**: Via Motta properties (45mq, €440k) no longer match client Cattaneo (50mq min, €400k max) because 45mq < 49mq (50 * 0.98)
+
+### November 25, 2025 (earlier): Properties Page Pagination Implementation
 - **Issue**: Properties page (/properties) was freezing when trying to load all 29,118 properties at once
 - **Solution**: Implemented server-side pagination with default 100 properties per page
 - **Technical Changes**:
