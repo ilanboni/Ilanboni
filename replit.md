@@ -8,7 +8,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### November 25, 2025: Matching Tolerances Adjustment
+### November 25, 2025: Private Properties Sorting by Matching Buyers
+- **Request**: Sort private properties by number of potential matching buyers instead of date
+- **Implementation**:
+  - Modified `/api/properties/private` endpoint to calculate `matchingBuyersCount` for each property
+  - Added "Più matching" sort option to private properties page (now default sort order)
+  - Display matching count badge on property cards with User icon
+  - Uses same matching logic as shared properties (`isSharedPropertyMatchingBuyerCriteria`)
+- **Files Modified**:
+  - `server/routes.ts`: Backend endpoint to calculate matching buyers
+  - `client/src/pages/properties/private/index.tsx`: Frontend sorting and badge display
+- **Results**: Properties with more potential buyers appear first (e.g., Via Montecatini with 2 matches appears before 6-month-old properties with 0 matches)
+- **Performance**: In-memory calculation acceptable for current volumes (420 properties, ~40 buyers)
+
+### November 25, 2025 (earlier): Matching Tolerances Adjustment
 - **Request**: Adjust property matching tolerances for buyer criteria
 - **Changes**:
   - Price tolerance: Changed from +20% to **+10%** (e.g., €400k budget now accepts up to €440k)
