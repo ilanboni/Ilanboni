@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -33,23 +33,74 @@ export default function PropertiesPage() {
   // State for filtering
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
   const [sortOrder, setSortOrder] = useState("newest");
+  
+  // Debounce search query to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // Wait 500ms after user stops typing
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   // State for dialog
   const [propertyToView, setPropertyToView] = useState<PropertyWithDetails | null>(null);
   
   // Fetch properties
-  const { data: properties, isLoading, isError, refetch } = useQuery({
-    queryKey: ['/api/properties', statusFilter, searchQuery, sortOrder],
+  const { data: rawProperties, isLoading, isError, refetch } = useQuery({
+    queryKey: ['/api/properties', statusFilter, debouncedSearchQuery],
     queryFn: async () => {
-      // This would be a real API call
-      const response = await fetch('/api/properties');
+      // Build query parameters
+      const params = new URLSearchParams();
+      
+      // Add search query if present
+      if (debouncedSearchQuery) {
+        params.append('search', debouncedSearchQuery);
+      }
+      
+      // Add status filter if not "all"
+      if (statusFilter && statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+      
+      const url = `/api/properties${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
+      
       if (!response.ok) {
         throw new Error('Failed to fetch properties');
       }
+      
       return await response.json();
     }
   });
+  
+  // Apply client-side sorting without triggering re-fetch
+  const properties = useMemo(() => {
+    if (!rawProperties || rawProperties.length === 0) {
+      return rawProperties;
+    }
+    
+    return [...rawProperties].sort((a, b) => {
+      switch (sortOrder) {
+        case 'newest':
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case 'oldest':
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case 'price_asc':
+          return (a.price || 0) - (b.price || 0);
+        case 'price_desc':
+          return (b.price || 0) - (a.price || 0);
+        case 'size_asc':
+          return (a.size || 0) - (b.size || 0);
+        case 'size_desc':
+          return (b.size || 0) - (a.size || 0);
+        default:
+          return 0;
+      }
+    });
+  }, [rawProperties, sortOrder]);
   
   // Handle property actions
   const handleEditProperty = (property: PropertyWithDetails) => {

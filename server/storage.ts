@@ -2097,14 +2097,27 @@ export class DatabaseStorage implements IStorage {
       }
       
       if (filters.search) {
-        const search = `%${filters.search}%`;
-        conditions.push(
-          or(
-            like(properties.address, search),
-            like(properties.city, search),
-            like(properties.type, search)
-          )
-        );
+        // Split search query into words and search for each word
+        const searchWords = filters.search.trim().split(/\s+/).filter(word => word.length > 0);
+        
+        if (searchWords.length > 0) {
+          // For each word, create a condition that checks if it exists in address, city, or type
+          const wordConditions = searchWords.map(word => {
+            const searchPattern = `%${word}%`;
+            return or(
+              ilike(properties.address, searchPattern),
+              ilike(properties.city, searchPattern),
+              ilike(properties.type, searchPattern)
+            );
+          });
+          
+          // All words must match (AND logic)
+          if (wordConditions.length === 1) {
+            conditions.push(wordConditions[0]!);
+          } else {
+            conditions.push(and(...wordConditions)!);
+          }
+        }
       }
       
       if (conditions.length > 0) {
