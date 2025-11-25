@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { Helmet } from "react-helmet";
 import { queryClient } from "@/lib/queryClient";
 
@@ -35,25 +35,37 @@ export default function PropertiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
   const [sortOrder, setSortOrder] = useState("newest");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
   
   // Debounce search query to avoid excessive API calls
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1); // Reset to page 1 when search changes
     }, 500); // Wait 500ms after user stops typing
     
     return () => clearTimeout(timer);
   }, [searchQuery]);
   
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
+  
   // State for dialog
   const [propertyToView, setPropertyToView] = useState<PropertyWithDetails | null>(null);
   
   // Fetch properties
-  const { data: rawProperties, isLoading, isError, refetch } = useQuery({
-    queryKey: ['/api/properties', statusFilter, debouncedSearchQuery],
+  const { data: paginationData, isLoading, isError, refetch } = useQuery({
+    queryKey: ['/api/properties', statusFilter, debouncedSearchQuery, currentPage],
     queryFn: async () => {
       // Build query parameters
       const params = new URLSearchParams();
+      
+      // Add pagination
+      params.append('page', currentPage.toString());
+      params.append('limit', itemsPerPage.toString());
       
       // Add search query if present
       if (debouncedSearchQuery) {
@@ -65,7 +77,7 @@ export default function PropertiesPage() {
         params.append('status', statusFilter);
       }
       
-      const url = `/api/properties${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `/api/properties?${params.toString()}`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -76,13 +88,13 @@ export default function PropertiesPage() {
     }
   });
   
-  // Apply client-side sorting without triggering re-fetch
+  // Extract properties from pagination data and apply client-side sorting
   const properties = useMemo(() => {
-    if (!rawProperties || rawProperties.length === 0) {
-      return rawProperties;
+    if (!paginationData || !paginationData.properties || paginationData.properties.length === 0) {
+      return [];
     }
     
-    return [...rawProperties].sort((a, b) => {
+    return [...paginationData.properties].sort((a, b) => {
       switch (sortOrder) {
         case 'newest':
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
@@ -100,7 +112,11 @@ export default function PropertiesPage() {
           return 0;
       }
     });
-  }, [rawProperties, sortOrder]);
+  }, [paginationData, sortOrder]);
+  
+  // Pagination info
+  const total = paginationData?.total || 0;
+  const totalPages = paginationData?.totalPages || 1;
   
   // Handle property actions
   const handleEditProperty = (property: PropertyWithDetails) => {
@@ -283,6 +299,43 @@ export default function PropertiesPage() {
         </div>
       ) : (
         <EmptyState />
+      )}
+      
+      {/* Pagination Controls */}
+      {properties && properties.length > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg shadow-sm">
+          <div className="text-sm text-gray-600">
+            Mostrando <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> - <span className="font-medium">{Math.min(currentPage * itemsPerPage, total)}</span> di <span className="font-medium">{total}</span> immobili
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Precedente
+            </Button>
+            
+            <div className="text-sm text-gray-600">
+              Pagina <span className="font-medium">{currentPage}</span> di <span className="font-medium">{totalPages}</span>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              data-testid="button-next-page"
+            >
+              Successiva
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
       )}
       
       {/* Property View Dialog */}
