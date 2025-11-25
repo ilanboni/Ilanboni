@@ -624,8 +624,8 @@ export class ApifyService {
   }
 
   /**
-   * Scrapes a single Idealista URL using Apify's Idealista scraper
-   * Returns just the price or 0 if extraction fails
+   * Scrapes a single Idealista URL using Playwright to extract price from rendered DOM
+   * Falls back to Apify if Playwright fails
    */
   async scrapeSingleIdealistaUrl(url: string): Promise<number> {
     console.log(`[IDEALISTA-SCRAPER] Attempting to scrape single Idealista URL: ${url}`);
@@ -635,63 +635,128 @@ export class ApifyService {
     const propertyId = propertyIdMatch ? propertyIdMatch[1] : 'unknown';
     
     try {
-      // Use Apify's Idealista scraper with the specific URL
-      const idealistaActorId = 'igolaizola/idealista-scraper';
+      // Import Playwright here to avoid circular dependencies
+      const { chromium } = await import('playwright');
       
-      const input = {
-        searchUrls: [url],  // Pass the single URL directly
-        maxItems: 1,
-        proxyConfiguration: {
-          useApifyProxy: true,
-          apifyProxyGroups: ['RESIDENTIAL']
-        }
-      };
-      
-      console.log(`[IDEALISTA-SCRAPER] Calling Apify with URL: ${url}`);
-      const run = await this.client.actor(idealistaActorId).call(input);
-      console.log(`[IDEALISTA-SCRAPER] Apify run completed: ${run.id}`);
-      
-      // Fetch the result
-      const { items } = await this.client.dataset(run.defaultDatasetId).listItems({
-        limit: 1
+      const browser = await chromium.launch({ headless: true });
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       });
-      
-      console.log(`[IDEALISTA-SCRAPER] Apify returned ${items.length} items`);
-      
-      if (items.length > 0) {
-        const item = items[0];
-        console.log(`[IDEALISTA-SCRAPER] Item data:`, JSON.stringify({
-          price: item.price,
-          title: item.title,
-          url: item.url
-        }));
+      const page = await context.newPage();
+      page.setDefaultTimeout(15000);
+
+      try {
+        console.log(`[IDEALISTA-SCRAPER] Loading Idealista page with Playwright: ${url}`);
+        const response = await page.goto(url, { waitUntil: 'networkidle' });
+        console.log(`[IDEALISTA-SCRAPER] Page loaded with status: ${response?.status()}`);
         
-        // Extract price from various possible fields
+        // Get the page HTML to debug
+        const html = await page.content();
+        console.log(`[IDEALISTA-SCRAPER] Page HTML length: ${html.length}`);
+        if (html.includes('blocked') || html.includes('robot')) {
+          console.log(`[IDEALISTA-SCRAPER] ⚠️ WARNING: Page might be bot-protected or blocked`);
+        }
+        
+        // Extract price from common Idealista selectors
         let price: number = 0;
-        const priceValue = item.price || item.listPrice || item.priceAmount;
         
-        if (priceValue) {
-          if (typeof priceValue === 'string') {
-            // Parse string price (handles "535000" or "535.000")
-            price = parseInt(priceValue.replace(/\./g, '').replace(/,/g, ''));
-          } else if (typeof priceValue === 'number') {
-            price = Math.floor(priceValue);
+        // Try multiple CSS selectors for the price element
+        const priceSelectors = [
+          '[data-testid="price"]',
+          '.price-tag',
+          '.big-price',
+          'h1[class*="price"]',
+          'span[class*="prezzo"]',
+          '[class*="price-info"]',
+          'h1:has-text("€")',
+          '[aria-label*="price"], [aria-label*="prezzo"]',
+          // Generic selectors for price display
+          'div:has-text("€") >> nth=0',
+          'span:has-text("€") >> nth=0'
+        ];
+        
+        for (const selector of priceSelectors) {
+          try {
+            const priceText = await page.locator(selector).first().textContent().catch(() => null);
+            if (priceText) {
+              console.log(`[IDEALISTA-SCRAPER] Found price text with selector "${selector}": ${priceText}`);
+              
+              // Extract numeric value and €/EUR
+              const match = priceText.match(/[\d.,]+/);
+              if (match) {
+                // Parse Italian format: "450.000" → 450000
+                price = parseInt(match[0].replace(/\./g, '').replace(/,/g, ''));
+                
+                if (price > 10000) {
+                  console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price via Playwright: €${price}`);
+                  await context.close();
+                  await browser.close();
+                  return price;
+                }
+              }
+            }
+          } catch (e) {
+            // Continue to next selector
           }
         }
         
-        if (price > 10000) {
-          console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price via Apify: €${price}`);
-          return price;
-        } else {
-          console.log(`[IDEALISTA-SCRAPER] ⚠️ Price too low or not found: ${price}`);
-          return 0;
+        // Fallback: Extract all text and look for price pattern
+        const bodyText = await page.textContent('body');
+        if (bodyText) {
+          console.log(`[IDEALISTA-SCRAPER] Searching for price in page text...`);
+          const pricePattern = /€\s*([\d.]+(?:\.\d{3})*)/;
+          const match = bodyText.match(pricePattern);
+          if (match) {
+            price = parseInt(match[1].replace(/\./g, ''));
+            if (price > 10000) {
+              console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price from text: €${price}`);
+              await context.close();
+              await browser.close();
+              return price;
+            }
+          }
         }
-      } else {
-        console.log(`[IDEALISTA-SCRAPER] ⚠️ Apify returned no items for property ${propertyId}`);
+        
+        console.log(`[IDEALISTA-SCRAPER] ⚠️ Playwright could not extract price, returning 0`);
+        await context.close();
+        await browser.close();
         return 0;
+        
+      } finally {
+        await context.close();
+        await browser.close();
       }
-    } catch (error) {
-      console.error(`[IDEALISTA-SCRAPER] Apify scraping failed: ${(error as Error).message}`);
+    } catch (playwrightError) {
+      console.error(`[IDEALISTA-SCRAPER] Playwright scraping failed: ${(playwrightError as Error).message}`);
+      
+      // Fallback to Apify as last resort
+      console.log(`[IDEALISTA-SCRAPER] Falling back to Apify...`);
+      try {
+        const idealistaActorId = 'igolaizola/idealista-scraper';
+        
+        const input = {
+          searchUrls: [url],
+          maxItems: 1,
+          proxyConfiguration: {
+            useApifyProxy: true,
+            apifyProxyGroups: ['RESIDENTIAL']
+          }
+        };
+        
+        const run = await this.client.actor(idealistaActorId).call(input);
+        const { items } = await this.client.dataset(run.defaultDatasetId).listItems({ limit: 1 });
+        
+        if (items.length > 0) {
+          const price = items[0].price || 0;
+          if (typeof price === 'number' && price > 10000) {
+            console.log(`[IDEALISTA-SCRAPER] ✅ Extracted price via Apify fallback: €${price}`);
+            return price;
+          }
+        }
+      } catch (apifyError) {
+        console.error(`[IDEALISTA-SCRAPER] Apify fallback also failed:`, (apifyError as Error).message);
+      }
+      
       return 0;
     }
   }
