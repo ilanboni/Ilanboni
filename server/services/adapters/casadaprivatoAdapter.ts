@@ -23,7 +23,7 @@ export class CasaDaPrivatoAdapter {
         `${BASE_URL}/annunci-immobili-vendita/${city}/`,
       ];
       
-      let foundProperties: any[] = [];
+      let allProperties: any[] = [];
       
       for (const url of urls) {
         console.log(`[CASADAPRIVATO] 🌐 Trying: ${url}`);
@@ -44,70 +44,121 @@ export class CasaDaPrivatoAdapter {
               // Ignore timeout, continue anyway
             });
             
-            // Extract all property items using DOM
-            const properties = await page.evaluate(() => {
-              const items: any[] = [];
+            // Extract all property items using DOM - get URLs for detail pages
+            const propertyUrls = await page.evaluate(() => {
+              const urls: string[] = [];
               
-              // Try h3 pattern first (works for ClickCase)
-              let propertyContainers = document.querySelectorAll('h3');
-              if (propertyContainers.length === 0) {
-                propertyContainers = document.querySelectorAll('h2');
-              }
-              if (propertyContainers.length === 0) {
-                propertyContainers = document.querySelectorAll('a[class*="annuncio"], article');
-              }
+              // Find all property links
+              const links = document.querySelectorAll('a[href*="/annuncio/"], a[href*="/immobile/"], h3 a, h2 a');
               
-              propertyContainers.forEach((heading: any) => {
-                try {
-                  const titleLink = heading.querySelector?.('a') || heading;
-                  const title = titleLink?.textContent?.trim() || '';
-                  const propUrl = titleLink?.getAttribute?.('href') || '';
-                  
-                  // Get the container
-                  let container = heading.closest('article') || heading.closest('div[class*="card"]') || heading.parentElement?.parentElement;
-                  if (!container) container = heading;
-                  
-                  // Find price
-                  let priceText = '';
-                  const priceEl = container?.querySelector('[class*="price"]') || 
-                                 Array.from(container?.querySelectorAll('*') || []).find((el: any) => 
-                                   el.textContent?.includes('€')
-                                 );
-                  if (priceEl) priceText = priceEl.textContent?.trim() || '';
-                  
-                  // Find address - extract zone from title if available
-                  let address = '';
-                  const zoneMatch = title.match(/zona\s+([^\/,]+)|([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
-                  if (zoneMatch) {
-                    address = (zoneMatch[1] || zoneMatch[2] || '').trim();
-                  }
-                  
-                  // Find size - look for m² pattern
-                  const sizeMatch = container?.textContent?.match(/(\d+)\s*m²/);
-                  const size = sizeMatch ? sizeMatch[1] : '';
-                  
-                  const item = {
-                    title,
-                    price: priceText,
-                    address,
-                    size,
-                    url: propUrl,
-                  };
-                  
-                  if (title && priceText) {
-                    items.push(item);
-                  }
-                } catch (e) {
-                  // Skip items with extraction errors
+              links.forEach((link: any) => {
+                const href = link.getAttribute('href');
+                if (href && !urls.includes(href)) {
+                  urls.push(href);
                 }
               });
               
-              return items;
+              return urls;
             });
+            
+            console.log(`[CASADAPRIVATO] 📋 Found ${propertyUrls.length} property URLs to scrape`);
+            
+            // Now visit each property detail page to get full address
+            const properties: any[] = [];
+            const maxToScrape = Math.min(propertyUrls.length, params.maxItems || 50);
+            
+            for (let i = 0; i < maxToScrape; i++) {
+              let propUrl = propertyUrls[i];
+              if (!propUrl.startsWith('http')) {
+                propUrl = BASE_URL + propUrl;
+              }
+              
+              try {
+                console.log(`[CASADAPRIVATO] 🔍 Scraping detail ${i + 1}/${maxToScrape}: ${propUrl}`);
+                const detailPage = await context.newPage();
+                await detailPage.goto(propUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+                
+                // Extract details from the property page
+                const details = await detailPage.evaluate(() => {
+                  // Try to find the address - look for common patterns
+                  let address = '';
+                  let title = '';
+                  let price = '';
+                  let size = '';
+                  
+                  // Title usually in h1 or main heading
+                  const h1 = document.querySelector('h1');
+                  if (h1) title = h1.textContent?.trim() || '';
+                  
+                  // Look for address in various places
+                  const addressPatterns = [
+                    'Via ', 'Viale ', 'Corso ', 'Piazza ', 'Largo ', 'Vicolo ',
+                    'via ', 'viale ', 'corso ', 'piazza ', 'largo ', 'vicolo '
+                  ];
+                  
+                  // Search in all text content for address patterns
+                  const allText = document.body?.textContent || '';
+                  for (const pattern of addressPatterns) {
+                    const regex = new RegExp(`(${pattern}[A-Za-zÀ-ÿ\\s]+(?:\\d+)?(?:\\/[A-Za-z])?)[,\\s\\n]`, 'i');
+                    const match = allText.match(regex);
+                    if (match && match[1]) {
+                      address = match[1].trim();
+                      break;
+                    }
+                  }
+                  
+                  // If no specific address found, look for location/zone
+                  if (!address) {
+                    const locationEl = document.querySelector('[class*="location"], [class*="address"], [class*="zona"]');
+                    if (locationEl) address = locationEl.textContent?.trim() || '';
+                  }
+                  
+                  // Extract from title if still no address
+                  if (!address && title) {
+                    const zoneMatch = title.match(/zona\s+([^\/,\-]+)/i);
+                    if (zoneMatch) address = zoneMatch[1].trim();
+                    else {
+                      // Try to extract neighborhood name
+                      const neighborhoodMatch = title.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
+                      if (neighborhoodMatch) address = neighborhoodMatch[1].trim();
+                    }
+                  }
+                  
+                  // Find price
+                  const priceEls = Array.from(document.querySelectorAll('*')).filter((el: any) => 
+                    el.textContent?.includes('€') && el.textContent.length < 50
+                  );
+                  if (priceEls.length > 0) {
+                    price = priceEls[0].textContent?.trim() || '';
+                  }
+                  
+                  // Find size
+                  const sizeMatch = allText.match(/(\d+)\s*m[²q]/i);
+                  if (sizeMatch) size = sizeMatch[1];
+                  
+                  return { title, address, price, size };
+                });
+                
+                await detailPage.close();
+                
+                if (details.title || details.price) {
+                  properties.push({
+                    ...details,
+                    url: propUrl
+                  });
+                }
+                
+                // Small delay to avoid rate limiting
+                await new Promise(r => setTimeout(r, 500));
+                
+              } catch (detailError) {
+                console.log(`[CASADAPRIVATO] ⚠️ Failed to scrape detail: ${propUrl}`);
+              }
+            }
             
             if (properties.length > 0) {
               console.log(`[CASADAPRIVATO] 📊 Found ${properties.length} properties at: ${url}`);
-              foundProperties = properties;
+              allProperties = properties;
               await page.close();
               break; // Exit URL loop if we found properties
             }
@@ -130,11 +181,11 @@ export class CasaDaPrivatoAdapter {
         }
       }
       
-      console.log(`[CASADAPRIVATO] 📊 Found ${foundProperties.length} property items`);
+      console.log(`[CASADAPRIVATO] 📊 Found ${allProperties.length} property items`);
       
       // Parse and convert to PropertyListing format
       let count = 0;
-      for (const prop of foundProperties) {
+      for (const prop of allProperties) {
         if (count >= (params.maxItems || 100)) break;
         
         try {

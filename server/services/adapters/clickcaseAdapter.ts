@@ -33,71 +33,122 @@ export class ClickCaseAdapter {
         console.log('[CLICKCASE] ⚠️ Property selector not found, continuing with available content');
       });
       
-      // Extract all property items using DOM
-      const properties = await page.evaluate(() => {
-        const items: any[] = [];
+      // First get all property URLs from the listing page
+      const propertyUrls = await page.evaluate(() => {
+        const urls: string[] = [];
         
-        // ClickCase structure: each property is a section with h3 > a (title), price div, and details
-        const propertyContainers = document.querySelectorAll('h3');
+        // Find all property links
+        const links = document.querySelectorAll('h3 a, h2 a, a[href*="/annuncio/"], a[href*="/immobile/"]');
         
-        propertyContainers.forEach((h3: any) => {
-          try {
-            const titleLink = h3.querySelector('a');
-            const title = titleLink?.textContent?.trim() || '';
-            const url = titleLink?.getAttribute('href') || '';
-            
-            // Get the parent container
-            let container = h3.closest('article') || h3.closest('div[class*="card"]') || h3.parentElement?.parentElement;
-            if (!container) container = h3;
-            
-            // Find price - usually after h3 or in sibling divs
-            let priceText = '';
-            const priceEl = container?.querySelector('[class*="price"]') || 
-                           Array.from(container?.querySelectorAll('*') || []).find((el: any) => 
-                             el.textContent?.includes('€')
-                           );
-            if (priceEl) priceText = priceEl.textContent?.trim() || '';
-            
-            // Find address - extract zone from title if available
-            let address = '';
-            // Try to extract zone from title (e.g., "Monolocale zona Portello /Accursio" -> "Portello")
-            const zoneMatch = title.match(/zona\s+([^\/,]+)/i);
-            if (zoneMatch) {
-              address = zoneMatch[1].trim();
-            } else {
-              // Fallback: look for any location pattern in container text
-              const addressPattern = container?.textContent?.match(/Milano[\s\S]*?(?=\n|$|classe|Classe)/i);
-              if (addressPattern) address = addressPattern[0].replace(/^Milano\s*[-–]\s*/, '').trim();
-            }
-            
-            // Find size - look for m² pattern
-            const sizeMatch = container?.textContent?.match(/(\d+)\s*m²/);
-            const size = sizeMatch ? sizeMatch[1] : '';
-            
-            const item = {
-              title,
-              price: priceText,
-              address,
-              size,
-              url,
-            };
-            
-            // Filter out rentals (affitti) - only keep sales (vendite)
-            const isRental = title.toLowerCase().includes('affitto') || 
-                            title.toLowerCase().includes('in affitto') ||
-                            priceText.toLowerCase().includes('/mese') ||
-                            priceText.toLowerCase().includes('al mese');
-            
-            if (title && priceText && !isRental) {
-              items.push(item);
-            }
-          } catch (e) {
-            // Skip items with extraction errors
+        links.forEach((link: any) => {
+          const href = link.getAttribute('href');
+          if (href && !urls.includes(href)) {
+            urls.push(href);
           }
         });
         
-        return items;
+        return urls;
       });
+      
+      console.log(`[CLICKCASE] 📋 Found ${propertyUrls.length} property URLs to scrape`);
+      
+      // Now visit each property detail page to get full address
+      const properties: any[] = [];
+      const maxToScrape = Math.min(propertyUrls.length, params.maxItems || 50);
+      
+      for (let i = 0; i < maxToScrape; i++) {
+        let propUrl = propertyUrls[i];
+        if (!propUrl.startsWith('http')) {
+          propUrl = BASE_URL + propUrl;
+        }
+        
+        try {
+          console.log(`[CLICKCASE] 🔍 Scraping detail ${i + 1}/${maxToScrape}: ${propUrl}`);
+          const detailPage = await context.newPage();
+          await detailPage.goto(propUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+          
+          // Extract details from the property page
+          const details = await detailPage.evaluate(() => {
+            let address = '';
+            let title = '';
+            let price = '';
+            let size = '';
+            
+            // Title usually in h1 or main heading
+            const h1 = document.querySelector('h1');
+            if (h1) title = h1.textContent?.trim() || '';
+            
+            // Look for address in various places
+            const addressPatterns = [
+              'Via ', 'Viale ', 'Corso ', 'Piazza ', 'Largo ', 'Vicolo ',
+              'via ', 'viale ', 'corso ', 'piazza ', 'largo ', 'vicolo '
+            ];
+            
+            // Search in all text content for address patterns
+            const allText = document.body?.textContent || '';
+            for (const pattern of addressPatterns) {
+              const regex = new RegExp(`(${pattern}[A-Za-zÀ-ÿ\\s]+(?:\\d+)?(?:\\/[A-Za-z])?)[,\\s\\n]`, 'i');
+              const match = allText.match(regex);
+              if (match && match[1]) {
+                address = match[1].trim();
+                break;
+              }
+            }
+            
+            // If no specific address found, look for location/zone
+            if (!address) {
+              const locationEl = document.querySelector('[class*="location"], [class*="address"], [class*="zona"]');
+              if (locationEl) address = locationEl.textContent?.trim() || '';
+            }
+            
+            // Extract from title if still no address
+            if (!address && title) {
+              const zoneMatch = title.match(/zona\s+([^\/,\-]+)/i);
+              if (zoneMatch) address = zoneMatch[1].trim();
+              else {
+                // Try to extract neighborhood name
+                const neighborhoodMatch = title.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
+                if (neighborhoodMatch) address = neighborhoodMatch[1].trim();
+              }
+            }
+            
+            // Find price
+            const priceEls = Array.from(document.querySelectorAll('*')).filter((el: any) => 
+              el.textContent?.includes('€') && el.textContent.length < 50
+            );
+            if (priceEls.length > 0) {
+              price = priceEls[0].textContent?.trim() || '';
+            }
+            
+            // Find size
+            const sizeMatch = allText.match(/(\d+)\s*m[²q]/i);
+            if (sizeMatch) size = sizeMatch[1];
+            
+            // Check if it's a rental
+            const isRental = title.toLowerCase().includes('affitto') || 
+                            allText.toLowerCase().includes('affitto') ||
+                            price.toLowerCase().includes('/mese');
+            
+            return { title, address, price, size, isRental };
+          });
+          
+          await detailPage.close();
+          
+          // Skip rentals
+          if (!details.isRental && (details.title || details.price)) {
+            properties.push({
+              ...details,
+              url: propUrl
+            });
+          }
+          
+          // Small delay to avoid rate limiting
+          await new Promise(r => setTimeout(r, 500));
+          
+        } catch (detailError) {
+          console.log(`[CLICKCASE] ⚠️ Failed to scrape detail: ${propUrl}`);
+        }
+      }
       
       console.log(`[CLICKCASE] 📊 Found ${properties.length} property items`);
       
