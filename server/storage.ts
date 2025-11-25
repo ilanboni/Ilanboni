@@ -26,7 +26,7 @@ import {
   clientIgnoredProperties, type ClientIgnoredProperty, type InsertClientIgnoredProperty
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql } from "drizzle-orm";
+import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql, count } from "drizzle-orm";
 import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point, lineString } from '@turf/helpers';
