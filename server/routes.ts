@@ -7848,6 +7848,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import from Apify/Immobiliare.it - replaces Casafari for agency properties
+  app.post("/api/apify/import-immobiliare", async (req: Request, res: Response) => {
+    try {
+      const { maxItems = 2000 } = req.body;
+      
+      console.log(`[APIFY-IMPORT] 🚀 Starting Immobiliare.it import via Apify (max ${maxItems} items)...`);
+      
+      const { getApifyService } = await import('./services/apifyService');
+      const apifyService = getApifyService();
+      
+      // Scrape from Immobiliare.it via Apify
+      const listings = await apifyService.scrapeImmobiliare({
+        maxItems,
+        proxyConfiguration: {
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL']
+        }
+      });
+      
+      console.log(`[APIFY-IMPORT] ✅ Fetched ${listings.length} listings from Apify`);
+      
+      let imported = 0;
+      let updated = 0;
+      let skipped = 0;
+      
+      for (const listing of listings) {
+        try {
+          // Check if property already exists
+          const existing = await db
+            .select()
+            .from(sharedProperties)
+            .where(eq(sharedProperties.externalId, listing.externalId))
+            .limit(1);
+          
+          if (existing.length > 0) {
+            // Update existing property
+            await db
+              .update(sharedProperties)
+              .set({
+                price: listing.price,
+                size: listing.size,
+                updatedAt: new Date()
+              })
+              .where(eq(sharedProperties.externalId, listing.externalId));
+            updated++;
+          } else {
+            // Insert new property
+            const locationData = (listing.latitude && listing.longitude) ? {
+              type: 'Point',
+              coordinates: [listing.longitude, listing.latitude]
+            } : null;
+            
+            await db.insert(sharedProperties).values({
+              externalId: listing.externalId,
+              address: listing.address,
+              city: listing.city || 'Milano',
+              size: listing.size || 0,
+              price: listing.price || 0,
+              type: listing.type || 'apartment',
+              floor: listing.floor || null,
+              portalSource: 'immobiliare',
+              url: listing.url,
+              ownerType: listing.ownerType || 'agency',
+              agency1Name: listing.agencyName || null,
+              description: listing.description || null,
+              bedrooms: listing.bedrooms || null,
+              bathrooms: listing.bathrooms || null,
+              location: locationData,
+              imageUrls: listing.imageUrls || []
+            });
+            imported++;
+          }
+        } catch (itemError) {
+          console.error(`[APIFY-IMPORT] Error processing listing ${listing.externalId}:`, itemError);
+          skipped++;
+        }
+      }
+      
+      console.log(`[APIFY-IMPORT] ✅ Completed: ${imported} imported, ${updated} updated, ${skipped} skipped`);
+      
+      res.json({
+        success: true,
+        totalFetched: listings.length,
+        imported,
+        updated,
+        skipped
+      });
+      
+    } catch (error) {
+      console.error(`[POST /api/apify/import-immobiliare]`, error);
+      res.status(500).json({ error: "Errore durante l'import da Apify/Immobiliare" });
+    }
+  });
+
   // API per WhatsApp con UltraMsg
   
   // Endpoint di test per verificare la ricezione delle richieste API
