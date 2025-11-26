@@ -3740,22 +3740,21 @@ export class DatabaseStorage implements IStorage {
     const allProperties = [...sharedProps, ...convertedPrivateProps];
     
     // Filter using advanced matching logic with tolerances
-    // size: -20% to +20%, price: +20%, zone: 200m from polygon edge
+    // size: -20% (40m+ if seeking 50m), price: +20%, zone: 500m from polygon edge
     const matches = allProperties.filter(prop => {
-      // Size tolerance: -20% to +20%
-      // Only reject if BOTH values exist AND property is out of range
+      // Size tolerance: -20% minimum (e.g., 50m² → accept 40m² and above)
+      // Only reject if BOTH values exist AND property is below minimum threshold
       // If either value is missing, ACCEPT the property (let it through)
       if (buyer.minSize && prop.size) {
         const minAcceptable = buyer.minSize * 0.80; // -20%
-        const maxAcceptable = buyer.minSize * 1.20; // +20%
-        if (prop.size < minAcceptable || prop.size > maxAcceptable) {
-          return false; // Reject only when both values exist and it's out of range
+        if (prop.size < minAcceptable) {
+          return false; // Reject only if below minimum (no upper limit)
         }
       }
       // If buyer.minSize is set but prop.size is null/undefined → ACCEPT
       // If buyer.minSize is not set → ACCEPT
       
-      // Price tolerance: +20%
+      // Price tolerance: +20% (e.g., 500k max → accept up to 600k)
       // Only reject if BOTH values exist AND property is too expensive
       if (buyer.maxPrice && prop.price) {
         const maxAcceptable = buyer.maxPrice * 1.20; // +20%
@@ -3809,9 +3808,9 @@ export class DatabaseStorage implements IStorage {
               }
             }
             
-            // If not in zone, check distance tolerance (200m = ~2-3 minutes walk)
+            // If not in zone, check distance tolerance (500m from polygon edge)
             if (!isInAnyZone) {
-              const DISTANCE_TOLERANCE_KM = 0.2; // 200 meters
+              const DISTANCE_TOLERANCE_KM = 0.5; // 500 meters
               let minDistance = Infinity;
               
               for (const feature of features) {
