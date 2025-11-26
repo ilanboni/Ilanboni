@@ -116,8 +116,8 @@ export default function ClientDetailPage() {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
       const data = await response.json();
-      console.log('[MATCHING-QUERY] Received', data.length, 'matching properties');
-      return data;
+      console.log('[MATCHING-QUERY] Received', data.total, 'total properties,', data.properties?.length || 0, 'in array');
+      return data.properties || [];
     }
   });
   
@@ -1339,8 +1339,8 @@ export default function ClientDetailPage() {
                               </Badge>
                             </div>
                           </div>
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-2">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
                               <h3 className="font-semibold text-lg line-clamp-1" data-testid={`text-title-${idx}`}>
                                 {property.title}
@@ -1395,7 +1395,8 @@ export default function ClientDetailPage() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                  );
+                })}
                   </div>
                 )}
               </CardContent>
