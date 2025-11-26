@@ -253,25 +253,38 @@ export class DailyPrivatePropertiesScheduler {
           continue;
         }
 
-        // Geocodifica l'indirizzo - aggiungi Milano e Italia per migliorare la ricerca
-        const fullAddress = `${address}, Milano, Italia`;
+        // Prima usa le coordinate GPS già fornite dall'adapter (se presenti)
+        let coords: any = null;
+        const hasGpsFromAdapter = listing.latitude && listing.longitude && 
+          !isNaN(parseFloat(String(listing.latitude))) && 
+          !isNaN(parseFloat(String(listing.longitude)));
         
-        let coordsArray: any = [];
-        try {
-          coordsArray = await geocodeAddress(fullAddress);
-        } catch (geocodingError) {
-          // Silently continue
-        }
-        
-        // If geocoding failed or returned empty, use Milano center as fallback for zone-only addresses
-        let coords: any;
-        if (!coordsArray || coordsArray.length === 0) {
-          console.log(`[SCHEDULER-GEOCODING] Fallback to Milano center for: ${fullAddress}`);
-          // Use Milano Duomo center as fallback
-          coords = { lat: DUOMO_LAT, lng: DUOMO_LON, display_name: 'Milano (Center)' };
+        if (hasGpsFromAdapter) {
+          coords = { 
+            lat: parseFloat(String(listing.latitude)), 
+            lng: parseFloat(String(listing.longitude)), 
+            display_name: address 
+          };
+          console.log(`[SCHEDULER-GEOCODING] ✅ Using GPS from adapter for ${address}: lat=${coords.lat}, lng=${coords.lng}`);
         } else {
-          coords = coordsArray[0]; // Prendi il primo risultato
-          console.log(`[SCHEDULER-GEOCODING] Geocoding riuscito per ${fullAddress}: lat=${coords.lat}, lng=${coords.lng}`);
+          // Geocodifica l'indirizzo solo se non abbiamo coordinate GPS
+          const fullAddress = `${address}, Milano, Italia`;
+          
+          let coordsArray: any = [];
+          try {
+            coordsArray = await geocodeAddress(fullAddress);
+          } catch (geocodingError) {
+            // Silently continue
+          }
+          
+          // If geocoding failed or returned empty, use Milano center as fallback for zone-only addresses
+          if (!coordsArray || coordsArray.length === 0) {
+            console.log(`[SCHEDULER-GEOCODING] Fallback to Milano center for: ${fullAddress}`);
+            coords = { lat: DUOMO_LAT, lng: DUOMO_LON, display_name: 'Milano (Center)' };
+          } else {
+            coords = coordsArray[0]; // Prendi il primo risultato
+            console.log(`[SCHEDULER-GEOCODING] Geocoding riuscito per ${fullAddress}: lat=${coords.lat}, lng=${coords.lng}`);
+          }
         }
 
         // Calcola distanza dal Duomo

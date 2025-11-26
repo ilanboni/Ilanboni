@@ -136,17 +136,30 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
       const listings: PropertyListing[] = [];
       for (const item of items) {
         try {
-          // igolaizola format: direct object with analytics, topology, geography, etc.
-          const price = item.analytics?.price?.value || item.price || 0;
-          const surface = item.topology?.surface || item.surface || 0;
-          const rooms = item.topology?.rooms || item.rooms;
-          const address = item.geography?.location?.fullLocation || item.geography?.address || item.address || '';
-          const url = item.url || '';
-          const propertyId = item.id || item.propertyId || '';
+          // igolaizola format: direct object with analytics, topology, geography, price, etc.
+          // Price is in price.raw (number) or price.value (formatted string)
+          const priceRaw = item.price?.raw || item.analytics?.price || 0;
+          const price = typeof priceRaw === 'number' ? priceRaw : parseInt(String(priceRaw).replace(/[^\d]/g, ''), 10) || 0;
           
-          // Extract GPS coordinates if available
-          const rawLat = item.geography?.location?.latitude || item.geography?.lat || item.lat;
-          const rawLng = item.geography?.location?.longitude || item.geography?.lng || item.lng || item.geography?.lon || item.lon;
+          // Surface is in topology.surface.size (number)
+          const surface = item.topology?.surface?.size || item.topology?.surface || item.surface || 0;
+          const rooms = item.topology?.rooms || item.rooms;
+          
+          // Address from geography.street or geography.macrozone/microzone
+          const street = item.geography?.street || '';
+          const zipcode = item.geography?.zipcode || '';
+          const macrozone = item.geography?.macrozone?.name || '';
+          const microzone = item.geography?.microzone?.name || '';
+          const address = street || `${microzone}, ${macrozone}`.replace(/^, |, $/g, '') || zipcode;
+          
+          // Property ID and URL construction
+          const propertyId = String(item.id || item.propertyId || '');
+          // Build URL from ID: https://www.immobiliare.it/annunci/ID/
+          const url = propertyId ? `https://www.immobiliare.it/annunci/${propertyId}/` : '';
+          
+          // Extract GPS coordinates from geography.geolocation (igolaizola format)
+          const rawLat = item.geography?.geolocation?.latitude || item.geography?.location?.latitude || item.geography?.lat || item.lat;
+          const rawLng = item.geography?.geolocation?.longitude || item.geography?.location?.longitude || item.geography?.lng || item.lng || item.geography?.lon || item.lon;
           
           // Convert to number safely
           const latitude = rawLat ? (typeof rawLat === 'number' ? rawLat : parseFloat(String(rawLat))) : undefined;
@@ -160,10 +173,10 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
             console.log(`[IMMOBILIARE-CLASSIFY] ID ${propertyId}: ${classification.ownerType} (${classification.confidence}) - ${classification.reasoning}`);
           }
           
-          if (url && price > 0) {
+          if (propertyId && price > 0) {
             listings.push({
               externalId: propertyId,
-              title: item.title || `${item.topology?.typology || 'Appartamento'} - ${address}`,
+              title: item.title || `${item.topology?.typology?.name || 'Appartamento'} - ${address}`,
               address: address,
               city: criteria.city || 'Milano',
               price: price,
