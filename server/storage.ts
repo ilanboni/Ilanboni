@@ -3841,28 +3841,59 @@ export class DatabaseStorage implements IStorage {
               }
             }
             
-            // If not in zone, check distance tolerance (500m from polygon edge)
+            // If not in zone, check distance tolerance
             if (!isInAnyZone) {
-              const DISTANCE_TOLERANCE_KM = 0.5; // 500 meters
+              const POLYGON_DISTANCE_TOLERANCE_KM = 0.5; // 500 meters from polygon edge
+              const POINT_RADIUS_KM = 4; // 4km radius for Point features (urban areas like Milan)
               let minDistance = Infinity;
+              let hasPointFeature = false;
               
               for (const feature of features) {
-                // Skip non-polygon features
-                if (feature.geometry?.type !== 'Polygon') continue;
-                
-                // Get polygon coordinates (array of rings, use first ring)
-                const coordinates = feature.geometry?.coordinates?.[0] || [];
-                if (coordinates.length < 2) continue;
-                
-                // Calculate distance to polygon edge (not just vertices)
-                const line = lineString(coordinates);
-                const d = pointToLineDistance(propertyPoint, line, { units: 'kilometers' });
-                if (d < minDistance) minDistance = d;
+                // Handle Point features with 4km radius
+                if (feature.geometry?.type === 'Point' && feature.geometry?.coordinates) {
+                  hasPointFeature = true;
+                  const pointCoords = feature.geometry.coordinates;
+                  const zoneCenterLng = pointCoords[0];
+                  const zoneCenterLat = pointCoords[1];
+                  
+                  // Calculate haversine distance to this Point zone
+                  const R = 6371; // Earth radius in km
+                  const dLat = (propLat - zoneCenterLat) * Math.PI / 180;
+                  const dLng = (propLng - zoneCenterLng) * Math.PI / 180;
+                  const a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(zoneCenterLat * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                  const distanceKm = R * c;
+                  
+                  // If within 4km radius, property is in zone
+                  if (distanceKm <= POINT_RADIUS_KM) {
+                    isInAnyZone = true;
+                    break;
+                  }
+                  if (distanceKm < minDistance) minDistance = distanceKm;
+                }
+                // Handle Polygon features
+                else if (feature.geometry?.type === 'Polygon') {
+                  // Get polygon coordinates (array of rings, use first ring)
+                  const coordinates = feature.geometry?.coordinates?.[0] || [];
+                  if (coordinates.length < 2) continue;
+                  
+                  // Calculate distance to polygon edge (not just vertices)
+                  const line = lineString(coordinates);
+                  const d = pointToLineDistance(propertyPoint, line, { units: 'kilometers' });
+                  if (d < minDistance) minDistance = d;
+                }
               }
               
-              // Reject only if property is more than 200m from any zone
-              if (minDistance > DISTANCE_TOLERANCE_KM) {
-                return false;
+              // If still not in any zone after Point check, reject based on distance
+              if (!isInAnyZone) {
+                // For Point features, use 4km threshold; for Polygon, use 500m
+                const threshold = hasPointFeature ? POINT_RADIUS_KM : POLYGON_DISTANCE_TOLERANCE_KM;
+                if (minDistance > threshold) {
+                  return false;
+                }
               }
             }
           }
