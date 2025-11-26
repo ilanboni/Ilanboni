@@ -28,6 +28,7 @@ import {
 import { db } from "./db";
 import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql, count } from "drizzle-orm";
 import { isPropertyMatchingBuyerCriteria } from "./lib/matchingLogic";
+import { geocodeAddress } from "./lib/geocoding";
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point, lineString } from '@turf/helpers';
 import distance from '@turf/distance';
@@ -3286,7 +3287,31 @@ export class DatabaseStorage implements IStorage {
 
   // Shared property methods
   async createSharedProperty(sharedProperty: InsertSharedProperty): Promise<SharedProperty> {
-    const result = await db.insert(sharedProperties).values(sharedProperty).returning();
+    // Se non ha location ma ha un indirizzo, geocodifica automaticamente
+    let propertyToSave = { ...sharedProperty };
+    
+    if (!propertyToSave.location && propertyToSave.address) {
+      try {
+        console.log(`[createSharedProperty] Geocodificando indirizzo: ${propertyToSave.address}`);
+        const geoResults = await geocodeAddress(propertyToSave.address);
+        
+        if (geoResults && geoResults.length > 0) {
+          const firstResult = geoResults[0];
+          propertyToSave.location = {
+            lat: firstResult.lat,
+            lng: firstResult.lng
+          } as any;
+          console.log(`[createSharedProperty] ✓ Geocodificato: (${firstResult.lat}, ${firstResult.lng})`);
+        } else {
+          console.warn(`[createSharedProperty] Nessun risultato geocoding per: ${propertyToSave.address}`);
+        }
+      } catch (error) {
+        console.error(`[createSharedProperty] Errore geocoding: ${error}`);
+        // Continua comunque senza location se il geocoding fallisce
+      }
+    }
+    
+    const result = await db.insert(sharedProperties).values(propertyToSave).returning();
     return result[0];
   }
 
