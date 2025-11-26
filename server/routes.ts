@@ -15167,6 +15167,77 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  // Retroactive geocoding endpoint - geocodes ALL properties without coordinates
+  app.post('/api/admin/retroactive-geocoding', async (req: Request, res: Response) => {
+    try {
+      console.log('[RETRO-GEOCODING-API] Starting retroactive geocoding batch...');
+      
+      const { limit } = req.body;
+      
+      const { retroactiveGeocodingBatch, getPropertiesNeedingGeocodingCount } = await import('./services/retroactiveGeocoding');
+      
+      // Prima verifica quante proprietà necessitano geocoding
+      const totalNeeded = await getPropertiesNeedingGeocodingCount();
+      console.log(`[RETRO-GEOCODING-API] Total properties needing geocoding: ${totalNeeded}`);
+      
+      if (totalNeeded === 0) {
+        return res.json({
+          ok: true,
+          message: 'No properties need geocoding',
+          stats: {
+            total: 0,
+            processed: 0,
+            successful: 0,
+            failed: 0,
+            skipped: 0,
+            errors: []
+          }
+        });
+      }
+      
+      // Esegui il batch geocoding (può richiedere molto tempo!)
+      // Per 1791 proprietà con 1 req/sec = ~30 minuti
+      const stats = await retroactiveGeocodingBatch(limit);
+      
+      console.log('[RETRO-GEOCODING-API] Batch completed:', stats);
+      
+      res.json({
+        ok: true,
+        message: `Geocoding batch completed: ${stats.successful}/${stats.total} successful`,
+        stats
+      });
+      
+    } catch (error) {
+      console.error('[RETRO-GEOCODING-API] Error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Error during retroactive geocoding',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Get count of properties needing geocoding
+  app.get('/api/admin/geocoding-status', async (req: Request, res: Response) => {
+    try {
+      const { getPropertiesNeedingGeocodingCount } = await import('./services/retroactiveGeocoding');
+      
+      const count = await getPropertiesNeedingGeocodingCount();
+      
+      res.json({
+        ok: true,
+        propertiesNeedingGeocode: count
+      });
+      
+    } catch (error) {
+      console.error('[GEOCODING-STATUS-API] Error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Error getting geocoding status'
+      });
+    }
+  });
+
   return httpServer;
 }
 
