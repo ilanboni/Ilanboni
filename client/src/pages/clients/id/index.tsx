@@ -102,8 +102,8 @@ export default function ClientDetailPage() {
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading, error: matchingPropertiesError } = useQuery<any[]>({
     queryKey: [`/api/clients/${id}/matching-properties-advanced`],
     enabled: isClientSuccess && client?.type === "buyer",
-    staleTime: 10 * 60 * 1000,
-    refetchInterval: false,
+    staleTime: 30 * 1000, // 30 seconds - properties marked as stale after this time
+    refetchInterval: 60 * 1000, // Auto-refetch every 60 seconds to keep properties synced with new scrapes
     refetchOnWindowFocus: false,
     initialData: [],
     queryFn: async () => {
