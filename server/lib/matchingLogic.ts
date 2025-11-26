@@ -113,12 +113,15 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
     return false;
   }
   
-  // Property type check - strict matching required if buyer specifies a type
+  // Property type check - match if buyer specifies a type AND property has a type
+  // If property has no type (empty/null), treat as wildcard (allow match)
   if (buyer.propertyType) {
     const buyerType = normalizePropertyType(buyer.propertyType);
     const propertyType = normalizePropertyType(property.type);
     
-    if (buyerType && propertyType !== buyerType) {
+    // Only reject if BOTH have types AND they don't match
+    // If propertyType is empty, allow the match (wildcard)
+    if (buyerType && propertyType && propertyType !== buyerType) {
       console.log(`[Matching] Property ${property.id} type '${property.type}' (normalized: '${propertyType}') doesn't match buyer requirement '${buyer.propertyType}' (normalized: '${buyerType}') - REJECTED`);
       return false;
     }
@@ -184,13 +187,13 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
               }
               if (isInArea) break; // Exit outer loop if found
             }
-            // Gestisci Point con raggio di default 2000m (2km per zone urbane)
+            // Gestisci Point con raggio di default 4000m (4km per zone urbane Milano)
             else if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
               const distance = calculateDistance(
                 propertyLocation.lat, propertyLocation.lng,
                 feature.geometry.coordinates[1], feature.geometry.coordinates[0]
               );
-              if (distance <= 2000) { // 2km di raggio di default per i punti (zone urbane Milano)
+              if (distance <= 4000) { // 4km di raggio di default per i punti (zone urbane Milano)
                 isInArea = true;
                 console.log(`[Matching] Property ${property.id} (${property.address}) è DENTRO il raggio della zona ${feature.properties?.zoneName || 'unnamed'} a ${Math.round(distance)}m`);
                 break;
@@ -285,12 +288,15 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
 export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProperty, buyer: Buyer): boolean {
   // SharedProperty non ha campo status - assumiamo siano sempre disponibili
   
-  // Property type check - strict matching required if buyer specifies a type
+  // Property type check - match if buyer specifies a type AND property has a type
+  // If property has no type (empty/null), treat as wildcard (allow match)
   if (buyer.propertyType) {
     const buyerType = normalizePropertyType(buyer.propertyType);
     const propertyType = normalizePropertyType(sharedProperty.type);
     
-    if (buyerType && propertyType !== buyerType) {
+    // Only reject if BOTH have types AND they don't match
+    // If propertyType is empty, allow the match (wildcard)
+    if (buyerType && propertyType && propertyType !== buyerType) {
       console.log(`[Matching] SharedProperty ${sharedProperty.id} type '${sharedProperty.type}' (normalized: '${propertyType}') doesn't match buyer requirement '${buyer.propertyType}' (normalized: '${buyerType}') - REJECTED`);
       return false;
     }
@@ -356,13 +362,13 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
               }
               if (isInArea) break; // Exit outer loop if found
             }
-            // Gestisci Point con raggio di default 2000m (2km per zone urbane)
+            // Gestisci Point con raggio di default 4000m (4km per zone urbane Milano)
             else if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
               const distance = calculateDistance(
                 propertyLocation.lat, propertyLocation.lng,
                 feature.geometry.coordinates[1], feature.geometry.coordinates[0]
               );
-              if (distance <= 2000) { // 2km di raggio di default per i punti (zone urbane Milano)
+              if (distance <= 4000) { // 4km di raggio di default per i punti (zone urbane Milano)
                 isInArea = true;
                 console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO il raggio della zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'} a ${Math.round(distance)}m`);
                 break;

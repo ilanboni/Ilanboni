@@ -1387,10 +1387,21 @@ export default function ClientDetailPage() {
                               size="sm" 
                               className="text-xs flex-1"
                               asChild
+                              data-testid={`button-view-property-${idx}`}
+                            >
+                              <Link href={`/properties/${property.id}`}>
+                                <i className="fas fa-info-circle mr-1"></i> Dettagli
+                              </Link>
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs flex-1"
+                              asChild
                               data-testid={`button-view-external-${idx}`}
                             >
                               <a href={property.url} target="_blank" rel="noopener noreferrer">
-                                <i className="fas fa-external-link-alt mr-1"></i> Vedi annuncio
+                                <i className="fas fa-external-link-alt mr-1"></i> Annuncio
                               </a>
                             </Button>
                           </div>
