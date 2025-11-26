@@ -43,7 +43,7 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
       const input = {
         province: provinceCode,
         municipality: criteria.city === 'milano' ? 'Milano' : criteria.city,
-        maxItems: 100, // Limit results per zone
+        maxItems: 2000, // Increased from 100 to capture more listings
         propertyType: actorPropertyType,
         operation: 'buy', // buy = vendita ("sale" is invalid)
         proxyConfiguration: {

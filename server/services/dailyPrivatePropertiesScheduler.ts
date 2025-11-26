@@ -4,9 +4,12 @@ import { IgolaIdealistaAdapter } from './adapters/igolaIdealistaAdapter';
 import { ImmobiliareApifyAdapter } from './adapters/immobiliareApifyAdapter';
 import { storage } from '../storage';
 
+// Geographic constants - used for fallback geocoding, NOT for filtering
 const DUOMO_LAT = 45.464211;
 const DUOMO_LON = 9.191383;
-const MAX_RADIUS_KM = 4;
+
+// REMOVED: Static 4km filter - properties should be matched based on buyer's search area, not a fixed radius
+// All Milano properties are now saved and matched dynamically to buyers
 
 // Haversine: calcola distanza tra due punti
 const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -118,7 +121,7 @@ export class DailyPrivatePropertiesScheduler {
     console.log('\n[DAILY-SCHEDULER] 🔍 Scraping CasaDaPrivato...');
     const adapter = new CasaDaPrivatoAdapter();
     try {
-      const listings = await adapter.search({ city: 'milano', maxItems: 100 });
+      const listings = await adapter.search({ city: 'milano', maxItems: 500 });
       console.log(`[DAILY-SCHEDULER] ✅ CasaDaPrivato: ${listings.length} properties`);
       return listings;
     } catch (error) {
@@ -131,7 +134,7 @@ export class DailyPrivatePropertiesScheduler {
     console.log('\n[DAILY-SCHEDULER] 🔍 Scraping ClickCase...');
     const adapter = new ClickCaseAdapter();
     try {
-      const listings = await adapter.search({ city: 'milano', maxItems: 100 });
+      const listings = await adapter.search({ city: 'milano', maxItems: 500 });
       console.log(`[DAILY-SCHEDULER] ✅ ClickCase: ${listings.length} properties`);
       return listings;
     } catch (error) {
@@ -144,10 +147,10 @@ export class DailyPrivatePropertiesScheduler {
     console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Idealista private properties...');
     const adapter = new IgolaIdealistaAdapter();
     try {
-      // Usa il nome della città "Milano" (accettato dall'API Idealista)
+      // Increased from 100 to 2000 to capture more listings
       const listings = await adapter.search({
         locationIds: ['Milano'],
-        maxItems: 100,
+        maxItems: 2000,
         privateOnly: true,
       });
       console.log(`[DAILY-SCHEDULER] ✅ Idealista (privati): ${listings.length} PRIVATE properties`);
@@ -162,10 +165,10 @@ export class DailyPrivatePropertiesScheduler {
     console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Idealista agencies...');
     const adapter = new IgolaIdealistaAdapter();
     try {
-      // Usa il nome della città "Milano" (accettato dall'API Idealista)
+      // Increased from 100 to 2000 to capture more listings
       const listings = await adapter.search({
         locationIds: ['Milano'],
-        maxItems: 100,
+        maxItems: 2000,
         privateOnly: false, // Scrapa tutte le agenzie (professional + developer)
       });
       console.log(`[DAILY-SCHEDULER] ✅ Idealista (agenzie): ${listings.length} properties with agencies`);
@@ -180,6 +183,7 @@ export class DailyPrivatePropertiesScheduler {
     console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Immobiliare.it (agencies)...');
     const adapter = new ImmobiliareApifyAdapter();
     try {
+      // ImmobiliareApifyAdapter now uses maxItems: 2000 internally
       const listings = await adapter.search({
         city: 'milano',
         propertyType: 'apartment',
@@ -234,11 +238,11 @@ export class DailyPrivatePropertiesScheduler {
   }
 
   private async filterAndSaveProperties(listings: any[]): Promise<number> {
-    console.log(`\n[DAILY-SCHEDULER] 🔄 Filtering ${listings.length} properties to 4km radius...`);
+    console.log(`\n[DAILY-SCHEDULER] 🔄 Processing ${listings.length} properties (NO geographic filter - dynamic buyer matching)...`);
     
     let saved = 0;
-    let discarded = 0;
-    let geocodeFailed = 0;
+    let duplicates = 0;
+    let errors = 0;
     let privateCount = 0;
     let monoagencyCount = 0;
     let multiagencyCount = 0;
@@ -247,7 +251,7 @@ export class DailyPrivatePropertiesScheduler {
       try {
         const address = listing.address || listing.title || '';
         if (!address) {
-          discarded++;
+          errors++;
           continue;
         }
 
@@ -263,120 +267,106 @@ export class DailyPrivatePropertiesScheduler {
             lng: parseFloat(String(listing.longitude)), 
             display_name: address 
           };
-          console.log(`[SCHEDULER-GEOCODING] ✅ Using GPS from adapter for ${address}: lat=${coords.lat}, lng=${coords.lng}`);
         } else {
           // Geocodifica l'indirizzo solo se non abbiamo coordinate GPS
           const fullAddress = `${address}, Milano, Italia`;
           
-          let coordsArray: any = [];
+          let coordsResult: any = null;
           try {
-            coordsArray = await geocodeAddress(fullAddress);
+            coordsResult = await geocodeAddress(fullAddress);
           } catch (geocodingError) {
             // Silently continue
           }
           
-          // If geocoding failed or returned empty, use Milano center as fallback for zone-only addresses
-          if (!coordsArray || coordsArray.length === 0) {
-            console.log(`[SCHEDULER-GEOCODING] Fallback to Milano center for: ${fullAddress}`);
+          // If geocoding failed or returned empty, use Milano center as fallback
+          if (!coordsResult) {
             coords = { lat: DUOMO_LAT, lng: DUOMO_LON, display_name: 'Milano (Center)' };
           } else {
-            coords = coordsArray[0]; // Prendi il primo risultato
-            console.log(`[SCHEDULER-GEOCODING] Geocoding riuscito per ${fullAddress}: lat=${coords.lat}, lng=${coords.lng}`);
+            coords = { lat: coordsResult.lat, lng: coordsResult.lon, display_name: fullAddress };
           }
         }
 
-        // Calcola distanza dal Duomo
-        const distance = haversineKm(DUOMO_LAT, DUOMO_LON, coords.lat, coords.lng);
-
-        if (distance <= MAX_RADIUS_KM) {
-          // Classifica il tipo di proprietà
-          const classification = this.classifyProperty(listing);
+        // Classifica il tipo di proprietà
+        const classification = this.classifyProperty(listing);
+        
+        // Conta per statistiche
+        if (classification.classificationColor === 'green') privateCount++;
+        if (classification.classificationColor === 'yellow') multiagencyCount++;
+        if (classification.classificationColor === 'red') monoagencyCount++;
+        
+        // Salva nel database come SharedProperty (with externalLink per i privati) o Property (per le agenzie)
+        if (classification.ownerType === 'private') {
+          // Verifica duplicato prima di salvare
+          const existingSharedProp = await storage.getSharedPropertyByAddressAndPrice(
+            listing.address || '',
+            listing.price || 0
+          );
           
-          // Conta per statistiche
-          if (classification.classificationColor === 'green') privateCount++;
-          if (classification.classificationColor === 'yellow') multiagencyCount++;
-          if (classification.classificationColor === 'red') monoagencyCount++;
-          
-          // Salva nel database come SharedProperty (with externalLink per i privati) o Property (per le agenzie)
-          if (classification.ownerType === 'private') {
-            // Verifica duplicato prima di salvare
-            const existingSharedProp = await storage.getSharedPropertyByAddressAndPrice(
-              listing.address || '',
-              listing.price || 0
-            );
-            
-            if (existingSharedProp) {
-              // Già esiste, salta
-              discarded++;
-              continue;
-            }
-            
-            // Salva come SharedProperty con externalLink preservato
-            const sharedPropertyToSave = {
-              address: listing.address || '',
-              city: 'Milano',
-              price: listing.price || 0,
-              size: listing.size || 0,
-              type: 'apartment',
-              description: listing.description || listing.title || '',
-              externalLink: listing.url || '', // Preserva il link come externalLink
-              latitude: coords.lat.toString(),
-              longitude: coords.lng.toString(),
-              ownerType: classification.ownerType,
-              externalId: listing.externalId || `${listing.source}-${Date.now()}`,
-              ownerPhone: listing.ownerPhone,
-              ownerEmail: listing.ownerEmail,
-              ownerName: listing.ownerName,
-              portalSource: listing.portal || listing.source || 'Privato',
-              classificationColor: classification.classificationColor,
-              matchBuyers: true,
-            };
-            await storage.createSharedProperty(sharedPropertyToSave);
-          } else {
-            // Salva come Property normale per le agenzie
-            const propertyToSave = {
-              address: listing.address || '',
-              city: 'Milano',
-              price: listing.price || 0,
-              size: listing.size || 0,
-              type: 'apartment',
-              description: listing.description || listing.title || '',
-              url: listing.url || '',
-              externalLink: listing.url || '', // Salva anche in externalLink per UI
-              latitude: coords.lat.toString(),
-              longitude: coords.lng.toString(),
-              ownerType: classification.ownerType,
-              isMultiagency: classification.isMultiagency,
-              externalId: listing.externalId,
-              ownerPhone: listing.ownerPhone,
-              ownerEmail: listing.ownerEmail,
-              portal: listing.portal || listing.source || '',
-              source: listing.source || listing.portal || '',
-              // Agenzie (se presenti)
-              agencies: listing.agencies || [],
-            };
-            await storage.createProperty(propertyToSave);
+          if (existingSharedProp) {
+            duplicates++;
+            continue;
           }
-
-          saved++;
-          const classificationEmoji = classification.classificationColor === 'green' ? '🟢' : classification.classificationColor === 'yellow' ? '🟡' : '🔴';
-          console.log(`  ${classificationEmoji} Saved: ${listing.title} (${distance.toFixed(2)}km)`);
+          
+          // Salva come SharedProperty con externalLink preservato
+          const sharedPropertyToSave = {
+            address: listing.address || '',
+            city: 'Milano',
+            price: listing.price || 0,
+            size: listing.size || 0,
+            type: 'apartment',
+            description: listing.description || listing.title || '',
+            externalLink: listing.url || '',
+            latitude: coords.lat.toString(),
+            longitude: coords.lng.toString(),
+            ownerType: classification.ownerType,
+            externalId: listing.externalId || `${listing.source}-${Date.now()}`,
+            ownerPhone: listing.ownerPhone,
+            ownerEmail: listing.ownerEmail,
+            ownerName: listing.ownerName,
+            portalSource: listing.portal || listing.source || 'Privato',
+            classificationColor: classification.classificationColor,
+            matchBuyers: true,
+          };
+          await storage.createSharedProperty(sharedPropertyToSave);
         } else {
-          discarded++;
+          // Salva come Property normale per le agenzie
+          const propertyToSave = {
+            address: listing.address || '',
+            city: 'Milano',
+            price: listing.price || 0,
+            size: listing.size || 0,
+            type: 'apartment',
+            description: listing.description || listing.title || '',
+            url: listing.url || '',
+            externalLink: listing.url || '',
+            latitude: coords.lat.toString(),
+            longitude: coords.lng.toString(),
+            ownerType: classification.ownerType,
+            isMultiagency: classification.isMultiagency,
+            externalId: listing.externalId,
+            ownerPhone: listing.ownerPhone,
+            ownerEmail: listing.ownerEmail,
+            portal: listing.portal || listing.source || '',
+            source: listing.source || listing.portal || '',
+            agencies: listing.agencies || [],
+          };
+          await storage.createProperty(propertyToSave);
         }
+
+        saved++;
       } catch (error) {
         console.warn(`  ✗ Error processing ${listing.title}:`, error);
-        discarded++;
+        errors++;
       }
     }
 
-    console.log(`\n[DAILY-SCHEDULER] 📈 Results:`);
-    console.log(`  Saved: ${saved}`);
+    console.log(`\n[DAILY-SCHEDULER] 📈 Import Results:`);
+    console.log(`  ✅ Saved: ${saved}`);
     console.log(`    🟢 Private: ${privateCount}`);
     console.log(`    🟡 Multi-agency (7+): ${multiagencyCount}`);
     console.log(`    🔴 Single-agency: ${monoagencyCount}`);
-    console.log(`  Discarded (outside radius): ${discarded}`);
-    console.log(`  Geocoding failed: ${geocodeFailed}`);
+    console.log(`  ⏭️ Duplicates skipped: ${duplicates}`);
+    console.log(`  ❌ Errors: ${errors}`);
 
     return saved;
   }
