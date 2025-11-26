@@ -4,6 +4,47 @@ import type { PropertyListing } from '../portalIngestionService';
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN!;
 const ACTOR_ID = 'igolaizola/idealista-scraper'; // Professional actor with contactInfo
 
+const MILANO_METRO_BOUNDS = {
+  minLat: 45.3,
+  maxLat: 45.6,
+  minLng: 8.9,
+  maxLng: 9.4
+};
+
+function isInMilanoArea(item: any): { isValid: boolean; reason?: string } {
+  const municipality = (item.municipality || '').toLowerCase().trim();
+  const province = (item.province || '').toUpperCase().trim();
+  const lat = item.latitude ? parseFloat(item.latitude) : null;
+  const lng = item.longitude ? parseFloat(item.longitude) : null;
+
+  if (municipality.includes('milan') || municipality.includes('milano')) {
+    return { isValid: true };
+  }
+
+  if (province === 'MI') {
+    return { isValid: true };
+  }
+
+  if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+    if (
+      lat >= MILANO_METRO_BOUNDS.minLat &&
+      lat <= MILANO_METRO_BOUNDS.maxLat &&
+      lng >= MILANO_METRO_BOUNDS.minLng &&
+      lng <= MILANO_METRO_BOUNDS.maxLng
+    ) {
+      return { isValid: true };
+    }
+  }
+
+  const details = [
+    `municipality="${item.municipality || 'N/A'}"`,
+    `province="${item.province || 'N/A'}"`,
+    lat !== null && lng !== null ? `coords=(${lat}, ${lng})` : 'coords=N/A'
+  ].join(', ');
+  
+  return { isValid: false, reason: details };
+}
+
 export class IgolaIdealistaAdapter {
   private client: ApifyClient;
 
@@ -114,15 +155,31 @@ export class IgolaIdealistaAdapter {
         console.log(`[IGOLA-IDEALISTA] Location ${locationId}: ${allItems.length} total items`);
 
         // Filter by userType if privateOnly is true (default)
-        const filteredItems = params.privateOnly !== false
+        const userTypeFiltered = params.privateOnly !== false
           ? allItems.filter((item: any) => item.contactInfo?.userType === 'private')
           : allItems;
 
-        console.log(`[IGOLA-IDEALISTA] After userType filter: ${filteredItems.length} properties`);
+        console.log(`[IGOLA-IDEALISTA] After userType filter: ${userTypeFiltered.length} properties`);
         const privateCount = allItems.filter((i: any) => i.contactInfo?.userType === 'private').length;
         const professionalCount = allItems.filter((i: any) => i.contactInfo?.userType === 'professional').length;
         const developerCount = allItems.filter((i: any) => i.contactInfo?.userType === 'developer').length;
         console.log(`[IGOLA-IDEALISTA]   - Private: ${privateCount}, Professional: ${professionalCount}, Developer: ${developerCount}`);
+
+        // Filter by Milano location to prevent out-of-market listings
+        const filteredItems: any[] = [];
+        let milanoFilteredCount = 0;
+        
+        for (const item of userTypeFiltered) {
+          const locationCheck = isInMilanoArea(item);
+          if (locationCheck.isValid) {
+            filteredItems.push(item);
+          } else {
+            milanoFilteredCount++;
+            console.log(`[IGOLA-IDEALISTA] ⛔ Filtered out non-Milano property: ${item.propertyCode || 'N/A'} - ${locationCheck.reason}`);
+          }
+        }
+
+        console.log(`[IGOLA-IDEALISTA] After Milano location filter: ${filteredItems.length} properties (filtered out: ${milanoFilteredCount})`);
 
         // Transform to PropertyListing format
         const listings: PropertyListing[] = filteredItems.map((item: any) => {

@@ -4,25 +4,11 @@ import { IgolaIdealistaAdapter } from './adapters/igolaIdealistaAdapter';
 import { ImmobiliareApifyAdapter } from './adapters/immobiliareApifyAdapter';
 import { storage } from '../storage';
 
-// Geographic constants - used for fallback geocoding, NOT for filtering
-const DUOMO_LAT = 45.464211;
-const DUOMO_LON = 9.191383;
-
-// REMOVED: Static 4km filter - properties should be matched based on buyer's search area, not a fixed radius
-// All Milano properties are now saved and matched dynamically to buyers
-
-// Haversine: calcola distanza tra due punti
-const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
+// Geographic constants - Milano center coordinates used ONLY as fallback for geocoding
+// NO geographic filtering during import - all Milano properties are saved
+// Geographic matching to buyers happens dynamically in storage.ts/matchingLogic.ts
+const MILANO_CENTER_LAT = 45.464211;
+const MILANO_CENTER_LON = 9.191383;
 
 // Nominatim: geocodifica indirizzi GRATIS
 const geocodeAddress = async (address: string): Promise<{ lat: number; lon: number } | null> => {
@@ -103,12 +89,13 @@ export class DailyPrivatePropertiesScheduler {
 
       const allListings = [...casaListings, ...clickListings, ...idealistaPrivateListings, ...idealistaAgenciesListings, ...immobiliareListings];
       
-      console.log(`\n[DAILY-SCHEDULER] 📊 Total listings before filtering: ${allListings.length}`);
+      console.log(`\n[DAILY-SCHEDULER] 📊 Processing all Milano properties: ${allListings.length} total`);
 
-      // Filtra e salva a 4km dal Duomo (con classificazione agenzie)
-      const saved = await this.filterAndSaveProperties(allListings);
+      // Save all Milano properties (with classification) - NO geographic filtering
+      // Geographic matching to buyers happens dynamically when searching
+      const saved = await this.saveAllProperties(allListings);
       
-      console.log(`[DAILY-SCHEDULER] ✅ Completed - Saved ${saved} properties within 4km`);
+      console.log(`[DAILY-SCHEDULER] ✅ Completed - Saved ${saved} Milano properties`);
       console.log('='.repeat(60) + '\n');
     } catch (error) {
       console.error('[DAILY-SCHEDULER] ❌ Error:', error);
@@ -237,8 +224,8 @@ export class DailyPrivatePropertiesScheduler {
     };
   }
 
-  private async filterAndSaveProperties(listings: any[]): Promise<number> {
-    console.log(`\n[DAILY-SCHEDULER] 🔄 Processing ${listings.length} properties (NO geographic filter - dynamic buyer matching)...`);
+  private async saveAllProperties(listings: any[]): Promise<number> {
+    console.log(`\n[DAILY-SCHEDULER] 🔄 Processing all Milano properties: ${listings.length} properties (dynamic buyer matching enabled)...`);
     
     let saved = 0;
     let duplicates = 0;
@@ -280,7 +267,7 @@ export class DailyPrivatePropertiesScheduler {
           
           // If geocoding failed or returned empty, use Milano center as fallback
           if (!coordsResult) {
-            coords = { lat: DUOMO_LAT, lng: DUOMO_LON, display_name: 'Milano (Center)' };
+            coords = { lat: MILANO_CENTER_LAT, lng: MILANO_CENTER_LON, display_name: 'Milano (Center)' };
           } else {
             coords = { lat: coordsResult.lat, lng: coordsResult.lon, display_name: fullAddress };
           }
