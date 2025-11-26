@@ -3950,6 +3950,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Aggiorna lo stato preferito di più immobili in batch
+  app.post("/api/properties/bulk-favorite", async (req: Request, res: Response) => {
+    try {
+      const { ids, isFavorite } = req.body;
+      
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "IDs immobili non validi" });
+      }
+      
+      if (typeof isFavorite !== 'boolean') {
+        return res.status(400).json({ error: "Parametro isFavorite non valido" });
+      }
+      
+      console.log(`[BULK-FAVORITE] Aggiornamento di ${ids.length} immobili: isFavorite=${isFavorite}`);
+      
+      let updated = 0;
+      let failed = 0;
+      
+      for (const id of ids) {
+        try {
+          const propertyId = parseInt(id);
+          if (isNaN(propertyId)) {
+            failed++;
+            continue;
+          }
+          
+          const property = await storage.getProperty(propertyId);
+          if (property) {
+            await storage.updateProperty(propertyId, { isFavorite });
+            updated++;
+          } else {
+            // Prova con shared properties
+            const sharedProperty = await storage.getSharedProperty(propertyId);
+            if (sharedProperty) {
+              await storage.updateSharedProperty(propertyId, { isFavorite });
+              updated++;
+            } else {
+              failed++;
+            }
+          }
+        } catch (err) {
+          console.error(`[BULK-FAVORITE] Errore aggiornamento immobile ${id}:`, err);
+          failed++;
+        }
+      }
+      
+      console.log(`[BULK-FAVORITE] Completato: ${updated} aggiornati, ${failed} falliti`);
+      
+      res.json({ 
+        success: true, 
+        updated, 
+        failed,
+        message: `${updated} immobili aggiornati con successo`
+      });
+    } catch (error) {
+      console.error('[BULK-FAVORITE] Errore:', error);
+      res.status(500).json({ error: "Errore durante l'aggiornamento degli immobili" });
+    }
+  });
+  
   // Endpoint per trovare clienti potenziali per un immobile
   app.get("/api/properties/:id/matching-buyers", async (req: Request, res: Response) => {
     try {

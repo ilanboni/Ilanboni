@@ -25,7 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Search, ChevronLeft, ChevronRight, Trash2, CheckSquare, XSquare } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, Trash2, CheckSquare, XSquare, Star, StarOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Helmet } from "react-helmet";
@@ -53,6 +53,7 @@ export default function PropertiesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkFavoriting, setIsBulkFavoriting] = useState(false);
   
   // Debounce search query to avoid excessive API calls
   useEffect(() => {
@@ -259,6 +260,60 @@ export default function PropertiesPage() {
     }
   };
   
+  const handleBulkAddToFavorites = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsBulkFavoriting(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+      await apiRequest('/api/properties/bulk-favorite', { method: 'POST', data: { ids: idsArray, isFavorite: true } });
+      
+      toast({
+        title: "Aggiunto ai preferiti",
+        description: `${idsArray.length} immobili aggiunti ai preferiti.`,
+      });
+      
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'aggiunta ai preferiti.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkFavoriting(false);
+    }
+  };
+  
+  const handleBulkRemoveFromFavorites = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsBulkFavoriting(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+      await apiRequest('/api/properties/bulk-favorite', { method: 'POST', data: { ids: idsArray, isFavorite: false } });
+      
+      toast({
+        title: "Rimosso dai preferiti",
+        description: `${idsArray.length} immobili rimossi dai preferiti.`,
+      });
+      
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la rimozione dai preferiti.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkFavoriting(false);
+    }
+  };
+  
   // Create empty state component
   const EmptyState = () => (
     <div className="text-center py-10">
@@ -313,30 +368,54 @@ export default function PropertiesPage() {
       
       {/* Selection Mode Bar */}
       {selectionMode && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-blue-800">
-              {selectedIds.size} immobili selezionati
-            </span>
-            <Button variant="outline" size="sm" onClick={handleSelectAll} data-testid="button-select-all">
-              <CheckSquare className="mr-2 h-4 w-4" />
-              Seleziona tutti
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-blue-800">
+                {selectedIds.size} immobili selezionati
+              </span>
+              <Button variant="outline" size="sm" onClick={handleSelectAll} data-testid="button-select-all">
+                <CheckSquare className="mr-2 h-4 w-4" />
+                Seleziona tutti
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDeselectAll} data-testid="button-deselect-all">
+                <XSquare className="mr-2 h-4 w-4" />
+                Deseleziona tutti
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant="default" 
+              size="sm"
+              disabled={selectedIds.size === 0 || isBulkFavoriting}
+              onClick={handleBulkAddToFavorites}
+              data-testid="button-bulk-add-favorites"
+            >
+              <Star className="mr-2 h-4 w-4" />
+              Aggiungi ai preferiti ({selectedIds.size})
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDeselectAll} data-testid="button-deselect-all">
-              <XSquare className="mr-2 h-4 w-4" />
-              Deseleziona tutti
+            <Button 
+              variant="outline" 
+              size="sm"
+              disabled={selectedIds.size === 0 || isBulkFavoriting}
+              onClick={handleBulkRemoveFromFavorites}
+              data-testid="button-bulk-remove-favorites"
+            >
+              <StarOff className="mr-2 h-4 w-4" />
+              Rimuovi dai preferiti ({selectedIds.size})
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              disabled={selectedIds.size === 0 || isBulkDeleting}
+              onClick={() => setShowBulkDeleteDialog(true)}
+              data-testid="button-bulk-delete"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Elimina ({selectedIds.size})
             </Button>
           </div>
-          <Button 
-            variant="destructive" 
-            size="sm"
-            disabled={selectedIds.size === 0}
-            onClick={() => setShowBulkDeleteDialog(true)}
-            data-testid="button-bulk-delete"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Elimina selezionati ({selectedIds.size})
-          </Button>
         </div>
       )}
       

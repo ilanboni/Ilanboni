@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Plus, RefreshCw, Map, List, Star, Phone, Trash2, User } from "lucide-react";
+import { MapPin, Plus, RefreshCw, Map, List, Star, Phone, Trash2, User, CheckSquare, XSquare, StarOff } from "lucide-react";
 import { type SharedProperty } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
@@ -17,6 +17,17 @@ import { Helmet } from "react-helmet";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -118,6 +129,13 @@ export default function PrivatePropertiesPage() {
     isFavorite: false
   });
   
+  // Multi-select state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkFavoriting, setIsBulkFavoriting] = useState(false);
+  
   // Fetch only private shared properties using new classification system
   const { data: allProperties, isLoading, isError, refetch } = useQuery<SharedProperty[]>({
     queryKey: ['/api/properties/private']
@@ -186,6 +204,115 @@ export default function PrivatePropertiesPage() {
       });
     }
   });
+  
+  // Multi-select handlers
+  const handleSelectProperty = (propertyId: number) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(propertyId)) {
+      newSelected.delete(propertyId);
+    } else {
+      newSelected.add(propertyId);
+    }
+    setSelectedIds(newSelected);
+  };
+  
+  const handleSelectAll = () => {
+    const allIds = new Set(paginatedProperties.map(p => p.id));
+    setSelectedIds(allIds);
+  };
+  
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+  
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectionMode(!selectionMode);
+  };
+  
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsBulkDeleting(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+      await apiRequest('/api/properties/bulk-delete', { method: 'POST', data: { ids: idsArray } });
+      
+      toast({
+        title: "Eliminazione completata",
+        description: `${idsArray.length} immobili privati eliminati con successo.`,
+      });
+      
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      setShowBulkDeleteDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/properties/private'] });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'eliminazione degli immobili.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+  
+  const handleBulkAddToFavorites = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsBulkFavoriting(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+      await apiRequest('/api/properties/bulk-favorite', { method: 'POST', data: { ids: idsArray, isFavorite: true } });
+      
+      toast({
+        title: "Aggiunto ai preferiti",
+        description: `${idsArray.length} immobili privati aggiunti ai preferiti.`,
+      });
+      
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/properties/private'] });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'aggiunta ai preferiti.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkFavoriting(false);
+    }
+  };
+  
+  const handleBulkRemoveFromFavorites = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setIsBulkFavoriting(true);
+    try {
+      const idsArray = Array.from(selectedIds);
+      await apiRequest('/api/properties/bulk-favorite', { method: 'POST', data: { ids: idsArray, isFavorite: false } });
+      
+      toast({
+        title: "Rimosso dai preferiti",
+        description: `${idsArray.length} immobili privati rimossi dai preferiti.`,
+      });
+      
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/properties/private'] });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la rimozione dai preferiti.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkFavoriting(false);
+    }
+  };
   
   // Filter and sort properties with memoization for performance
   const filteredProperties = useMemo(() => {
@@ -315,6 +442,13 @@ export default function PrivatePropertiesPage() {
           </div>
           <div className="flex gap-2">
             <Button 
+              variant={selectionMode ? "default" : "outline"}
+              onClick={toggleSelectionMode}
+              data-testid="button-toggle-selection"
+            >
+              {selectionMode ? "Esci selezione" : "Seleziona"}
+            </Button>
+            <Button 
               variant="outline" 
               onClick={handleRefresh}
               data-testid="button-refresh"
@@ -357,6 +491,59 @@ export default function PrivatePropertiesPage() {
             </Badge>
           )}
         </div>
+        
+        {/* Selection Mode Bar */}
+        {selectionMode && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-blue-800">
+                  {selectedIds.size} immobili selezionati
+                </span>
+                <Button variant="outline" size="sm" onClick={handleSelectAll} data-testid="button-select-all">
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  Seleziona tutti
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDeselectAll} data-testid="button-deselect-all">
+                  <XSquare className="mr-2 h-4 w-4" />
+                  Deseleziona tutti
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant="default" 
+                size="sm"
+                disabled={selectedIds.size === 0 || isBulkFavoriting}
+                onClick={handleBulkAddToFavorites}
+                data-testid="button-bulk-add-favorites"
+              >
+                <Star className="mr-2 h-4 w-4" />
+                Aggiungi ai preferiti ({selectedIds.size})
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                disabled={selectedIds.size === 0 || isBulkFavoriting}
+                onClick={handleBulkRemoveFromFavorites}
+                data-testid="button-bulk-remove-favorites"
+              >
+                <StarOff className="mr-2 h-4 w-4" />
+                Rimuovi dai preferiti ({selectedIds.size})
+              </Button>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                disabled={selectedIds.size === 0 || isBulkDeleting}
+                onClick={() => setShowBulkDeleteDialog(true)}
+                data-testid="button-bulk-delete"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Elimina ({selectedIds.size})
+              </Button>
+            </div>
+          </div>
+        )}
         
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
@@ -555,24 +742,41 @@ export default function PrivatePropertiesPage() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {paginatedProperties.map((property) => (
-                    <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                    <Card 
+                      key={property.id} 
+                      className={`overflow-hidden hover:shadow-lg transition-shadow ${
+                        selectionMode && selectedIds.has(property.id) 
+                          ? 'ring-2 ring-blue-500 border-blue-500' 
+                          : ''
+                      }`}
+                    >
                       <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-base">{cleanAddress(property.address)}</CardTitle>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFavoriteMutation.mutate({ 
-                                propertyId: property.id, 
-                                isFavorite: !property.isFavorite 
-                              });
-                            }}
-                          >
-                            <Star className={`h-4 w-4 ${property.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
-                          </Button>
+                        <div className="flex justify-between items-start gap-2">
+                          {selectionMode && (
+                            <Checkbox 
+                              checked={selectedIds.has(property.id)}
+                              onCheckedChange={() => handleSelectProperty(property.id)}
+                              className="mt-1"
+                              data-testid={`checkbox-property-${property.id}`}
+                            />
+                          )}
+                          <CardTitle className="text-base flex-1">{cleanAddress(property.address)}</CardTitle>
+                          {!selectionMode && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavoriteMutation.mutate({ 
+                                  propertyId: property.id, 
+                                  isFavorite: !property.isFavorite 
+                                });
+                              }}
+                            >
+                              <Star className={`h-4 w-4 ${property.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+                            </Button>
+                          )}
                         </div>
                         <CardDescription>{property.city}</CardDescription>
                       </CardHeader>
@@ -678,6 +882,29 @@ export default function PrivatePropertiesPage() {
           </>
         )}
       </div>
+      
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare {selectedIds.size} immobili selezionati? 
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isBulkDeleting ? "Eliminazione..." : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
