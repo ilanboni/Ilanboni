@@ -3323,6 +3323,14 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
+  async getSharedPropertyByAddressAndPrice(address: string, price: number): Promise<SharedProperty | undefined> {
+    const result = await db.select()
+      .from(sharedProperties)
+      .where(and(eq(sharedProperties.address, address), eq(sharedProperties.price, price)))
+      .limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  }
+
   async deleteSharedProperty(id: number): Promise<boolean> {
     try {
       // Delete related tasks and communications first

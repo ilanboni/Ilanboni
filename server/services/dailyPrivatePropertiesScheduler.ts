@@ -288,6 +288,18 @@ export class DailyPrivatePropertiesScheduler {
           
           // Salva nel database come SharedProperty (with externalLink per i privati) o Property (per le agenzie)
           if (classification.ownerType === 'private') {
+            // Verifica duplicato prima di salvare
+            const existingSharedProp = await storage.getSharedPropertyByAddressAndPrice(
+              listing.address || '',
+              listing.price || 0
+            );
+            
+            if (existingSharedProp) {
+              // Già esiste, salta
+              discarded++;
+              continue;
+            }
+            
             // Salva come SharedProperty con externalLink preservato
             const sharedPropertyToSave = {
               address: listing.address || '',
