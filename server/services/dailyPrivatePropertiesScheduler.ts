@@ -96,6 +96,11 @@ export class DailyPrivatePropertiesScheduler {
       const saved = await this.saveAllProperties(allListings);
       
       console.log(`[DAILY-SCHEDULER] ✅ Completed - Saved ${saved} Milano properties`);
+      
+      // Pre-compute matches for all active buyers to populate cache
+      // This ensures users see instant results when viewing matching properties
+      await this.recomputeAllClientMatches();
+      
       console.log('='.repeat(60) + '\n');
     } catch (error) {
       console.error('[DAILY-SCHEDULER] ❌ Error:', error);
@@ -356,6 +361,51 @@ export class DailyPrivatePropertiesScheduler {
     console.log(`  ❌ Errors: ${errors}`);
 
     return saved;
+  }
+
+  // Pre-compute matches for all active buyers to populate cache
+  private async recomputeAllClientMatches(): Promise<void> {
+    console.log('\n[DAILY-SCHEDULER] 🔄 Pre-computing matches for all buyers...');
+    
+    try {
+      // Get all client IDs that have active buyers using storage's internal method
+      const clients = await storage.getClients();
+      
+      if (!clients || clients.length === 0) {
+        console.log('[DAILY-SCHEDULER] ⚠️ No clients found, skipping match pre-computation');
+        return;
+      }
+      
+      let processed = 0;
+      let errors = 0;
+      let skipped = 0;
+      
+      for (const client of clients) {
+        try {
+          // Check if client has buyer preferences
+          const buyer = await storage.getBuyerByClientId(client.id);
+          if (!buyer) {
+            skipped++;
+            continue;
+          }
+          
+          // Force recompute matches for this client
+          await storage.getMatchingPropertiesForClient(client.id, true);
+          processed++;
+          console.log(`[DAILY-SCHEDULER] ✅ Pre-computed matches for client ${client.id} (${client.firstName} ${client.lastName})`);
+        } catch (error) {
+          console.warn(`[DAILY-SCHEDULER] ⚠️ Error pre-computing for client ${client.id}:`, error);
+          errors++;
+        }
+        
+        // Small delay to avoid overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      console.log(`[DAILY-SCHEDULER] ✅ Match pre-computation completed: ${processed} clients, ${skipped} skipped (no buyer), ${errors} errors`);
+    } catch (error) {
+      console.error('[DAILY-SCHEDULER] ❌ Error in match pre-computation:', error);
+    }
   }
 }
 
