@@ -105,6 +105,7 @@ export default function ClientDetailPage() {
     staleTime: 10 * 60 * 1000,
     refetchInterval: false,
     refetchOnWindowFocus: false,
+    initialData: [],
     queryFn: async () => {
       console.log('[MATCHING-QUERY] Fetching matching properties for client', id);
       const response = await fetch(`/api/clients/${id}/matching-properties-advanced`, {
@@ -1199,13 +1200,13 @@ export default function ClientDetailPage() {
                 <div>
                   <CardTitle>Possibili Immobili</CardTitle>
                   <CardDescription>
-                    {client?.buyer?.rating === 5 
-                      ? "Immobili da altre agenzie trovati tramite scraping (Rating 5)" 
-                      : `Disponibile solo per clienti con rating 5 (rating attuale: ${client?.buyer?.rating}, type: ${client?.type}, buyer exists: ${!!client?.buyer})`
+                    {(client?.buyer?.rating ?? 0) >= 4 
+                      ? `Immobili da altre agenzie trovati tramite scraping (Rating: ${client?.buyer?.rating})` 
+                      : `Disponibile solo per clienti con rating ≥ 4 (rating attuale: ${client?.buyer?.rating}, type: ${client?.type}, buyer exists: ${!!client?.buyer})`
                     }
                   </CardDescription>
                 </div>
-                {client?.buyer?.rating === 5 && (
+                {(client?.buyer?.rating ?? 0) >= 4 && (
                   <div className="flex items-center gap-2">
                     <Button 
                       variant={selectionMode ? "secondary" : "outline"}
@@ -1266,14 +1267,14 @@ export default function ClientDetailPage() {
                   </div>
                 )}
                 
-                {client?.buyer?.rating !== 5 ? (
+                {(client?.buyer?.rating ?? 0) < 4 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
                       <i className="fas fa-star-half-alt"></i>
                     </div>
                     <h3 className="text-lg font-medium mb-2">Rating non sufficiente</h3>
                     <p>
-                      Questa funzionalità è disponibile solo per clienti con rating 5.<br />
+                      Questa funzionalità è disponibile solo per clienti con rating ≥ 4.<br />
                       Rating attuale: {client?.buyer?.rating || 'N/A'}
                     </p>
                   </div>
