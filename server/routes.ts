@@ -5521,7 +5521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID cliente non valido" });
       }
       
-      const matches = await storage.getMatchingPropertiesForClient(clientId);
+      const forceRecompute = req.query.forceRecompute === 'true';
+      const matches = await storage.getMatchingPropertiesForClient(clientId, forceRecompute);
       
       // Filter out ignored properties
       const ignoredProperties = await storage.getClientIgnoredProperties(clientId);

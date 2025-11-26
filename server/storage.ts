@@ -23,7 +23,8 @@ import {
   campaignMessages, type CampaignMessage, type InsertCampaignMessage,
   botConversationLogs, type BotConversationLog, type InsertBotConversationLog,
   clientFavorites, type ClientFavorite, type InsertClientFavorite,
-  clientIgnoredProperties, type ClientIgnoredProperty, type InsertClientIgnoredProperty
+  clientIgnoredProperties, type ClientIgnoredProperty, type InsertClientIgnoredProperty,
+  matches, type Match, type InsertMatch
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, lt, and, or, gte, lte, like, ilike, not, isNull, inArray, SQL, sql, count } from "drizzle-orm";
@@ -198,9 +199,13 @@ export interface IStorage {
   isClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean>;
   
   // Advanced property matching methods
-  getMatchingPropertiesForClient(clientId: number): Promise<SharedProperty[]>;
+  getMatchingPropertiesForClient(clientId: number, forceRecompute?: boolean): Promise<SharedProperty[]>;
   getMultiAgencyProperties(): Promise<SharedProperty[]>;
   getPrivateProperties(portalSource?: string): Promise<SharedProperty[]>;
+  
+  // Client match caching methods
+  saveClientMatches(clientId: number, items: Array<{sharedPropertyId: number, score: number}>): Promise<void>;
+  getClientMatchesFromCache(clientId: number): Promise<{matches: Match[], lastUpdated: Date | null}>;
 }
 
 // In-memory storage implementation
@@ -1845,6 +1850,27 @@ export class MemStorage implements IStorage {
   }
   
   async getBotConversationLogs(campaignMessageId: number): Promise<BotConversationLog[]> {
+    return [];
+  }
+  
+  // Client match caching methods (stub)
+  async saveClientMatches(clientId: number, items: Array<{sharedPropertyId: number, score: number}>): Promise<void> {
+    return;
+  }
+  
+  async getClientMatchesFromCache(clientId: number): Promise<{matches: Match[], lastUpdated: Date | null}> {
+    return { matches: [], lastUpdated: null };
+  }
+  
+  async getMatchingPropertiesForClient(clientId: number, forceRecompute?: boolean): Promise<SharedProperty[]> {
+    return [];
+  }
+  
+  async getMultiAgencyProperties(): Promise<SharedProperty[]> {
+    return [];
+  }
+  
+  async getPrivateProperties(portalSource?: string): Promise<SharedProperty[]> {
     return [];
   }
 }
@@ -3680,13 +3706,129 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
   
-  // Advanced property matching methods
-  async getMatchingPropertiesForClient(clientId: number): Promise<SharedProperty[]> {
-    // Get buyer preferences
+  // Advanced property matching methods with persistent caching
+  async getMatchingPropertiesForClient(clientId: number, forceRecompute: boolean = false): Promise<SharedProperty[]> {
+    const CACHE_TTL_MINUTES = 15;
+    
+    if (!forceRecompute) {
+      const { matches: cachedMatches, lastUpdated } = await this.getClientMatchesFromCache(clientId);
+      
+      if (cachedMatches.length > 0 && lastUpdated) {
+        const cacheAge = (Date.now() - lastUpdated.getTime()) / 1000 / 60;
+        console.log(`[getMatchingPropertiesForClient] Client ${clientId} cache age: ${cacheAge.toFixed(1)} minutes`);
+        
+        if (cacheAge < CACHE_TTL_MINUTES) {
+          // Get buyer for private property matching
+          const buyer = await this.getBuyerByClientId(clientId);
+          if (!buyer) return [];
+          
+          // Get cached shared properties
+          const sharedPropertyIds = cachedMatches
+            .filter(m => m.sharedPropertyId !== null)
+            .map(m => m.sharedPropertyId as number);
+          
+          const cachedSharedProperties = sharedPropertyIds.length > 0
+            ? await db
+                .select()
+                .from(sharedProperties)
+                .where(inArray(sharedProperties.id, sharedPropertyIds))
+            : [];
+          
+          const matchScoreMap = new Map(cachedMatches.map(m => [m.sharedPropertyId, m.score]));
+          
+          const sortedSharedProps = cachedSharedProperties
+            .map(prop => ({
+              ...prop,
+              matchScore: matchScoreMap.get(prop.id) || 0
+            }));
+          
+          // Also get matching private properties (not cached, but fast to compute)
+          const privateProps = await db
+            .select()
+            .from(properties)
+            .where(
+              and(
+                eq(properties.ownerType, 'private'),
+                eq(properties.status, 'available')
+              )
+            );
+          
+          const derivePortalSource = (source: string | null, portal: string | null): string | null => {
+            const sourceStr = (source || '').toLowerCase();
+            const portalStr = (portal || '').toLowerCase();
+            if (sourceStr.includes('idealista') || portalStr.includes('idealista')) return 'Idealista.it';
+            if (sourceStr.includes('immobiliare') || portalStr.includes('immobiliare')) return 'Immobiliare.it';
+            if (sourceStr.includes('clickcase') || portalStr.includes('clickcase')) return 'ClickCase.it';
+            if (sourceStr.includes('casadaprivato') || portalStr.includes('casadaprivato')) return 'CasaDaPrivato.it';
+            if (sourceStr === 'manual') return 'Manuale';
+            return null;
+          };
+          
+          const convertedPrivateProps: SharedProperty[] = privateProps.map((p: any) => ({
+            id: p.id,
+            propertyId: p.id,
+            address: p.address || '',
+            city: p.city || 'Milano',
+            province: p.province || 'MI',
+            type: p.type || 'apartment',
+            size: p.size,
+            price: p.price,
+            rooms: p.bedrooms,
+            bathrooms: p.bathrooms,
+            description: p.description,
+            images: p.images || [],
+            location: p.location,
+            agencyName: p.ownerName || 'Privato',
+            agencyUrl: p.url || p.externalLink || '',
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+            externalId: p.externalId,
+            source: p.source || 'manual',
+            portalSource: derivePortalSource(p.source, p.portal),
+            classificationColor: 'green' as const,
+            isIgnored: false,
+            isFavorite: p.isFavorite || false,
+            isAcquired: false,
+            matchBuyers: false,
+            ownerName: p.ownerName,
+            ownerPhone: p.ownerPhone,
+            ownerEmail: p.ownerEmail,
+            ownerType: 'private',
+            elevator: p.elevator,
+            balconyOrTerrace: p.balconyOrTerrace,
+            parking: p.parking,
+            garden: p.garden,
+            url: p.url || p.externalLink
+          } as SharedProperty));
+          
+          // Filter private properties using the same matching logic
+          const matchingPrivateProps = convertedPrivateProps
+            .map(prop => {
+              const matchResult = this.evaluatePropertyMatch(prop, buyer);
+              return matchResult.isMatch ? { ...prop, matchScore: matchResult.score } : null;
+            })
+            .filter((p): p is SharedProperty & { matchScore: number } => p !== null);
+          
+          // Combine and sort all properties by score
+          const allMatches = [...sortedSharedProps, ...matchingPrivateProps]
+            .sort((a, b) => b.matchScore - a.matchScore);
+          
+          console.log(`[getMatchingPropertiesForClient] Returning ${cachedMatches.length} cached shared + ${matchingPrivateProps.length} private matches for client ${clientId}`);
+          
+          return this.postProcessMatchedProperties(allMatches);
+        }
+        
+        console.log(`[getMatchingPropertiesForClient] Cache stale for client ${clientId}, recomputing...`);
+      } else {
+        console.log(`[getMatchingPropertiesForClient] No cache found for client ${clientId}, computing matches...`);
+      }
+    } else {
+      console.log(`[getMatchingPropertiesForClient] Force recompute requested for client ${clientId}`);
+    }
+    
     const buyer = await this.getBuyerByClientId(clientId);
     if (!buyer) return [];
     
-    // Get all available shared properties
     const sharedProps = await db
       .select()
       .from(sharedProperties)
@@ -3697,7 +3839,6 @@ export class DatabaseStorage implements IStorage {
         )
       );
     
-    // Get all available private properties from the main properties table
     const privateProps = await db
       .select()
       .from(properties)
@@ -3708,7 +3849,6 @@ export class DatabaseStorage implements IStorage {
         )
       );
     
-    // Helper function to derive portalSource from source/portal fields
     const derivePortalSource = (source: string | null, portal: string | null): string | null => {
       const sourceStr = (source || '').toLowerCase();
       const portalStr = (portal || '').toLowerCase();
@@ -3731,7 +3871,6 @@ export class DatabaseStorage implements IStorage {
       return null;
     };
     
-    // Convert private properties to SharedProperty format
     const convertedPrivateProps: SharedProperty[] = privateProps.map((p: any) => ({
       id: p.id,
       propertyId: p.id,
@@ -3741,7 +3880,7 @@ export class DatabaseStorage implements IStorage {
       type: p.type || 'apartment',
       size: p.size,
       price: p.price,
-      rooms: p.bedrooms, // ⚠️ CORREZIONE: properties usa 'bedrooms', sharedProperties usa 'rooms'
+      rooms: p.bedrooms,
       bathrooms: p.bathrooms,
       description: p.description,
       images: p.images || [],
@@ -3761,7 +3900,7 @@ export class DatabaseStorage implements IStorage {
       ownerName: p.ownerName,
       ownerPhone: p.ownerPhone,
       ownerEmail: p.ownerEmail,
-      ownerType: 'private', // Hardcoded since we're converting private properties only
+      ownerType: 'private',
       elevator: p.elevator,
       balconyOrTerrace: p.balconyOrTerrace,
       parking: p.parking,
@@ -3769,205 +3908,219 @@ export class DatabaseStorage implements IStorage {
       url: p.url || p.externalLink
     } as SharedProperty));
     
-    // Combine both sets of properties
+    // Track which IDs are from sharedProperties table (for proper foreign key reference)
+    const sharedPropertyIds = new Set(sharedProps.map(p => p.id));
+    
     const allProperties = [...sharedProps, ...convertedPrivateProps];
     
-    // Filter using advanced matching logic with tolerances
-    // size: -20% (40m+ if seeking 50m), price: +20%, zone: 500m from polygon edge
-    const matches = allProperties.filter(prop => {
-      // Size tolerance: -20% minimum (e.g., 50m² → accept 40m² and above)
-      // Only reject if BOTH values exist AND property is below minimum threshold
-      // If either value is missing, ACCEPT the property (let it through)
-      if (buyer.minSize && prop.size) {
-        const minAcceptable = buyer.minSize * 0.80; // -20%
-        if (prop.size < minAcceptable) {
-          return false; // Reject only if below minimum (no upper limit)
-        }
+    const matchedPropertiesWithScores: Array<{property: SharedProperty, score: number, isShared: boolean}> = [];
+    
+    for (const prop of allProperties) {
+      const matchResult = this.evaluatePropertyMatch(prop, buyer);
+      if (matchResult.isMatch) {
+        matchedPropertiesWithScores.push({
+          property: prop,
+          score: matchResult.score,
+          isShared: sharedPropertyIds.has(prop.id)
+        });
       }
-      // If buyer.minSize is set but prop.size is null/undefined → ACCEPT
-      // If buyer.minSize is not set → ACCEPT
-      
-      // Price tolerance: +20% (e.g., 500k max → accept up to 600k)
-      // Only reject if BOTH values exist AND property is too expensive
-      if (buyer.maxPrice && prop.price) {
-        const maxAcceptable = buyer.maxPrice * 1.20; // +20%
-        if (prop.price > maxAcceptable) {
-          return false; // Reject only when both values exist and it's too expensive
-        }
+    }
+    
+    matchedPropertiesWithScores.sort((a, b) => b.score - a.score);
+    
+    // Only save matches for sharedProperties (which have valid foreign key reference)
+    // Private properties from 'properties' table have different IDs and would violate FK constraint
+    const matchesToSave = matchedPropertiesWithScores
+      .filter(({ isShared }) => isShared)
+      .map(({ property, score }) => ({
+        sharedPropertyId: property.id,
+        score
+      }));
+    
+    const privateMatchCount = matchedPropertiesWithScores.filter(m => !m.isShared).length;
+    console.log(`[getMatchingPropertiesForClient] Found ${matchesToSave.length} shared + ${privateMatchCount} private matches for client ${clientId}`);
+    
+    try {
+      await this.saveClientMatches(clientId, matchesToSave);
+      console.log(`[getMatchingPropertiesForClient] Saved ${matchesToSave.length} matches to cache for client ${clientId}`);
+    } catch (error) {
+      console.error(`[getMatchingPropertiesForClient] Failed to save matches cache:`, error);
+    }
+    
+    const matchedProperties = matchedPropertiesWithScores.map(({ property, score }) => ({
+      ...property,
+      matchScore: score
+    }));
+    
+    return this.postProcessMatchedProperties(matchedProperties);
+  }
+  
+  private evaluatePropertyMatch(prop: SharedProperty, buyer: Buyer): { isMatch: boolean, score: number } {
+    let score = 100;
+    
+    if (buyer.minSize && prop.size) {
+      const minAcceptable = buyer.minSize * 0.80;
+      if (prop.size < minAcceptable) {
+        return { isMatch: false, score: 0 };
       }
-      // If buyer.maxPrice is set but prop.price is null/undefined → ACCEPT
-      // If buyer.maxPrice is not set → ACCEPT
-      
-      // Zone tolerance: Check if property is within buyer's search areas
-      // Only enforce if BOTH buyer.searchArea AND prop.location exist
-      if (buyer.searchArea && prop.location) {
-        try {
-          // Normalize property location (support both {lat,lng} and GeoJSON)
-          const propLoc = prop.location as any;
-          let propLat: number, propLng: number;
+      if (prop.size >= buyer.minSize) {
+        score += 0;
+      } else {
+        const sizeRatio = prop.size / buyer.minSize;
+        score -= Math.round((1 - sizeRatio) * 20);
+      }
+    }
+    
+    if (buyer.maxPrice && prop.price) {
+      const maxAcceptable = buyer.maxPrice * 1.20;
+      if (prop.price > maxAcceptable) {
+        return { isMatch: false, score: 0 };
+      }
+      if (prop.price <= buyer.maxPrice) {
+        const savings = (buyer.maxPrice - prop.price) / buyer.maxPrice;
+        score += Math.round(savings * 10);
+      } else {
+        const overBudget = (prop.price - buyer.maxPrice) / buyer.maxPrice;
+        score -= Math.round(overBudget * 30);
+      }
+    }
+    
+    if (buyer.searchArea && prop.location) {
+      try {
+        const propLoc = prop.location as any;
+        let propLat: number, propLng: number;
+        
+        if (propLoc.coordinates) {
+          propLng = propLoc.coordinates[0];
+          propLat = propLoc.coordinates[1];
+        } else if (propLoc.lat !== undefined && propLoc.lng !== undefined) {
+          propLat = propLoc.lat;
+          propLng = propLoc.lng;
+        } else {
+          return { isMatch: true, score: Math.max(0, score) };
+        }
+        
+        const searchArea = buyer.searchArea as any;
+        
+        let features: any[] = [];
+        if (searchArea.type === 'FeatureCollection' && searchArea.features) {
+          features = searchArea.features;
+        } else if (searchArea.type === 'Feature') {
+          features = [searchArea];
+        }
+        
+        if (features.length > 0) {
+          const propertyPoint = point([propLng, propLat]);
+          let isInAnyZone = false;
           
-          if (propLoc.coordinates) {
-            // GeoJSON format: coordinates: [lng, lat]
-            propLng = propLoc.coordinates[0];
-            propLat = propLoc.coordinates[1];
-          } else if (propLoc.lat !== undefined && propLoc.lng !== undefined) {
-            // Plain object: { lat, lng }
-            propLat = propLoc.lat;
-            propLng = propLoc.lng;
-          } else {
-            // Invalid location format → ACCEPT (no zone constraint)
-            return true;
+          for (const feature of features) {
+            if (booleanPointInPolygon(propertyPoint, feature)) {
+              isInAnyZone = true;
+              break;
+            }
           }
           
-          const searchArea = buyer.searchArea as any;
-          
-          // Normalize to array of features (handle both Feature and FeatureCollection)
-          let features: any[] = [];
-          if (searchArea.type === 'FeatureCollection' && searchArea.features) {
-            features = searchArea.features;
-          } else if (searchArea.type === 'Feature') {
-            features = [searchArea];
-          }
-          
-          // Check if searchArea contains polygon zones
-          if (features.length > 0) {
-            const propertyPoint = point([propLng, propLat]);
-            let isInAnyZone = false;
+          if (!isInAnyZone) {
+            const POLYGON_DISTANCE_TOLERANCE_KM = 0.5;
+            const POINT_RADIUS_KM = 4;
+            let minDistance = Infinity;
+            let hasPointFeature = false;
             
             for (const feature of features) {
-              if (booleanPointInPolygon(propertyPoint, feature)) {
-                isInAnyZone = true;
-                break;
+              if (feature.geometry?.type === 'Point' && feature.geometry?.coordinates) {
+                hasPointFeature = true;
+                const pointCoords = feature.geometry.coordinates;
+                const zoneCenterLng = pointCoords[0];
+                const zoneCenterLat = pointCoords[1];
+                
+                const R = 6371;
+                const dLat = (propLat - zoneCenterLat) * Math.PI / 180;
+                const dLng = (propLng - zoneCenterLng) * Math.PI / 180;
+                const a = 
+                  Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(zoneCenterLat * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
+                  Math.sin(dLng/2) * Math.sin(dLng/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                const distanceKm = R * c;
+                
+                if (distanceKm <= POINT_RADIUS_KM) {
+                  isInAnyZone = true;
+                  score -= Math.round((distanceKm / POINT_RADIUS_KM) * 10);
+                  break;
+                }
+                if (distanceKm < minDistance) minDistance = distanceKm;
+              }
+              else if (feature.geometry?.type === 'Polygon') {
+                const coordinates = feature.geometry?.coordinates?.[0] || [];
+                if (coordinates.length < 2) continue;
+                
+                const line = lineString(coordinates);
+                const d = pointToLineDistance(propertyPoint, line, { units: 'kilometers' });
+                if (d < minDistance) minDistance = d;
               }
             }
             
-            // If not in zone, check distance tolerance
             if (!isInAnyZone) {
-              const POLYGON_DISTANCE_TOLERANCE_KM = 0.5; // 500 meters from polygon edge
-              const POINT_RADIUS_KM = 4; // 4km radius for Point features (urban areas like Milan)
-              let minDistance = Infinity;
-              let hasPointFeature = false;
-              
-              for (const feature of features) {
-                // Handle Point features with 4km radius
-                if (feature.geometry?.type === 'Point' && feature.geometry?.coordinates) {
-                  hasPointFeature = true;
-                  const pointCoords = feature.geometry.coordinates;
-                  const zoneCenterLng = pointCoords[0];
-                  const zoneCenterLat = pointCoords[1];
-                  
-                  // Calculate haversine distance to this Point zone
-                  const R = 6371; // Earth radius in km
-                  const dLat = (propLat - zoneCenterLat) * Math.PI / 180;
-                  const dLng = (propLng - zoneCenterLng) * Math.PI / 180;
-                  const a = 
-                    Math.sin(dLat/2) * Math.sin(dLat/2) +
-                    Math.cos(zoneCenterLat * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
-                    Math.sin(dLng/2) * Math.sin(dLng/2);
-                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                  const distanceKm = R * c;
-                  
-                  // If within 4km radius, property is in zone
-                  if (distanceKm <= POINT_RADIUS_KM) {
-                    isInAnyZone = true;
-                    break;
-                  }
-                  if (distanceKm < minDistance) minDistance = distanceKm;
-                }
-                // Handle Polygon features
-                else if (feature.geometry?.type === 'Polygon') {
-                  // Get polygon coordinates (array of rings, use first ring)
-                  const coordinates = feature.geometry?.coordinates?.[0] || [];
-                  if (coordinates.length < 2) continue;
-                  
-                  // Calculate distance to polygon edge (not just vertices)
-                  const line = lineString(coordinates);
-                  const d = pointToLineDistance(propertyPoint, line, { units: 'kilometers' });
-                  if (d < minDistance) minDistance = d;
-                }
+              const threshold = hasPointFeature ? POINT_RADIUS_KM : POLYGON_DISTANCE_TOLERANCE_KM;
+              if (minDistance > threshold) {
+                return { isMatch: false, score: 0 };
               }
-              
-              // If still not in any zone after Point check, reject based on distance
-              if (!isInAnyZone) {
-                // For Point features, use 4km threshold; for Polygon, use 500m
-                const threshold = hasPointFeature ? POINT_RADIUS_KM : POLYGON_DISTANCE_TOLERANCE_KM;
-                if (minDistance > threshold) {
-                  return false;
-                }
-              }
+              score -= Math.round((minDistance / threshold) * 15);
             }
           }
-          // If searchArea is a single point with radius, calculate haversine distance
-          else if (searchArea.type === 'Point' || (searchArea.center && searchArea.radius)) {
-            // Extract center coordinates
-            let centerLat: number, centerLng: number;
-            let radiusKm = 1; // Default 1km as per requirement
-            
-            if (searchArea.center) {
-              // Format: { center: { lat, lng }, radius: number }
-              centerLat = searchArea.center.lat;
-              centerLng = searchArea.center.lng;
-              radiusKm = searchArea.radius || 1;
-            } else if (searchArea.coordinates) {
-              // GeoJSON Point: { type: 'Point', coordinates: [lng, lat] }
-              centerLng = searchArea.coordinates[0];
-              centerLat = searchArea.coordinates[1];
-            } else {
-              // Invalid format → ACCEPT
-              return true;
-            }
-            
-            // Calculate haversine distance
-            const R = 6371; // Earth radius in km
-            const dLat = (propLat - centerLat) * Math.PI / 180;
-            const dLng = (propLng - centerLng) * Math.PI / 180;
-            const a = 
-              Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(centerLat * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            const distanceKm = R * c;
-            
-            // Reject if property is outside radius
-            if (distanceKm > radiusKm) {
-              return false;
-            }
-          }
-        } catch (error) {
-          // If location processing fails → ACCEPT (don't reject due to data issues)
-          console.warn('[getMatchingPropertiesForClient] Zone check error:', error);
-          return true;
         }
+        else if (searchArea.type === 'Point' || (searchArea.center && searchArea.radius)) {
+          let centerLat: number, centerLng: number;
+          let radiusKm = 1;
+          
+          if (searchArea.center) {
+            centerLat = searchArea.center.lat;
+            centerLng = searchArea.center.lng;
+            radiusKm = searchArea.radius || 1;
+          } else if (searchArea.coordinates) {
+            centerLng = searchArea.coordinates[0];
+            centerLat = searchArea.coordinates[1];
+          } else {
+            return { isMatch: true, score: Math.max(0, score) };
+          }
+          
+          const R = 6371;
+          const dLat = (propLat - centerLat) * Math.PI / 180;
+          const dLng = (propLng - centerLng) * Math.PI / 180;
+          const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(centerLat * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          const distanceKm = R * c;
+          
+          if (distanceKm > radiusKm) {
+            return { isMatch: false, score: 0 };
+          }
+          score -= Math.round((distanceKm / radiusKm) * 10);
+        }
+      } catch (error) {
+        console.warn('[evaluatePropertyMatch] Zone check error:', error);
       }
-      // If buyer.searchArea or prop.location is missing → ACCEPT (no zone constraint)
-      
-      return true; // Accept by default
-    });
+    }
     
-    // Post-process matches to ensure ownerType and isMultiagency are correctly calculated
-    const processedMatches = matches.map(prop => {
-      // Calculate isMultiagency based on number of agencies
+    return { isMatch: true, score: Math.max(0, Math.min(100, score)) };
+  }
+  
+  private postProcessMatchedProperties(matchedProperties: any[]): SharedProperty[] {
+    return matchedProperties.map(prop => {
       const agencyCount = (prop.agencies && Array.isArray(prop.agencies)) ? prop.agencies.length : 0;
       const isMultiagency = agencyCount > 1;
-      
-      // Determine ownerType:
-      // - If already set to 'private' → keep it
-      // - If shared property with agencies → null (agency-owned)
-      // - Otherwise → null
       const ownerType = prop.ownerType === 'private' ? 'private' : null;
-      
-      // Add 'images' field as alias for 'imageUrls' for frontend compatibility
       const images = (prop as any).imageUrls || (prop as any).images || [];
       
       return {
         ...prop,
         isMultiagency,
         ownerType,
-        images  // Frontend expects this field instead of imageUrls
+        images
       } as any;
     });
-    
-    return processedMatches as any[];
   }
   
   async getMultiAgencyProperties(): Promise<SharedProperty[]> {
@@ -4030,6 +4183,47 @@ export class DatabaseStorage implements IStorage {
     });
     
     return filteredByRadius as SharedProperty[];
+  }
+  
+  async saveClientMatches(clientId: number, items: Array<{sharedPropertyId: number, score: number}>): Promise<void> {
+    console.log(`[saveClientMatches] Saving ${items.length} matches for client ${clientId}`);
+    
+    await db.delete(matches).where(eq(matches.clientId, clientId));
+    
+    if (items.length === 0) {
+      console.log(`[saveClientMatches] No matches to save for client ${clientId}`);
+      return;
+    }
+    
+    const matchRecords = items.map(item => ({
+      clientId,
+      sharedPropertyId: item.sharedPropertyId,
+      score: item.score
+    }));
+    
+    await db.insert(matches).values(matchRecords);
+    console.log(`[saveClientMatches] Successfully saved ${items.length} matches for client ${clientId}`);
+  }
+  
+  async getClientMatchesFromCache(clientId: number): Promise<{matches: Match[], lastUpdated: Date | null}> {
+    const cachedMatches = await db
+      .select()
+      .from(matches)
+      .where(eq(matches.clientId, clientId))
+      .orderBy(desc(matches.score));
+    
+    if (cachedMatches.length === 0) {
+      return { matches: [], lastUpdated: null };
+    }
+    
+    const oldestMatch = cachedMatches.reduce((oldest, m) => 
+      m.createdAt < oldest.createdAt ? m : oldest
+    );
+    
+    return { 
+      matches: cachedMatches, 
+      lastUpdated: oldestMatch.createdAt 
+    };
   }
 }
 
