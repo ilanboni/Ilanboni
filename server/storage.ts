@@ -3740,14 +3740,14 @@ export class DatabaseStorage implements IStorage {
     const allProperties = [...sharedProps, ...convertedPrivateProps];
     
     // Filter using advanced matching logic with tolerances
-    // size: -2% to +40%, price: +10%, zone: 200m from polygon edge
+    // size: -20% to +20%, price: +20%, zone: 200m from polygon edge
     const matches = allProperties.filter(prop => {
-      // Size tolerance: -2% to +40%
+      // Size tolerance: -20% to +20%
       // Only reject if BOTH values exist AND property is out of range
       // If either value is missing, ACCEPT the property (let it through)
       if (buyer.minSize && prop.size) {
-        const minAcceptable = buyer.minSize * 0.98; // -2%
-        const maxAcceptable = buyer.minSize * 1.4; // +40%
+        const minAcceptable = buyer.minSize * 0.80; // -20%
+        const maxAcceptable = buyer.minSize * 1.20; // +20%
         if (prop.size < minAcceptable || prop.size > maxAcceptable) {
           return false; // Reject only when both values exist and it's out of range
         }
@@ -3755,10 +3755,10 @@ export class DatabaseStorage implements IStorage {
       // If buyer.minSize is set but prop.size is null/undefined → ACCEPT
       // If buyer.minSize is not set → ACCEPT
       
-      // Price tolerance: +10%
+      // Price tolerance: +20%
       // Only reject if BOTH values exist AND property is too expensive
       if (buyer.maxPrice && prop.price) {
-        const maxAcceptable = buyer.maxPrice * 1.10; // +10%
+        const maxAcceptable = buyer.maxPrice * 1.20; // +20%
         if (prop.price > maxAcceptable) {
           return false; // Reject only when both values exist and it's too expensive
         }
