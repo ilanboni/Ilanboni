@@ -57,19 +57,19 @@ export class ClientPropertyScrapingService {
 
     console.log(`[SAVED-PROPERTIES] Client ${client.firstName} ${client.lastName}, buyer type: ${buyer.propertyType || 'any'}, zones: ${(buyer.zones as any)?.length || 0}, rating: ${buyer.rating}`);
 
-    // Get all saved scraped properties from database
+    // Get all shared properties from database - let matching logic filter them
+    // For buyers with rating >= 4, load ALL properties regardless of match_buyers flag
     const savedProperties = await db
       .select()
-      .from(sharedProperties)
-      .where(eq(sharedProperties.matchBuyers, true));
+      .from(sharedProperties);
 
     const drizzleCount = savedProperties.length;
     console.log(`[DRIZZLE-QUERY] Query executed. Drizzle.length = ${drizzleCount}`);
     console.log(`[DRIZZLE-QUERY] First 3 IDs: ${savedProperties.slice(0, 3).map(p => p.id).join(', ')}`);
     console.log(`[DRIZZLE-QUERY] Last 3 IDs: ${savedProperties.slice(-3).map(p => p.id).join(', ')}`);
     
-    console.log(`[SAVED-PROPERTIES] Drizzle returned ${savedProperties.length} properties (database has 2731 with match_buyers=true)`);
-    console.log(`[SAVED-PROPERTIES] Found ${savedProperties.length} saved properties before filtering`);
+    console.log(`[SAVED-PROPERTIES] Loaded ${savedProperties.length} total shared properties from database (no pre-filtering)`);
+    console.log(`[SAVED-PROPERTIES] Found ${savedProperties.length} saved properties before matching criteria filter`);
     
     // DEBUG: Log first property details
     if (savedProperties.length > 0) {
