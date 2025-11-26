@@ -80,15 +80,38 @@ export class CasaDaPrivatoAdapter {
                 
                 // Extract details from the property page
                 const details = await detailPage.evaluate(() => {
-                  // Try to find the address - look for common patterns
                   let address = '';
                   let title = '';
                   let price = '';
                   let size = '';
+                  let description = '';
                   
                   // Title usually in h1 or main heading
                   const h1 = document.querySelector('h1');
                   if (h1) title = h1.textContent?.trim() || '';
+                  
+                  // Extract full description from description area
+                  const descriptionSelectors = [
+                    '.description', '.descrizione', '[class*="description"]', '[class*="descrizione"]',
+                    '.annuncio-text', '.property-description', 'article p', '.detail-text'
+                  ];
+                  for (const sel of descriptionSelectors) {
+                    const descEl = document.querySelector(sel);
+                    if (descEl && descEl.textContent && descEl.textContent.length > 50) {
+                      description = descEl.textContent.trim();
+                      break;
+                    }
+                  }
+                  // Fallback: get all paragraphs and combine
+                  if (!description) {
+                    const paragraphs = document.querySelectorAll('p');
+                    const texts = Array.from(paragraphs)
+                      .map(p => p.textContent?.trim())
+                      .filter(t => t && t.length > 30);
+                    if (texts.length > 0) {
+                      description = texts.slice(0, 3).join(' ');
+                    }
+                  }
                   
                   // Look for address in various places
                   const addressPatterns = [
@@ -118,25 +141,35 @@ export class CasaDaPrivatoAdapter {
                     const zoneMatch = title.match(/zona\s+([^\/,\-]+)/i);
                     if (zoneMatch) address = zoneMatch[1].trim();
                     else {
-                      // Try to extract neighborhood name
                       const neighborhoodMatch = title.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
                       if (neighborhoodMatch) address = neighborhoodMatch[1].trim();
                     }
                   }
                   
-                  // Find price
-                  const priceEls = Array.from(document.querySelectorAll('*')).filter((el: any) => 
-                    el.textContent?.includes('€') && el.textContent.length < 50
-                  );
-                  if (priceEls.length > 0) {
-                    price = priceEls[0].textContent?.trim() || '';
+                  // Find price - look for specific price elements first
+                  const priceSelectors = ['.price', '.prezzo', '[class*="price"]', '[class*="prezzo"]'];
+                  for (const sel of priceSelectors) {
+                    const priceEl = document.querySelector(sel);
+                    if (priceEl && priceEl.textContent?.includes('€')) {
+                      price = priceEl.textContent.trim();
+                      break;
+                    }
+                  }
+                  // Fallback to generic search
+                  if (!price) {
+                    const priceEls = Array.from(document.querySelectorAll('*')).filter((el: any) => 
+                      el.textContent?.includes('€') && el.textContent.length < 50
+                    );
+                    if (priceEls.length > 0) {
+                      price = priceEls[0].textContent?.trim() || '';
+                    }
                   }
                   
-                  // Find size
+                  // Find size - look for mq patterns
                   const sizeMatch = allText.match(/(\d+)\s*m[²q]/i);
                   if (sizeMatch) size = sizeMatch[1];
                   
-                  return { title, address, price, size };
+                  return { title, address, price, size, description };
                 });
                 
                 await detailPage.close();
@@ -204,15 +237,24 @@ export class CasaDaPrivatoAdapter {
           }
           
           if (price > 0 || prop.title) {
+            // Extract external ID from URL (e.g., "408731" from "trilocale-di-75-mq-con-terrazzo-milano-408731")
+            const urlIdMatch = fullUrl.match(/(\d{5,})(?:\.html)?$/);
+            const externalId = urlIdMatch ? `casadaprivato-${urlIdMatch[1]}` : `casadaprivato-${Date.now()}-${count}`;
+            
+            // Use full description if available, fallback to title
+            const description = prop.description && prop.description.length > 20 
+              ? prop.description.substring(0, 1000) // Limit description length
+              : prop.title;
+            
             const listing: PropertyListing = {
-              externalId: `casa-${count}`,
+              externalId,
               title: prop.title,
               address: prop.address,
               city: 'milano',
               price,
               size,
               url: fullUrl,
-              description: prop.title,
+              description,
               portal: 'casadaprivato',
               ownerType: 'private',
               source: 'casadaprivato',

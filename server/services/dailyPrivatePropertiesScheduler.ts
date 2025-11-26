@@ -144,10 +144,9 @@ export class DailyPrivatePropertiesScheduler {
     console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Idealista private properties...');
     const adapter = new IgolaIdealistaAdapter();
     try {
-      // Leggi i Milano zones da config
-      const MILANO_ZONES = ['0-EU-IT-MI-CO-028-006-Z']; // Default: Centro Milano
+      // Usa il nome della città "Milano" (accettato dall'API Idealista)
       const listings = await adapter.search({
-        locationIds: MILANO_ZONES,
+        locationIds: ['Milano'],
         maxItems: 100,
         privateOnly: true,
       });
@@ -163,10 +162,9 @@ export class DailyPrivatePropertiesScheduler {
     console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Idealista agencies...');
     const adapter = new IgolaIdealistaAdapter();
     try {
-      // Leggi i Milano zones da config
-      const MILANO_ZONES = ['0-EU-IT-MI-CO-028-006-Z']; // Default: Centro Milano
+      // Usa il nome della città "Milano" (accettato dall'API Idealista)
       const listings = await adapter.search({
-        locationIds: MILANO_ZONES,
+        locationIds: ['Milano'],
         maxItems: 100,
         privateOnly: false, // Scrapa tutte le agenzie (professional + developer)
       });

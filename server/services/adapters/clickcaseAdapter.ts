@@ -73,10 +73,34 @@ export class ClickCaseAdapter {
             let title = '';
             let price = '';
             let size = '';
+            let description = '';
             
             // Title usually in h1 or main heading
             const h1 = document.querySelector('h1');
             if (h1) title = h1.textContent?.trim() || '';
+            
+            // Extract full description from description area
+            const descriptionSelectors = [
+              '.description', '.descrizione', '[class*="description"]', '[class*="descrizione"]',
+              '.annuncio-text', '.property-description', 'article p', '.detail-text'
+            ];
+            for (const sel of descriptionSelectors) {
+              const descEl = document.querySelector(sel);
+              if (descEl && descEl.textContent && descEl.textContent.length > 50) {
+                description = descEl.textContent.trim();
+                break;
+              }
+            }
+            // Fallback: get all paragraphs and combine
+            if (!description) {
+              const paragraphs = document.querySelectorAll('p');
+              const texts = Array.from(paragraphs)
+                .map(p => p.textContent?.trim())
+                .filter(t => t && t.length > 30);
+              if (texts.length > 0) {
+                description = texts.slice(0, 3).join(' ');
+              }
+            }
             
             // Look for address in various places
             const addressPatterns = [
@@ -106,18 +130,28 @@ export class ClickCaseAdapter {
               const zoneMatch = title.match(/zona\s+([^\/,\-]+)/i);
               if (zoneMatch) address = zoneMatch[1].trim();
               else {
-                // Try to extract neighborhood name
                 const neighborhoodMatch = title.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/);
                 if (neighborhoodMatch) address = neighborhoodMatch[1].trim();
               }
             }
             
-            // Find price
-            const priceEls = Array.from(document.querySelectorAll('*')).filter((el: any) => 
-              el.textContent?.includes('€') && el.textContent.length < 50
-            );
-            if (priceEls.length > 0) {
-              price = priceEls[0].textContent?.trim() || '';
+            // Find price - look for specific price elements first
+            const priceSelectors = ['.price', '.prezzo', '[class*="price"]', '[class*="prezzo"]'];
+            for (const sel of priceSelectors) {
+              const priceEl = document.querySelector(sel);
+              if (priceEl && priceEl.textContent?.includes('€')) {
+                price = priceEl.textContent.trim();
+                break;
+              }
+            }
+            // Fallback to generic search
+            if (!price) {
+              const priceEls = Array.from(document.querySelectorAll('*')).filter((el: any) => 
+                el.textContent?.includes('€') && el.textContent.length < 50
+              );
+              if (priceEls.length > 0) {
+                price = priceEls[0].textContent?.trim() || '';
+              }
             }
             
             // Find size
@@ -129,7 +163,7 @@ export class ClickCaseAdapter {
                             allText.toLowerCase().includes('affitto') ||
                             price.toLowerCase().includes('/mese');
             
-            return { title, address, price, size, isRental };
+            return { title, address, price, size, description, isRental };
           });
           
           await detailPage.close();
@@ -173,15 +207,24 @@ export class ClickCaseAdapter {
           }
           
           if (price > 0 || prop.title) {
+            // Extract external ID from URL (e.g., "408777" from "115-mq-5-vani-da-privato-milano-408777.html")
+            const urlIdMatch = fullUrl.match(/(\d{5,})(?:\.html)?$/);
+            const externalId = urlIdMatch ? `clickcase-${urlIdMatch[1]}` : `clickcase-${Date.now()}-${count}`;
+            
+            // Use full description if available, fallback to title
+            const description = prop.description && prop.description.length > 20 
+              ? prop.description.substring(0, 1000) // Limit description length
+              : prop.title;
+            
             const listing: PropertyListing = {
-              externalId: `click-${count}`,
+              externalId,
               title: prop.title,
               address: prop.address,
               city,
               price,
               size,
               url: fullUrl,
-              description: prop.title,
+              description,
               portal: 'clickcase',
               ownerType: 'private',
               source: 'clickcase',
