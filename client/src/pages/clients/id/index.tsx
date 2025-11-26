@@ -32,6 +32,19 @@ import { WhatsAppImportDialog } from "@/components/communications/WhatsAppImport
 import { useToast } from "@/hooks/use-toast";
 import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
 import SimpleSearchAreaMap from "@/components/clients/SimpleSearchAreaMap";
+import { CheckSquare, XSquare, Trash2, EyeOff } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -49,6 +62,12 @@ export default function ClientDetailPage() {
   const [propertyBeingNotified, setPropertyBeingNotified] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Multi-select state for "Possibili Immobili" section
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkIgnoreDialog, setShowBulkIgnoreDialog] = useState(false);
+  const [isBulkIgnoring, setIsBulkIgnoring] = useState(false);
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading, isSuccess: isClientSuccess } = useQuery<ClientWithDetails>({
@@ -286,6 +305,71 @@ export default function ClientDetailPage() {
           <span className="text-xs font-medium">Inviato</span>
         </div>
       );
+    }
+  };
+  
+  // Multi-select handlers for "Possibili Immobili"
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectionMode(!selectionMode);
+  };
+  
+  const handlePropertyToggle = (propertyId: number) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(propertyId)) {
+      newSelected.delete(propertyId);
+    } else {
+      newSelected.add(propertyId);
+    }
+    setSelectedIds(newSelected);
+  };
+  
+  const handleSelectAll = () => {
+    if (savedScrapedProperties && savedScrapedProperties.length > 0) {
+      const allIds = savedScrapedProperties.map((p: any) => p.id).filter((id: any) => id != null);
+      setSelectedIds(new Set(allIds));
+    }
+  };
+  
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+  
+  const handleBulkIgnore = async () => {
+    if (selectedIds.size === 0) return;
+    
+    try {
+      setIsBulkIgnoring(true);
+      
+      await apiRequest(`/api/clients/${id}/bulk-ignore-properties`, {
+        method: 'POST',
+        body: JSON.stringify({
+          propertyIds: Array.from(selectedIds)
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      toast({
+        title: "Immobili ignorati",
+        description: `${selectedIds.size} immobili aggiunti alla lista ignorati`,
+      });
+      
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      setShowBulkIgnoreDialog(false);
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${id}/saved-scraped-properties`] });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiungere gli immobili alla lista ignorati",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkIgnoring(false);
     }
   };
   
@@ -1122,23 +1206,66 @@ export default function ClientDetailPage() {
                   </CardDescription>
                 </div>
                 {client?.buyer?.rating === 5 && (
-                  <Button 
-                    onClick={async () => {
-                      await refetchScrapedProperties();
-                      await refetchSavedScrapedProperties();
-                    }} 
-                    disabled={isScrapedPropertiesLoading}
-                    data-testid="button-refresh-scraped-properties"
-                  >
-                    {isScrapedPropertiesLoading ? (
-                      <><i className="fas fa-spinner animate-spin mr-2"></i>Ricerca...</>
-                    ) : (
-                      <><i className="fas fa-sync mr-2"></i>Aggiorna</>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant={selectionMode ? "secondary" : "outline"}
+                      onClick={toggleSelectionMode}
+                      data-testid="button-selection-mode"
+                    >
+                      <CheckSquare className="mr-2 h-4 w-4" />
+                      {selectionMode ? "Esci selezione" : "Seleziona"}
+                    </Button>
+                    <Button 
+                      onClick={async () => {
+                        await refetchScrapedProperties();
+                        await refetchSavedScrapedProperties();
+                      }} 
+                      disabled={isScrapedPropertiesLoading}
+                      data-testid="button-refresh-scraped-properties"
+                    >
+                      {isScrapedPropertiesLoading ? (
+                        <><i className="fas fa-spinner animate-spin mr-2"></i>Ricerca...</>
+                      ) : (
+                        <><i className="fas fa-sync mr-2"></i>Aggiorna</>
+                      )}
+                    </Button>
+                  </div>
                 )}
               </CardHeader>
               <CardContent>
+                {/* Selection Mode Bar */}
+                {selectionMode && savedScrapedProperties && savedScrapedProperties.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-medium text-blue-800">
+                          {selectedIds.size} immobili selezionati
+                        </span>
+                        <Button variant="outline" size="sm" onClick={handleSelectAll} data-testid="button-select-all">
+                          <CheckSquare className="mr-2 h-4 w-4" />
+                          Seleziona tutti
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleDeselectAll} data-testid="button-deselect-all">
+                          <XSquare className="mr-2 h-4 w-4" />
+                          Deseleziona tutti
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        disabled={selectedIds.size === 0 || isBulkIgnoring}
+                        onClick={() => setShowBulkIgnoreDialog(true)}
+                        data-testid="button-bulk-ignore"
+                      >
+                        <EyeOff className="mr-2 h-4 w-4" />
+                        Ignora ({selectedIds.size})
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
                 {client?.buyer?.rating !== 5 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
@@ -1173,29 +1300,45 @@ export default function ClientDetailPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {savedScrapedProperties.map((property, idx) => (
-                      <Card key={`${property.portalSource}-${property.externalId}-${idx}`} className="overflow-hidden" data-testid={`card-property-${idx}`}>
-                        <div className="aspect-video relative bg-gray-100">
-                          {property.imageUrls && property.imageUrls.length > 0 ? (
-                            <img 
-                              src={property.imageUrls[0]} 
-                              alt={property.title} 
-                              className="w-full h-full object-cover" 
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full text-gray-400">
-                              <i className="fas fa-building text-4xl"></i>
+                    {savedScrapedProperties.map((property, idx) => {
+                      const isSelected = selectedIds.has(property.id);
+                      return (
+                        <Card 
+                          key={`${property.portalSource}-${property.externalId}-${idx}`} 
+                          className={`overflow-hidden ${selectionMode && isSelected ? 'ring-2 ring-blue-500' : ''}`}
+                          data-testid={`card-property-${idx}`}
+                        >
+                          <div className="aspect-video relative bg-gray-100">
+                            {property.imageUrls && property.imageUrls.length > 0 ? (
+                              <img 
+                                src={property.imageUrls[0]} 
+                                alt={property.title} 
+                                className="w-full h-full object-cover" 
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-gray-400">
+                                <i className="fas fa-building text-4xl"></i>
+                              </div>
+                            )}
+                            {selectionMode && (
+                              <div className="absolute top-2 left-2">
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => handlePropertyToggle(property.id)}
+                                  className="h-5 w-5 bg-white border-2 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                  data-testid={`checkbox-property-${idx}`}
+                                />
+                              </div>
+                            )}
+                            <div className="absolute top-2 right-2 flex gap-2">
+                              <Badge className="bg-blue-600/90 text-white">
+                                {property.portalSource}
+                              </Badge>
+                              <Badge className="bg-primary-900/80 text-white">
+                                € {property.price?.toLocaleString() || "N/D"}
+                              </Badge>
                             </div>
-                          )}
-                          <div className="absolute top-2 right-2 flex gap-2">
-                            <Badge className="bg-blue-600/90 text-white">
-                              {property.portalSource}
-                            </Badge>
-                            <Badge className="bg-primary-900/80 text-white">
-                              € {property.price?.toLocaleString() || "N/D"}
-                            </Badge>
                           </div>
-                        </div>
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
@@ -1401,6 +1544,37 @@ export default function ClientDetailPage() {
         onClose={() => setIsWhatsAppModalOpen(false)} 
         client={client}
       />
+      
+      {/* Bulk Ignore Confirmation Dialog */}
+      <AlertDialog open={showBulkIgnoreDialog} onOpenChange={setShowBulkIgnoreDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma ignoramento immobili</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler ignorare {selectedIds.size} {selectedIds.size === 1 ? 'immobile' : 'immobili'}?
+              <br /><br />
+              Gli immobili ignorati non verranno più mostrati per questo cliente, ma rimarranno nel database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkIgnoring}>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkIgnore}
+              disabled={isBulkIgnoring}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isBulkIgnoring ? (
+                <>
+                  <i className="fas fa-spinner animate-spin mr-2"></i>
+                  Ignorando...
+                </>
+              ) : (
+                <>Ignora</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

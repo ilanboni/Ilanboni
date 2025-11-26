@@ -4010,6 +4010,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Aggiungi più immobili alla lista ignorati di un cliente specifico (bulk ignore)
+  app.post("/api/clients/:id/bulk-ignore-properties", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const { propertyIds } = req.body;
+      
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      if (!propertyIds || !Array.isArray(propertyIds) || propertyIds.length === 0) {
+        return res.status(400).json({ error: "IDs immobili non validi" });
+      }
+      
+      console.log(`[BULK-IGNORE] Aggiunta di ${propertyIds.length} immobili alla lista ignorati del cliente ${clientId}`);
+      
+      let added = 0;
+      let skipped = 0;
+      
+      for (const id of propertyIds) {
+        try {
+          const propertyId = parseInt(id);
+          if (isNaN(propertyId)) {
+            skipped++;
+            continue;
+          }
+          
+          // Verifica se la proprietà è già ignorata
+          const isIgnored = await storage.isClientIgnoredProperty(clientId, propertyId);
+          if (isIgnored) {
+            skipped++;
+            continue;
+          }
+          
+          // Aggiungi alla lista ignorati
+          await storage.addClientIgnoredProperty(clientId, propertyId);
+          added++;
+        } catch (err) {
+          console.error(`[BULK-IGNORE] Errore aggiunta immobile ${id} alla lista ignorati:`, err);
+          skipped++;
+        }
+      }
+      
+      console.log(`[BULK-IGNORE] Completato: ${added} aggiunti, ${skipped} saltati`);
+      
+      res.json({ 
+        success: true, 
+        added, 
+        skipped,
+        message: `${added} immobili aggiunti alla lista ignorati`
+      });
+    } catch (error) {
+      console.error('[BULK-IGNORE] Errore:', error);
+      res.status(500).json({ error: "Errore durante l'aggiunta degli immobili alla lista ignorati" });
+    }
+  });
+  
   // Endpoint per trovare clienti potenziali per un immobile
   app.get("/api/properties/:id/matching-buyers", async (req: Request, res: Response) => {
     try {
@@ -7459,7 +7516,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all available properties from database (both tables)
-      const normalProperties = await storage.getProperties();
+      const normalPropertiesResult = await storage.getProperties();
+      const normalProperties = Array.isArray(normalPropertiesResult) ? normalPropertiesResult : [];
       const sharedPropertiesRaw = await db.select().from(sharedProperties);
       
       // Convert shared properties to Property format and mark them
