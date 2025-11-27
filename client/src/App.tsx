@@ -76,6 +76,7 @@ function Router() {
       <Route path="/properties/shared/new" component={NewSharedPropertyPage} />
       <Route path="/properties/shared/:id" component={SharedPropertyDetailPage} />
       <Route path="/properties/private" component={PrivatePropertiesPage} />
+      <Route path="/properties/private/:id" component={SharedPropertyDetailPage} />
       <Route path="/properties/ranking" component={PropertiesRankingPage} />
       {/* Rotta edit rimossa perché ora utilizziamo il dialog modale */}
       <Route path="/properties/:id" component={PropertyDetailPage} />

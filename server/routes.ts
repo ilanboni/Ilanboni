@@ -15333,6 +15333,35 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  // Get property details by ID (shared or private)
+  app.get('/api/properties/:id', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const propertyId = parseInt(id);
+      
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: 'ID proprietà non valido' });
+      }
+      
+      // Try to find in shared properties first
+      const property = await db
+        .select()
+        .from(sharedProperties)
+        .where(eq(sharedProperties.id, propertyId))
+        .limit(1);
+      
+      if (property && property.length > 0) {
+        return res.json(property[0]);
+      }
+      
+      // Property not found
+      res.status(404).json({ error: 'Proprietà non trovata' });
+    } catch (error) {
+      console.error('[GET /api/properties/:id]', error);
+      res.status(500).json({ error: 'Errore nel caricamento dei dettagli della proprietà' });
+    }
+  });
+
   return httpServer;
 }
 
