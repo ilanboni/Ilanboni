@@ -438,7 +438,7 @@ export default function ClientDetailPage() {
       setSelectedIds(new Set());
       setSelectionMode(false);
       setShowBulkIgnoreDialog(false);
-      queryClient.invalidateQueries({ queryKey: [`/api/clients/${id}/saved-scraped-properties`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${id}/matching-properties-advanced`] });
     } catch (error) {
       toast({
         title: "Errore",
@@ -447,6 +447,34 @@ export default function ClientDetailPage() {
       });
     } finally {
       setIsBulkIgnoring(false);
+    }
+  };
+  
+  // Handle ignore single property
+  const handleIgnoreProperty = async (propertyId: number) => {
+    try {
+      await apiRequest(`/api/clients/${id}/bulk-ignore-properties`, {
+        method: 'POST',
+        body: JSON.stringify({
+          propertyIds: [propertyId]
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      toast({
+        title: "Immobile ignorato",
+        description: "L'immobile non verrà più mostrato",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${id}/matching-properties-advanced`] });
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile ignorare l'immobile",
+        variant: "destructive",
+      });
     }
   };
   
@@ -1487,31 +1515,55 @@ export default function ClientDetailPage() {
                               </div>
                             )}
                           
-                            <div className="mt-4 flex gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="text-xs flex-1"
-                                asChild
-                                data-testid={`button-view-property-${idx}`}
-                              >
-                                <Link href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`}>
-                                  <i className="fas fa-info-circle mr-1"></i> Dettagli
-                                </Link>
-                              </Button>
-                              {property.url && (
+                            <div className="mt-4 flex flex-col gap-2">
+                              <div className="flex gap-2">
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
                                   className="text-xs flex-1"
                                   asChild
-                                  data-testid={`button-view-external-${idx}`}
+                                  data-testid={`button-view-property-${idx}`}
                                 >
-                                  <a href={property.url} target="_blank" rel="noopener noreferrer">
-                                    <i className="fas fa-external-link-alt mr-1"></i> Annuncio
-                                  </a>
+                                  <Link href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`}>
+                                    <i className="fas fa-info-circle mr-1"></i> Dettagli
+                                  </Link>
                                 </Button>
-                              )}
+                                {property.url && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-xs flex-1"
+                                    asChild
+                                    data-testid={`button-view-external-${idx}`}
+                                  >
+                                    <a href={property.url} target="_blank" rel="noopener noreferrer">
+                                      <i className="fas fa-external-link-alt mr-1"></i> Annuncio
+                                    </a>
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="default" 
+                                  size="sm" 
+                                  className="text-xs flex-1 gap-1"
+                                  asChild
+                                  data-testid={`button-send-property-${idx}`}
+                                >
+                                  <Link href={`/communications/whatsapp?clientId=${id}&propertyId=${property.id}`}>
+                                    <i className="fab fa-whatsapp"></i> Invia
+                                  </Link>
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  className="text-xs flex-1 gap-1"
+                                  onClick={() => handleIgnoreProperty(property.id)}
+                                  data-testid={`button-ignore-property-${idx}`}
+                                >
+                                  <i className="fas fa-eye-slash"></i> Ignora
+                                </Button>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
