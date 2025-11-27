@@ -4036,7 +4036,7 @@ export class DatabaseStorage implements IStorage {
           
           if (!isInAnyZone) {
             const POLYGON_DISTANCE_TOLERANCE_KM = 0.5;
-            const POINT_RADIUS_KM = 1.5; // Reduced from 4km to 1.5km for more precise matching
+            const POINT_RADIUS_KM = 0.5; // Maximum 500 meters from search area
             let minDistance = Infinity;
             let hasPointFeature = false;
             
