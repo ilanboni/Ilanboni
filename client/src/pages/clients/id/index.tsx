@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -98,6 +98,15 @@ export default function ClientDetailPage() {
     enabled: !isNaN(id),
   });
   
+  // Filter states for matching properties
+  const [showPrivate, setShowPrivate] = useState(true);
+  const [showMonoAgency, setShowMonoAgency] = useState(true);
+  const [showMultiAgency, setShowMultiAgency] = useState(true);
+  
+  // Track previous match IDs to show "New" badge using ref
+  const previousMatchIdsRef = useRef<Set<number>>(new Set());
+  const [previousMatchIds, setPreviousMatchIds] = useState<Set<number>>(new Set());
+  
   // Fetch matching properties (per client compratori) - Advanced matching with tolerances
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading, error: matchingPropertiesError } = useQuery<any[]>({
     queryKey: [`/api/clients/${id}/matching-properties-advanced`],
@@ -105,7 +114,6 @@ export default function ClientDetailPage() {
     staleTime: 30 * 1000, // 30 seconds - properties marked as stale after this time
     refetchInterval: 60 * 1000, // Auto-refetch every 60 seconds to keep properties synced with new scrapes
     refetchOnWindowFocus: false,
-    initialData: [],
     queryFn: async () => {
       console.log('[MATCHING-QUERY] Fetching matching properties for client', id);
       const response = await fetch(`/api/clients/${id}/matching-properties-advanced`, {
@@ -121,6 +129,74 @@ export default function ClientDetailPage() {
       return data.properties || [];
     }
   });
+  
+  // Track previous IDs when matchingProperties changes
+  useEffect(() => {
+    if (matchingProperties && matchingProperties.length > 0) {
+      // Copy current IDs to previous before updating state
+      setPreviousMatchIds(new Set(previousMatchIdsRef.current));
+      // Update ref with current IDs for next comparison
+      previousMatchIdsRef.current = new Set(matchingProperties.map((p: any) => p.id));
+    }
+  }, [matchingProperties]);
+  
+  // Filter matching properties based on ownership type (not classificationColor)
+  const filteredMatchingProperties = useMemo(() => {
+    if (!matchingProperties) return [];
+    return matchingProperties.filter((prop: any) => {
+      // Private properties have ownerType === 'private'
+      const isPrivate = prop.ownerType === 'private';
+      // Multi-agency properties have isMultiagency === true
+      const isMulti = !isPrivate && prop.isMultiagency === true;
+      // Mono-agency is everything else (not private and not multi-agency)
+      const isMono = !isPrivate && !isMulti;
+      
+      if (isPrivate && !showPrivate) return false;
+      if (isMulti && !showMultiAgency) return false;
+      if (isMono && !showMonoAgency) return false;
+      
+      return true;
+    });
+  }, [matchingProperties, showPrivate, showMonoAgency, showMultiAgency]);
+  
+  // Helper to check if property is new
+  const isNewProperty = (propertyId: number) => {
+    return previousMatchIds.size > 0 && !previousMatchIds.has(propertyId);
+  };
+  
+  // Helper to get classification style based on match quality (classificationColor)
+  const getClassificationStyle = (prop: any) => {
+    // Colors based on match quality from backend
+    if (prop.classificationColor === 'green') {
+      return 'border-l-4 border-l-green-500 bg-green-50';
+    }
+    if (prop.classificationColor === 'yellow') {
+      return 'border-l-4 border-l-yellow-500 bg-yellow-50';
+    }
+    if (prop.classificationColor === 'red') {
+      return 'border-l-4 border-l-red-500 bg-red-50';
+    }
+    // Fallback based on ownership if no classificationColor
+    if (prop.ownerType === 'private') {
+      return 'border-l-4 border-l-green-500 bg-green-50';
+    }
+    if (prop.isMultiagency === true) {
+      return 'border-l-4 border-l-yellow-500 bg-yellow-50';
+    }
+    return 'border-l-4 border-l-red-500 bg-red-50';
+  };
+  
+  // Helper to get ownership badge based on property type
+  const getClassificationBadge = (prop: any) => {
+    // Badge shows ownership type (private/multi/mono)
+    if (prop.ownerType === 'private') {
+      return <Badge className="bg-green-500 text-white text-xs">Privato</Badge>;
+    }
+    if (prop.isMultiagency === true) {
+      return <Badge className="bg-yellow-500 text-white text-xs">Multi-Agenzia</Badge>;
+    }
+    return <Badge className="bg-red-500 text-white text-xs">Mono-Agenzia</Badge>;
+  };
   
   // Debug logging with useEffect to track changes
   useEffect(() => {
@@ -328,8 +404,8 @@ export default function ClientDetailPage() {
   };
   
   const handleSelectAll = () => {
-    if (savedScrapedProperties && savedScrapedProperties.length > 0) {
-      const allIds = savedScrapedProperties.map((p: any) => p.id).filter((id: any) => id != null);
+    if (filteredMatchingProperties && filteredMatchingProperties.length > 0) {
+      const allIds = filteredMatchingProperties.map((p: any) => p.id).filter((id: any) => id != null);
       setSelectedIds(new Set(allIds));
     }
   };
@@ -1196,46 +1272,68 @@ export default function ClientDetailPage() {
           {/* Possibili Immobili (Proprietà Condivise) Tab */}
           <TabsContent value="matching-shared" className="space-y-6 mt-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle>Possibili Immobili</CardTitle>
-                  <CardDescription>
-                    {(client?.buyer?.rating ?? 0) >= 4 
-                      ? `Immobili da altre agenzie trovati tramite scraping (Rating: ${client?.buyer?.rating})` 
-                      : `Disponibile solo per clienti con rating ≥ 4 (rating attuale: ${client?.buyer?.rating}, type: ${client?.type}, buyer exists: ${!!client?.buyer})`
-                    }
-                  </CardDescription>
+              <CardHeader className="flex flex-col gap-4 pb-2">
+                <div className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Possibili Immobili</CardTitle>
+                    <CardDescription>
+                      {(client?.buyer?.rating ?? 0) >= 4 
+                        ? `Immobili matching (${filteredMatchingProperties?.length || 0} di ${matchingProperties?.length || 0}) - Auto-refresh ogni 60s` 
+                        : `Disponibile solo per clienti con rating ≥ 4 (rating attuale: ${client?.buyer?.rating})`
+                      }
+                    </CardDescription>
+                  </div>
+                  {(client?.buyer?.rating ?? 0) >= 4 && (
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant={selectionMode ? "secondary" : "outline"}
+                        onClick={toggleSelectionMode}
+                        data-testid="button-selection-mode"
+                      >
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        {selectionMode ? "Esci selezione" : "Seleziona"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
+                
+                {/* Filter toggles */}
                 {(client?.buyer?.rating ?? 0) >= 4 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap gap-2 items-center border-t pt-4">
+                    <span className="text-sm font-medium text-gray-600 mr-2">Filtra:</span>
                     <Button 
-                      variant={selectionMode ? "secondary" : "outline"}
-                      onClick={toggleSelectionMode}
-                      data-testid="button-selection-mode"
+                      variant={showMonoAgency ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowMonoAgency(!showMonoAgency)}
+                      className={showMonoAgency ? "bg-red-500 hover:bg-red-600" : ""}
+                      data-testid="filter-mono-agency"
                     >
-                      <CheckSquare className="mr-2 h-4 w-4" />
-                      {selectionMode ? "Esci selezione" : "Seleziona"}
+                      <span className="mr-1">🔴</span> Mono-Agenzia
                     </Button>
                     <Button 
-                      onClick={async () => {
-                        await refetchScrapedProperties();
-                        await refetchSavedScrapedProperties();
-                      }} 
-                      disabled={isScrapedPropertiesLoading}
-                      data-testid="button-refresh-scraped-properties"
+                      variant={showMultiAgency ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowMultiAgency(!showMultiAgency)}
+                      className={showMultiAgency ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+                      data-testid="filter-multi-agency"
                     >
-                      {isScrapedPropertiesLoading ? (
-                        <><i className="fas fa-spinner animate-spin mr-2"></i>Ricerca...</>
-                      ) : (
-                        <><i className="fas fa-sync mr-2"></i>Aggiorna</>
-                      )}
+                      <span className="mr-1">🟡</span> Multi-Agenzia
+                    </Button>
+                    <Button 
+                      variant={showPrivate ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowPrivate(!showPrivate)}
+                      className={showPrivate ? "bg-green-500 hover:bg-green-600" : ""}
+                      data-testid="filter-private"
+                    >
+                      <span className="mr-1">🟢</span> Privati
                     </Button>
                   </div>
                 )}
               </CardHeader>
               <CardContent>
                 {/* Selection Mode Bar */}
-                {selectionMode && savedScrapedProperties && savedScrapedProperties.length > 0 && (
+                {selectionMode && filteredMatchingProperties && filteredMatchingProperties.length > 0 && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                     <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                       <div className="flex items-center gap-4">
@@ -1278,22 +1376,17 @@ export default function ClientDetailPage() {
                       Rating attuale: {client?.buyer?.rating || 'N/A'}
                     </p>
                   </div>
-                ) : isScrapedPropertiesLoading ? (
+                ) : isMatchingPropertiesLoading ? (
                   <div className="flex flex-col items-center justify-center py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-                    <p className="text-gray-500">Ricerca immobili in corso...</p>
+                    <p className="text-gray-500">Caricamento immobili matching...</p>
                   </div>
-                ) : isSavedScrapedPropertiesLoading ? (
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-                    <p className="text-gray-500">Caricamento immobili salvati...</p>
-                  </div>
-                ) : !savedScrapedProperties || savedScrapedProperties.length === 0 ? (
+                ) : !filteredMatchingProperties || filteredMatchingProperties.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
                       <i className="fas fa-search"></i>
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Nessun immobile salvato</h3>
+                    <h3 className="text-lg font-medium mb-2">Nessun immobile trovato</h3>
                     <p>
                       Non ci sono immobili salvati nel database.<br />
                       Clicca "Aggiorna" per avviare lo scraping e trovare nuovi immobili.
@@ -1301,19 +1394,20 @@ export default function ClientDetailPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {savedScrapedProperties.map((property, idx) => {
+                    {filteredMatchingProperties.map((property: any, idx: number) => {
                       const isSelected = selectedIds.has(property.id);
+                      const isNew = isNewProperty(property.id);
                       return (
                         <Card 
-                          key={`${property.portalSource}-${property.externalId}-${idx}`} 
-                          className={`overflow-hidden ${selectionMode && isSelected ? 'ring-2 ring-blue-500' : ''}`}
-                          data-testid={`card-property-${idx}`}
+                          key={`matching-${property.id}-${idx}`} 
+                          className={`overflow-hidden ${getClassificationStyle(property)} ${selectionMode && isSelected ? 'ring-2 ring-blue-500' : ''}`}
+                          data-testid={`card-matching-property-${idx}`}
                         >
                           <div className="aspect-video relative bg-gray-100">
-                            {property.imageUrls && property.imageUrls.length > 0 ? (
+                            {property.images && property.images.length > 0 ? (
                               <img 
-                                src={property.imageUrls[0]} 
-                                alt={property.title} 
+                                src={property.images[0]} 
+                                alt={property.title || property.address} 
                                 className="w-full h-full object-cover" 
                               />
                             ) : (
@@ -1332,9 +1426,12 @@ export default function ClientDetailPage() {
                               </div>
                             )}
                             <div className="absolute top-2 right-2 flex gap-2">
-                              <Badge className="bg-blue-600/90 text-white">
-                                {property.portalSource}
-                              </Badge>
+                              {isNew && (
+                                <Badge className="bg-purple-600 text-white animate-pulse">
+                                  NEW
+                                </Badge>
+                              )}
+                              {getClassificationBadge(property)}
                               <Badge className="bg-primary-900/80 text-white">
                                 € {property.price?.toLocaleString() || "N/D"}
                               </Badge>
@@ -1342,73 +1439,84 @@ export default function ClientDetailPage() {
                           </div>
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg line-clamp-1" data-testid={`text-title-${idx}`}>
-                                {property.title}
-                              </h3>
-                              <p className="text-sm text-gray-600 line-clamp-1" data-testid={`text-address-${idx}`}>
-                                {property.address}
-                              </p>
-                              {property.agencyName && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  <i className="fas fa-building mr-1"></i>{property.agencyName}
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-lg line-clamp-1" data-testid={`text-title-${idx}`}>
+                                  {property.title || property.address}
+                                </h3>
+                                <p className="text-sm text-gray-600 line-clamp-1" data-testid={`text-address-${idx}`}>
+                                  {property.address} {property.city && `- ${property.city}`}
                                 </p>
+                                {property.agencyName && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    <i className="fas fa-building mr-1"></i>{property.agencyName}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          
+                            <div className="flex justify-between mt-3 text-sm">
+                              <div>
+                                <span className="font-medium">{property.size} m²</span>
+                                {property.bedrooms && (
+                                  <>
+                                    <span className="mx-1">•</span>
+                                    <span>{property.bedrooms} cam.</span>
+                                  </>
+                                )}
+                                {property.bathrooms && (
+                                  <>
+                                    <span className="mx-1">•</span>
+                                    <span>{property.bathrooms} bagni</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          
+                            {property.matchScore && (
+                              <div className="mt-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Match:</span>
+                                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className="bg-green-500 h-2 rounded-full" 
+                                      style={{ width: `${Math.min(property.matchScore, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs font-medium">{property.matchScore}%</span>
+                                </div>
+                              </div>
+                            )}
+                          
+                            <div className="mt-4 flex gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-xs flex-1"
+                                asChild
+                                data-testid={`button-view-property-${idx}`}
+                              >
+                                <Link href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`}>
+                                  <i className="fas fa-info-circle mr-1"></i> Dettagli
+                                </Link>
+                              </Button>
+                              {property.url && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-xs flex-1"
+                                  asChild
+                                  data-testid={`button-view-external-${idx}`}
+                                >
+                                  <a href={property.url} target="_blank" rel="noopener noreferrer">
+                                    <i className="fas fa-external-link-alt mr-1"></i> Annuncio
+                                  </a>
+                                </Button>
                               )}
                             </div>
-                          </div>
-                          
-                          <div className="flex justify-between mt-3 text-sm">
-                            <div>
-                              <span className="font-medium">{property.size} m²</span>
-                              {property.bedrooms && (
-                                <>
-                                  <span className="mx-1">•</span>
-                                  <span>{property.bedrooms} cam.</span>
-                                </>
-                              )}
-                              {property.bathrooms && (
-                                <>
-                                  <span className="mx-1">•</span>
-                                  <span>{property.bathrooms} bagni</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {property.description && (
-                            <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                              {property.description}
-                            </p>
-                          )}
-                          
-                          <div className="mt-4 flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-xs flex-1"
-                              asChild
-                              data-testid={`button-view-property-${idx}`}
-                            >
-                              <Link href={`/properties/${property.id}`}>
-                                <i className="fas fa-info-circle mr-1"></i> Dettagli
-                              </Link>
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-xs flex-1"
-                              asChild
-                              data-testid={`button-view-external-${idx}`}
-                            >
-                              <a href={property.url} target="_blank" rel="noopener noreferrer">
-                                <i className="fas fa-external-link-alt mr-1"></i> Annuncio
-                              </a>
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                  );
-                })}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
