@@ -3974,7 +3974,13 @@ export class DatabaseStorage implements IStorage {
     
     if (buyer.minSize && prop.size) {
       const minAcceptable = buyer.minSize * 0.80;
+      const maxAcceptable = buyer.minSize * 2.5; // Limite superiore ragionevole (es. 50mq -> max 125mq)
+      
       if (prop.size < minAcceptable) {
+        return { isMatch: false, score: 0 };
+      }
+      if (prop.size > maxAcceptable) {
+        console.log(`[evaluatePropertyMatch] Property ${prop.id} size ${prop.size}mq exceeds max ${maxAcceptable.toFixed(0)}mq (buyer wants ${buyer.minSize}mq, max 2.5x) - REJECTED`);
         return { isMatch: false, score: 0 };
       }
       if (prop.size >= buyer.minSize) {
@@ -3999,7 +4005,13 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    if (buyer.searchArea && prop.location) {
+    if (buyer.searchArea) {
+      // Se il buyer ha una searchArea ma la proprietà non ha location, la escludiamo
+      if (!prop.location) {
+        console.log(`[evaluatePropertyMatch] Property ${prop.id} (${prop.address}) has no location - REJECTED (buyer requires searchArea)`);
+        return { isMatch: false, score: 0 };
+      }
+      
       try {
         const propLoc = prop.location as any;
         let propLat: number, propLng: number;
@@ -4011,7 +4023,8 @@ export class DatabaseStorage implements IStorage {
           propLat = propLoc.lat;
           propLng = propLoc.lng;
         } else {
-          return { isMatch: true, score: Math.max(0, score) };
+          console.log(`[evaluatePropertyMatch] Property ${prop.id} (${prop.address}) has invalid location format - REJECTED`);
+          return { isMatch: false, score: 0 };
         }
         
         const searchArea = buyer.searchArea as any;
