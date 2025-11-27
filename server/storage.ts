@@ -3958,6 +3958,20 @@ export class DatabaseStorage implements IStorage {
   private evaluatePropertyMatch(prop: SharedProperty, buyer: Buyer): { isMatch: boolean, score: number } {
     let score = 100;
     
+    // Filter by rooms if buyer specified
+    if (buyer.rooms && prop.rooms) {
+      // Allow properties with rooms <= buyer.rooms + 1 (slight tolerance)
+      if (prop.rooms > buyer.rooms + 1) {
+        return { isMatch: false, score: 0 };
+      }
+      // Exact match gets bonus, close match is ok
+      if (prop.rooms === buyer.rooms) {
+        score += 5;
+      } else if (prop.rooms < buyer.rooms) {
+        score -= 5; // Slightly penalize smaller
+      }
+    }
+    
     if (buyer.minSize && prop.size) {
       const minAcceptable = buyer.minSize * 0.80;
       if (prop.size < minAcceptable) {
@@ -4022,7 +4036,7 @@ export class DatabaseStorage implements IStorage {
           
           if (!isInAnyZone) {
             const POLYGON_DISTANCE_TOLERANCE_KM = 0.5;
-            const POINT_RADIUS_KM = 4;
+            const POINT_RADIUS_KM = 1.5; // Reduced from 4km to 1.5km for more precise matching
             let minDistance = Infinity;
             let hasPointFeature = false;
             
