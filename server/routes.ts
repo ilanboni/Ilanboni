@@ -5530,10 +5530,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const filteredMatches = matches.filter(p => !ignoredPropertyIds.has(p.id));
       
-      // Add ownerType field to indicate these are shared properties
+      // Ensure ownerType is set: private properties already have it, shared properties need it added
       const enrichedMatches = filteredMatches.map(p => ({
         ...p,
-        ownerType: 'shared' as const
+        ownerType: (p as any).ownerType === 'private' ? 'private' : 'shared'
       }));
       
       res.json({
