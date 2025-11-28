@@ -4135,10 +4135,15 @@ export class DatabaseStorage implements IStorage {
   }
   
   private postProcessMatchedProperties(matchedProperties: any[]): SharedProperty[] {
+    // Debug: count private vs shared properties
+    const privateCount = matchedProperties.filter(p => p.ownerType === 'private').length;
+    console.log(`[postProcessMatchedProperties] Processing ${matchedProperties.length} properties (${privateCount} with ownerType='private')`);
+    
     return matchedProperties.map(prop => {
       const agencyCount = (prop.agencies && Array.isArray(prop.agencies)) ? prop.agencies.length : 0;
       const isMultiagency = agencyCount > 1;
-      const ownerType = prop.ownerType === 'private' ? 'private' : null;
+      // Preserve 'private' ownerType, otherwise set to 'shared' for proper frontend routing
+      const ownerType = prop.ownerType === 'private' ? 'private' : 'shared';
       const images = (prop as any).imageUrls || (prop as any).images || [];
       
       return {
