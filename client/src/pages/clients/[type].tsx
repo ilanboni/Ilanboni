@@ -227,6 +227,7 @@ export default function ClientsByTypePage() {
         religion: data.religion || "",
         contractType: data.contractType || null,
         notes: data.notes || "",
+        searchLink: data.searchLink || null,
       };
       
       // Rimuovi esplicitamente i campi problematici
