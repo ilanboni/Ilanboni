@@ -1532,6 +1532,7 @@ export default function ClientDetailPage() {
                                   className="text-xs flex-1"
                                   asChild
                                   data-testid={`button-view-property-${idx}`}
+                                  onClick={() => console.log(`[LINK-CLICK] Property ${property.id}: ownerType='${property.ownerType}', navigating to ${property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`}`)}
                                 >
                                   <Link href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`}>
                                     <i className="fas fa-info-circle mr-1"></i> Dettagli
