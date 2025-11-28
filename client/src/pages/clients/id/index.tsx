@@ -79,7 +79,6 @@ export default function ClientDetailPage() {
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [propertyBeingNotified, setPropertyBeingNotified] = useState<number | null>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   
   // Multi-select state for "Possibili Immobili" section
   const [selectionMode, setSelectionMode] = useState(false);
