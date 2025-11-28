@@ -853,6 +853,18 @@ export default function ClientDetailPage() {
               <i className="fab fa-whatsapp"></i>
               <span>WhatsApp</span>
             </Button>
+            
+            {client?.searchLink && (
+              <Button 
+                variant="outline"
+                className="gap-2 border-purple-600 text-purple-600 hover:bg-purple-50"
+                onClick={() => window.open(client.searchLink!, '_blank')}
+                data-testid="button-manual-search"
+              >
+                <Search className="h-4 w-4" />
+                <span>Ricerca manuale</span>
+              </Button>
+            )}
           </div>
         </div>
         
