@@ -82,6 +82,44 @@ const AGENCY_KEYWORDS = [
 ];
 
 /**
+ * Helper to check if a name looks like an agency (not a private person)
+ */
+function looksLikeAgencyName(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const lowerName = name.toLowerCase().trim();
+  
+  // Skip empty or very short names
+  if (lowerName.length < 2) return false;
+  
+  // Names that are clearly private person indicators
+  const privateIndicators = ['privato', 'private', 'proprietario', 'owner', 'particolare'];
+  for (const indicator of privateIndicators) {
+    if (lowerName === indicator || lowerName.startsWith(indicator + ' ')) {
+      return false;
+    }
+  }
+  
+  // Agency-like patterns in name
+  const agencyPatterns = [
+    'immobil', 'agenzia', 'real estate', 'casa', 'group', 'srl', 's.r.l', 
+    'spa', 's.p.a', 'snc', 's.n.c', 'consulting', 'service', 'property',
+    'properties', 'realty', 'estate', 'broker', 'mediazione', 'intermediazione'
+  ];
+  
+  for (const pattern of agencyPatterns) {
+    if (lowerName.includes(pattern)) {
+      return true;
+    }
+  }
+  
+  // If the name has multiple words or contains corporate-like structure, likely an agency
+  // e.g., "Temacase", "Casa Milano", "RE/MAX Italia"
+  // However, single names could be agencies too (like "Temacase")
+  // So we'll be lenient: if it's not a clear private indicator, assume agency potential
+  return true;
+}
+
+/**
  * Classify owner type using multiple signals with fallback logic
  */
 export function classifyOwnerType(input: ClassificationInput): ClassificationResult {
@@ -95,7 +133,20 @@ export function classifyOwnerType(input: ClassificationInput): ClassificationRes
     };
   }
 
-  // Priority 1: analytics.advertiser field (most reliable for Immobiliare.it via Apify)
+  // PRIORITY 0 (NEW): Check for explicit agency name that looks like an agency
+  // This takes precedence over "privato" flags which can be misleading
+  const agencyNameFromData = input.analytics?.agencyName || input.contacts?.agencyName || input.agencyName;
+  if (agencyNameFromData && looksLikeAgencyName(agencyNameFromData)) {
+    return {
+      ownerType: 'agency',
+      agencyName: agencyNameFromData,
+      confidence: 'high',
+      reasoning: `Agency name detected: "${agencyNameFromData}" (overrides advertiser field)`
+    };
+  }
+
+  // Priority 1: analytics.advertiser field (for Immobiliare.it via Apify)
+  // Only trust "privato" if no agency name was found above
   if (input.analytics?.advertiser) {
     const advertiser = input.analytics.advertiser.toLowerCase().trim();
     
@@ -104,14 +155,14 @@ export function classifyOwnerType(input: ClassificationInput): ClassificationRes
         ownerType: 'private',
         agencyName: null,
         confidence: 'high',
-        reasoning: 'analytics.advertiser === "privato"'
+        reasoning: 'analytics.advertiser === "privato" (no agency name found)'
       };
     }
     
     if (advertiser === 'agenzia' || advertiser === 'agency') {
       return {
         ownerType: 'agency',
-        agencyName: input.analytics?.agencyName || input.contacts?.agencyName || null,
+        agencyName: agencyNameFromData || null,
         confidence: 'high',
         reasoning: 'analytics.advertiser === "agenzia"'
       };
@@ -134,7 +185,7 @@ export function classifyOwnerType(input: ClassificationInput): ClassificationRes
 
   // Priority 3: Check for agency identifiers
   const hasAgencyId = !!(input.analytics?.agencyId || input.contacts?.agencyId || input.contacts?.agencyUuid);
-  const hasAgencyName = !!(input.analytics?.agencyName || input.contacts?.agencyName);
+  const hasAgencyName = !!(agencyNameFromData);
   
   // If we have both agency ID and name, very likely an agency
   if (hasAgencyId && hasAgencyName) {
