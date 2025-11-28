@@ -1253,7 +1253,7 @@ export default function ClientDetailPage() {
                           <div className="flex justify-between items-start">
                             <div>
                               <h3 className="font-semibold text-lg line-clamp-1">
-                                <Link href={`/properties/${property.id}`} className="hover:text-primary-600">
+                                <Link href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`} className="hover:text-primary-600">
                                   {property.title}
                                 </Link>
                               </h3>
@@ -1281,7 +1281,7 @@ export default function ClientDetailPage() {
                               className="text-xs"
                               asChild
                             >
-                              <Link href={`/properties/${property.id}`}>
+                              <Link href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`}>
                                 <i className="fas fa-info-circle mr-1"></i> Dettagli
                               </Link>
                             </Button>
@@ -1626,7 +1626,7 @@ export default function ClientDetailPage() {
                         {propertiesWithNotifications.map((property) => (
                           <TableRow key={property.id}>
                             <TableCell className="font-medium">
-                              <Link href={`/properties/${property.id}`} className="text-primary-600 hover:underline">
+                              <Link href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`} className="text-primary-600 hover:underline">
                                 {property.address}
                               </Link>
                             </TableCell>
@@ -1697,7 +1697,7 @@ export default function ClientDetailPage() {
                                   className="text-slate-800"
                                   asChild
                                 >
-                                  <Link href={`/properties/${property.id}`}>
+                                  <Link href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`}>
                                     <i className="fas fa-eye"></i>
                                   </Link>
                                 </Button>
