@@ -854,17 +854,17 @@ export default function ClientDetailPage() {
               <span>WhatsApp</span>
             </Button>
             
-            {client?.searchLink && (
-              <Button 
-                variant="outline"
-                className="gap-2 border-purple-600 text-purple-600 hover:bg-purple-50"
-                onClick={() => window.open(client.searchLink!, '_blank')}
-                data-testid="button-manual-search"
-              >
-                <Search className="h-4 w-4" />
-                <span>Ricerca manuale</span>
-              </Button>
-            )}
+            <Button 
+              variant="outline"
+              className={`gap-2 ${client?.searchLink ? 'border-purple-600 text-purple-600 hover:bg-purple-50' : 'border-gray-300 text-gray-400 cursor-not-allowed'}`}
+              onClick={() => client?.searchLink && window.open(client.searchLink, '_blank')}
+              disabled={!client?.searchLink}
+              title={client?.searchLink ? 'Apri ricerca Casafari' : 'Nessun link Casafari salvato - Modifica il cliente per aggiungerlo'}
+              data-testid="button-manual-search"
+            >
+              <Search className="h-4 w-4" />
+              <span>Casafari</span>
+            </Button>
           </div>
         </div>
         
