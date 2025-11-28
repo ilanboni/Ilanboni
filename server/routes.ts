@@ -4075,6 +4075,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Modifica manuale dell'owner_type di un immobile
+  app.patch("/api/properties/:id/owner-type", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      const { ownerType } = req.body;
+      
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: "ID immobile non valido" });
+      }
+      
+      if (!['private', 'agency', 'unknown'].includes(ownerType)) {
+        return res.status(400).json({ error: "ownerType deve essere 'private', 'agency' o 'unknown'" });
+      }
+      
+      const property = await storage.getProperty(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Immobile non trovato" });
+      }
+      
+      const updated = await storage.updateProperty(propertyId, { ownerType });
+      console.log(`[OWNER-TYPE] Immobile ${propertyId} classificato manualmente come: ${ownerType}`);
+      
+      res.json(updated);
+    } catch (error) {
+      console.error(`[OWNER-TYPE] Errore:`, error);
+      res.status(500).json({ error: "Errore durante la modifica del tipo proprietario" });
+    }
+  });
+  
+  // Classificazione AI degli immobili Idealista senza owner_type definito
+  app.post("/api/properties/classify-idealista", async (req: Request, res: Response) => {
+    try {
+      const { classifyPropertyOwnerType } = await import('./lib/openai');
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      // Trova immobili Idealista senza agency_name che sono classificati come private
+      const idealistaProperties = await db
+        .select({
+          id: properties.id,
+          description: properties.description,
+          ownerType: properties.ownerType
+        })
+        .from(properties)
+        .where(
+          and(
+            eq(properties.source, 'idealista'),
+            eq(properties.ownerType, 'private'),
+            isNull(properties.agencyName)
+          )
+        )
+        .limit(limit);
+      
+      console.log(`[AI-CLASSIFY] Trovati ${idealistaProperties.length} immobili Idealista da classificare`);
+      
+      let classified = 0;
+      let unchanged = 0;
+      let errors = 0;
+      
+      for (const prop of idealistaProperties) {
+        try {
+          if (!prop.description) {
+            unchanged++;
+            continue;
+          }
+          
+          const result = await classifyPropertyOwnerType(prop.description);
+          
+          if (result === 'agency') {
+            await storage.updateProperty(prop.id, { ownerType: 'agency' });
+            classified++;
+            console.log(`[AI-CLASSIFY] Immobile ${prop.id} classificato come: agency`);
+          } else if (result === 'unknown') {
+            unchanged++;
+          } else {
+            unchanged++;
+          }
+        } catch (err) {
+          console.error(`[AI-CLASSIFY] Errore classificazione immobile ${prop.id}:`, err);
+          errors++;
+        }
+      }
+      
+      console.log(`[AI-CLASSIFY] Completato: ${classified} riclassificati come agency, ${unchanged} invariati, ${errors} errori`);
+      
+      res.json({
+        success: true,
+        total: idealistaProperties.length,
+        classified,
+        unchanged,
+        errors,
+        message: `${classified} immobili riclassificati come agenzia`
+      });
+    } catch (error) {
+      console.error('[AI-CLASSIFY] Errore:', error);
+      res.status(500).json({ error: "Errore durante la classificazione AI" });
+    }
+  });
+  
   // Aggiungi più immobili alla lista ignorati di un cliente specifico (bulk ignore)
   app.post("/api/clients/:id/bulk-ignore-properties", async (req: Request, res: Response) => {
     try {

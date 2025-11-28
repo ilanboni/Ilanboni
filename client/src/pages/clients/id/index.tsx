@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { formatDistanceToNow } from "date-fns";
@@ -56,7 +56,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { apiRequest } from "@/lib/queryClient";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   type ClientWithDetails, 
   type Communication,
@@ -179,6 +185,35 @@ export default function ClientDetailPage() {
       });
     } finally {
       setFavoritingPropertyId(null);
+    }
+  };
+  
+  // State for owner type change
+  const [changingOwnerTypeId, setChangingOwnerTypeId] = useState<number | null>(null);
+  
+  // Handle change owner type
+  const handleChangeOwnerType = async (propertyId: number, newOwnerType: 'private' | 'agency') => {
+    setChangingOwnerTypeId(propertyId);
+    try {
+      await apiRequest(`/api/properties/${propertyId}/owner-type`, {
+        method: 'PATCH',
+        data: { ownerType: newOwnerType }
+      });
+      toast({
+        title: "Classificazione aggiornata",
+        description: `L'immobile è ora classificato come ${newOwnerType === 'private' ? 'privato' : 'agenzia'}`
+      });
+      // Refetch matching properties to update the UI
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${id}/matching-properties-advanced`] });
+    } catch (error) {
+      console.error('Error changing owner type:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la modifica",
+        variant: "destructive"
+      });
+    } finally {
+      setChangingOwnerTypeId(null);
     }
   };
   
@@ -1735,7 +1770,29 @@ export default function ClientDetailPage() {
                                   NEW
                                 </Badge>
                               )}
-                              {getClassificationBadge(property)}
+                              {property.ownerType === 'private' ? (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Badge 
+                                      className="bg-green-500 text-white text-xs cursor-pointer hover:bg-green-600"
+                                      data-testid={`badge-owner-type-${idx}`}
+                                    >
+                                      Privato ▼
+                                    </Badge>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleChangeOwnerType(property.id, 'agency')}
+                                      disabled={changingOwnerTypeId === property.id}
+                                    >
+                                      <i className="fas fa-building mr-2"></i>
+                                      Cambia in Agenzia
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              ) : (
+                                getClassificationBadge(property)
+                              )}
                               <Badge className="bg-primary-900/80 text-white">
                                 € {property.price?.toLocaleString() || "N/D"}
                               </Badge>
