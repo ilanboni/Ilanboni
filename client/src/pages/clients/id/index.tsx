@@ -839,7 +839,7 @@ export default function ClientDetailPage() {
               asChild
               className="gap-2"
             >
-              <Link href={`/clients/${id}/edit`}>
+              <Link href={`/clients/edit/${id}`}>
                 <i className="fas fa-edit"></i>
                 <span>Modifica</span>
               </Link>

@@ -26,6 +26,7 @@ export default function DirectNewClient() {
     phone: "3771234567",
     religion: "catholic",
     notes: "Cliente test",
+    searchLink: "",
     minSize: "80",
     maxPrice: "250000",
     urgency: "3",
@@ -99,6 +100,7 @@ export default function DirectNewClient() {
         phone: formData.phone || "1234567890",
         religion: formData.religion || "",
         notes: formData.notes || "",
+        searchLink: formData.searchLink || null,
       };
       
       // Aggiungi i dati specifici per buyer/seller con tutti i dati AI-extracted
@@ -318,6 +320,21 @@ export default function DirectNewClient() {
                     className="w-full p-2 border rounded"
                     rows={3}
                   />
+                </div>
+                
+                {/* Link ricerca Casafari */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Link ricerca (Casafari)</label>
+                  <input
+                    type="url"
+                    name="searchLink"
+                    value={formData.searchLink}
+                    onChange={handleChange}
+                    className="w-full p-2 border rounded"
+                    placeholder="https://pro.casafari.com/..."
+                    data-testid="input-search-link"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Link Casafari per la ricerca manuale di immobili</p>
                 </div>
               </TabsContent>
               
