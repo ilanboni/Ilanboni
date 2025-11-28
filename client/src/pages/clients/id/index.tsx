@@ -32,7 +32,7 @@ import { WhatsAppImportDialog } from "@/components/communications/WhatsAppImport
 import { useToast } from "@/hooks/use-toast";
 import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
 import SimpleSearchAreaMap from "@/components/clients/SimpleSearchAreaMap";
-import { CheckSquare, XSquare, Trash2, EyeOff } from "lucide-react";
+import { CheckSquare, XSquare, Trash2, EyeOff, Heart, Star } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -102,6 +102,65 @@ export default function ClientDetailPage() {
   const [showPrivate, setShowPrivate] = useState(true);
   const [showMonoAgency, setShowMonoAgency] = useState(true);
   const [showMultiAgency, setShowMultiAgency] = useState(true);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  
+  // Client favorites state
+  const [favoritingPropertyId, setFavoritingPropertyId] = useState<number | null>(null);
+  
+  // Fetch client favorites
+  const { data: clientFavorites = [], refetch: refetchFavorites } = useQuery<any[]>({
+    queryKey: [`/api/clients/${id}/favorites`],
+    enabled: !isNaN(id),
+  });
+  
+  // Helper to check if a property is favorited
+  const isPropertyFavorite = (propertyId: number, ownerType: string) => {
+    return clientFavorites.some((fav: any) => 
+      ownerType === 'private' 
+        ? fav.propertyId === propertyId 
+        : fav.sharedPropertyId === propertyId
+    );
+  };
+  
+  // Handle toggle favorite
+  const handleToggleFavorite = async (propertyId: number, ownerType: string) => {
+    setFavoritingPropertyId(propertyId);
+    try {
+      const isFav = isPropertyFavorite(propertyId, ownerType);
+      
+      if (isFav) {
+        await apiRequest(`/api/clients/${id}/favorites/${propertyId}?ownerType=${ownerType}`, {
+          method: 'DELETE'
+        });
+        toast({
+          title: "Rimosso dai preferiti",
+          description: "L'immobile è stato rimosso dai preferiti del cliente"
+        });
+      } else {
+        await apiRequest(`/api/clients/${id}/favorites`, {
+          method: 'POST',
+          data: ownerType === 'private' 
+            ? { propertyId } 
+            : { sharedPropertyId: propertyId }
+        });
+        toast({
+          title: "Aggiunto ai preferiti",
+          description: "L'immobile è stato aggiunto ai preferiti del cliente"
+        });
+      }
+      
+      refetchFavorites();
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'operazione",
+        variant: "destructive"
+      });
+    } finally {
+      setFavoritingPropertyId(null);
+    }
+  };
   
   // Track previous match IDs to show "New" badge using ref
   const previousMatchIdsRef = useRef<Set<number>>(new Set());
@@ -164,9 +223,15 @@ export default function ClientDetailPage() {
       if (isMulti && !showMultiAgency) return false;
       if (isMono && !showMonoAgency) return false;
       
+      // Filter by favorites if enabled
+      if (showOnlyFavorites) {
+        const isFav = isPropertyFavorite(prop.id, prop.ownerType || 'shared');
+        if (!isFav) return false;
+      }
+      
       return true;
     });
-  }, [matchingProperties, showPrivate, showMonoAgency, showMultiAgency]);
+  }, [matchingProperties, showPrivate, showMonoAgency, showMultiAgency, showOnlyFavorites, clientFavorites]);
   
   // Helper to check if property is new
   const isNewProperty = (propertyId: number) => {
@@ -431,12 +496,7 @@ export default function ClientDetailPage() {
       
       await apiRequest(`/api/clients/${id}/bulk-ignore-properties`, {
         method: 'POST',
-        body: JSON.stringify({
-          propertyIds: Array.from(selectedIds)
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        data: { propertyIds: Array.from(selectedIds) }
       });
       
       toast({
@@ -464,12 +524,7 @@ export default function ClientDetailPage() {
     try {
       await apiRequest(`/api/clients/${id}/bulk-ignore-properties`, {
         method: 'POST',
-        body: JSON.stringify({
-          propertyIds: [propertyId]
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        data: { propertyIds: [propertyId] }
       });
       
       toast({
@@ -516,8 +571,7 @@ export default function ClientDetailPage() {
       // Notifica all'utente
       toast({
         title: "Notifica inviata",
-        description: "L'immobile è stato inviato con successo al cliente",
-        variant: "success"
+        description: "L'immobile è stato inviato con successo al cliente"
       });
     } catch (error: any) {
       console.error("Errore nell'invio della notifica:", error);
@@ -1259,7 +1313,7 @@ export default function ClientDetailPage() {
                               </h3>
                               <p className="text-sm text-gray-600 line-clamp-1">{property.address}</p>
                             </div>
-                            <Badge variant={property.status === "available" ? "success" : "outline"}>
+                            <Badge className={property.status === "available" ? "bg-green-100 text-green-800" : ""}>
                               {property.status === "available" ? "Disponibile" : property.status}
                             </Badge>
                           </div>
@@ -1364,6 +1418,17 @@ export default function ClientDetailPage() {
                       data-testid="filter-private"
                     >
                       <span className="mr-1">🟢</span> Privati
+                    </Button>
+                    <span className="mx-2 text-gray-400">|</span>
+                    <Button 
+                      variant={showOnlyFavorites ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                      className={showOnlyFavorites ? "bg-pink-500 hover:bg-pink-600" : ""}
+                      data-testid="filter-only-favorites"
+                    >
+                      <Star className={`mr-1 h-4 w-4 ${showOnlyFavorites ? 'fill-current' : ''}`} /> 
+                      Solo Preferiti {clientFavorites.length > 0 && `(${clientFavorites.length})`}
                     </Button>
                   </div>
                 )}
@@ -1563,6 +1628,17 @@ export default function ClientDetailPage() {
                                   <Link href={`/communications/whatsapp?clientId=${id}&propertyId=${property.id}`}>
                                     <i className="fab fa-whatsapp"></i> Invia
                                   </Link>
+                                </Button>
+                                <Button 
+                                  variant={isPropertyFavorite(property.id, property.ownerType || 'shared') ? "default" : "outline"}
+                                  size="sm" 
+                                  className={`text-xs flex-1 gap-1 ${isPropertyFavorite(property.id, property.ownerType || 'shared') ? 'bg-pink-500 hover:bg-pink-600' : ''}`}
+                                  onClick={() => handleToggleFavorite(property.id, property.ownerType || 'shared')}
+                                  disabled={favoritingPropertyId === property.id}
+                                  data-testid={`button-favorite-property-${idx}`}
+                                >
+                                  <Heart className={`h-3 w-3 ${isPropertyFavorite(property.id, property.ownerType || 'shared') ? 'fill-current' : ''}`} /> 
+                                  {isPropertyFavorite(property.id, property.ownerType || 'shared') ? 'Preferito' : 'Preferito'}
                                 </Button>
                                 <Button 
                                   variant="destructive" 
