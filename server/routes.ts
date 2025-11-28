@@ -2030,11 +2030,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const showSent = req.query.showSent === 'true';
       
       // Combina le informazioni ed esclude gli immobili già inviati se showSent non è true
+      // Note: matchPropertiesForBuyer returns only properties from 'properties' table (all private)
       const propertiesWithStatus = matchingProperties
         .map(property => {
           const notificationInfo = sentPropertiesMap[property.id];
           return {
             ...property,
+            ownerType: 'private', // All properties from matchPropertiesForBuyer are from 'properties' table (private)
             notificationStatus: notificationInfo ? {
               notified: true,
               sentAt: notificationInfo.sentAt,
@@ -5540,10 +5542,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      // Debug: log sample to verify ownerType is correctly set
-      const privateSample = enrichedMatches.filter(p => p.ownerType === 'private').slice(0, 3);
-      const sharedSample = enrichedMatches.filter(p => p.ownerType === 'shared').slice(0, 3);
-      console.log(`[MATCHING-DEBUG] Client ${clientId}: ${privateSample.length} private (sample IDs: ${privateSample.map(p => p.id).join(',')}) | ${sharedSample.length} shared (sample IDs: ${sharedSample.map(p => p.id).join(',')})`);
+      // Debug: log counts and check for specific problematic IDs
+      const privateMatches = enrichedMatches.filter(p => p.ownerType === 'private');
+      const sharedMatches = enrichedMatches.filter(p => p.ownerType === 'shared');
+      console.log(`[MATCHING-ENDPOINT] Client ${clientId}: ${privateMatches.length} private, ${sharedMatches.length} shared (total: ${enrichedMatches.length})`);
+      
+      // Check for property 21957 specifically
+      const prop21957 = enrichedMatches.find(p => p.id === 21957);
+      if (prop21957) {
+        console.log(`[MATCHING-ENDPOINT] Property 21957 found with ownerType: '${prop21957.ownerType}'`);
+      }
       
       res.json({
         total: enrichedMatches.length,

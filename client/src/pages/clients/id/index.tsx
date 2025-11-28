@@ -126,6 +126,15 @@ export default function ClientDetailPage() {
       }
       const data = await response.json();
       console.log('[MATCHING-QUERY] Received', data.total, 'total properties,', data.properties?.length || 0, 'in array');
+      // Debug: check ownerType for property 21957
+      const prop21957 = data.properties?.find((p: any) => p.id === 21957);
+      if (prop21957) {
+        console.log('[MATCHING-QUERY] Property 21957 ownerType:', prop21957.ownerType, '| Full object:', JSON.stringify(prop21957).slice(0, 200));
+      }
+      // Debug: count private vs shared
+      const privateCount = data.properties?.filter((p: any) => p.ownerType === 'private').length || 0;
+      const sharedCount = data.properties?.filter((p: any) => p.ownerType === 'shared').length || 0;
+      console.log('[MATCHING-QUERY] ownerType breakdown: private=', privateCount, ', shared=', sharedCount);
       return data.properties || [];
     }
   });
