@@ -186,17 +186,17 @@ export interface IStorage {
   createBotConversationLog(log: InsertBotConversationLog): Promise<BotConversationLog>;
   getBotConversationLogs(campaignMessageId: number): Promise<BotConversationLog[]>;
   
-  // Client favorites methods (dual favorites system)
+  // Client favorites methods (dual favorites system) - supports both shared and private properties
   getClientFavorites(clientId: number): Promise<ClientFavorite[]>;
-  addClientFavorite(clientId: number, sharedPropertyId: number, notes?: string): Promise<ClientFavorite>;
-  removeClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean>;
-  isClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean>;
+  addClientFavorite(clientId: number, options: { sharedPropertyId?: number; propertyId?: number; notes?: string }): Promise<ClientFavorite>;
+  removeClientFavorite(clientId: number, options: { sharedPropertyId?: number; propertyId?: number }): Promise<boolean>;
+  isClientFavorite(clientId: number, options: { sharedPropertyId?: number; propertyId?: number }): Promise<boolean>;
   
-  // Client ignored properties methods (per-client ignore list)
+  // Client ignored properties methods (per-client ignore list) - supports both shared and private properties
   getClientIgnoredProperties(clientId: number): Promise<ClientIgnoredProperty[]>;
-  addClientIgnoredProperty(clientId: number, sharedPropertyId: number, reason?: string): Promise<ClientIgnoredProperty>;
-  removeClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean>;
-  isClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean>;
+  addClientIgnoredProperty(clientId: number, options: { sharedPropertyId?: number; propertyId?: number; reason?: string }): Promise<ClientIgnoredProperty>;
+  removeClientIgnoredProperty(clientId: number, options: { sharedPropertyId?: number; propertyId?: number }): Promise<boolean>;
+  isClientIgnoredProperty(clientId: number, options: { sharedPropertyId?: number; propertyId?: number }): Promise<boolean>;
   
   // Advanced property matching methods
   getMatchingPropertiesForClient(clientId: number, forceRecompute?: boolean): Promise<SharedProperty[]>;
@@ -3564,7 +3564,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(botConversationLogs.timestamp);
   }
   
-  // Client favorites methods (dual favorites system)
+  // Client favorites methods (dual favorites system) - supports both shared and private properties
   async getClientFavorites(clientId: number): Promise<ClientFavorite[]> {
     return await db
       .select()
@@ -3573,46 +3573,69 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(clientFavorites.addedAt));
   }
   
-  async addClientFavorite(clientId: number, sharedPropertyId: number, notes?: string): Promise<ClientFavorite> {
-    // Upsert the favorite
-    await db
-      .insert(clientFavorites)
-      .values({ clientId, sharedPropertyId, notes })
-      .onConflictDoUpdate({
-        target: [clientFavorites.clientId, clientFavorites.sharedPropertyId],
-        set: notes ? { notes } : {} // Only update notes if provided
-      });
+  async addClientFavorite(clientId: number, options: { sharedPropertyId?: number; propertyId?: number; notes?: string }): Promise<ClientFavorite> {
+    const { sharedPropertyId, propertyId, notes } = options;
     
-    // Always fetch and return the canonical record
+    if (!sharedPropertyId && !propertyId) {
+      throw new Error('Either sharedPropertyId or propertyId must be provided');
+    }
+    
+    // Insert with proper null handling for the optional fields
+    const insertValues: any = { clientId };
+    if (sharedPropertyId) insertValues.sharedPropertyId = sharedPropertyId;
+    if (propertyId) insertValues.propertyId = propertyId;
+    if (notes) insertValues.notes = notes;
+    
     const [result] = await db
-      .select()
-      .from(clientFavorites)
-      .where(
-        and(
-          eq(clientFavorites.clientId, clientId),
-          eq(clientFavorites.sharedPropertyId, sharedPropertyId)
-        )
-      )
-      .limit(1);
+      .insert(clientFavorites)
+      .values(insertValues)
+      .onConflictDoNothing()
+      .returning();
     
-    // Guarantee a valid result (should never be undefined after upsert)
+    // If conflict (already exists), fetch the existing record
     if (!result) {
-      throw new Error(`Failed to create or fetch favorite for client ${clientId} and property ${sharedPropertyId}`);
+      const whereConditions = [eq(clientFavorites.clientId, clientId)];
+      if (sharedPropertyId) {
+        whereConditions.push(eq(clientFavorites.sharedPropertyId, sharedPropertyId));
+      }
+      if (propertyId) {
+        whereConditions.push(eq(clientFavorites.propertyId, propertyId));
+      }
+      
+      const [existing] = await db
+        .select()
+        .from(clientFavorites)
+        .where(and(...whereConditions))
+        .limit(1);
+      
+      if (!existing) {
+        throw new Error(`Failed to create or fetch favorite for client ${clientId}`);
+      }
+      return existing;
     }
     
     return result;
   }
   
-  async removeClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean> {
+  async removeClientFavorite(clientId: number, options: { sharedPropertyId?: number; propertyId?: number }): Promise<boolean> {
+    const { sharedPropertyId, propertyId } = options;
+    
+    if (!sharedPropertyId && !propertyId) {
+      throw new Error('Either sharedPropertyId or propertyId must be provided');
+    }
+    
     try {
+      const whereConditions = [eq(clientFavorites.clientId, clientId)];
+      if (sharedPropertyId) {
+        whereConditions.push(eq(clientFavorites.sharedPropertyId, sharedPropertyId));
+      }
+      if (propertyId) {
+        whereConditions.push(eq(clientFavorites.propertyId, propertyId));
+      }
+      
       const result = await db
         .delete(clientFavorites)
-        .where(
-          and(
-            eq(clientFavorites.clientId, clientId),
-            eq(clientFavorites.sharedPropertyId, sharedPropertyId)
-          )
-        )
+        .where(and(...whereConditions))
         .returning();
       return result.length > 0;
     } catch (error) {
@@ -3621,21 +3644,30 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async isClientFavorite(clientId: number, sharedPropertyId: number): Promise<boolean> {
+  async isClientFavorite(clientId: number, options: { sharedPropertyId?: number; propertyId?: number }): Promise<boolean> {
+    const { sharedPropertyId, propertyId } = options;
+    
+    if (!sharedPropertyId && !propertyId) {
+      return false;
+    }
+    
+    const whereConditions = [eq(clientFavorites.clientId, clientId)];
+    if (sharedPropertyId) {
+      whereConditions.push(eq(clientFavorites.sharedPropertyId, sharedPropertyId));
+    }
+    if (propertyId) {
+      whereConditions.push(eq(clientFavorites.propertyId, propertyId));
+    }
+    
     const result = await db
       .select()
       .from(clientFavorites)
-      .where(
-        and(
-          eq(clientFavorites.clientId, clientId),
-          eq(clientFavorites.sharedPropertyId, sharedPropertyId)
-        )
-      )
+      .where(and(...whereConditions))
       .limit(1);
     return result.length > 0;
   }
   
-  // Client ignored properties methods (per-client ignore list)
+  // Client ignored properties methods (per-client ignore list) - supports both shared and private properties
   async getClientIgnoredProperties(clientId: number): Promise<ClientIgnoredProperty[]> {
     return await db
       .select()
@@ -3644,46 +3676,69 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(clientIgnoredProperties.ignoredAt));
   }
   
-  async addClientIgnoredProperty(clientId: number, sharedPropertyId: number, reason?: string): Promise<ClientIgnoredProperty> {
-    // Upsert the ignored property
-    await db
-      .insert(clientIgnoredProperties)
-      .values({ clientId, sharedPropertyId, reason })
-      .onConflictDoUpdate({
-        target: [clientIgnoredProperties.clientId, clientIgnoredProperties.sharedPropertyId],
-        set: reason ? { reason } : {} // Only update reason if provided
-      });
+  async addClientIgnoredProperty(clientId: number, options: { sharedPropertyId?: number; propertyId?: number; reason?: string }): Promise<ClientIgnoredProperty> {
+    const { sharedPropertyId, propertyId, reason } = options;
     
-    // Always fetch and return the canonical record
+    if (!sharedPropertyId && !propertyId) {
+      throw new Error('Either sharedPropertyId or propertyId must be provided');
+    }
+    
+    // Insert with proper null handling for the optional fields
+    const insertValues: any = { clientId };
+    if (sharedPropertyId) insertValues.sharedPropertyId = sharedPropertyId;
+    if (propertyId) insertValues.propertyId = propertyId;
+    if (reason) insertValues.reason = reason;
+    
     const [result] = await db
-      .select()
-      .from(clientIgnoredProperties)
-      .where(
-        and(
-          eq(clientIgnoredProperties.clientId, clientId),
-          eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId)
-        )
-      )
-      .limit(1);
+      .insert(clientIgnoredProperties)
+      .values(insertValues)
+      .onConflictDoNothing()
+      .returning();
     
-    // Guarantee a valid result (should never be undefined after upsert)
+    // If conflict (already exists), fetch the existing record
     if (!result) {
-      throw new Error(`Failed to create or fetch ignored property for client ${clientId} and property ${sharedPropertyId}`);
+      const whereConditions = [eq(clientIgnoredProperties.clientId, clientId)];
+      if (sharedPropertyId) {
+        whereConditions.push(eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId));
+      }
+      if (propertyId) {
+        whereConditions.push(eq(clientIgnoredProperties.propertyId, propertyId));
+      }
+      
+      const [existing] = await db
+        .select()
+        .from(clientIgnoredProperties)
+        .where(and(...whereConditions))
+        .limit(1);
+      
+      if (!existing) {
+        throw new Error(`Failed to create or fetch ignored property for client ${clientId}`);
+      }
+      return existing;
     }
     
     return result;
   }
   
-  async removeClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean> {
+  async removeClientIgnoredProperty(clientId: number, options: { sharedPropertyId?: number; propertyId?: number }): Promise<boolean> {
+    const { sharedPropertyId, propertyId } = options;
+    
+    if (!sharedPropertyId && !propertyId) {
+      throw new Error('Either sharedPropertyId or propertyId must be provided');
+    }
+    
     try {
+      const whereConditions = [eq(clientIgnoredProperties.clientId, clientId)];
+      if (sharedPropertyId) {
+        whereConditions.push(eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId));
+      }
+      if (propertyId) {
+        whereConditions.push(eq(clientIgnoredProperties.propertyId, propertyId));
+      }
+      
       const result = await db
         .delete(clientIgnoredProperties)
-        .where(
-          and(
-            eq(clientIgnoredProperties.clientId, clientId),
-            eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId)
-          )
-        )
+        .where(and(...whereConditions))
         .returning();
       return result.length > 0;
     } catch (error) {
@@ -3692,16 +3747,25 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async isClientIgnoredProperty(clientId: number, sharedPropertyId: number): Promise<boolean> {
+  async isClientIgnoredProperty(clientId: number, options: { sharedPropertyId?: number; propertyId?: number }): Promise<boolean> {
+    const { sharedPropertyId, propertyId } = options;
+    
+    if (!sharedPropertyId && !propertyId) {
+      return false;
+    }
+    
+    const whereConditions = [eq(clientIgnoredProperties.clientId, clientId)];
+    if (sharedPropertyId) {
+      whereConditions.push(eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId));
+    }
+    if (propertyId) {
+      whereConditions.push(eq(clientIgnoredProperties.propertyId, propertyId));
+    }
+    
     const result = await db
       .select()
       .from(clientIgnoredProperties)
-      .where(
-        and(
-          eq(clientIgnoredProperties.clientId, clientId),
-          eq(clientIgnoredProperties.sharedPropertyId, sharedPropertyId)
-        )
-      )
+      .where(and(...whereConditions))
       .limit(1);
     return result.length > 0;
   }

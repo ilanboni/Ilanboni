@@ -4039,15 +4039,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Verifica se la proprietà è già ignorata
-          const isIgnored = await storage.isClientIgnoredProperty(clientId, propertyId);
+          // Verifica se la proprietà è già ignorata (questo era per sharedPropertyId)
+          const isIgnored = await storage.isClientIgnoredProperty(clientId, { sharedPropertyId: propertyId });
           if (isIgnored) {
             skipped++;
             continue;
           }
           
-          // Aggiungi alla lista ignorati
-          await storage.addClientIgnoredProperty(clientId, propertyId);
+          // Aggiungi alla lista ignorati (questo era per sharedPropertyId)
+          await storage.addClientIgnoredProperty(clientId, { sharedPropertyId: propertyId });
           added++;
         } catch (err) {
           console.error(`[BULK-IGNORE] Errore aggiunta immobile ${id} alla lista ignorati:`, err);
@@ -5581,7 +5581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Add property to client favorites
+  // Add property to client favorites (supports both shared and private properties)
   app.post("/api/clients/:id/favorites", async (req: Request, res: Response) => {
     try {
       const clientId = parseInt(req.params.id);
@@ -5589,12 +5589,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID cliente non valido" });
       }
       
-      const { sharedPropertyId, notes } = req.body;
-      if (!sharedPropertyId) {
-        return res.status(400).json({ error: "ID proprietà mancante" });
+      const { sharedPropertyId, propertyId, notes } = req.body;
+      if (!sharedPropertyId && !propertyId) {
+        return res.status(400).json({ error: "ID proprietà mancante (sharedPropertyId o propertyId richiesto)" });
       }
       
-      const favorite = await storage.addClientFavorite(clientId, sharedPropertyId, notes);
+      const favorite = await storage.addClientFavorite(clientId, { sharedPropertyId, propertyId, notes });
       res.status(201).json(favorite);
     } catch (error) {
       console.error(`[POST /api/clients/${req.params.id}/favorites]`, error);
@@ -5602,17 +5602,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Remove property from client favorites
+  // Remove property from client favorites (supports both shared and private properties)
   app.delete("/api/clients/:id/favorites/:propertyId", async (req: Request, res: Response) => {
     try {
       const clientId = parseInt(req.params.id);
-      const sharedPropertyId = parseInt(req.params.propertyId);
+      const propId = parseInt(req.params.propertyId);
+      const ownerType = req.query.ownerType as string | undefined;
       
-      if (isNaN(clientId) || isNaN(sharedPropertyId)) {
+      if (isNaN(clientId) || isNaN(propId)) {
         return res.status(400).json({ error: "ID non valido" });
       }
       
-      await storage.removeClientFavorite(clientId, sharedPropertyId);
+      // Determine which property type based on ownerType query parameter
+      if (ownerType === 'private') {
+        await storage.removeClientFavorite(clientId, { propertyId: propId });
+      } else {
+        await storage.removeClientFavorite(clientId, { sharedPropertyId: propId });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error(`[DELETE /api/clients/${req.params.id}/favorites/${req.params.propertyId}]`, error);
@@ -5636,7 +5642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Add property to client ignored list
+  // Add property to client ignored list (supports both shared and private properties)
   app.post("/api/clients/:id/ignored-properties", async (req: Request, res: Response) => {
     try {
       const clientId = parseInt(req.params.id);
@@ -5644,12 +5650,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID cliente non valido" });
       }
       
-      const { sharedPropertyId, reason } = req.body;
-      if (!sharedPropertyId) {
-        return res.status(400).json({ error: "ID proprietà mancante" });
+      const { sharedPropertyId, propertyId, reason } = req.body;
+      if (!sharedPropertyId && !propertyId) {
+        return res.status(400).json({ error: "ID proprietà mancante (sharedPropertyId o propertyId richiesto)" });
       }
       
-      const ignored = await storage.addClientIgnoredProperty(clientId, sharedPropertyId, reason);
+      const ignored = await storage.addClientIgnoredProperty(clientId, { sharedPropertyId, propertyId, reason });
       res.status(201).json(ignored);
     } catch (error) {
       console.error(`[POST /api/clients/${req.params.id}/ignored-properties]`, error);
@@ -5657,17 +5663,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Remove property from client ignored list
+  // Remove property from client ignored list (supports both shared and private properties)
   app.delete("/api/clients/:id/ignored-properties/:propertyId", async (req: Request, res: Response) => {
     try {
       const clientId = parseInt(req.params.id);
-      const sharedPropertyId = parseInt(req.params.propertyId);
+      const propId = parseInt(req.params.propertyId);
+      const ownerType = req.query.ownerType as string | undefined;
       
-      if (isNaN(clientId) || isNaN(sharedPropertyId)) {
+      if (isNaN(clientId) || isNaN(propId)) {
         return res.status(400).json({ error: "ID non valido" });
       }
       
-      await storage.removeClientIgnoredProperty(clientId, sharedPropertyId);
+      // Determine which property type based on ownerType query parameter
+      if (ownerType === 'private') {
+        await storage.removeClientIgnoredProperty(clientId, { propertyId: propId });
+      } else {
+        await storage.removeClientIgnoredProperty(clientId, { sharedPropertyId: propId });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error(`[DELETE /api/clients/${req.params.id}/ignored-properties/${req.params.propertyId}]`, error);
