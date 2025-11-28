@@ -5530,9 +5530,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const filteredMatches = matches.filter(p => !ignoredPropertyIds.has(p.id));
       
+      // Add ownerType field to indicate these are shared properties
+      const enrichedMatches = filteredMatches.map(p => ({
+        ...p,
+        ownerType: 'shared' as const
+      }));
+      
       res.json({
-        total: filteredMatches.length,
-        properties: filteredMatches
+        total: enrichedMatches.length,
+        properties: enrichedMatches
       });
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/matching-properties-advanced]`, error);
