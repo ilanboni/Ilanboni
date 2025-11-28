@@ -32,8 +32,20 @@ import { WhatsAppImportDialog } from "@/components/communications/WhatsAppImport
 import { useToast } from "@/hooks/use-toast";
 import SentPropertiesHistory from "@/components/clients/SentPropertiesHistory";
 import SimpleSearchAreaMap from "@/components/clients/SimpleSearchAreaMap";
-import { CheckSquare, XSquare, Trash2, EyeOff, Heart, Star } from "lucide-react";
+import { CheckSquare, XSquare, Trash2, EyeOff, Heart, Star, Map, List, Plus, Search } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +80,14 @@ export default function ClientDetailPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkIgnoreDialog, setShowBulkIgnoreDialog] = useState(false);
   const [isBulkIgnoring, setIsBulkIgnoring] = useState(false);
+  
+  // View mode for properties (list or map)
+  const [propertiesViewMode, setPropertiesViewMode] = useState<'list' | 'map'>('list');
+  
+  // Manual property add dialog
+  const [showAddPropertyDialog, setShowAddPropertyDialog] = useState(false);
+  const [propertySearchQuery, setPropertySearchQuery] = useState('');
+  const [isAddingProperty, setIsAddingProperty] = useState(false);
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading, isSuccess: isClientSuccess } = useQuery<ClientWithDetails>({
@@ -270,6 +290,98 @@ export default function ClientDetailPage() {
       return <Badge className="bg-yellow-500 text-white text-xs">Multi-Agenzia</Badge>;
     }
     return <Badge className="bg-red-500 text-white text-xs">Mono-Agenzia</Badge>;
+  };
+  
+  // Helper to create marker icon based on property type
+  const createPropertyMarker = (prop: any) => {
+    const isPrivate = prop.ownerType === 'private';
+    const isMulti = !isPrivate && prop.isMultiagency === true;
+    const color = isPrivate ? '#10b981' : isMulti ? '#eab308' : '#ef4444';
+    const label = isPrivate ? 'P' : isMulti ? 'M' : 'A';
+    
+    return L.divIcon({
+      className: 'custom-marker',
+      html: `
+        <div style="
+          background-color: ${color};
+          color: white;
+          border: 2px solid white;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 14px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        ">
+          ${label}
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+  };
+  
+  // Filter properties with valid coordinates for map
+  const propertiesWithCoords = useMemo(() => {
+    if (!filteredMatchingProperties) return [];
+    return filteredMatchingProperties.filter((p: any) => 
+      p.latitude && p.longitude && 
+      !isNaN(parseFloat(p.latitude)) && !isNaN(parseFloat(p.longitude))
+    );
+  }, [filteredMatchingProperties]);
+  
+  // Calculate map center based on properties
+  const mapCenter = useMemo(() => {
+    if (propertiesWithCoords.length > 0) {
+      const avgLat = propertiesWithCoords.reduce((sum: number, p: any) => sum + parseFloat(p.latitude), 0) / propertiesWithCoords.length;
+      const avgLng = propertiesWithCoords.reduce((sum: number, p: any) => sum + parseFloat(p.longitude), 0) / propertiesWithCoords.length;
+      return [avgLat, avgLng] as [number, number];
+    }
+    return [45.4642, 9.1900] as [number, number]; // Default: Milano
+  }, [propertiesWithCoords]);
+  
+  // Search for properties to add manually
+  const { data: searchedProperties, isLoading: isSearchingProperties, refetch: refetchSearchProperties } = useQuery({
+    queryKey: [`/api/properties/search`, propertySearchQuery],
+    enabled: propertySearchQuery.length >= 3 && showAddPropertyDialog,
+    queryFn: async () => {
+      const response = await fetch(`/api/properties/search?q=${encodeURIComponent(propertySearchQuery)}&limit=20`);
+      if (!response.ok) throw new Error('Errore nella ricerca');
+      return response.json();
+    }
+  });
+  
+  // Handler to add a property manually as favorite
+  const handleAddPropertyManually = async (propertyId: number, ownerType: string) => {
+    setIsAddingProperty(true);
+    try {
+      await apiRequest(`/api/clients/${id}/favorites`, {
+        method: 'POST',
+        data: ownerType === 'private' 
+          ? { propertyId } 
+          : { sharedPropertyId: propertyId }
+      });
+      toast({
+        title: "Immobile aggiunto",
+        description: "L'immobile è stato aggiunto ai preferiti del cliente"
+      });
+      refetchFavorites();
+      setShowAddPropertyDialog(false);
+      setPropertySearchQuery('');
+    } catch (error) {
+      console.error('Error adding property:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'operazione",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAddingProperty(false);
+    }
   };
   
   // Debug logging with useEffect to track changes
@@ -1377,6 +1489,34 @@ export default function ClientDetailPage() {
                   {(client?.buyer?.rating ?? 0) >= 4 && (
                     <div className="flex items-center gap-2">
                       <Button 
+                        variant="outline"
+                        onClick={() => setShowAddPropertyDialog(true)}
+                        data-testid="button-add-property-manual"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Aggiungi
+                      </Button>
+                      <div className="flex border rounded-md">
+                        <Button 
+                          variant={propertiesViewMode === 'list' ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setPropertiesViewMode('list')}
+                          data-testid="button-view-list"
+                          className="rounded-r-none"
+                        >
+                          <List className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant={propertiesViewMode === 'map' ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setPropertiesViewMode('map')}
+                          data-testid="button-view-map"
+                          className="rounded-l-none"
+                        >
+                          <Map className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Button 
                         variant={selectionMode ? "secondary" : "outline"}
                         onClick={toggleSelectionMode}
                         data-testid="button-selection-mode"
@@ -1493,6 +1633,68 @@ export default function ClientDetailPage() {
                       Non ci sono immobili salvati nel database.<br />
                       Clicca "Aggiorna" per avviare lo scraping e trovare nuovi immobili.
                     </p>
+                  </div>
+                ) : propertiesViewMode === 'map' ? (
+                  <div className="space-y-4">
+                    <div className="bg-gray-100 p-3 rounded-lg flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500"></span> Privato (P)</span>
+                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-yellow-500"></span> Multi-Agenzia (M)</span>
+                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500"></span> Mono-Agenzia (A)</span>
+                      </div>
+                      <span className="text-sm text-gray-600">{propertiesWithCoords.length} immobili con coordinate</span>
+                    </div>
+                    <div className="h-[600px] rounded-lg overflow-hidden border">
+                      <MapContainer
+                        center={mapCenter}
+                        zoom={13}
+                        style={{ height: '100%', width: '100%' }}
+                        scrollWheelZoom={true}
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        {propertiesWithCoords.map((property: any, idx: number) => (
+                          <Marker 
+                            key={`marker-${property.id}-${idx}`}
+                            position={[parseFloat(property.latitude), parseFloat(property.longitude)]}
+                            icon={createPropertyMarker(property)}
+                          >
+                            <Popup>
+                              <div className="max-w-xs">
+                                <h3 className="font-semibold text-sm mb-1">{property.title || property.address}</h3>
+                                <p className="text-xs text-gray-600 mb-2">{property.address}</p>
+                                <div className="flex items-center gap-2 text-xs mb-2">
+                                  <span className="font-bold">€ {property.price?.toLocaleString()}</span>
+                                  <span>•</span>
+                                  <span>{property.size} m²</span>
+                                  {property.bedrooms && <><span>•</span><span>{property.bedrooms} cam.</span></>}
+                                </div>
+                                <div className="flex gap-2">
+                                  <Link 
+                                    href={property.ownerType === 'private' ? `/properties/private/${property.id}` : `/properties/shared/${property.id}`}
+                                    className="text-xs text-blue-600 hover:underline"
+                                  >
+                                    Dettagli
+                                  </Link>
+                                  {property.url && (
+                                    <a 
+                                      href={property.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-600 hover:underline"
+                                    >
+                                      Annuncio
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        ))}
+                      </MapContainer>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1834,6 +2036,93 @@ export default function ClientDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Add Property Manual Dialog */}
+      <Dialog open={showAddPropertyDialog} onOpenChange={setShowAddPropertyDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Aggiungi immobile manualmente</DialogTitle>
+            <DialogDescription>
+              Cerca un immobile per indirizzo o ID e aggiungilo ai preferiti del cliente
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Cerca per indirizzo, città o ID..."
+                value={propertySearchQuery}
+                onChange={(e) => setPropertySearchQuery(e.target.value)}
+                className="flex-1"
+                data-testid="input-search-property"
+              />
+              <Button variant="outline" disabled={isSearchingProperties}>
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {propertySearchQuery.length < 3 && (
+              <p className="text-sm text-gray-500 text-center py-4">
+                Inserisci almeno 3 caratteri per cercare
+              </p>
+            )}
+            
+            {isSearchingProperties && (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+              </div>
+            )}
+            
+            {searchedProperties && searchedProperties.length > 0 && (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {searchedProperties.map((property: any) => {
+                  const isAlreadyFavorite = isPropertyFavorite(property.id, property.ownerType || 'shared');
+                  return (
+                    <div 
+                      key={property.id}
+                      className={`p-3 border rounded-lg flex items-center justify-between ${isAlreadyFavorite ? 'bg-pink-50 border-pink-200' : 'hover:bg-gray-50'}`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-sm">{property.address}</h4>
+                          <Badge className={property.ownerType === 'private' ? 'bg-green-500' : 'bg-blue-500'} variant="secondary">
+                            {property.ownerType === 'private' ? 'Privato' : 'Condiviso'}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {property.city} • {property.size} m² • € {property.price?.toLocaleString()}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={isAlreadyFavorite ? "secondary" : "default"}
+                        onClick={() => handleAddPropertyManually(property.id, property.ownerType || 'shared')}
+                        disabled={isAddingProperty || isAlreadyFavorite}
+                        className="ml-4"
+                      >
+                        {isAlreadyFavorite ? (
+                          <>
+                            <Heart className="h-4 w-4 mr-1 fill-current" /> Già aggiunto
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-1" /> Aggiungi
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {searchedProperties && searchedProperties.length === 0 && propertySearchQuery.length >= 3 && !isSearchingProperties && (
+              <p className="text-sm text-gray-500 text-center py-8">
+                Nessun immobile trovato per "{propertySearchQuery}"
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

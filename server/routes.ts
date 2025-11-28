@@ -2123,6 +2123,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API per gli immobili
   
+  // Cerca proprietà per indirizzo/città/ID
+  app.get("/api/properties/search", async (req: Request, res: Response) => {
+    try {
+      const query = (req.query.q as string || '').trim();
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      if (query.length < 3) {
+        return res.json([]);
+      }
+      
+      // Search in both properties (private) and shared_properties tables
+      const searchQuery = `%${query.toLowerCase()}%`;
+      
+      // Search private properties
+      const privateProps = await db
+        .select({
+          id: properties.id,
+          address: properties.address,
+          city: properties.city,
+          price: properties.price,
+          size: properties.size,
+          ownerType: sql<string>`'private'`
+        })
+        .from(properties)
+        .where(
+          or(
+            sql`LOWER(${properties.address}) LIKE ${searchQuery}`,
+            sql`LOWER(${properties.city}) LIKE ${searchQuery}`,
+            sql`CAST(${properties.id} AS TEXT) LIKE ${searchQuery}`
+          )
+        )
+        .limit(limit);
+      
+      // Search shared properties
+      const sharedProps = await db
+        .select({
+          id: sharedProperties.id,
+          address: sharedProperties.address,
+          city: sharedProperties.city,
+          price: sharedProperties.price,
+          size: sharedProperties.size,
+          ownerType: sql<string>`'shared'`
+        })
+        .from(sharedProperties)
+        .where(
+          or(
+            sql`LOWER(${sharedProperties.address}) LIKE ${searchQuery}`,
+            sql`LOWER(${sharedProperties.city}) LIKE ${searchQuery}`,
+            sql`CAST(${sharedProperties.id} AS TEXT) LIKE ${searchQuery}`
+          )
+        )
+        .limit(limit);
+      
+      // Combine and limit results
+      const combined = [...privateProps, ...sharedProps].slice(0, limit);
+      
+      res.json(combined);
+    } catch (error) {
+      console.error('[GET /api/properties/search]', error);
+      res.status(500).json({ error: 'Errore durante la ricerca' });
+    }
+  });
+  
   // Ottieni tutti gli immobili
   app.get("/api/properties", async (req: Request, res: Response) => {
     try {
