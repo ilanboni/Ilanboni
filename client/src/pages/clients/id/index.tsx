@@ -822,48 +822,50 @@ export default function ClientDetailPage() {
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline" 
               asChild
+              size="sm"
             >
               <Link href="/clients">
-                <div className="px-2 py-1">
-                  <i className="fas fa-arrow-left mr-2"></i> Indietro
-                </div>
+                <i className="fas fa-arrow-left mr-1"></i> Indietro
               </Link>
             </Button>
             
             <Button 
               variant="outline"
               asChild
-              className="gap-2"
+              size="sm"
+              className="gap-1"
             >
               <Link href={`/clients/edit/${id}`}>
                 <i className="fas fa-edit"></i>
-                <span>Modifica</span>
+                <span className="hidden sm:inline">Modifica</span>
               </Link>
             </Button>
             
             <Button 
               variant="outline" 
-              className="gap-2 border-green-600 text-green-600 hover:bg-green-50"
+              size="sm"
+              className="gap-1 border-green-600 text-green-600 hover:bg-green-50"
               onClick={() => setIsWhatsAppModalOpen(true)}
             >
               <i className="fab fa-whatsapp"></i>
-              <span>WhatsApp</span>
+              <span className="hidden sm:inline">WhatsApp</span>
             </Button>
             
             <Button 
               variant="outline"
-              className={`gap-2 ${client?.searchLink ? 'border-purple-600 text-purple-600 hover:bg-purple-50' : 'border-gray-300 text-gray-400 cursor-not-allowed'}`}
+              size="sm"
+              className={`gap-1 ${client?.searchLink ? 'border-purple-600 text-purple-600 hover:bg-purple-50' : 'border-gray-300 text-gray-400 cursor-not-allowed'}`}
               onClick={() => client?.searchLink && window.open(client.searchLink, '_blank')}
               disabled={!client?.searchLink}
               title={client?.searchLink ? 'Apri ricerca Casafari' : 'Nessun link Casafari salvato - Modifica il cliente per aggiungerlo'}
               data-testid="button-manual-search"
             >
               <Search className="h-4 w-4" />
-              <span>Casafari</span>
+              <span className="hidden sm:inline">Casafari</span>
             </Button>
           </div>
         </div>
