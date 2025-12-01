@@ -51,14 +51,15 @@ export function AddPropertyToClientDialog({ clientId, clientName }: AddPropertyT
   });
 
   const addPropertyMutation = useMutation({
-    mutationFn: async (data: AddPropertyFormData) => {
-      return await apiRequest("/api/shared-properties/manual", {
+    mutationFn: async (data: AddPropertyFormData): Promise<{ isDuplicate?: boolean }> => {
+      const response = await apiRequest("/api/shared-properties/manual", {
         method: "POST",
         data: {
           ...data,
           scrapedForClientId: clientId
         }
       });
+      return await response.json();
     },
     onSuccess: (response: { isDuplicate?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/shared-properties"] });
