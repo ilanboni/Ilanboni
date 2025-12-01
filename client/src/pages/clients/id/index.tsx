@@ -106,6 +106,9 @@ export default function ClientDetailPage() {
   const [newPropertyNotes, setNewPropertyNotes] = useState('');
   const [isCreatingNewProperty, setIsCreatingNewProperty] = useState(false);
   
+  // Track if notification tab was visited (to avoid loading slow query until needed)
+  const [notificationTabVisited, setNotificationTabVisited] = useState(false);
+  
   // Fetch client details
   const { data: client, isLoading: isClientLoading, isSuccess: isClientSuccess } = useQuery<ClientWithDetails>({
     queryKey: [`/api/clients/${id}`],
@@ -512,9 +515,10 @@ export default function ClientDetailPage() {
   }, [isClientSuccess, isClientLoading, client?.type, client?.buyer?.rating, matchingProperties?.length, isMatchingPropertiesLoading, matchingPropertiesError]);
   
   // Fetch matching properties with notification status (per client compratori)
+  // LAZY LOADING: Only fetch when user visits "Immobili da inviare" tab to avoid slow page load
   const { data: propertiesWithNotifications, isLoading: isPropertiesWithNotificationsLoading, refetch: refetchPropertiesWithNotifications } = useQuery({
     queryKey: [`/api/clients/${id}/properties-with-notification-status`],
-    enabled: isClientSuccess && client?.type === "buyer",
+    enabled: isClientSuccess && client?.type === "buyer" && notificationTabVisited,
     staleTime: Infinity,
     refetchInterval: false,
     refetchOnWindowFocus: false,
@@ -950,7 +954,12 @@ export default function ClientDetailPage() {
           </div>
         </div>
         
-        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs defaultValue="overview" value={activeTab} onValueChange={(value) => {
+          setActiveTab(value);
+          if (value === 'properties-notification-status') {
+            setNotificationTabVisited(true);
+          }
+        }} className="w-full">
           <TabsList className="w-full flex flex-wrap gap-1 h-auto p-1">
             <TabsTrigger value="overview">Panoramica</TabsTrigger>
             <TabsTrigger value="communications">Comunicazioni</TabsTrigger>
