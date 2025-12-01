@@ -93,6 +93,18 @@ export default function ClientDetailPage() {
   const [showAddPropertyDialog, setShowAddPropertyDialog] = useState(false);
   const [propertySearchQuery, setPropertySearchQuery] = useState('');
   const [isAddingProperty, setIsAddingProperty] = useState(false);
+  const [addPropertyMode, setAddPropertyMode] = useState<'search' | 'new'>('search');
+  
+  // New property form state
+  const [newPropertyUrl, setNewPropertyUrl] = useState('');
+  const [newPropertyAddress, setNewPropertyAddress] = useState('');
+  const [newPropertyCity, setNewPropertyCity] = useState('Milano');
+  const [newPropertyType, setNewPropertyType] = useState('apartment');
+  const [newPropertyPrice, setNewPropertyPrice] = useState('');
+  const [newPropertySize, setNewPropertySize] = useState('');
+  const [newPropertyFloor, setNewPropertyFloor] = useState('');
+  const [newPropertyNotes, setNewPropertyNotes] = useState('');
+  const [isCreatingNewProperty, setIsCreatingNewProperty] = useState(false);
   
   // Fetch client details
   const { data: client, isLoading: isClientLoading, isSuccess: isClientSuccess } = useQuery<ClientWithDetails>({
@@ -415,6 +427,72 @@ export default function ClientDetailPage() {
       });
     } finally {
       setIsAddingProperty(false);
+    }
+  };
+  
+  // Handler to create a new property from scratch
+  const handleCreateNewProperty = async () => {
+    if (!newPropertyUrl || !newPropertyAddress || !newPropertyPrice) {
+      toast({
+        title: "Campi obbligatori",
+        description: "Inserisci almeno URL, indirizzo e prezzo",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsCreatingNewProperty(true);
+    try {
+      const response = await apiRequest('/api/shared-properties/manual', {
+        method: 'POST',
+        data: {
+          url: newPropertyUrl,
+          address: newPropertyAddress,
+          city: newPropertyCity || 'Milano',
+          type: newPropertyType,
+          price: parseInt(newPropertyPrice),
+          size: newPropertySize ? parseInt(newPropertySize) : undefined,
+          floor: newPropertyFloor || undefined,
+          notes: newPropertyNotes || undefined,
+          scrapedForClientId: id
+        }
+      });
+      
+      const result = await response.json();
+      
+      toast({
+        title: result.isDuplicate ? "Immobile già presente" : "Immobile creato",
+        description: result.isDuplicate 
+          ? "L'immobile esisteva già ed è stato aggiunto ai preferiti" 
+          : "L'immobile è stato creato e aggiunto ai preferiti del cliente"
+      });
+      
+      // Reset form
+      setNewPropertyUrl('');
+      setNewPropertyAddress('');
+      setNewPropertyCity('Milano');
+      setNewPropertyType('apartment');
+      setNewPropertyPrice('');
+      setNewPropertySize('');
+      setNewPropertyFloor('');
+      setNewPropertyNotes('');
+      setAddPropertyMode('search');
+      setShowAddPropertyDialog(false);
+      
+      // Refresh data
+      refetchFavorites();
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-properties'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      
+    } catch (error: any) {
+      console.error('[CREATE-PROPERTY] Error:', error);
+      toast({
+        title: "Errore",
+        description: error?.message || "Si è verificato un errore durante la creazione",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreatingNewProperty(false);
     }
   };
   
@@ -2108,89 +2186,251 @@ export default function ClientDetailPage() {
       </AlertDialog>
       
       {/* Add Property Manual Dialog */}
-      <Dialog open={showAddPropertyDialog} onOpenChange={setShowAddPropertyDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <Dialog open={showAddPropertyDialog} onOpenChange={(open) => {
+        setShowAddPropertyDialog(open);
+        if (!open) {
+          setAddPropertyMode('search');
+          setPropertySearchQuery('');
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Aggiungi immobile manualmente</DialogTitle>
+            <DialogTitle>Aggiungi immobile</DialogTitle>
             <DialogDescription>
-              Cerca un immobile per indirizzo o ID e aggiungilo ai preferiti del cliente
+              Cerca un immobile esistente o inseriscine uno nuovo
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Cerca per indirizzo, città o ID..."
-                value={propertySearchQuery}
-                onChange={(e) => setPropertySearchQuery(e.target.value)}
-                className="flex-1"
-                data-testid="input-search-property"
-              />
-              <Button variant="outline" disabled={isSearchingProperties}>
-                <Search className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {propertySearchQuery.length < 3 && (
-              <p className="text-sm text-gray-500 text-center py-4">
-                Inserisci almeno 3 caratteri per cercare
-              </p>
-            )}
-            
-            {isSearchingProperties && (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-              </div>
-            )}
-            
-            {searchedProperties && searchedProperties.length > 0 && (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {searchedProperties.map((property: any) => {
-                  const isAlreadyFavorite = isPropertyFavorite(property.id, property.ownerType || 'shared');
-                  return (
-                    <div 
-                      key={property.id}
-                      className={`p-3 border rounded-lg flex items-center justify-between ${isAlreadyFavorite ? 'bg-pink-50 border-pink-200' : 'hover:bg-gray-50'}`}
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium text-sm">{property.address}</h4>
-                          <Badge className={property.ownerType === 'private' ? 'bg-green-500' : 'bg-blue-500'} variant="secondary">
-                            {property.ownerType === 'private' ? 'Privato' : 'Condiviso'}
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {property.city} • {property.size} m² • € {property.price?.toLocaleString()}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant={isAlreadyFavorite ? "secondary" : "default"}
-                        onClick={() => handleAddPropertyManually(property.id, property.ownerType || 'shared')}
-                        disabled={isAddingProperty || isAlreadyFavorite}
-                        className="ml-4"
-                      >
-                        {isAlreadyFavorite ? (
-                          <>
-                            <Heart className="h-4 w-4 mr-1 fill-current" /> Già aggiunto
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4 mr-1" /> Aggiungi
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            
-            {searchedProperties && searchedProperties.length === 0 && propertySearchQuery.length >= 3 && !isSearchingProperties && (
-              <p className="text-sm text-gray-500 text-center py-8">
-                Nessun immobile trovato per "{propertySearchQuery}"
-              </p>
-            )}
+          
+          {/* Mode selector */}
+          <div className="flex gap-2 mt-2">
+            <Button
+              variant={addPropertyMode === 'search' ? 'default' : 'outline'}
+              className="flex-1"
+              onClick={() => setAddPropertyMode('search')}
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Cerca esistente
+            </Button>
+            <Button
+              variant={addPropertyMode === 'new' ? 'default' : 'outline'}
+              className="flex-1"
+              onClick={() => setAddPropertyMode('new')}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Inserisci nuovo
+            </Button>
           </div>
+          
+          {/* Search mode */}
+          {addPropertyMode === 'search' && (
+            <div className="space-y-4 mt-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Cerca per indirizzo, città o ID..."
+                  value={propertySearchQuery}
+                  onChange={(e) => setPropertySearchQuery(e.target.value)}
+                  className="flex-1"
+                  data-testid="input-search-property"
+                />
+                <Button variant="outline" disabled={isSearchingProperties}>
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {propertySearchQuery.length < 3 && (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  Inserisci almeno 3 caratteri per cercare
+                </p>
+              )}
+              
+              {isSearchingProperties && (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                </div>
+              )}
+              
+              {searchedProperties && searchedProperties.length > 0 && (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {searchedProperties.map((property: any) => {
+                    const isAlreadyFavorite = isPropertyFavorite(property.id, property.ownerType || 'shared');
+                    return (
+                      <div 
+                        key={property.id}
+                        className={`p-3 border rounded-lg flex items-center justify-between ${isAlreadyFavorite ? 'bg-pink-50 border-pink-200' : 'hover:bg-gray-50'}`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-sm">{property.address}</h4>
+                            <Badge className={property.ownerType === 'private' ? 'bg-green-500' : 'bg-blue-500'} variant="secondary">
+                              {property.ownerType === 'private' ? 'Privato' : 'Condiviso'}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {property.city} • {property.size} m² • € {property.price?.toLocaleString()}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={isAlreadyFavorite ? "secondary" : "default"}
+                          onClick={() => handleAddPropertyManually(property.id, property.ownerType || 'shared')}
+                          disabled={isAddingProperty || isAlreadyFavorite}
+                          className="ml-4"
+                        >
+                          {isAlreadyFavorite ? (
+                            <>
+                              <Heart className="h-4 w-4 mr-1 fill-current" /> Già aggiunto
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4 mr-1" /> Aggiungi
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {searchedProperties && searchedProperties.length === 0 && propertySearchQuery.length >= 3 && !isSearchingProperties && (
+                <div className="text-center py-6">
+                  <p className="text-sm text-gray-500 mb-3">
+                    Nessun immobile trovato per "{propertySearchQuery}"
+                  </p>
+                  <Button variant="outline" onClick={() => setAddPropertyMode('new')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Inserisci nuovo immobile
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* New property mode */}
+          {addPropertyMode === 'new' && (
+            <div className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Link annuncio *</label>
+                  <Input
+                    placeholder="https://www.immobiliare.it/..."
+                    value={newPropertyUrl}
+                    onChange={(e) => setNewPropertyUrl(e.target.value)}
+                    data-testid="input-new-property-url"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Indirizzo *</label>
+                    <Input
+                      placeholder="Via Roma 15"
+                      value={newPropertyAddress}
+                      onChange={(e) => setNewPropertyAddress(e.target.value)}
+                      data-testid="input-new-property-address"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Città</label>
+                    <Input
+                      placeholder="Milano"
+                      value={newPropertyCity}
+                      onChange={(e) => setNewPropertyCity(e.target.value)}
+                      data-testid="input-new-property-city"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Tipo</label>
+                    <select
+                      className="w-full h-10 px-3 border rounded-md text-sm"
+                      value={newPropertyType}
+                      onChange={(e) => setNewPropertyType(e.target.value)}
+                    >
+                      <option value="apartment">Appartamento</option>
+                      <option value="house">Casa</option>
+                      <option value="villa">Villa</option>
+                      <option value="loft">Loft</option>
+                      <option value="office">Ufficio</option>
+                      <option value="commercial">Commerciale</option>
+                      <option value="other">Altro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Prezzo (€) *</label>
+                    <Input
+                      type="number"
+                      placeholder="250000"
+                      value={newPropertyPrice}
+                      onChange={(e) => setNewPropertyPrice(e.target.value)}
+                      data-testid="input-new-property-price"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Superficie (m²)</label>
+                    <Input
+                      type="number"
+                      placeholder="80"
+                      value={newPropertySize}
+                      onChange={(e) => setNewPropertySize(e.target.value)}
+                      data-testid="input-new-property-size"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Piano</label>
+                    <Input
+                      placeholder="3"
+                      value={newPropertyFloor}
+                      onChange={(e) => setNewPropertyFloor(e.target.value)}
+                      data-testid="input-new-property-floor"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Note</label>
+                    <Input
+                      placeholder="Dettagli aggiuntivi..."
+                      value={newPropertyNotes}
+                      onChange={(e) => setNewPropertyNotes(e.target.value)}
+                      data-testid="input-new-property-notes"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setAddPropertyMode('search')}
+                >
+                  Annulla
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleCreateNewProperty}
+                  disabled={isCreatingNewProperty || !newPropertyUrl || !newPropertyAddress || !newPropertyPrice}
+                  data-testid="button-create-property"
+                >
+                  {isCreatingNewProperty ? (
+                    <>
+                      <i className="fas fa-spinner animate-spin mr-2"></i>
+                      Creazione...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Crea e aggiungi ai preferiti
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
