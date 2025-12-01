@@ -233,12 +233,14 @@ export default function ClientDetailPage() {
   const [previousMatchIds, setPreviousMatchIds] = useState<Set<number>>(new Set());
   
   // Fetch matching properties (per client compratori) - Advanced matching with tolerances
-  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading, error: matchingPropertiesError } = useQuery<any[]>({
+  const { data: matchingProperties, isLoading: isMatchingPropertiesLoading, error: matchingPropertiesError, refetch: refetchMatchingProperties } = useQuery<any[]>({
     queryKey: [`/api/clients/${id}/matching-properties-advanced`],
     enabled: isClientSuccess && client?.type === "buyer",
-    staleTime: 30 * 1000, // 30 seconds - properties marked as stale after this time
-    refetchInterval: 60 * 1000, // Auto-refetch every 60 seconds to keep properties synced with new scrapes
+    staleTime: Infinity, // Cache indefinitely until manually refreshed
+    refetchInterval: false, // Disable auto-refetch to prevent freezing
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
     queryFn: async () => {
       console.log('[MATCHING-QUERY] Fetching matching properties for client', id);
       const response = await fetch(`/api/clients/${id}/matching-properties-advanced`, {
@@ -1607,15 +1609,26 @@ export default function ClientDetailPage() {
                     <CardTitle>Possibili Immobili</CardTitle>
                     <CardDescription>
                       {(client?.buyer?.rating ?? 0) >= 4 
-                        ? `Immobili matching (${filteredMatchingProperties?.length || 0} di ${matchingProperties?.length || 0}) - Auto-refresh ogni 60s` 
+                        ? `Immobili matching (${filteredMatchingProperties?.length || 0} di ${matchingProperties?.length || 0})` 
                         : `Disponibile solo per clienti con rating ≥ 4 (rating attuale: ${client?.buyer?.rating})`
                       }
                     </CardDescription>
                   </div>
                   {(client?.buyer?.rating ?? 0) >= 4 && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Button 
                         variant="outline"
+                        size="sm"
+                        onClick={() => refetchMatchingProperties()}
+                        disabled={isMatchingPropertiesLoading}
+                        data-testid="button-refresh-matching"
+                      >
+                        <i className={`fas fa-sync-alt mr-2 ${isMatchingPropertiesLoading ? 'animate-spin' : ''}`}></i>
+                        Aggiorna
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
                         onClick={() => setShowAddPropertyDialog(true)}
                         data-testid="button-add-property-manual"
                       >
