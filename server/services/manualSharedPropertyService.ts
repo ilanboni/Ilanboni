@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { sharedProperties, tasks, clients } from "@shared/schema";
+import { sharedProperties, tasks, clients, clientFavorites } from "@shared/schema";
 import { eq, and, or, sql } from "drizzle-orm";
 
 interface ManualPropertyData {
@@ -17,12 +17,15 @@ interface ManualPropertyData {
 interface CreateResult {
   property: typeof sharedProperties.$inferSelect;
   task: typeof tasks.$inferSelect;
+  favorite: typeof clientFavorites.$inferSelect;
   isDuplicate: boolean;
 }
 
 export async function createManualSharedProperty(
   data: ManualPropertyData
 ): Promise<CreateResult> {
+  console.log("[MANUAL-PROPERTY] Starting creation for client:", data.scrapedForClientId);
+  
   // Get client info for task description
   const [client] = await db
     .select()
@@ -34,79 +37,163 @@ export async function createManualSharedProperty(
     throw new Error(`Client with ID ${data.scrapedForClientId} not found`);
   }
 
-  // Use transaction with INSERT ON CONFLICT to handle duplicates atomically
+  console.log("[MANUAL-PROPERTY] Client found:", client.firstName, client.lastName);
+
+  // Use transaction to handle all inserts atomically
   return await db.transaction(async (tx) => {
     let property: typeof sharedProperties.$inferSelect;
     let isDuplicate = false;
 
-    // Try to insert property, handling both unique constraints (url and address+price)
-    // Use ON CONFLICT DO NOTHING without target to handle any constraint violation
-    const insertResult = await tx.execute(sql`
-      INSERT INTO shared_properties (
-        address, city, type, price, size, floor, url, owner_notes,
-        scraped_for_client_id, is_favorite, is_acquired, match_buyers,
-        stage, rating, portal_source
-      ) VALUES (
-        ${data.address}, ${data.city || "Milano"}, ${data.type}, ${data.price},
-        ${data.size || null}, ${data.floor || null}, ${data.url}, ${data.notes || null},
-        ${data.scrapedForClientId}, true, false, false,
-        'address_found', 3, ${getPortalSourceFromUrl(data.url)}
-      )
-      ON CONFLICT DO NOTHING
-      RETURNING *
-    `);
+    // Format price as plain number string (no locale formatting to avoid SQL issues)
+    const priceFormatted = data.price.toString();
+    
+    // Try to insert property using Drizzle ORM (safer than raw SQL)
+    try {
+      const [insertedProperty] = await tx
+        .insert(sharedProperties)
+        .values({
+          address: data.address,
+          city: data.city || "Milano",
+          type: data.type,
+          price: data.price,
+          size: data.size || null,
+          floor: data.floor || null,
+          url: data.url,
+          ownerNotes: data.notes || null,
+          scrapedForClientId: data.scrapedForClientId,
+          isFavorite: true,
+          isAcquired: false,
+          matchBuyers: false,
+          stage: "address_found",
+          rating: 3,
+          portalSource: getPortalSourceFromUrl(data.url)
+        })
+        .onConflictDoNothing()
+        .returning();
 
-    // If insert was successful, we have a new property
-    if (insertResult.rows.length > 0) {
-      property = insertResult.rows[0] as typeof sharedProperties.$inferSelect;
-    } else {
-      // Conflict occurred on either url or address+price, fetch existing property
-      isDuplicate = true;
-      const existing = await tx.execute(sql`
-        SELECT * FROM shared_properties
-        WHERE url = ${data.url}
-           OR (address = ${data.address} AND price = ${data.price})
-        LIMIT 1
-      `);
-      property = existing.rows[0] as typeof sharedProperties.$inferSelect;
+      if (insertedProperty) {
+        property = insertedProperty;
+        console.log("[MANUAL-PROPERTY] Property created with ID:", property.id);
+      } else {
+        // Conflict occurred, fetch existing property
+        isDuplicate = true;
+        const [existingProperty] = await tx
+          .select()
+          .from(sharedProperties)
+          .where(
+            or(
+              eq(sharedProperties.url, data.url),
+              and(
+                eq(sharedProperties.address, data.address),
+                eq(sharedProperties.price, data.price)
+              )
+            )
+          )
+          .limit(1);
+        
+        if (!existingProperty) {
+          throw new Error("Property conflict but no existing property found");
+        }
+        property = existingProperty;
+        console.log("[MANUAL-PROPERTY] Existing property found with ID:", property.id);
+      }
+    } catch (error) {
+      console.error("[MANUAL-PROPERTY] Error inserting property:", error);
+      throw error;
     }
 
-    // Now handle task creation with ON CONFLICT
-    const taskTitle = `Immobile in linea con ricerca cliente ${client.firstName} ${client.lastName}`;
-    const taskDescription = `Immobile trovato: ${data.address}, ${data.city || "Milano"} - €${data.price.toLocaleString()}`;
+    // Add property to client favorites
+    let favorite: typeof clientFavorites.$inferSelect;
+    try {
+      const [insertedFavorite] = await tx
+        .insert(clientFavorites)
+        .values({
+          clientId: data.scrapedForClientId,
+          sharedPropertyId: property.id,
+          notes: `Aggiunto manualmente: ${data.notes || ''}`
+        })
+        .onConflictDoNothing()
+        .returning();
 
-    const taskResult = await tx.execute(sql`
-      INSERT INTO tasks (
-        type, title, description, client_id, shared_property_id,
-        priority, due_date, status, notes
-      ) VALUES (
-        'search', ${taskTitle}, ${taskDescription}, ${data.scrapedForClientId},
-        ${property.id}, 2, ${new Date().toISOString().split("T")[0]},
-        'pending', ${"Link: " + data.url}
-      )
-      ON CONFLICT (shared_property_id, client_id, type) DO NOTHING
-      RETURNING *
-    `);
+      if (insertedFavorite) {
+        favorite = insertedFavorite;
+        console.log("[MANUAL-PROPERTY] Favorite created with ID:", favorite.id);
+      } else {
+        // Already in favorites, fetch existing
+        const [existingFavorite] = await tx
+          .select()
+          .from(clientFavorites)
+          .where(
+            and(
+              eq(clientFavorites.clientId, data.scrapedForClientId),
+              eq(clientFavorites.sharedPropertyId, property.id)
+            )
+          )
+          .limit(1);
+        
+        if (!existingFavorite) {
+          throw new Error("Favorite conflict but no existing favorite found");
+        }
+        favorite = existingFavorite;
+        console.log("[MANUAL-PROPERTY] Existing favorite found with ID:", favorite.id);
+      }
+    } catch (error) {
+      console.error("[MANUAL-PROPERTY] Error inserting favorite:", error);
+      throw error;
+    }
+
+    // Create task for the client
+    const taskTitle = `Immobile in linea con ricerca cliente ${client.firstName} ${client.lastName}`;
+    const taskDescription = `Immobile trovato: ${data.address}, ${data.city || "Milano"} - €${priceFormatted}`;
 
     let task: typeof tasks.$inferSelect;
+    try {
+      const [insertedTask] = await tx
+        .insert(tasks)
+        .values({
+          type: "search",
+          title: taskTitle,
+          description: taskDescription,
+          clientId: data.scrapedForClientId,
+          sharedPropertyId: property.id,
+          priority: 2,
+          dueDate: new Date().toISOString().split("T")[0],
+          status: "pending",
+          notes: `Link: ${data.url}`
+        })
+        .onConflictDoNothing()
+        .returning();
 
-    // If task insert was successful, we have a new task
-    if (taskResult.rows.length > 0) {
-      task = taskResult.rows[0] as typeof tasks.$inferSelect;
-    } else {
-      // Task conflict occurred, fetch existing task
-      isDuplicate = true;
-      const existingTask = await tx.execute(sql`
-        SELECT * FROM tasks
-        WHERE shared_property_id = ${property.id}
-          AND client_id = ${data.scrapedForClientId}
-          AND type = 'search'
-        LIMIT 1
-      `);
-      task = existingTask.rows[0] as typeof tasks.$inferSelect;
+      if (insertedTask) {
+        task = insertedTask;
+        console.log("[MANUAL-PROPERTY] Task created with ID:", task.id);
+      } else {
+        // Task conflict, fetch existing
+        const [existingTask] = await tx
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.sharedPropertyId, property.id),
+              eq(tasks.clientId, data.scrapedForClientId),
+              eq(tasks.type, "search")
+            )
+          )
+          .limit(1);
+        
+        if (!existingTask) {
+          throw new Error("Task conflict but no existing task found");
+        }
+        task = existingTask;
+        console.log("[MANUAL-PROPERTY] Existing task found with ID:", task.id);
+      }
+    } catch (error) {
+      console.error("[MANUAL-PROPERTY] Error inserting task:", error);
+      throw error;
     }
 
-    return { property, task, isDuplicate };
+    console.log("[MANUAL-PROPERTY] Success! Property:", property.id, "Favorite:", favorite.id, "Task:", task.id);
+    return { property, task, favorite, isDuplicate };
   });
 }
 
