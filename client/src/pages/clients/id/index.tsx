@@ -1791,7 +1791,14 @@ export default function ClientDetailPage() {
                   </div>
                 )}
                 
-                {(client?.buyer?.rating ?? 0) < 4 ? (
+                {showAddPropertyDialog ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="text-4xl mb-4">
+                      <i className="fas fa-plus-circle"></i>
+                    </div>
+                    <p className="text-sm">Lista nascosta durante l'inserimento</p>
+                  </div>
+                ) : (client?.buyer?.rating ?? 0) < 4 ? (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-5xl mb-4">
                       <i className="fas fa-star-half-alt"></i>
