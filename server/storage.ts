@@ -4288,11 +4288,13 @@ export class DatabaseStorage implements IStorage {
       return;
     }
     
-    const matchRecords = items.map(item => ({
-      clientId,
-      sharedPropertyId: item.sharedPropertyId,
-      score: item.score
-    }));
+    const matchRecords = items
+      .filter(item => !isNaN(item.score) && isFinite(item.score))
+      .map(item => ({
+        clientId,
+        sharedPropertyId: item.sharedPropertyId,
+        score: Math.round(item.score)
+      }));
     
     await db.insert(matches).values(matchRecords);
     console.log(`[saveClientMatches] Successfully saved ${items.length} matches for client ${clientId}`);

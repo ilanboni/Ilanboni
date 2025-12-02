@@ -236,9 +236,10 @@ export default function ClientDetailPage() {
   const [previousMatchIds, setPreviousMatchIds] = useState<Set<number>>(new Set());
   
   // Fetch matching properties (per client compratori) - Advanced matching with tolerances
+  // Disabilitata quando il dialog è aperto per evitare blocchi durante l'input
   const { data: matchingProperties, isLoading: isMatchingPropertiesLoading, error: matchingPropertiesError, refetch: refetchMatchingProperties } = useQuery<any[]>({
     queryKey: [`/api/clients/${id}/matching-properties-advanced`],
-    enabled: isClientSuccess && client?.type === "buyer",
+    enabled: isClientSuccess && client?.type === "buyer" && !showAddPropertyDialog,
     staleTime: Infinity, // Cache indefinitely until manually refreshed
     refetchInterval: false, // Disable auto-refetch to prevent freezing
     refetchOnWindowFocus: false,
