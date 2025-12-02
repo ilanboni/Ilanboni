@@ -4044,7 +4044,6 @@ export class DatabaseStorage implements IStorage {
         return { isMatch: false, score: 0 };
       }
       if (prop.size > maxAcceptable) {
-        console.log(`[evaluatePropertyMatch] Property ${prop.id} size ${prop.size}mq exceeds max ${maxAcceptable.toFixed(0)}mq (buyer wants ${buyer.minSize}mq, max 2.5x) - REJECTED`);
         return { isMatch: false, score: 0 };
       }
       if (prop.size >= buyer.minSize) {
@@ -4072,7 +4071,6 @@ export class DatabaseStorage implements IStorage {
     if (buyer.searchArea) {
       // Se il buyer ha una searchArea ma la proprietà non ha location, la escludiamo
       if (!prop.location) {
-        console.log(`[evaluatePropertyMatch] Property ${prop.id} (${prop.address}) has no location - REJECTED (buyer requires searchArea)`);
         return { isMatch: false, score: 0 };
       }
       
@@ -4087,7 +4085,6 @@ export class DatabaseStorage implements IStorage {
           propLat = propLoc.lat;
           propLng = propLoc.lng;
         } else {
-          console.log(`[evaluatePropertyMatch] Property ${prop.id} (${prop.address}) has invalid location format - REJECTED`);
           return { isMatch: false, score: 0 };
         }
         
