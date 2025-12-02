@@ -420,7 +420,9 @@ export default function ClientDetailPage() {
         title: "Immobile aggiunto",
         description: "L'immobile è stato aggiunto ai preferiti del cliente"
       });
-      refetchFavorites();
+      // Invalidate caches without blocking UI
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${id}/favorites`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', id, 'matching-properties'] });
       setShowAddPropertyDialog(false);
       setPropertySearchQuery('');
     } catch (error) {
