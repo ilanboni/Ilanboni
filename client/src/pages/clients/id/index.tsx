@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { Helmet } from "react-helmet";
 import { useQuery } from "@tanstack/react-query";
@@ -398,13 +398,46 @@ export default function ClientDetailPage() {
   // Search for properties to add manually
   const { data: searchedProperties, isLoading: isSearchingProperties, refetch: refetchSearchProperties } = useQuery({
     queryKey: [`/api/properties/search`, propertySearchQuery],
-    enabled: propertySearchQuery.length >= 3 && showAddPropertyDialog,
+    enabled: propertySearchQuery.length >= 3 && showAddPropertyDialog && addPropertyMode === 'search',
     queryFn: async () => {
       const response = await fetch(`/api/properties/search?q=${encodeURIComponent(propertySearchQuery)}&limit=20`);
       if (!response.ok) throw new Error('Errore nella ricerca');
       return response.json();
     }
   });
+
+  // Memoized handlers for new property form
+  const handlePropertyUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPropertyUrl(e.target.value);
+  }, []);
+
+  const handlePropertyAddressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPropertyAddress(e.target.value);
+  }, []);
+
+  const handlePropertyCityChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPropertyCity(e.target.value);
+  }, []);
+
+  const handlePropertyTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setNewPropertyType(e.target.value);
+  }, []);
+
+  const handlePropertyPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPropertyPrice(e.target.value);
+  }, []);
+
+  const handlePropertySizeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPropertySize(e.target.value);
+  }, []);
+
+  const handlePropertyFloorChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPropertyFloor(e.target.value);
+  }, []);
+
+  const handlePropertyNotesChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPropertyNotes(e.target.value);
+  }, []);
   
   // Handler to add a property manually as favorite
   const handleAddPropertyManually = async (propertyId: number, ownerType: string) => {
@@ -2339,7 +2372,7 @@ export default function ClientDetailPage() {
                   <Input
                     placeholder="https://www.immobiliare.it/..."
                     value={newPropertyUrl}
-                    onChange={(e) => setNewPropertyUrl(e.target.value)}
+                    onChange={handlePropertyUrlChange}
                     data-testid="input-new-property-url"
                   />
                 </div>
@@ -2350,7 +2383,7 @@ export default function ClientDetailPage() {
                     <Input
                       placeholder="Via Roma 15"
                       value={newPropertyAddress}
-                      onChange={(e) => setNewPropertyAddress(e.target.value)}
+                      onChange={handlePropertyAddressChange}
                       data-testid="input-new-property-address"
                     />
                   </div>
@@ -2359,7 +2392,7 @@ export default function ClientDetailPage() {
                     <Input
                       placeholder="Milano"
                       value={newPropertyCity}
-                      onChange={(e) => setNewPropertyCity(e.target.value)}
+                      onChange={handlePropertyCityChange}
                       data-testid="input-new-property-city"
                     />
                   </div>
@@ -2371,7 +2404,7 @@ export default function ClientDetailPage() {
                     <select
                       className="w-full h-10 px-3 border rounded-md text-sm"
                       value={newPropertyType}
-                      onChange={(e) => setNewPropertyType(e.target.value)}
+                      onChange={handlePropertyTypeChange}
                     >
                       <option value="apartment">Appartamento</option>
                       <option value="house">Casa</option>
@@ -2388,7 +2421,7 @@ export default function ClientDetailPage() {
                       type="number"
                       placeholder="250000"
                       value={newPropertyPrice}
-                      onChange={(e) => setNewPropertyPrice(e.target.value)}
+                      onChange={handlePropertyPriceChange}
                       data-testid="input-new-property-price"
                     />
                   </div>
@@ -2398,7 +2431,7 @@ export default function ClientDetailPage() {
                       type="number"
                       placeholder="80"
                       value={newPropertySize}
-                      onChange={(e) => setNewPropertySize(e.target.value)}
+                      onChange={handlePropertySizeChange}
                       data-testid="input-new-property-size"
                     />
                   </div>
@@ -2410,7 +2443,7 @@ export default function ClientDetailPage() {
                     <Input
                       placeholder="3"
                       value={newPropertyFloor}
-                      onChange={(e) => setNewPropertyFloor(e.target.value)}
+                      onChange={handlePropertyFloorChange}
                       data-testid="input-new-property-floor"
                     />
                   </div>
@@ -2419,7 +2452,7 @@ export default function ClientDetailPage() {
                     <Input
                       placeholder="Dettagli aggiuntivi..."
                       value={newPropertyNotes}
-                      onChange={(e) => setNewPropertyNotes(e.target.value)}
+                      onChange={handlePropertyNotesChange}
                       data-testid="input-new-property-notes"
                     />
                   </div>
