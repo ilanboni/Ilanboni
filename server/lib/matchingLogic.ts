@@ -122,7 +122,6 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
     // Only reject if BOTH have types AND they don't match
     // If propertyType is empty, allow the match (wildcard)
     if (buyerType && propertyType && propertyType !== buyerType) {
-      console.log(`[Matching] Property ${property.id} type '${property.type}' (normalized: '${propertyType}') doesn't match buyer requirement '${buyer.propertyType}' (normalized: '${buyerType}') - REJECTED`);
       return false;
     }
   }
@@ -133,19 +132,16 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
     const maxAcceptable = buyer.minSize * 2.5; // Limite superiore ragionevole (es. 50mq -> max 125mq)
     
     if (property.size < minAcceptable) {
-      console.log(`[Matching] Property ${property.id} size ${property.size}mq is below minimum ${minAcceptable.toFixed(0)}mq (buyer wants ${buyer.minSize}mq minimum -20%) - REJECTED`);
       return false;
     }
     
     if (property.size > maxAcceptable) {
-      console.log(`[Matching] Property ${property.id} size ${property.size}mq exceeds maximum ${maxAcceptable.toFixed(0)}mq (buyer wants ${buyer.minSize}mq, max 2.5x) - REJECTED`);
       return false;
     }
   }
   
   // Verifica prezzo con tolleranza del +20%
   if (buyer.maxPrice && property.price > buyer.maxPrice * 1.20) {
-    console.log(`[Matching] Property ${property.id} price €${property.price} exceeds max €${buyer.maxPrice * 1.20} (buyer max €${buyer.maxPrice} +20%) - REJECTED`);
     return false;
   }
   
@@ -155,7 +151,6 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
     const propertyLocation = extractCoordinates(property);
     
     if (!propertyLocation) {
-      console.log(`[Matching] L'immobile ${property.id} non ha coordinate GPS - RIFIUTATO (buyer richiede searchArea)`);
       return false;
     }
     
@@ -203,7 +198,6 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
               const radius = feature.properties?.radius || 500;
               if (distance <= radius) {
                 isInArea = true;
-                console.log(`[Matching] Property ${property.id} (${property.address}) è DENTRO il raggio della zona ${feature.properties?.zoneName || 'unnamed'} a ${Math.round(distance)}m (raggio: ${radius}m)`);
                 break;
               }
             }
@@ -225,9 +219,6 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
           );
           
           const isInRadius = distance <= searchArea.radius;
-          
-          console.log(`[Matching] Immobile ${property.id} (${property.address}) è a ${Math.round(distance)}m dal centro (raggio: ${searchArea.radius}m) - ${isInRadius ? 'DENTRO' : 'FUORI'}`);
-          
           return isInRadius;
         }
         // Se è un oggetto GeoJSON Feature
@@ -236,7 +227,6 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
             // Usa direttamente le coordinate dal GeoJSON
             buyerPolygon = polygon((buyer.searchArea as any).geometry.coordinates);
           } else {
-            console.log(`[Matching] L'acquirente ${buyer.id} ha una geometria non supportata:`, (buyer.searchArea as any).geometry.type);
             return false;
           }
         } 
@@ -255,20 +245,15 @@ export function isPropertyMatchingBuyerCriteria(property: Property, buyer: Buyer
           
           buyerPolygon = polygon([searchAreaCoords]);
         } else {
-          console.log(`[Matching] L'acquirente ${buyer.id} non ha un'area di ricerca valida:`, buyer.searchArea);
           return false;
         }
       } else {
-        console.log(`[Matching] L'acquirente ${buyer.id} non ha definito un'area di ricerca`);
         return false;
       }
       
       // Eseguo il controllo con Turf.js (se buyerPolygon è stato creato)
       if (buyerPolygon) {
         const isInPolygon = booleanPointInPolygon(immobilePoint, buyerPolygon);
-        
-        console.log(`[Matching] Immobile ${property.id} (${property.address}) in posizione [${propertyLocation.lng}, ${propertyLocation.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id || buyer.clientId}`);
-        
         return isInPolygon;
       }
       
@@ -305,7 +290,6 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
     // Only reject if BOTH have types AND they don't match
     // If propertyType is empty, allow the match (wildcard)
     if (buyerType && propertyType && propertyType !== buyerType) {
-      console.log(`[Matching] SharedProperty ${sharedProperty.id} type '${sharedProperty.type}' (normalized: '${propertyType}') doesn't match buyer requirement '${buyer.propertyType}' (normalized: '${buyerType}') - REJECTED`);
       return false;
     }
   }
@@ -313,68 +297,57 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
   // Verifica metratura con tolleranza -20% rispetto al minimo E limite superiore 2.5x
   if (buyer.minSize && sharedProperty.size) {
     const minAcceptable = buyer.minSize * 0.8; // -20%
-    const maxAcceptable = buyer.minSize * 2.5; // Limite superiore ragionevole (es. 50mq -> max 125mq)
+    const maxAcceptable = buyer.minSize * 2.5; // Limite superiore ragionevole
     
     if (sharedProperty.size < minAcceptable) {
-      console.log(`[Matching] SharedProperty ${sharedProperty.id} size ${sharedProperty.size}mq is below minimum ${minAcceptable.toFixed(0)}mq (buyer wants ${buyer.minSize}mq minimum -20%) - REJECTED`);
       return false;
     }
     
     if (sharedProperty.size > maxAcceptable) {
-      console.log(`[Matching] SharedProperty ${sharedProperty.id} size ${sharedProperty.size}mq exceeds maximum ${maxAcceptable.toFixed(0)}mq (buyer wants ${buyer.minSize}mq, max 2.5x) - REJECTED`);
       return false;
     }
   }
   
   // Verifica prezzo con tolleranza del +20%
   if (buyer.maxPrice && sharedProperty.price && sharedProperty.price > buyer.maxPrice * 1.20) {
-    console.log(`[Matching] SharedProperty ${sharedProperty.id} price €${sharedProperty.price} exceeds max €${buyer.maxPrice * 1.20} (buyer max €${buyer.maxPrice} +20%) - REJECTED`);
     return false;
   }
   
   // Verifica se l'immobile è all'interno dell'area di ricerca (poligono)
   if (buyer.searchArea) {
-    // Estrae le coordinate da location object O da latitude/longitude fields
     const propertyLocation = extractCoordinates(sharedProperty);
     
     if (!propertyLocation) {
-      console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) non ha coordinate GPS - RIFIUTATO (buyer richiede searchArea)`);
       return false;
     }
     
     try {
-      
       const immobilePoint = point([propertyLocation.lng, propertyLocation.lat]);
       
       let buyerPolygon;
       let isInArea = false;
       
       if (buyer.searchArea && typeof buyer.searchArea === 'object') {
-        console.log(`[Matching] DEBUG: Buyer ${buyer.id} searchArea type: ${(buyer.searchArea as any).type}, has features: ${!!(buyer.searchArea as any).features}, is array: ${Array.isArray(buyer.searchArea)}`);
         // FIX: Se è un FeatureCollection (array di poligoni/punti multipli) - per zone multiple
         if ((buyer.searchArea as any).type === 'FeatureCollection' && (buyer.searchArea as any).features) {
-          // Verifica se il punto è dentro ALMENO UNO dei poligoni
           for (const feature of (buyer.searchArea as any).features) {
             if (feature.geometry.type === 'Polygon' && feature.geometry.coordinates) {
               const featurePolygon = polygon(feature.geometry.coordinates);
               if (booleanPointInPolygon(immobilePoint, featurePolygon)) {
                 isInArea = true;
-                console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO la zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'}`);
                 break;
               }
             }
             // FIX ARCHITECT: Gestisci MultiPolygon (comune per zone complesse)
             else if (feature.geometry.type === 'MultiPolygon' && feature.geometry.coordinates) {
-              // MultiPolygon = array di Polygon
               for (const polygonCoords of feature.geometry.coordinates) {
                 const featurePolygon = polygon(polygonCoords);
                 if (booleanPointInPolygon(immobilePoint, featurePolygon)) {
                   isInArea = true;
-                  console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO la zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'} (MultiPolygon)`);
                   break;
                 }
               }
-              if (isInArea) break; // Exit outer loop if found
+              if (isInArea) break;
             }
             // Gestisci Point con raggio di default 500m (zona urbana specifica)
             else if (feature.geometry.type === 'Point' && feature.geometry.coordinates) {
@@ -382,11 +355,9 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
                 propertyLocation.lat, propertyLocation.lng,
                 feature.geometry.coordinates[1], feature.geometry.coordinates[0]
               );
-              // Usa raggio specificato nelle properties, altrimenti default 500m
               const radius = feature.properties?.radius || 500;
               if (distance <= radius) {
                 isInArea = true;
-                console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è DENTRO il raggio della zona ${feature.properties?.name || feature.properties?.zoneName || 'unnamed'} a ${Math.round(distance)}m (raggio: ${radius}m)`);
                 break;
               }
             }
@@ -404,8 +375,6 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
           );
           
           const isInRadius = distance <= searchArea.radius;
-          console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) è a ${Math.round(distance)}m dal centro (raggio: ${searchArea.radius}m) - ${isInRadius ? 'DENTRO' : 'FUORI'}`);
-          
           return isInRadius;
         }
         // Se è un oggetto GeoJSON Feature
@@ -413,7 +382,6 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
           if ((buyer.searchArea as any).geometry.type === 'Polygon' && (buyer.searchArea as any).geometry.coordinates) {
             buyerPolygon = polygon((buyer.searchArea as any).geometry.coordinates);
           } else {
-            console.log(`[Matching] SharedProperty - L'acquirente ${buyer.id} ha una geometria non supportata:`, (buyer.searchArea as any).geometry.type);
             return false;
           }
         } 
@@ -428,17 +396,13 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
           
           buyerPolygon = polygon([searchAreaCoords]);
         } else {
-          console.log(`[Matching] SharedProperty - L'acquirente ${buyer.id} non ha un'area di ricerca valida:`, buyer.searchArea);
           return false;
         }
       } else {
-        console.log(`[Matching] SharedProperty - L'acquirente ${buyer.id} non ha definito un'area di ricerca`);
         return false;
       }
       
       const isInPolygon = booleanPointInPolygon(immobilePoint, buyerPolygon);
-      console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) in posizione [${propertyLocation.lng}, ${propertyLocation.lat}] è ${isInPolygon ? 'DENTRO' : 'FUORI'} dal poligono dell'acquirente ${buyer.id || buyer.clientId}`);
-      
       return isInPolygon;
     } catch (error) {
       console.error('Errore nella verifica del poligono per SharedProperty:', error);
@@ -446,11 +410,7 @@ export function isSharedPropertyMatchingBuyerCriteria(sharedProperty: SharedProp
     }
   }
   
-  // CRITICAL FIX: Se l'acquirente HA specificato un'area di ricerca ma siamo giunti qui,
-  // significa che la proprietà NON è dentro nessuna delle sue aree di ricerca.
-  // Rifiutiamo il matching.
-  // Se l'acquirente NON ha una searchArea, allora NON matchamo (perché non abbiamo modo di validare).
-  console.log(`[Matching] SharedProperty ${sharedProperty.id} (${sharedProperty.address}) RIFIUTATO: buyer ${buyer.id} non ha area di ricerca valida o proprietà è fuori area`);
+  // Se l'acquirente NON ha una searchArea, non possiamo validare - rifiutiamo
   return false;
 }
 

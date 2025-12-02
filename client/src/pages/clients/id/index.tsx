@@ -282,6 +282,19 @@ export default function ClientDetailPage() {
   
   // Filter matching properties based on ownership type (not classificationColor)
   const filteredMatchingProperties = useMemo(() => {
+    // When "Solo Preferiti" is active, show favorite properties with their details
+    if (showOnlyFavorites) {
+      // Use enriched favorite data that includes property details
+      return clientFavorites
+        .filter((fav: any) => fav.property) // Only include favorites with valid property details
+        .map((fav: any) => ({
+          ...fav.property,
+          id: fav.sharedPropertyId || fav.propertyId,
+          ownerType: fav.ownerType || 'shared',
+          isFavorite: true
+        }));
+    }
+    
     if (!matchingProperties) return [];
     return matchingProperties.filter((prop: any) => {
       // Private properties have ownerType === 'private'
@@ -294,12 +307,6 @@ export default function ClientDetailPage() {
       if (isPrivate && !showPrivate) return false;
       if (isMulti && !showMultiAgency) return false;
       if (isMono && !showMonoAgency) return false;
-      
-      // Filter by favorites if enabled
-      if (showOnlyFavorites) {
-        const isFav = isPropertyFavorite(prop.id, prop.ownerType || 'shared');
-        if (!isFav) return false;
-      }
       
       return true;
     });

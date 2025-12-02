@@ -5726,7 +5726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get client favorites
+  // Get client favorites with property details
   app.get("/api/clients/:id/favorites", async (req: Request, res: Response) => {
     try {
       const clientId = parseInt(req.params.id);
@@ -5735,7 +5735,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const favorites = await storage.getClientFavorites(clientId);
-      res.json(favorites);
+      
+      // Enrich favorites with property details
+      const enrichedFavorites = await Promise.all(favorites.map(async (fav) => {
+        let propertyDetails = null;
+        let ownerType = 'shared';
+        
+        if (fav.sharedPropertyId) {
+          propertyDetails = await storage.getSharedProperty(fav.sharedPropertyId);
+          ownerType = 'shared';
+        } else if (fav.propertyId) {
+          propertyDetails = await storage.getProperty(fav.propertyId);
+          ownerType = 'private';
+        }
+        
+        return {
+          ...fav,
+          property: propertyDetails,
+          ownerType
+        };
+      }));
+      
+      res.json(enrichedFavorites);
     } catch (error) {
       console.error(`[GET /api/clients/${req.params.id}/favorites]`, error);
       res.status(500).json({ error: "Errore durante il recupero dei preferiti" });
