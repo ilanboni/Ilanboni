@@ -753,19 +753,7 @@ function CampaignDetails({ campaign }: { campaign: Campaign }) {
         </TabsContent>
 
         <TabsContent value="properties">
-          <Card>
-            <CardHeader>
-              <CardTitle>Selezione Proprietà Private</CardTitle>
-              <CardDescription>
-                Seleziona proprietà da contattare per questa campagna
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center text-muted-foreground py-8">
-                Feature in arrivo: selezione proprietà private da database
-              </p>
-            </CardContent>
-          </Card>
+          <PropertySelectionTab campaign={campaignData} />
         </TabsContent>
 
         <TabsContent value="settings">
@@ -785,6 +773,173 @@ function CampaignDetails({ campaign }: { campaign: Campaign }) {
         </TabsContent>
       </div>
     </Tabs>
+  );
+}
+
+function PropertySelectionTab({ campaign }: { campaign: Campaign }) {
+  const { toast } = useToast();
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [testMode, setTestMode] = useState(false);
+  const [testPhone, setTestPhone] = useState("393407992052");
+
+  const { data: availableData, isLoading } = useQuery<{
+    ok: boolean;
+    properties: Array<{
+      id: number;
+      address: string;
+      ownerPhone: string;
+      ownerName: string | null;
+      price: number | null;
+      size: number | null;
+    }>;
+    totalFavorites: number;
+    alreadyContacted: number;
+  }>({
+    queryKey: ['/api/whatsapp-campaigns', campaign.id, 'available-properties'],
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest(`/api/whatsapp-campaigns/${campaign.id}/send`, {
+        method: 'POST',
+        data: {
+          propertyIds: selectedIds,
+          testMode,
+          testPhone: testMode ? testPhone : undefined
+        },
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Messaggi inviati",
+        description: `Inviati: ${data.results?.sent || 0}, Saltati: ${data.results?.skipped || 0}`,
+      });
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/whatsapp-campaigns'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore invio",
+        description: error.message || "Errore durante l'invio",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectAll = () => {
+    if (availableData?.properties) {
+      setSelectedIds(availableData.properties.map(p => p.id));
+    }
+  };
+
+  const properties = availableData?.properties || [];
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <p className="text-center text-muted-foreground">Caricamento...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Proprietà Private Preferite</CardTitle>
+        <CardDescription>
+          {properties.length} proprietà disponibili • {availableData?.alreadyContacted || 0} già contattate
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Test Mode Controls */}
+        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={testMode}
+              onCheckedChange={setTestMode}
+              data-testid="switch-test-mode"
+            />
+            <span className="text-sm font-medium">Modalità Test</span>
+          </div>
+          {testMode && (
+            <Input
+              placeholder="Numero test (es. 393407992052)"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              className="max-w-xs"
+              data-testid="input-test-phone"
+            />
+          )}
+        </div>
+
+        {/* Selection Controls */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={selectAll} data-testid="button-select-all">
+              Seleziona tutte
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedIds([])} data-testid="button-deselect-all">
+              Deseleziona
+            </Button>
+          </div>
+          <Button 
+            onClick={() => sendMutation.mutate()}
+            disabled={selectedIds.length === 0 || sendMutation.isPending}
+            data-testid="button-send-campaign"
+          >
+            <Send className="h-4 w-4 mr-2" />
+            {sendMutation.isPending ? "Invio..." : `Invia a ${selectedIds.length} proprietari`}
+          </Button>
+        </div>
+
+        {/* Property List */}
+        {properties.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">
+            Nessuna proprietà preferita con telefono disponibile.
+            <br />
+            Aggiungi proprietà ai preferiti dalla pagina Proprietà Private.
+          </p>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {properties.map((property) => (
+              <div 
+                key={property.id}
+                className={`flex items-center gap-4 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  selectedIds.includes(property.id) ? 'bg-primary/10 border-primary' : 'hover:bg-muted'
+                }`}
+                onClick={() => toggleSelect(property.id)}
+                data-testid={`property-item-${property.id}`}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedIds.includes(property.id)}
+                  onChange={() => toggleSelect(property.id)}
+                  className="h-4 w-4"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{property.address}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {property.ownerName || 'Proprietario'} • {property.ownerPhone}
+                  </p>
+                </div>
+                {property.price && (
+                  <Badge variant="outline">€{property.price.toLocaleString()}</Badge>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

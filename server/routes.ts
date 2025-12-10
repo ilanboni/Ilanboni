@@ -35,6 +35,7 @@ import {
   matches,
   clientRequests,
   propertyActivities,
+  campaignMessages,
   type PropertySent,
   type AppointmentConfirmation,
   type PropertyVisit,
@@ -15078,6 +15079,53 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
       res.status(500).json({
         ok: false,
         error: 'Errore durante aggiornamento campagna',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
+   * GET /api/whatsapp-campaigns/:id/available-properties
+   * Proprietà private preferite non ancora contattate dalla campagna
+   */
+  app.get('/api/whatsapp-campaigns/:id/available-properties', async (req: Request, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      
+      // Get properties that are favorites with phone numbers
+      const favoriteProperties = await db
+        .select()
+        .from(properties)
+        .where(
+          and(
+            eq(properties.isFavorite, true),
+            isNotNull(properties.ownerPhone),
+            sql`${properties.ownerPhone} != ''`
+          )
+        );
+      
+      // Get already contacted property IDs for this campaign
+      const contactedMessages = await db
+        .select({ propertyId: campaignMessages.propertyId })
+        .from(campaignMessages)
+        .where(eq(campaignMessages.campaignId, campaignId));
+      
+      const contactedIds = new Set(contactedMessages.map(m => m.propertyId));
+      
+      // Filter out already contacted properties
+      const availableProperties = favoriteProperties.filter(p => !contactedIds.has(p.id));
+      
+      res.json({
+        ok: true,
+        properties: availableProperties,
+        totalFavorites: favoriteProperties.length,
+        alreadyContacted: contactedIds.size
+      });
+    } catch (error) {
+      console.error('[GET /api/whatsapp-campaigns/:id/available-properties] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante recupero proprietà disponibili',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
