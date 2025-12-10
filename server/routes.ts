@@ -15184,10 +15184,18 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
         errors: [] as string[]
       };
 
-      // Processa ogni proprietà
+      // Processa ogni proprietà (cerca prima in sharedProperties poi in properties)
       for (const propertyId of propertyIds) {
         try {
-          const property = await storage.getProperty(propertyId);
+          // Le proprietà private sono in sharedProperties, non in properties
+          let property = await storage.getSharedProperty(propertyId);
+          let isSharedProperty = true;
+          
+          if (!property) {
+            property = await storage.getProperty(propertyId);
+            isSharedProperty = false;
+          }
+          
           if (!property) {
             results.skipped++;
             results.errors.push(`Proprietà ${propertyId} non trovata`);
