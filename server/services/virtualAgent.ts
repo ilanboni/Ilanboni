@@ -176,6 +176,39 @@ const BOT_CONFIG = {
       "Capisco e rispetto la sua scelta. Rimango comunque a disposizione se in futuro volesse un parere esterno sulla sua situazione."
     ],
     "signature": "Un cordiale saluto,\nSara – Assistente del Dott. Ilan Boni"
+  },
+  "follow_up": {
+    "enabled": true,
+    "send_after_hours_range": {
+      "min": 48,
+      "max": 72
+    },
+    "active_days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+    "active_hours": {
+      "start": 9,
+      "end": 19
+    },
+    "delay_behavior": "use_random_time_within_window",
+    "max_attempts": 1,
+    "tones": {
+      "freddo": {
+        "message": "Gentile Proprietario, le scrivo solo per sapere se ha visto il mio precedente messaggio. Il Dott. Boni può passare dieci minuti in appartamento per darle un quadro chiaro della situazione. Se vuole fissare l'incontro, sono qui."
+      },
+      "caldo": {
+        "message": "Gentile Proprietario, la contatto solo per capire se ha avuto modo di leggere il mio precedente messaggio. Il Dott. Boni è disponibile per un breve incontro in appartamento, utile a capire come sta rispondendo il mercato nella sua zona. Se desidera, posso fissare io un momento comodo per Lei."
+      },
+      "amorevole": {
+        "message": "Gentile Proprietario, la disturbo solo per sapere se ha avuto modo di leggere il mio messaggio precedente. Il Dott. Boni rimane disponibile per un incontro breve in appartamento, così da ascoltare con calma la sua situazione e darle qualche indicazione utile. Se se la sente, posso aiutarla a fissare un momento adatto."
+      },
+      "analitico": {
+        "message": "Gentile Proprietario, le scrivo per un breve riscontro al mio precedente messaggio. Il Dott. Boni è disponibile per un incontro di 10–20 minuti in appartamento, per analizzare insieme dati, domanda reale e posizionamento dell'immobile. Se vuole procedere, posso fissare io l'appuntamento."
+      }
+    },
+    "signature": "Un cordiale saluto,\nSara – Assistente del Dott. Ilan Boni",
+    "after_no_response": {
+      "action": "stop_all_contact",
+      "note": "Se il follow-up non riceve risposta, il sistema non dovrà più inviare ulteriori messaggi al cliente."
+    }
   }
 };
 
