@@ -15234,15 +15234,18 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
             campaign.useAiPersonalization || false // Usa AI se configurato in campagna
           );
 
-          // Crea record messaggio
-          const campaignMessage = await storage.createCampaignMessage({
-            campaignId: campaign.id,
-            propertyId: property.id,
-            phoneNumber: targetPhone,
-            messageContent,
-            status: 'pending',
-            conversationActive: true
-          });
+          // In test mode, NON creare record campaign_message per permettere reinvii multipli
+          let campaignMessage: any = null;
+          if (!testMode) {
+            campaignMessage = await storage.createCampaignMessage({
+              campaignId: campaign.id,
+              propertyId: property.id,
+              phoneNumber: targetPhone,
+              messageContent,
+              status: 'pending',
+              conversationActive: true
+            });
+          }
 
           // Invia via WhatsApp (UltraMsg)
           try {
@@ -15250,31 +15253,37 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
             const whatsappResult = await sendWhatsAppMessage(targetPhone, messageContent);
             
             if (whatsappResult.success) {
-              console.log(`[CAMPAIGN ${campaignId}] ✅ WhatsApp inviato a ${property.ownerPhone}`);
-              await storage.updateCampaignMessage(campaignMessage.id, {
-                status: 'sent',
-                sentAt: new Date(),
-                metadata: { whatsappMessageId: whatsappResult.messageId }
-              });
+              console.log(`[CAMPAIGN ${campaignId}] ✅ WhatsApp inviato a ${testMode ? 'TEST:' + targetPhone : property.ownerPhone}`);
               
-              // Traccia contatto
-              await phoneDedup.trackContact(property.ownerPhone, propertyId, campaign.id);
+              // Solo in modalità normale, aggiorna record e traccia contatto
+              if (!testMode && campaignMessage) {
+                await storage.updateCampaignMessage(campaignMessage.id, {
+                  status: 'sent',
+                  sentAt: new Date(),
+                  metadata: { whatsappMessageId: whatsappResult.messageId }
+                });
+                await phoneDedup.trackContact(property.ownerPhone, propertyId, campaign.id);
+              }
               results.sent++;
             } else {
               console.error(`[CAMPAIGN ${campaignId}] ❌ Errore invio WhatsApp a ${property.ownerPhone}:`, whatsappResult.error);
-              await storage.updateCampaignMessage(campaignMessage.id, {
-                status: 'failed',
-                metadata: { error: whatsappResult.error }
-              });
+              if (!testMode && campaignMessage) {
+                await storage.updateCampaignMessage(campaignMessage.id, {
+                  status: 'failed',
+                  metadata: { error: whatsappResult.error }
+                });
+              }
               results.failed++;
               results.errors.push(`WhatsApp ${property.ownerPhone}: ${whatsappResult.error}`);
             }
           } catch (whatsappError) {
             console.error(`[CAMPAIGN ${campaignId}] ❌ Eccezione invio WhatsApp:`, whatsappError);
-            await storage.updateCampaignMessage(campaignMessage.id, {
-              status: 'failed',
-              metadata: { error: whatsappError instanceof Error ? whatsappError.message : 'Unknown error' }
-            });
+            if (!testMode && campaignMessage) {
+              await storage.updateCampaignMessage(campaignMessage.id, {
+                status: 'failed',
+                metadata: { error: whatsappError instanceof Error ? whatsappError.message : 'Unknown error' }
+              });
+            }
             results.failed++;
             results.errors.push(`Eccezione WhatsApp ${property.ownerPhone}: ${whatsappError instanceof Error ? whatsappError.message : 'Unknown'}`);
           }
