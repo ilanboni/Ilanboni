@@ -33,65 +33,17 @@ interface BotResponse {
 }
 
 /**
- * Verifica se il messaggio contiene un'obiezione configurata
- * Usa word boundary matching per evitare false positives da sottostringhe
- */
-function checkForObjection(
-  userMessage: string,
-  objectionHandling: any
-): { keywords: string[]; response: string } | null {
-  if (!objectionHandling || !Array.isArray(objectionHandling)) {
-    return null;
-  }
-
-  const messageLower = userMessage.toLowerCase();
-  
-  for (const objection of objectionHandling) {
-    if (objection.keywords && Array.isArray(objection.keywords)) {
-      // Verifica se almeno una keyword è presente nel messaggio (con word boundaries)
-      const found = objection.keywords.some((keyword: string) => {
-        const keywordLower = keyword.toLowerCase().trim();
-        // Use word boundary regex for precise matching - evita false positives
-        const regex = new RegExp(`\\b${keywordLower}\\b`, 'i');
-        return regex.test(messageLower);
-      });
-      
-      if (found && objection.response) {
-        console.log(`[BOT-OBJECTION] Rilevata obiezione con keywords: ${objection.keywords.join(', ')}`);
-        return objection;
-      }
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Genera risposta bot usando ChatGPT
+ * Genera risposta bot usando ChatGPT con istruzioni generali
+ * L'AI gestisce autonomamente qualsiasi tipo di messaggio/obiezione
  */
 export async function generateBotResponse(
   userMessage: string,
   context: BotContext
 ): Promise<BotResponse> {
   try {
-    // STEP 1: Verifica se c'è un'obiezione configurata
-    const objection = checkForObjection(
-      userMessage,
-      (context.campaign as any).objectionHandling
-    );
+    console.log(`[BOT-AI] Generazione risposta AI per messaggio: "${userMessage.substring(0, 50)}..."`);
     
-    if (objection) {
-      console.log(`[BOT-OBJECTION] Uso risposta configurata per obiezione`);
-      return {
-        message: objection.response,
-        intent: 'objection_handled',
-        confidence: 100,
-        shouldEndConversation: false,
-        suggestedActions: ['Monitorare risposta cliente', 'Follow-up tra qualche giorno']
-      };
-    }
-    
-    // STEP 2: Nessuna obiezione configurata, usa ChatGPT
+    // Usa ChatGPT con istruzioni generali della campagna
     // Usa Replit AI Integrations (crediti Replit)
     const openai = new OpenAI({
       baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -221,39 +173,43 @@ export async function generateBotResponse(
 
 /**
  * Costruisce system prompt per ChatGPT basato su istruzioni campagna
+ * Le istruzioni dell'utente hanno priorità assoluta
  */
 function buildSystemPrompt(context: BotContext): string {
   const { campaign, propertyDetails } = context;
 
-  const basePrompt = `Sei un assistente AI che aiuta agenti immobiliari a gestire conversazioni WhatsApp con proprietari privati di immobili.
+  // Le istruzioni dell'utente sono la parte più importante
+  const userInstructions = campaign.instructions || "";
+  
+  const basePrompt = `Sei un assistente virtuale che gestisce conversazioni WhatsApp per conto di un agente immobiliare.
 
-**Contesto immobile:**
+=== ISTRUZIONI DELL'AGENTE (SEGUI QUESTE PRIORITARIAMENTE) ===
+${userInstructions || "Nessuna istruzione specifica fornita. Usa buon senso professionale."}
+=== FINE ISTRUZIONI AGENTE ===
+
+**Contesto immobile di cui si sta parlando:**
 - Indirizzo: ${propertyDetails.address || "Non specificato"}
-- Prezzo: ${propertyDetails.price ? `€${propertyDetails.price.toLocaleString("it-IT")}` : "Da concordare"}
+- Prezzo richiesto: ${propertyDetails.price ? `€${propertyDetails.price.toLocaleString("it-IT")}` : "Da concordare"}
 - Dimensione: ${propertyDetails.size ? `${propertyDetails.size}m²` : "Non specificata"}
 - Tipologia: ${propertyDetails.type || "Immobile"}
 
-**Il tuo ruolo:**
-1. Rispondi in modo professionale ma amichevole
-2. Mantieni conversazioni brevi e concise (max 100 parole)
-3. NON prendere impegni definitivi senza conferma agente
-4. Suggerisci sempre il contatto con l'agente per dettagli importanti
-5. Rispondi SEMPRE in italiano
+**Regole base (solo se non in contrasto con istruzioni agente):**
+1. Rispondi SEMPRE in italiano
+2. Messaggi brevi e naturali (stile WhatsApp, max 2-3 frasi)
+3. Sii cordiale ma professionale
+4. Se non sai rispondere a qualcosa, proponi che l'agente richiami
 
-**Obiettivi conversazione:**
-- Raccogliere informazioni sul proprietario e sulla proprietà
-- Confermare disponibilità per appuntamento/chiamata
-- Capire motivazione vendita e tempistiche
-- Identificare se immobile è ancora disponibile
+**Come gestire le obiezioni:**
+Segui lo spirito delle istruzioni dell'agente. Se il proprietario:
+- Dice "no grazie" / "non interessato" → ringrazia e lascia porta aperta per futuro
+- Chiede info su commissioni/costi → rimanda all'agente per dettagli
+- È già in trattativa con altri → mostra interesse genuino senza pressare
+- Ha dubbi → rassicura gentilmente seguendo tono delle istruzioni
 
-**Istruzioni specifiche campagna:**
-${campaign.instructions || "Nessuna istruzione specifica - usa buon senso professionale."}
-
-**Cosa NON fare:**
-- Non dare valutazioni definitive di prezzo
-- Non promettere vendita rapida senza verifiche
-- Non discutere commissioni o costi
-- Non essere insistente o pressante`;
+NON fare mai:
+- Non inventare informazioni che non hai
+- Non essere insistente o aggressivo
+- Non fare promesse che l'agente non può mantenere`;
 
   return basePrompt;
 }
