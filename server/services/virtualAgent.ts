@@ -110,38 +110,155 @@ const BOT_CONFIG = {
       "Capisco e rispetto la sua scelta. Rimango a disposizione per qualsiasi dubbio futuro."
     ],
     "signature": "Un cordiale saluto, l'Assistente del Dott. Ilan Boni"
+  },
+  "response_timing": {
+    "active_days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+    "active_hours": {
+      "start": 9,
+      "end": 19
+    },
+    "delay_seconds": {
+      "min": 300,
+      "max": 1800
+    },
+    "behavior": {
+      "if_outside_hours": "delay_to_next_active_period",
+      "randomize_delay": true
+    }
   }
 };
 
 /**
- * Verifica se siamo in orario lavorativo (Lun-Sab)
+ * Mappa giorni della settimana in inglese -> numero JS
  */
-function isBusinessHours(): boolean {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = domenica, 1 = lunedì, ... 6 = sabato
-  
-  // Domenica = disattivato
-  if (dayOfWeek === 0) {
-    return false;
-  }
-  
-  // Lunedì-Sabato = attivo
-  return true;
+const DAY_MAP: Record<string, number> = {
+  "sunday": 0,
+  "monday": 1,
+  "tuesday": 2,
+  "wednesday": 3,
+  "thursday": 4,
+  "friday": 5,
+  "saturday": 6
+};
+
+/**
+ * Ottieni l'ora corrente in Italia (Europe/Rome timezone)
+ */
+function getItalyTime(): Date {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Rome" }));
 }
 
 /**
- * Schedula una risposta ritardata (0 secondi in fase di beta test)
+ * Verifica se siamo in orario lavorativo secondo BOT_CONFIG.response_timing
+ */
+function isBusinessHours(): boolean {
+  const timing = BOT_CONFIG.response_timing;
+  const now = getItalyTime();
+  const dayOfWeek = now.getDay();
+  const currentHour = now.getHours();
+  
+  // Verifica giorno attivo
+  const dayName = Object.keys(DAY_MAP).find(key => DAY_MAP[key] === dayOfWeek) || "";
+  const isDayActive = timing.active_days.includes(dayName);
+  
+  // Verifica ora attiva
+  const isHourActive = currentHour >= timing.active_hours.start && currentHour < timing.active_hours.end;
+  
+  console.log(`[VIRTUAL-AGENT-TIMING] Ora Italia: ${now.toLocaleTimeString("it-IT")}, Giorno: ${dayName}, Ora: ${currentHour}`);
+  console.log(`[VIRTUAL-AGENT-TIMING] Giorno attivo: ${isDayActive}, Ora attiva: ${isHourActive}`);
+  
+  return isDayActive && isHourActive;
+}
+
+/**
+ * Calcola il delay random secondo BOT_CONFIG.response_timing
+ */
+function getRandomDelay(): number {
+  const timing = BOT_CONFIG.response_timing;
+  const minSeconds = timing.delay_seconds.min;
+  const maxSeconds = timing.delay_seconds.max;
+  
+  if (timing.behavior.randomize_delay) {
+    // Delay casuale tra min e max
+    return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
+  } else {
+    // Delay fisso al minimo
+    return minSeconds;
+  }
+}
+
+/**
+ * Calcola i secondi fino al prossimo periodo attivo
+ */
+function getSecondsUntilNextActivePeriod(): number {
+  const timing = BOT_CONFIG.response_timing;
+  const now = getItalyTime();
+  const dayOfWeek = now.getDay();
+  const currentHour = now.getHours();
+  const currentMinutes = now.getMinutes();
+  const currentSeconds = now.getSeconds();
+  
+  // Se siamo prima dell'orario di inizio oggi e oggi è un giorno attivo
+  const dayName = Object.keys(DAY_MAP).find(key => DAY_MAP[key] === dayOfWeek) || "";
+  const isDayActive = timing.active_days.includes(dayName);
+  
+  if (isDayActive && currentHour < timing.active_hours.start) {
+    // Attendi fino alle ore start di oggi
+    const hoursToWait = timing.active_hours.start - currentHour;
+    const secondsToWait = (hoursToWait * 3600) - (currentMinutes * 60) - currentSeconds;
+    console.log(`[VIRTUAL-AGENT-TIMING] Attesa fino alle ${timing.active_hours.start}:00 di oggi: ${Math.round(secondsToWait / 60)} minuti`);
+    return secondsToWait;
+  }
+  
+  // Trova il prossimo giorno attivo
+  for (let i = 1; i <= 7; i++) {
+    const nextDay = (dayOfWeek + i) % 7;
+    const nextDayName = Object.keys(DAY_MAP).find(key => DAY_MAP[key] === nextDay) || "";
+    
+    if (timing.active_days.includes(nextDayName)) {
+      // Calcola secondi fino alle ore start del prossimo giorno attivo
+      const daysUntil = i;
+      const hoursUntilMidnight = 24 - currentHour;
+      const totalHours = (daysUntil - 1) * 24 + hoursUntilMidnight + timing.active_hours.start;
+      const secondsToWait = (totalHours * 3600) - (currentMinutes * 60) - currentSeconds;
+      console.log(`[VIRTUAL-AGENT-TIMING] Prossimo periodo attivo: ${nextDayName} alle ${timing.active_hours.start}:00 (tra ${Math.round(secondsToWait / 3600)} ore)`);
+      return secondsToWait;
+    }
+  }
+  
+  // Fallback: 12 ore
+  return 43200;
+}
+
+/**
+ * Schedula una risposta con delay intelligente basato su BOT_CONFIG.response_timing
  */
 async function scheduleDelayedResponse(
   communicationId: number,
-  delayMinutes: number = 0  // ⚡ BETA TEST: risposta immediata
+  forceImmediateForTest: boolean = false
 ): Promise<void> {
-  const delayMs = delayMinutes * 60 * 1000;
+  let delaySeconds: number;
   
-  if (delayMinutes === 0) {
-    console.log(`[VIRTUAL-AGENT] ⚡ BETA TEST: Risposta IMMEDIATA per comunicazione ${communicationId}`);
+  if (forceImmediateForTest) {
+    // Test mode: risposta immediata
+    delaySeconds = 0;
+    console.log(`[VIRTUAL-AGENT] ⚡ TEST MODE: Risposta IMMEDIATA per comunicazione ${communicationId}`);
+  } else if (isBusinessHours()) {
+    // Siamo in orario lavorativo: delay random 5-30 minuti
+    delaySeconds = getRandomDelay();
+    console.log(`[VIRTUAL-AGENT] 🕐 In orario lavorativo: risposta tra ${Math.round(delaySeconds / 60)} minuti`);
   } else {
-    console.log(`[VIRTUAL-AGENT] Risposta schedulata tra ${delayMinutes} minuti per comunicazione ${communicationId}`);
+    // Fuori orario: attendi fino al prossimo periodo attivo + delay random
+    const secondsUntilActive = getSecondsUntilNextActivePeriod();
+    const randomDelay = getRandomDelay();
+    delaySeconds = secondsUntilActive + randomDelay;
+    console.log(`[VIRTUAL-AGENT] 🌙 Fuori orario: risposta posticipata di ${Math.round(delaySeconds / 3600)} ore`);
+  }
+  
+  const delayMs = delaySeconds * 1000;
+  
+  if (delaySeconds > 0) {
+    console.log(`[VIRTUAL-AGENT] Risposta schedulata tra ${Math.round(delaySeconds / 60)} minuti per comunicazione ${communicationId}`);
   }
   
   setTimeout(async () => {
@@ -173,28 +290,40 @@ async function executeDelayedResponse(communicationId: number): Promise<void> {
 
 /**
  * Genera e invia una risposta automatica a un messaggio del cliente
- * Entry point principale - gestisce business hours e scheduling
+ * Entry point principale - gestisce business hours e scheduling intelligente
+ * 
+ * Il timing è gestito da BOT_CONFIG.response_timing:
+ * - In orario lavorativo: delay random 5-30 minuti
+ * - Fuori orario: posticipa al prossimo periodo attivo + delay random
  */
 export async function handleClientMessage(
-  communicationId: number
+  communicationId: number,
+  forceImmediateForTest: boolean = false
 ): Promise<AgentResponse> {
   try {
-    // Verifica business hours (Lun-Sab)
-    if (!isBusinessHours()) {
-      console.log(`[VIRTUAL-AGENT] Fuori orario (Domenica) - risposta posticipata a Lunedì`);
+    // Usa il nuovo sistema di scheduling intelligente
+    await scheduleDelayedResponse(communicationId, forceImmediateForTest);
+    
+    if (forceImmediateForTest) {
       return {
         success: true,
-        message: "Messaggio ricevuto. Risposta verrà inviata Lunedì (orario lavorativo)."
+        message: "⚡ TEST MODE: Risposta immediata"
       };
     }
     
-    // ⚡ BETA TEST: Risposta IMMEDIATA (0 minuti di delay)
-    await scheduleDelayedResponse(communicationId, 0);
-    
-    return {
-      success: true,
-      message: "⚡ BETA TEST: Risposta IMMEDIATA"
-    };
+    if (isBusinessHours()) {
+      const delayMin = Math.round(BOT_CONFIG.response_timing.delay_seconds.min / 60);
+      const delayMax = Math.round(BOT_CONFIG.response_timing.delay_seconds.max / 60);
+      return {
+        success: true,
+        message: `🕐 Risposta schedulata tra ${delayMin}-${delayMax} minuti (orario lavorativo)`
+      };
+    } else {
+      return {
+        success: true,
+        message: "🌙 Fuori orario: risposta posticipata al prossimo periodo attivo"
+      };
+    }
   } catch (error: any) {
     console.error("Errore durante scheduling risposta:", error);
     return {
