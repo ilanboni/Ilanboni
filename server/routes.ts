@@ -15092,15 +15092,16 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     try {
       const campaignId = parseInt(req.params.id);
       
-      // Get properties that are favorites with phone numbers
+      // Get private properties that are favorites with phone numbers (from sharedProperties table)
       const favoriteProperties = await db
         .select()
-        .from(properties)
+        .from(sharedProperties)
         .where(
           and(
-            eq(properties.isFavorite, true),
-            isNotNull(properties.ownerPhone),
-            sql`${properties.ownerPhone} != ''`
+            eq(sharedProperties.ownerType, 'private'),
+            eq(sharedProperties.isFavorite, true),
+            isNotNull(sharedProperties.ownerPhone),
+            sql`${sharedProperties.ownerPhone} != ''`
           )
         );
       

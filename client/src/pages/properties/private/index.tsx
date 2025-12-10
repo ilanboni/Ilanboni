@@ -141,10 +141,10 @@ export default function PrivatePropertiesPage() {
     queryKey: ['/api/properties/private']
   });
 
-  // Mutation for toggling favorite status
+  // Mutation for toggling favorite status (uses shared-properties endpoint since private properties are in sharedProperties table)
   const toggleFavoriteMutation = useMutation({
     mutationFn: async ({ propertyId, isFavorite }: { propertyId: number; isFavorite: boolean }) => {
-      return await apiRequest(`/api/properties/${propertyId}/favorite`, {
+      return await apiRequest(`/api/shared-properties/${propertyId}/favorite`, {
         method: 'PATCH',
         data: { isFavorite }
       });
