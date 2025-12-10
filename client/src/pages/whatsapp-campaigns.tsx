@@ -58,7 +58,6 @@ const campaignFormSchema = z.object({
   name: z.string().min(1, "Nome richiesto"),
   description: z.string().optional(),
   messageTemplate: z.string().min(10, "Template messaggio troppo corto"),
-  followUpTemplate: z.string().optional(),
   followUpDelayDays: z.coerce.number().min(1).max(30).optional(),
   useAiPersonalization: z.boolean().optional(),
   instructions: z.string().optional(),
@@ -76,7 +75,6 @@ interface Campaign {
   name: string;
   description: string | null;
   messageTemplate: string;
-  followUpTemplate: string | null;
   followUpDelayDays: number | null;
   useAiPersonalization: boolean;
   instructions: string | null;
@@ -286,7 +284,6 @@ function CampaignForm({
       name: campaign.name,
       description: campaign.description || "",
       messageTemplate: campaign.messageTemplate,
-      followUpTemplate: campaign.followUpTemplate || "",
       followUpDelayDays: campaign.followUpDelayDays || 3,
       useAiPersonalization: campaign.useAiPersonalization,
       instructions: campaign.instructions || "",
@@ -296,7 +293,6 @@ function CampaignForm({
       name: "",
       description: "",
       messageTemplate: "Buongiorno {{name}},\n\nSono un agente immobiliare e ho notato il suo annuncio per l'immobile in {{address}} a €{{price}}.\n\nSarei interessato a discutere una possibile collaborazione. Possiamo organizzare una chiamata?\n\nGrazie,\n[Nome Agente]",
-      followUpTemplate: "Buongiorno {{name}},\n\nVolevo sapere se ha avuto modo di considerare la mia proposta per la proprietà in {{address}}.\n\nResto a disposizione per qualsiasi chiarimento.\n\nCordiali saluti",
       followUpDelayDays: 3,
       useAiPersonalization: false,
       instructions: "",
@@ -437,26 +433,6 @@ function CampaignForm({
                   data-testid="switch-ai-personalization"
                 />
               </FormControl>
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="followUpTemplate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Template Follow-up (opzionale)</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Messaggio automatico per chi non risponde..." 
-                  rows={4}
-                  {...field}
-                  value={field.value || ""}
-                  data-testid="input-followup-template"
-                />
-              </FormControl>
-              <FormMessage />
             </FormItem>
           )}
         />
@@ -696,21 +672,6 @@ function CampaignDetails({ campaign }: { campaign: Campaign }) {
             </CardContent>
           </Card>
 
-          {campaignData.followUpTemplate && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Template Follow-up</CardTitle>
-                <CardDescription>
-                  Inviato dopo {campaignData.followUpDelayDays} giorni senza risposta
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <pre className="bg-muted p-4 rounded-lg text-sm whitespace-pre-wrap">
-                  {campaignData.followUpTemplate}
-                </pre>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="messages">
