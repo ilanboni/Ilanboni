@@ -795,7 +795,7 @@ function PropertySelectionTab({ campaign }: { campaign: Campaign }) {
     totalFavorites: number;
     alreadyContacted: number;
   }>({
-    queryKey: ['/api/whatsapp-campaigns', campaign.id, 'available-properties'],
+    queryKey: [`/api/whatsapp-campaigns/${campaign.id}/available-properties`],
   });
 
   const sendMutation = useMutation({
