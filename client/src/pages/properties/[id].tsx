@@ -126,6 +126,7 @@ const communicationFormSchema = z.object({
   subject: z.string().min(1, "L'oggetto è obbligatorio"),
   content: z.string().optional(),
   needsFollowUp: z.boolean().default(false),
+  date: z.date({ required_error: "La data è obbligatoria" }),
 });
 
 type CommunicationFormData = z.infer<typeof communicationFormSchema>;
@@ -151,6 +152,7 @@ function AddCommunicationDialog({
       subject: "",
       content: "",
       needsFollowUp: false,
+      date: new Date(),
     },
   });
   
@@ -161,6 +163,7 @@ function AddCommunicationDialog({
         propertyId: isShared ? undefined : propertyId,
         sharedPropertyId: isShared ? propertyId : undefined,
         status: "completed",
+        createdAt: data.date.toISOString(),
       };
       
       const response = await fetch("/api/communications", {
@@ -215,7 +218,48 @@ function AddCommunicationDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Data</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            data-testid="button-comm-date"
+                          >
+                            {field.value ? (
+                              format(field.value, "dd/MM/yyyy", { locale: it })
+                            ) : (
+                              <span>Seleziona data</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) => date > new Date()}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <FormField
                 control={form.control}
                 name="type"
