@@ -51,8 +51,27 @@ import {
   Eye,
   Settings,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Activity,
+  BarChart3
 } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+
+interface GlobalStats {
+  messagesSent: number;
+  responsesReceived: number;
+  uniqueContacts: number;
+  responseRate: number;
+  firstMessageDate: string | null;
+  lastActivity: string | null;
+}
+
+interface DailyStat {
+  date: string;
+  sent: number;
+  received: number;
+}
 
 const campaignFormSchema = z.object({
   name: z.string().min(1, "Nome richiesto"),
@@ -109,6 +128,13 @@ export default function WhatsAppCampaignsPage() {
     queryKey: ['/api/whatsapp-campaigns'],
   });
 
+  const { data: globalStatsData } = useQuery<{ ok: boolean; stats: GlobalStats; dailyStats: DailyStat[] }>({
+    queryKey: ['/api/whatsapp-campaigns/global-stats'],
+  });
+
+  const globalStats = globalStatsData?.stats;
+  const dailyStats = globalStatsData?.dailyStats || [];
+
   return (
     <div className="container mx-auto py-6 space-y-6" data-testid="page-whatsapp-campaigns">
       <div className="flex items-center justify-between">
@@ -147,6 +173,120 @@ export default function WhatsAppCampaignsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Dashboard Statistiche Reali */}
+      {globalStats && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Statistiche WhatsApp
+          </h2>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card data-testid="card-stat-messages-sent">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Messaggi Inviati</CardTitle>
+                <Send className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{globalStats.messagesSent}</div>
+                <p className="text-xs text-muted-foreground">
+                  Totale messaggi outbound
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-stat-responses">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Risposte Ricevute</CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{globalStats.responsesReceived}</div>
+                <p className="text-xs text-muted-foreground">
+                  Messaggi inbound ricevuti
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-stat-contacts">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Contatti Unici</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{globalStats.uniqueContacts}</div>
+                <p className="text-xs text-muted-foreground">
+                  Proprietari contattati
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-stat-response-rate">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tasso di Risposta</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{globalStats.responseRate}%</div>
+                <p className="text-xs text-muted-foreground">
+                  {globalStats.responsesReceived} risposte / {globalStats.messagesSent} inviati
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Attività Ultimi 7 Giorni */}
+          {dailyStats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Activity className="h-4 w-4" />
+                  Attività Ultimi 7 Giorni
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {dailyStats.map((day) => (
+                    <div key={day.date} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground w-24">
+                        {format(new Date(day.date), 'dd MMM', { locale: it })}
+                      </span>
+                      <div className="flex-1 flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          <Send className="h-3 w-3 text-blue-500" />
+                          <span>{day.sent} inviati</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3 text-green-500" />
+                          <span>{day.received} ricevuti</span>
+                        </div>
+                      </div>
+                      <div className="w-32">
+                        <div className="flex h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                          <div 
+                            className="bg-blue-500" 
+                            style={{ width: `${Math.min((day.sent / Math.max(day.sent + day.received, 1)) * 100, 100)}%` }}
+                          />
+                          <div 
+                            className="bg-green-500" 
+                            style={{ width: `${Math.min((day.received / Math.max(day.sent + day.received, 1)) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {globalStats.lastActivity && (
+                  <p className="text-xs text-muted-foreground mt-4">
+                    Ultima attività: {format(new Date(globalStats.lastActivity), 'dd MMMM yyyy HH:mm', { locale: it })}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {loadingCampaigns ? (
         <div className="text-center py-12" data-testid="loading-campaigns">

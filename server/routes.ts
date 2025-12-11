@@ -14992,6 +14992,65 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   });
 
   /**
+   * GET /api/whatsapp-campaigns/global-stats
+   * Statistiche globali WhatsApp calcolate dai dati reali
+   */
+  app.get('/api/whatsapp-campaigns/global-stats', async (req: Request, res: Response) => {
+    try {
+      // Statistiche globali dai messaggi reali
+      const globalStats = await db
+        .select({
+          messagesSent: sql<number>`COALESCE(SUM(CASE WHEN direction = 'outbound' THEN 1 ELSE 0 END), 0)::int`,
+          responsesReceived: sql<number>`COALESCE(SUM(CASE WHEN direction = 'inbound' THEN 1 ELSE 0 END), 0)::int`,
+          uniqueContacts: sql<number>`COUNT(DISTINCT client_id)::int`,
+          firstMessageDate: sql<string>`MIN(created_at)`,
+          lastActivity: sql<string>`MAX(created_at)`
+        })
+        .from(communications)
+        .where(eq(communications.type, 'whatsapp'));
+
+      // Statistiche ultimi 7 giorni
+      const dailyStats = await db
+        .select({
+          date: sql<string>`DATE(created_at)::text`,
+          sent: sql<number>`COALESCE(SUM(CASE WHEN direction = 'outbound' THEN 1 ELSE 0 END), 0)::int`,
+          received: sql<number>`COALESCE(SUM(CASE WHEN direction = 'inbound' THEN 1 ELSE 0 END), 0)::int`
+        })
+        .from(communications)
+        .where(eq(communications.type, 'whatsapp'))
+        .groupBy(sql`DATE(created_at)`)
+        .orderBy(sql`DATE(created_at) DESC`)
+        .limit(7);
+
+      // Tasso di risposta
+      const stats = globalStats[0] || { messagesSent: 0, responsesReceived: 0, uniqueContacts: 0 };
+      const responseRate = stats.messagesSent > 0 
+        ? Math.round((stats.responsesReceived / stats.messagesSent) * 100) 
+        : 0;
+
+      res.json({
+        ok: true,
+        stats: {
+          messagesSent: stats.messagesSent,
+          responsesReceived: stats.responsesReceived,
+          uniqueContacts: stats.uniqueContacts,
+          responseRate,
+          firstMessageDate: stats.firstMessageDate,
+          lastActivity: stats.lastActivity
+        },
+        dailyStats: dailyStats.reverse() // Ordina dal più vecchio al più recente per il grafico
+      });
+    } catch (error) {
+      console.error('[GET /api/whatsapp-campaigns/global-stats] Errore:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore durante recupero statistiche',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  /**
    * GET /api/whatsapp-campaigns
    * Lista tutte le campagne WhatsApp
    */
