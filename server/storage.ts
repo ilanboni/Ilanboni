@@ -4251,13 +4251,45 @@ export class DatabaseStorage implements IStorage {
       .where(and(...whereConditions))
       .orderBy(desc(sharedProperties.createdAt));
     
+    // Also get private properties from properties table (exclusivity_hint = true)
+    // These are properties that were incorrectly classified and saved in the wrong table
+    const privateFromPropertiesTable = await db
+      .select()
+      .from(properties)
+      .where(eq(properties.exclusivityHint, true))
+      .orderBy(desc(properties.createdAt));
+    
+    // Convert properties to SharedProperty-like format
+    const convertedFromProperties: any[] = privateFromPropertiesTable.map((p: any) => ({
+      id: p.id,
+      address: p.address,
+      city: p.city,
+      price: p.price,
+      size: p.size,
+      type: p.type,
+      ownerType: 'private',
+      ownerPhone: p.ownerPhone,
+      ownerEmail: p.ownerEmail,
+      ownerName: p.ownerName,
+      description: p.description,
+      externalLink: p.externalLink || p.url,
+      portalSource: p.portal || p.source || 'Idealista',
+      createdAt: p.createdAt,
+      location: p.location,
+      classificationColor: 'green',
+      isFromPropertiesTable: true // Flag to identify source
+    }));
+    
+    // Combine both sources
+    const allPrivateProps = [...privateProps, ...convertedFromProperties];
+    
     // Filter properties within 4km radius of Duomo di Milano
     const DUOMO_LAT = 45.464204;
     const DUOMO_LNG = 9.191383;
     const RADIUS_KM = 4;
     const duomoPoint = point([DUOMO_LNG, DUOMO_LAT]);
     
-    const filteredByRadius = privateProps.filter((p: any) => {
+    const filteredByRadius = allPrivateProps.filter((p: any) => {
       let lat, lng;
       
       // Try to get coordinates from location object first
