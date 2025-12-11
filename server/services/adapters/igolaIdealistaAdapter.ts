@@ -199,11 +199,67 @@ export class IgolaIdealistaAdapter {
         const developerCount = allItems.filter((i: any) => i.contactInfo?.userType === 'developer').length;
         console.log(`[IGOLA-IDEALISTA]   - Private: ${privateCount}, Professional: ${professionalCount}, Developer: ${developerCount}`);
 
+        // Additional filter: detect agencies disguised as private sellers by owner name
+        const agencyKeywords = [
+          'immobiliare', 'immobiliari', 'agency', 'agenzia', 'agenzie',
+          'consulting', 'consultant', 'consultants', 'consulenza',
+          'real estate', 'realestate', 'property', 'properties',
+          'srl', 's.r.l.', 'spa', 's.p.a.', 'snc', 's.n.c.', 'sas', 's.a.s.',
+          'group', 'gruppo', 'holding', 'invest', 'investment', 'investments',
+          'casa', 'case', 'home', 'homes', 'house', 'houses',
+          'broker', 'brokers', 'mediazione', 'mediazioni',
+          'vendite', 'vendita', 'compravendite', 'compravendita',
+          'gestioni', 'gestione', 'servizi', 'service', 'services',
+          'partners', 'partner', 'associati', 'associates',
+          'studio', 'studi', 'advisors', 'advisor',
+          'capital', 'capitale', 'patrimoniale', 'patrimoni',
+          'itineris', 'tecnocasa', 'gabetti', 'engel', 'remax', 're/max',
+          'coldwell', 'century21', 'century 21', 'keller williams',
+          'toscano', 'grimaldi', 'frimm', 'professione'
+        ];
+        
+        const isAgencyByName = (ownerName: string | null | undefined): boolean => {
+          if (!ownerName) return false;
+          const nameLower = ownerName.toLowerCase().trim();
+          
+          // Check for agency keywords
+          for (const keyword of agencyKeywords) {
+            if (nameLower.includes(keyword)) {
+              return true;
+            }
+          }
+          
+          // Check for company suffixes at end of name
+          if (/\b(srl|s\.r\.l\.|spa|s\.p\.a\.|snc|s\.n\.c\.|sas|s\.a\.s\.)\s*$/i.test(ownerName)) {
+            return true;
+          }
+          
+          return false;
+        };
+        
+        // Apply agency name filter only when looking for private properties
+        let realPrivateFiltered = userTypeFiltered;
+        let agencyByNameCount = 0;
+        
+        if (params.privateOnly !== false) {
+          realPrivateFiltered = userTypeFiltered.filter((item: any) => {
+            const contact = item.contactInfo || {};
+            const ownerName = contact.contactName || contact.commercialName || '';
+            if (isAgencyByName(ownerName)) {
+              agencyByNameCount++;
+              console.log(`[IGOLA-IDEALISTA] ⛔ Filtered agency disguised as private: "${ownerName}" (${item.propertyCode || 'N/A'})`);
+              return false;
+            }
+            return true;
+          });
+          console.log(`[IGOLA-IDEALISTA] After agency-name filter: ${realPrivateFiltered.length} properties (detected ${agencyByNameCount} fake privates)`);
+        }
+
         // Filter by Milano location to prevent out-of-market listings
         const filteredItems: any[] = [];
         let milanoFilteredCount = 0;
         
-        for (const item of userTypeFiltered) {
+        for (const item of realPrivateFiltered) {
           const locationCheck = isInMilanoArea(item);
           if (locationCheck.isValid) {
             filteredItems.push(item);
