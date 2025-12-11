@@ -692,7 +692,7 @@ export default function PrivatePropertiesPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => navigate(`/properties/${property.id}?type=shared`)}
+                                  onClick={() => navigate(`/properties/${property.id}${property.isFromPropertiesTable ? '' : '?type=shared'}`)}
                                 >
                                   Dettagli
                                 </Button>
@@ -831,7 +831,7 @@ export default function PrivatePropertiesPage() {
                         <Button
                           size="sm"
                           className="flex-1"
-                          onClick={() => navigate(`/properties/${property.id}?type=shared`)}
+                          onClick={() => navigate(`/properties/${property.id}${(property as any).isFromPropertiesTable ? '' : '?type=shared'}`)}
                         >
                           Dettagli
                         </Button>
