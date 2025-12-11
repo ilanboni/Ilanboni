@@ -119,6 +119,239 @@ const appointmentFormSchema = z.object({
 
 type AppointmentFormData = z.infer<typeof appointmentFormSchema>;
 
+// Communication form schema
+const communicationFormSchema = z.object({
+  type: z.string().min(1, "Seleziona un tipo"),
+  direction: z.string().min(1, "Seleziona una direzione"),
+  subject: z.string().min(1, "L'oggetto è obbligatorio"),
+  content: z.string().optional(),
+  needsFollowUp: z.boolean().default(false),
+});
+
+type CommunicationFormData = z.infer<typeof communicationFormSchema>;
+
+function AddCommunicationDialog({ 
+  propertyId, 
+  isShared, 
+  onSuccess 
+}: { 
+  propertyId: number; 
+  isShared: boolean;
+  onSuccess: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const form = useForm<CommunicationFormData>({
+    resolver: zodResolver(communicationFormSchema),
+    defaultValues: {
+      type: "call",
+      direction: "outbound",
+      subject: "",
+      content: "",
+      needsFollowUp: false,
+    },
+  });
+  
+  const createMutation = useMutation({
+    mutationFn: async (data: CommunicationFormData) => {
+      const payload = {
+        ...data,
+        propertyId: isShared ? undefined : propertyId,
+        sharedPropertyId: isShared ? propertyId : undefined,
+        status: "completed",
+      };
+      
+      const response = await fetch("/api/communications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Errore durante la creazione");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+      toast({
+        title: "Comunicazione salvata",
+        description: "La comunicazione è stata registrata con successo.",
+      });
+      form.reset();
+      setOpen(false);
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile salvare la comunicazione",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const onSubmit = (data: CommunicationFormData) => {
+    createMutation.mutate(data);
+  };
+  
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button data-testid="button-add-communication">
+          <i className="fas fa-plus mr-2"></i> Aggiungi
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Aggiungi comunicazione</DialogTitle>
+          <DialogDescription>
+            Registra una nuova comunicazione per questo immobile.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-comm-type">
+                          <SelectValue placeholder="Seleziona tipo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="call">Telefonata</SelectItem>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="meeting">Incontro</SelectItem>
+                        <SelectItem value="visit">Visita</SelectItem>
+                        <SelectItem value="note">Nota</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="direction"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Direzione</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-comm-direction">
+                          <SelectValue placeholder="Seleziona" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="outbound">In uscita</SelectItem>
+                        <SelectItem value="inbound">In entrata</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <FormField
+              control={form.control}
+              name="subject"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Oggetto</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Es: Chiamata per info appartamento" 
+                      data-testid="input-comm-subject"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="content"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contenuto / Note</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Dettagli della comunicazione..." 
+                      rows={4}
+                      data-testid="textarea-comm-content"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="needsFollowUp"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox 
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="checkbox-needs-followup"
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Richiede follow-up</FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
+            
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setOpen(false)}
+                data-testid="button-cancel-comm"
+              >
+                Annulla
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={createMutation.isPending}
+                data-testid="button-save-comm"
+              >
+                {createMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  "Salva"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id);
@@ -948,32 +1181,11 @@ export default function PropertyDetailPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Comunicazioni</CardTitle>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button>
-                    <i className="fas fa-plus mr-2"></i> Aggiungi
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Aggiungi comunicazione</DialogTitle>
-                    <DialogDescription>
-                      Registra una nuova comunicazione per questo immobile.
-                    </DialogDescription>
-                  </DialogHeader>
-                  {/* Dialog content */}
-                  <div className="py-4">
-                    <div className="text-center text-gray-500">
-                      <i className="fas fa-comment-alt text-3xl mb-2"></i>
-                      <p>Form comunicazione (non implementato)</p>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline">Annulla</Button>
-                    <Button>Salva</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <AddCommunicationDialog 
+                propertyId={id} 
+                isShared={isSharedProperty} 
+                onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/properties", id, "communications"] })} 
+              />
             </CardHeader>
             <CardContent>
               {isCommunicationsLoading ? (
