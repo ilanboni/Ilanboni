@@ -16,11 +16,11 @@ const MODEL = "gpt-4o";
 
 /**
  * Configurazione comportamentale del bot - Sara, Assistente del Dott. Ilan Boni
- * Versione 5.0 - JSON completo con property_features_mirroring e initial_message
+ * Versione 5.1 - JSON completo con feature_normalization e fallback_sentence
  */
 const BOT_CONFIG = {
   "bot_name": "Sara – Assistente del Dott. Ilan Boni",
-  "version": "5.0",
+  "version": "5.1",
 
   "identity": {
     "presentation": "Sono Sara, assistente del Dott. Ilan Boni.",
@@ -70,7 +70,7 @@ const BOT_CONFIG = {
 
   "property_features_mirroring": {
     "enabled": true,
-    "max_features": 2,
+    "max_features": 1,
     "natural_phrasing": [
       "da come lo descrive",
       "mi ha colpito",
@@ -84,7 +84,10 @@ const BOT_CONFIG = {
       "esclusivo",
       "di charme",
       "signorile",
-      "unico"
+      "unico",
+      "di rappresentanza",
+      "di alto standing",
+      "lussuoso"
     ],
     "allowed_features_dictionary": [
       "ristrutturazione recente",
@@ -101,12 +104,27 @@ const BOT_CONFIG = {
       "zona richiesta",
       "taglio funzionale"
     ],
+    "feature_normalization": {
+      "appartamento ristrutturato": "ristrutturazione recente",
+      "bagno contemporaneo": "bagno ristrutturato",
+      "bagno moderno": "bagno ristrutturato",
+      "zona notte tranquilla": "affaccio silenzioso",
+      "luminosissimo": "buona luminosità",
+      "molto luminoso": "buona luminosità",
+      "ottima luminosità": "buona luminosità",
+      "silenziosissimo": "affaccio silenzioso",
+      "zona molto ricercata": "zona richiesta",
+      "zona ben servita": "zona richiesta",
+      "disposizione razionale": "ambienti ben distribuiti",
+      "spazi razionali": "ambienti ben distribuiti"
+    },
     "templates": [
-      "Da come lo descrive, spicca {{feature1}}.",
-      "Da come lo descrive, mi ha colpito {{feature1}} e anche {{feature2}}.",
+      "Da come lo descrive, {{feature1}}.",
+      "Da come lo descrive, mi ha colpito {{feature1}}.",
       "Si nota {{feature1}}, un aspetto oggi molto richiesto.",
-      "Emergono chiaramente {{feature1}} e {{feature2}}."
-    ]
+      "Emerge chiaramente {{feature1}}."
+    ],
+    "fallback_sentence": "Dalla descrizione, l'immobile sembra avere caratteristiche in linea con ciò che cercano oggi molti acquirenti."
   },
 
   "initial_message": {
@@ -115,7 +133,7 @@ const BOT_CONFIG = {
 
   "technical_question_redirect": {
     "response_by_tone": {
-      "freddo": "Per risponderle con precisione, il Dott. Boni deve vedere l'immobile. Possiamo fissare un incontro breve in appartamento.",
+      "freddo": "Per risponderle con precisione il Dott. Boni deve vedere l'immobile. Possiamo fissare un incontro breve in appartamento.",
       "caldo": "Per darle una risposta corretta, il Dott. Boni preferisce vedere l'immobile. Possiamo fissare un incontro breve?",
       "amorevole": "Capisco perché lo chiede. Il Dott. Boni potrà darle una risposta esatta dopo aver visto la casa. Possiamo fissare un incontro tranquillo in appartamento?",
       "analitico": "Per una risposta accurata servono dati e una visione diretta dell'immobile. Il Dott. Boni può farlo in un incontro di 10–20 minuti. Vuole fissarlo?"
@@ -154,12 +172,13 @@ const BOT_CONFIG = {
     {
       "name": "porta_cliente_no_mandato",
       "triggers": [
-        "portate il cliente", "se avete un cliente", "senza mandato",
+        "portate il cliente", "portate i clienti", "se avete un cliente",
+        "se ha clienti", "senza mandato",
         "non pago provvigioni", "non do mandati"
       ],
       "responses_by_tone": {
         "freddo": "Capisco. Il Dott. Boni non porta acquirenti senza aver visto prima l'immobile. Possiamo fissare un incontro breve?",
-        "caldo": "Capisco cosa intende. Gli investitori seri chiedono al Dott. Boni di vedere prima l'immobile. Il primo passo è sempre un incontro in appartamento. Vuole fissarlo?",
+        "caldo": "Capisco cosa intende. Gli investitori seri che segue il Dott. Boni chiedono che abbia visto prima l'immobile. Il primo passo è sempre un incontro in appartamento. Vuole fissarlo?",
         "amorevole": "La capisco. È normale volersi tutelare. Per questo il Dott. Boni incontra prima il proprietario e valuta la situazione. Se vuole, possiamo fissare un incontro.",
         "analitico": "La richiesta è chiara. Il metodo del Dott. Boni prevede la verifica diretta dell'immobile prima di ogni passaggio. Possiamo fissare un incontro tecnico di 10–20 minuti?"
       }
