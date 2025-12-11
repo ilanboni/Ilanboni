@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,7 +27,8 @@ const addManualPropertySchema = z.object({
   description: z.string().optional(),
   ownerPhone: z.string().optional(),
   ownerName: z.string().optional(),
-  ownerEmail: z.string().optional()
+  ownerEmail: z.string().optional(),
+  hasWebContact: z.boolean().default(false) // true if property can only be contacted via website
 });
 
 type AddManualPropertyFormData = z.infer<typeof addManualPropertySchema>;
@@ -52,7 +54,8 @@ export function AddManualPrivatePropertyDialog() {
       description: "",
       ownerPhone: "",
       ownerName: "",
-      ownerEmail: ""
+      ownerEmail: "",
+      hasWebContact: false
     }
   });
 
@@ -433,6 +436,28 @@ export function AddManualPrivatePropertyDialog() {
                   )}
                 />
               </div>
+              
+              <FormField
+                control={form.control}
+                name="hasWebContact"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-3 pt-3 border-t">
+                    <FormControl>
+                      <Checkbox 
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="checkbox-web-contact-only"
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-xs font-medium">Solo contatto web</FormLabel>
+                      <FormDescription className="text-xs">
+                        Spunta se il proprietario è raggiungibile solo tramite modulo contatto sul sito (no telefono)
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
             </div>
 
             <DialogFooter>

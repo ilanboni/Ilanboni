@@ -2797,7 +2797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add manual private property
   app.post("/api/properties/manual-private", async (req: Request, res: Response) => {
     try {
-      const { url, address, city, type, price, bedrooms, bathrooms, size, floor, condition, description, ownerPhone, ownerName, ownerEmail } = req.body;
+      const { url, address, city, type, price, bedrooms, bathrooms, size, floor, condition, description, ownerPhone, ownerName, ownerEmail, hasWebContact } = req.body;
 
       if (!url || !address || !type || price === undefined) {
         return res.status(400).json({ error: "Campi obbligatori mancanti" });
@@ -2823,7 +2823,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         portalSource: "Manual",
         externalId: `manual-${Date.now()}`,
         classificationColor: "green",
-        matchBuyers: true
+        matchBuyers: true,
+        hasWebContact: hasWebContact || false
       });
 
       // If description provided, create it as a regular property too for geocoding
