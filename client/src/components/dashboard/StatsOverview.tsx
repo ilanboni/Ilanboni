@@ -1,26 +1,10 @@
-import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppStats } from "@/types";
 
 export default function StatsOverview() {
-  // In a real app, we would fetch this data from the API
-  // For this prototype, we'll use some sample data
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['/api/stats'],
-    queryFn: async () => {
-      // This would be replaced with a real API call
-      return {
-        totalClients: 247,
-        clientsChange: 12,
-        totalProperties: 132,
-        propertiesChange: 8.4,
-        todayAppointments: 8,
-        appointmentsDiff: 3,
-        activeTasks: 24,
-        dueTodayTasks: 5
-      } as AppStats;
-    }
+  const { data: stats, isLoading } = useQuery<AppStats>({
+    queryKey: ['/api/stats']
   });
 
   if (isLoading) {

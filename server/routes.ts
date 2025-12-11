@@ -5857,6 +5857,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API per le statistiche dashboard
+  app.get("/api/stats", async (req: Request, res: Response) => {
+    try {
+      // Conta clienti reali
+      const allClients = await storage.getClients({});
+      const totalClients = allClients.length;
+      
+      // Conta immobili in gestione (dalla tabella properties, NON shared_properties che sono immobili esterni)
+      const allProperties = await db.select({ id: properties.id }).from(properties);
+      const totalProperties = allProperties.length;
+      
+      // Appuntamenti di oggi - fetch all e filtra in memoria per evitare problemi SQL
+      const allAppointments = await db.select().from(appointments);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const todayAppointments = allAppointments.filter(apt => {
+        const aptDate = new Date(apt.startTime);
+        return aptDate >= today && aptDate < tomorrow;
+      }).length;
+      
+      // Task attivi (non completati)
+      const allTasks = await db.select().from(tasks);
+      const activeTasks = allTasks.filter(t => 
+        t.status === 'pending' || t.status === 'in_progress'
+      );
+      
+      // Task in scadenza oggi
+      const dueTodayTasks = activeTasks.filter(t => {
+        if (!t.dueDate) return false;
+        const dueDate = new Date(t.dueDate);
+        return dueDate >= today && dueDate < tomorrow;
+      }).length;
+      
+      res.json({
+        totalClients,
+        clientsChange: 0,
+        totalProperties,
+        propertiesChange: 0,
+        todayAppointments,
+        appointmentsDiff: 0,
+        activeTasks: activeTasks.length,
+        dueTodayTasks
+      });
+    } catch (error) {
+      console.error("[GET /api/stats]", error);
+      res.status(500).json({ error: "Errore durante il recupero delle statistiche" });
+    }
+  });
+
   // API per la gestione dei clienti
   
   // Ottieni tutti i clienti (con filtri opzionali)
@@ -15995,3 +16047,4 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   return httpServer;
 }
 
+// Force reload Thu Dec 11 11:06:10 AM UTC 2025
