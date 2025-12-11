@@ -14994,11 +14994,12 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
   /**
    * GET /api/whatsapp-campaigns/global-stats
    * Statistiche globali WhatsApp calcolate dai dati reali
+   * Combina dati da communications (bot risposte) e campaign_messages (messaggi iniziali)
    */
   app.get('/api/whatsapp-campaigns/global-stats', async (req: Request, res: Response) => {
     try {
-      // Statistiche globali dai messaggi reali
-      const globalStats = await db
+      // Statistiche dalla tabella communications (risposte bot e conversazioni)
+      const commStats = await db
         .select({
           messagesSent: sql<number>`COALESCE(SUM(CASE WHEN direction = 'outbound' THEN 1 ELSE 0 END), 0)::int`,
           responsesReceived: sql<number>`COALESCE(SUM(CASE WHEN direction = 'inbound' THEN 1 ELSE 0 END), 0)::int`,
@@ -15009,36 +15010,98 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
         .from(communications)
         .where(eq(communications.type, 'whatsapp'));
 
-      // Statistiche ultimi 7 giorni
-      const dailyStats = await db
+      // Statistiche dalla tabella campaign_messages (messaggi iniziali campagne)
+      const campaignStats = await db
         .select({
-          date: sql<string>`DATE(created_at)::text`,
-          sent: sql<number>`COALESCE(SUM(CASE WHEN direction = 'outbound' THEN 1 ELSE 0 END), 0)::int`,
-          received: sql<number>`COALESCE(SUM(CASE WHEN direction = 'inbound' THEN 1 ELSE 0 END), 0)::int`
+          messagesSent: sql<number>`COALESCE(COUNT(CASE WHEN status = 'sent' THEN 1 END), 0)::int`,
+          responsesReceived: sql<number>`COALESCE(COUNT(CASE WHEN response IS NOT NULL AND response != '' THEN 1 END), 0)::int`,
+          uniqueContacts: sql<number>`COUNT(DISTINCT phone_number)::int`,
+          firstMessageDate: sql<string>`MIN(sent_at)`,
+          lastActivity: sql<string>`MAX(GREATEST(sent_at, responded_at))`
         })
-        .from(communications)
-        .where(eq(communications.type, 'whatsapp'))
-        .groupBy(sql`DATE(created_at)`)
-        .orderBy(sql`DATE(created_at) DESC`)
-        .limit(7);
+        .from(campaignMessages);
 
-      // Tasso di risposta
-      const stats = globalStats[0] || { messagesSent: 0, responsesReceived: 0, uniqueContacts: 0 };
-      const responseRate = stats.messagesSent > 0 
-        ? Math.round((stats.responsesReceived / stats.messagesSent) * 100) 
+      // Statistiche giornaliere combinate
+      const dailyCommStats = await db.execute(sql`
+        SELECT 
+          DATE(created_at)::text as date,
+          COALESCE(SUM(CASE WHEN direction = 'outbound' THEN 1 ELSE 0 END), 0)::int as sent,
+          COALESCE(SUM(CASE WHEN direction = 'inbound' THEN 1 ELSE 0 END), 0)::int as received
+        FROM communications 
+        WHERE type = 'whatsapp'
+        GROUP BY DATE(created_at)
+      `);
+
+      const dailyCampaignStats = await db.execute(sql`
+        SELECT 
+          DATE(sent_at)::text as date,
+          COALESCE(COUNT(CASE WHEN status = 'sent' THEN 1 END), 0)::int as sent,
+          0::int as received
+        FROM campaign_messages 
+        WHERE sent_at IS NOT NULL
+        GROUP BY DATE(sent_at)
+      `);
+
+      // Combina statistiche giornaliere
+      const dailyMap = new Map<string, { date: string; sent: number; received: number }>();
+      
+      for (const row of dailyCommStats.rows as any[]) {
+        if (row.date) {
+          dailyMap.set(row.date, { 
+            date: row.date, 
+            sent: Number(row.sent) || 0, 
+            received: Number(row.received) || 0 
+          });
+        }
+      }
+      
+      for (const row of dailyCampaignStats.rows as any[]) {
+        if (row.date) {
+          const existing = dailyMap.get(row.date);
+          if (existing) {
+            existing.sent += Number(row.sent) || 0;
+          } else {
+            dailyMap.set(row.date, { 
+              date: row.date, 
+              sent: Number(row.sent) || 0, 
+              received: 0 
+            });
+          }
+        }
+      }
+
+      // Ordina per data e prendi ultimi 7 giorni
+      const dailyStats = Array.from(dailyMap.values())
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-7);
+
+      // Combina totali
+      const comm = commStats[0] || { messagesSent: 0, responsesReceived: 0, uniqueContacts: 0 };
+      const camp = campaignStats[0] || { messagesSent: 0, responsesReceived: 0, uniqueContacts: 0 };
+      
+      const totalSent = Number(comm.messagesSent) + Number(camp.messagesSent);
+      const totalReceived = Number(comm.responsesReceived) + Number(camp.responsesReceived);
+      const totalContacts = Number(comm.uniqueContacts) + Number(camp.uniqueContacts);
+      
+      const responseRate = totalSent > 0 
+        ? Math.round((totalReceived / totalSent) * 100) 
         : 0;
+
+      // Trova date più recenti
+      const dates = [comm.firstMessageDate, camp.firstMessageDate].filter(Boolean);
+      const lastDates = [comm.lastActivity, camp.lastActivity].filter(Boolean);
 
       res.json({
         ok: true,
         stats: {
-          messagesSent: stats.messagesSent,
-          responsesReceived: stats.responsesReceived,
-          uniqueContacts: stats.uniqueContacts,
+          messagesSent: totalSent,
+          responsesReceived: totalReceived,
+          uniqueContacts: totalContacts,
           responseRate,
-          firstMessageDate: stats.firstMessageDate,
-          lastActivity: stats.lastActivity
+          firstMessageDate: dates.length > 0 ? dates.sort()[0] : null,
+          lastActivity: lastDates.length > 0 ? lastDates.sort().reverse()[0] : null
         },
-        dailyStats: dailyStats.reverse() // Ordina dal più vecchio al più recente per il grafico
+        dailyStats
       });
     } catch (error) {
       console.error('[GET /api/whatsapp-campaigns/global-stats] Errore:', error);
