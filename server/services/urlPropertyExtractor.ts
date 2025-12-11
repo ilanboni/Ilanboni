@@ -82,7 +82,7 @@ function extractPhoneNumbers(text: string): string[] {
 function extractEmails(text: string): string[] {
   const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const matches = text.match(emailPattern);
-  return matches ? [...new Set(matches)] : [];
+  return matches ? Array.from(new Set(matches)) : [];
 }
 
 async function createStealthContext(browser: Browser): Promise<BrowserContext> {
@@ -213,7 +213,8 @@ export async function extractPropertyFromUrl(url: string): Promise<ExtractedProp
     const page = await context.newPage();
     
     console.log(`[URL-EXTRACTOR] 🌐 Navigating to ${url}...`);
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 45000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(2000);
     
     await handleCookieConsent(page);
     await simulateHumanBehavior(page);
@@ -222,7 +223,8 @@ export async function extractPropertyFromUrl(url: string): Promise<ExtractedProp
     if (isBlocked) {
       console.log(`[URL-EXTRACTOR] 🔄 Detected block, waiting and retrying...`);
       await page.waitForTimeout(randomDelay(3000, 5000));
-      await page.reload({ waitUntil: 'networkidle' });
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.waitForTimeout(1500);
       await handleCookieConsent(page);
       await simulateHumanBehavior(page);
     }
@@ -553,51 +555,136 @@ async function extractFromImmobiliare(page: Page, url: string): Promise<Extracte
     let hasWebContact = false;
     const imageUrls: string[] = [];
     
-    const titleEl = document.querySelector('h1.re-title__title, .im-titleBlock__title');
-    if (titleEl) address = titleEl.textContent?.trim() || '';
-    
-    const priceEl = document.querySelector('.re-overview__price, .im-mainFeatures__title--price');
-    if (priceEl) price = priceEl.textContent?.trim() || '';
-    
-    const descEl = document.querySelector('.in-readAll, .im-description__text');
-    if (descEl) description = descEl.textContent?.trim() || '';
-    
-    const features = document.querySelectorAll('.re-featuresItem, .nd-list__item');
-    features.forEach((f: any) => {
-      const text = f.textContent?.toLowerCase() || '';
-      if (text.includes('superficie') || text.includes('m²')) {
-        const match = text.match(/(\d+)/);
-        if (match) size = match[1];
+    const titleSelectors = [
+      'h1.re-title__title',
+      '.im-titleBlock__title',
+      'h1[class*="Title"]',
+      '.nd-mediaObject__title',
+      'h1',
+      '[data-cy="adTitle"]'
+    ];
+    for (const sel of titleSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent && el.textContent.trim().length > 5) {
+        address = el.textContent.trim();
+        break;
       }
-      if (text.includes('local') || text.includes('stanz')) {
-        const match = text.match(/(\d+)/);
-        if (match) bedrooms = match[1];
-      }
-      if (text.includes('bagn')) {
-        const match = text.match(/(\d+)/);
-        if (match) bathrooms = match[1];
-      }
-      if (text.includes('piano')) {
-        const match = text.match(/piano\s*(\w+)/i);
-        if (match) floor = match[1];
-      }
-    });
-    
-    const agencyEl = document.querySelector('.re-contactSheet__agencyName, .in-referent__name');
-    if (agencyEl) ownerName = agencyEl.textContent?.trim() || '';
-    
-    const phoneEl = document.querySelector('[href^="tel:"], .re-contactSheet__phone');
-    if (phoneEl) {
-      const href = phoneEl.getAttribute('href');
-      ownerPhone = href ? href.replace('tel:', '') : phoneEl.textContent?.trim() || '';
     }
     
-    const contactForm = document.querySelector('.re-contactForm, .in-contactForm');
+    const priceSelectors = [
+      '.re-overview__price',
+      '.im-mainFeatures__title--price',
+      '[class*="price"]',
+      '.nd-list__item--mainFeatures span',
+      '[data-cy="price"]'
+    ];
+    for (const sel of priceSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent && (el.textContent.includes('€') || /\d{3}/.test(el.textContent))) {
+        price = el.textContent.trim();
+        break;
+      }
+    }
+    
+    if (!price) {
+      const allText = document.body?.textContent || '';
+      const priceMatch = allText.match(/€\s*([\d.,]+)/);
+      if (priceMatch) price = '€' + priceMatch[1];
+    }
+    
+    const descSelectors = [
+      '.in-readAll',
+      '.im-description__text',
+      '[class*="description"]',
+      '.nd-description',
+      '[data-cy="description"]'
+    ];
+    for (const sel of descSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent && el.textContent.length > 50) {
+        description = el.textContent.trim();
+        break;
+      }
+    }
+    
+    const featureSelectors = [
+      '.re-featuresItem',
+      '.nd-list__item',
+      '.im-features__list li',
+      '[class*="feature"]',
+      'dl dt, dl dd'
+    ];
+    for (const sel of featureSelectors) {
+      document.querySelectorAll(sel).forEach((f: any) => {
+        const text = f.textContent?.toLowerCase() || '';
+        if ((text.includes('superficie') || text.includes('m²') || text.includes('mq')) && !size) {
+          const match = text.match(/(\d+)/);
+          if (match) size = match[1];
+        }
+        if ((text.includes('local') || text.includes('stanz') || text.includes('vani')) && !bedrooms) {
+          const match = text.match(/(\d+)/);
+          if (match) bedrooms = match[1];
+        }
+        if (text.includes('bagn') && !bathrooms) {
+          const match = text.match(/(\d+)/);
+          if (match) bathrooms = match[1];
+        }
+        if (text.includes('piano') && !floor) {
+          const match = text.match(/piano\s*(\w+)/i) || text.match(/(\d+)[°º]?\s*piano/i);
+          if (match) floor = match[1];
+        }
+      });
+    }
+    
+    if (!size) {
+      const allText = document.body?.textContent || '';
+      const sizeMatch = allText.match(/(\d+)\s*m[²q]/i);
+      if (sizeMatch) size = sizeMatch[1];
+    }
+    
+    const agencySelectors = [
+      '.re-contactSheet__agencyName',
+      '.in-referent__name',
+      '[class*="agency"]',
+      '[class*="advertiser"]',
+      '.nd-agent__name'
+    ];
+    for (const sel of agencySelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent) {
+        ownerName = el.textContent.trim();
+        break;
+      }
+    }
+    
+    const phoneSelectors = [
+      '[href^="tel:"]',
+      '.re-contactSheet__phone',
+      '[class*="phone"]',
+      '.nd-agent__phone'
+    ];
+    for (const sel of phoneSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const href = el.getAttribute('href');
+        if (href && href.startsWith('tel:')) {
+          ownerPhone = href.replace('tel:', '');
+          break;
+        }
+        const text = el.textContent?.trim() || '';
+        if (/\d{6,}/.test(text.replace(/\D/g, ''))) {
+          ownerPhone = text;
+          break;
+        }
+      }
+    }
+    
+    const contactForm = document.querySelector('.re-contactForm, .in-contactForm, form[class*="contact"]');
     if (contactForm && !ownerPhone) hasWebContact = true;
     
-    document.querySelectorAll('img[data-src], img[src*="pwm.im-cdn"]').forEach((img: any) => {
+    document.querySelectorAll('img[data-src], img[src*="pwm.im-cdn"], img[src*="immobiliare"]').forEach((img: any) => {
       const src = img.getAttribute('data-src') || img.src;
-      if (src && !imageUrls.includes(src)) {
+      if (src && !imageUrls.includes(src) && imageUrls.length < 25) {
         imageUrls.push(src);
       }
     });
@@ -605,9 +692,27 @@ async function extractFromImmobiliare(page: Page, url: string): Promise<Extracte
     return { address, price, size, description, ownerName, ownerPhone, bedrooms, bathrooms, floor, hasWebContact, imageUrls };
   });
   
+  let extractedCity = 'Milano';
+  if (url.includes('/roma/')) extractedCity = 'Roma';
+  else if (url.includes('/torino/')) extractedCity = 'Torino';
+  else if (data.address) {
+    const cityMatch = data.address.match(/,\s*([A-Za-zÀ-ÿ\s]+)$/);
+    if (cityMatch) extractedCity = cityMatch[1].trim();
+  }
+  
+  console.log(`[URL-EXTRACTOR] 📊 Immobiliare.it extracted:`, {
+    address: data.address,
+    price: data.price,
+    size: data.size,
+    bedrooms: data.bedrooms,
+    owner: data.ownerName,
+    phone: data.ownerPhone,
+    images: data.imageUrls.length
+  });
+  
   return {
     address: data.address || 'Indirizzo da verificare',
-    city: 'Milano',
+    city: extractedCity,
     price: cleanPrice(data.price),
     size: cleanSize(data.size),
     description: data.description,
