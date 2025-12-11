@@ -128,6 +128,14 @@ export class ImmobiliareApifyAdapter implements PortalAdapter {
       const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
 
       console.log(`[IMMOBILIARE-APIFY] Dataset returned ${items.length} items`);
+      
+      const expectedMinItems = Math.min(input.maxItems * 0.1, 50);
+      if (items.length < expectedMinItems) {
+        console.warn(`[IMMOBILIARE-APIFY] ⚠️ PARTIAL IMPORT DETECTED: Got ${items.length} items, expected at least ${expectedMinItems}`);
+        console.warn(`[IMMOBILIARE-APIFY] ⚠️ This may indicate CAPTCHA blocking or rate limiting`);
+        console.warn(`[IMMOBILIARE-APIFY] ⚠️ Consider manual re-run or proxy rotation`);
+      }
+      
       if (items.length > 0) {
         console.log('[IMMOBILIARE-APIFY] First item structure:', JSON.stringify(items[0], null, 2));
       }

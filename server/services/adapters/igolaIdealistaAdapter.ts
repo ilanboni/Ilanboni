@@ -11,9 +11,33 @@ const MILANO_METRO_BOUNDS = {
   maxLng: 9.4
 };
 
+const MILANO_NEIGHBORHOODS = [
+  'porta venezia', 'porta romana', 'porta genova', 'porta garibaldi', 'porta nuova',
+  'navigli', 'brera', 'isola', 'lambrate', 'città studi', 'citta studi',
+  'centrale', 'loreto', 'buenos aires', 'corso como', 'garibaldi',
+  'moscova', 'castello', 'duomo', 'san babila', 'quadrilatero',
+  'tortona', 'ticinese', 'darsena', 'barona', 'affori', 'bovisa',
+  'bicocca', 'niguarda', 'greco', 'turro', 'gorla', 'precotto',
+  'sesto', 'monza', 'zara', 'maciachini', 'cenisio', 'sempione',
+  'wagner', 'de angeli', 'gambara', 'bande nere', 'primaticcio',
+  'lorenteggio', 'bisceglie', 'inganni', 'famagosta', 'romolo',
+  'abbiategrasso', 'chiesa rossa', 'gratosoglio', 'ripamonti',
+  'corvetto', 'rogoredo', 'porto di mare', 'lodi', 'brenta',
+  'forlanini', 'ortica', 'cimiano', 'crescenzago', 'cascina gobba',
+  'udine', 'pasteur', 'piola', 'dateo', 'tricolore', 'san donato',
+  'santa giulia', 'cermenate', 'vigentino', 'chiaravalle', 'nosedo',
+  'mecenate', 'taliedo', 'morsenchio', 'quintosole', 'ponte lambro',
+  'castelfidardo', 'fiera', 'citylife', 'portello', 'tre torri',
+  'san siro', 'lotto', 'amendola', 'cadorna', 'cairoli', 'cordusio',
+  'missori', 'crocetta', 'porta vittoria', 'palestro', 'turati',
+  'repubblica', 'gioia', 'sondrio', 'marche', 'lima', 'viale monza'
+];
+
 function isInMilanoArea(item: any): { isValid: boolean; reason?: string } {
   const municipality = (item.municipality || '').toLowerCase().trim();
   const province = (item.province || '').toUpperCase().trim();
+  const address = (item.address || '').toLowerCase().trim();
+  const neighborhood = (item.neighborhood || '').toLowerCase().trim();
   const lat = item.latitude ? parseFloat(item.latitude) : null;
   const lng = item.longitude ? parseFloat(item.longitude) : null;
 
@@ -25,6 +49,12 @@ function isInMilanoArea(item: any): { isValid: boolean; reason?: string } {
     return { isValid: true };
   }
 
+  for (const hood of MILANO_NEIGHBORHOODS) {
+    if (municipality.includes(hood) || neighborhood.includes(hood) || address.includes(hood)) {
+      return { isValid: true };
+    }
+  }
+
   if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
     if (
       lat >= MILANO_METRO_BOUNDS.minLat &&
@@ -34,6 +64,10 @@ function isInMilanoArea(item: any): { isValid: boolean; reason?: string } {
     ) {
       return { isValid: true };
     }
+  }
+
+  if (!municipality && !province && lat === null && lng === null) {
+    return { isValid: true, reason: 'no-location-data-trust-api' };
   }
 
   const details = [
