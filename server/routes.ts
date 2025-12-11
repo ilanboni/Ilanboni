@@ -971,6 +971,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const communicationData = validationResult.data;
       
+      // Verifica che la proprietà esista (shared o normale)
+      if (communicationData.sharedPropertyId) {
+        const sharedProperty = await storage.getSharedProperty(communicationData.sharedPropertyId);
+        if (!sharedProperty) {
+          return res.status(404).json({ error: "Immobile condiviso non trovato" });
+        }
+      } else if (communicationData.propertyId) {
+        const property = await storage.getProperty(communicationData.propertyId);
+        if (!property) {
+          return res.status(404).json({ error: "Immobile non trovato" });
+        }
+      }
+      
       // Se è un tipo generico che non è un'azione preconfigurata, genera il riassunto con AI
       const preconfiguredTypes = ['property_sent', 'property_visit', 'contract_signed', 'offer_accepted', 'offer_rejected'];
       if (communicationData.content && !preconfiguredTypes.includes(communicationData.type)) {
