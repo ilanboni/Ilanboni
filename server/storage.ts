@@ -3359,9 +3359,13 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSharedProperty(id: number): Promise<boolean> {
     try {
-      // Delete related tasks and communications first
+      // Delete related records first (order matters due to foreign keys)
+      await db.delete(matches).where(eq(matches.sharedPropertyId, id));
       await db.delete(tasks).where(eq(tasks.sharedPropertyId, id));
       await db.delete(communications).where(eq(communications.sharedPropertyId, id));
+      await db.delete(sharedPropertyNotes).where(eq(sharedPropertyNotes.sharedPropertyId, id));
+      await db.delete(clientFavorites).where(eq(clientFavorites.sharedPropertyId, id));
+      await db.delete(clientIgnoredProperties).where(eq(clientIgnoredProperties.sharedPropertyId, id));
       
       // Delete the shared property
       const result = await db.delete(sharedProperties).where(eq(sharedProperties.id, id)).returning();

@@ -3946,9 +3946,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (isShared) {
         // Elimina da sharedProperties
+        const sharedProperty = await storage.getSharedProperty(propertyId);
+        if (!sharedProperty) {
+          return res.status(404).json({ error: "Immobile non trovato" });
+        }
+        
         const success = await storage.deleteSharedProperty(propertyId);
         if (!success) {
-          return res.status(404).json({ error: "Immobile non trovato" });
+          return res.status(500).json({ error: "Errore durante l'eliminazione" });
         }
         res.status(204).send();
       } else {
