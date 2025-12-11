@@ -2864,6 +2864,212 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Extract property data from URL automatically using Playwright
+  app.post("/api/properties/extract-from-url", async (req: Request, res: Response) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL non fornito" });
+      }
+
+      console.log(`[EXTRACT-FROM-URL] Extracting property data from: ${url}`);
+      
+      const { extractPropertyFromUrl } = await import('./services/urlPropertyExtractor');
+      const extracted = await extractPropertyFromUrl(url);
+      
+      res.json({
+        success: true,
+        data: extracted
+      });
+    } catch (error) {
+      console.error("[POST /api/properties/extract-from-url]", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Errore durante l'estrazione dei dati dall'URL",
+        success: false
+      });
+    }
+  });
+
+  // Add private property from URL with automatic extraction and save
+  app.post("/api/properties/add-from-url", async (req: Request, res: Response) => {
+    try {
+      const { url, overrides } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL non fornito" });
+      }
+
+      console.log(`[ADD-FROM-URL] Adding private property from: ${url}`);
+      
+      // Check if property already exists with this URL
+      const existingProps = await db
+        .select()
+        .from(sharedProperties)
+        .where(eq(sharedProperties.externalLink, url))
+        .limit(1);
+      
+      if (existingProps.length > 0) {
+        return res.status(409).json({ 
+          error: "Questa proprietà è già presente nel sistema",
+          existingProperty: existingProps[0]
+        });
+      }
+      
+      // Extract data from URL
+      const { extractPropertyFromUrl } = await import('./services/urlPropertyExtractor');
+      const extracted = await extractPropertyFromUrl(url);
+      
+      // Merge with any overrides provided
+      const finalData = {
+        ...extracted,
+        ...overrides
+      };
+      
+      // Create shared property
+      const sharedProperty = await storage.createSharedProperty({
+        address: finalData.address,
+        city: finalData.city || "Milano",
+        type: "apartment",
+        price: finalData.price || 0,
+        size: finalData.size || undefined,
+        floor: finalData.floor || undefined,
+        bedrooms: finalData.bedrooms || undefined,
+        bathrooms: finalData.bathrooms || undefined,
+        description: finalData.description,
+        ownerName: finalData.ownerName,
+        ownerPhone: finalData.ownerPhone,
+        ownerEmail: finalData.ownerEmail,
+        externalLink: url,
+        ownerType: "private",
+        portalSource: finalData.portalSource || "Manual",
+        externalId: `url-${Date.now()}`,
+        classificationColor: "green",
+        matchBuyers: true,
+        hasWebContact: finalData.hasWebContact || false
+      });
+
+      console.log(`[ADD-FROM-URL] ✅ Created property: ${sharedProperty.id} - ${finalData.address}`);
+      
+      res.status(201).json({
+        success: true,
+        property: sharedProperty,
+        extracted: extracted,
+        message: "Proprietà privata aggiunta con successo"
+      });
+    } catch (error) {
+      console.error("[POST /api/properties/add-from-url]", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Errore durante l'aggiunta della proprietà",
+        success: false
+      });
+    }
+  });
+
+  // Track web contact message sent (for properties without phone)
+  app.post("/api/properties/:id/web-contact", async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      const { message, contactType } = req.body;
+      
+      // Get property to check if it's a shared property or regular
+      const sharedProp = await db
+        .select()
+        .from(sharedProperties)
+        .where(eq(sharedProperties.id, propertyId))
+        .limit(1);
+      
+      if (sharedProp.length === 0) {
+        return res.status(404).json({ error: "Proprietà non trovata" });
+      }
+      
+      const prop = sharedProp[0];
+      
+      // Create a campaign message record to track this contact
+      const messageRecord = await db.insert(campaignMessages).values({
+        campaignId: null, // Manual web contact
+        propertyId: propertyId,
+        phone: 'web-contact', // Special marker for web contacts
+        message: message || 'Contatto via sito web',
+        status: 'sent',
+        sentAt: new Date(),
+        metadata: JSON.stringify({
+          contactType: contactType || 'website_form',
+          propertyAddress: prop.address,
+          portalSource: prop.portalSource,
+          externalLink: prop.externalLink
+        })
+      }).returning();
+      
+      console.log(`[WEB-CONTACT] Tracked web contact for property ${propertyId}: ${prop.address}`);
+      
+      res.json({
+        success: true,
+        messageId: messageRecord[0]?.id,
+        message: "Contatto via web registrato con successo"
+      });
+    } catch (error) {
+      console.error("[POST /api/properties/:id/web-contact]", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Errore" });
+    }
+  });
+
+  // Get web contact statistics
+  app.get("/api/stats/web-contacts", async (req: Request, res: Response) => {
+    try {
+      // Count all web contacts
+      const webContacts = await db
+        .select()
+        .from(campaignMessages)
+        .where(eq(campaignMessages.phone, 'web-contact'));
+      
+      // Count responses (communications from web-contacted properties)
+      const propertyIds = webContacts.map(c => c.propertyId).filter(id => id !== null);
+      
+      let responsesCount = 0;
+      if (propertyIds.length > 0) {
+        const responses = await db
+          .select()
+          .from(communications)
+          .where(
+            and(
+              eq(communications.direction, 'inbound'),
+              sql`${communications.sharedPropertyId} = ANY(ARRAY[${sql.raw(propertyIds.join(','))}]::int[])`
+            )
+          );
+        responsesCount = responses.length;
+      }
+      
+      // Group by date for daily stats
+      const today = new Date();
+      const dailyStats: Record<string, { sent: number, responses: number }> = {};
+      
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateKey = date.toISOString().split('T')[0];
+        dailyStats[dateKey] = { sent: 0, responses: 0 };
+      }
+      
+      webContacts.forEach(c => {
+        if (c.sentAt) {
+          const dateKey = new Date(c.sentAt).toISOString().split('T')[0];
+          if (dailyStats[dateKey]) {
+            dailyStats[dateKey].sent++;
+          }
+        }
+      });
+      
+      res.json({
+        totalWebContacts: webContacts.length,
+        totalResponses: responsesCount,
+        responseRate: webContacts.length > 0 ? Math.round((responsesCount / webContacts.length) * 100) : 0,
+        dailyStats
+      });
+    } catch (error) {
+      console.error("[GET /api/stats/web-contacts]", error);
+      res.status(500).json({ error: "Errore nel recupero statistiche" });
+    }
+  });
+
   // Parse URL to extract agency property data
   app.post("/api/properties/parse-agency-url", async (req: Request, res: Response) => {
     try {
