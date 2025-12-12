@@ -158,6 +158,11 @@ export interface IStorage {
   matchPropertiesForBuyer(buyerId: number): Promise<Property[]>;
   matchBuyersForProperty(propertyId: number): Promise<Client[]>;
   
+  // AI Match methods (for matches table with reasoning)
+  createMatch(match: InsertMatch): Promise<Match>;
+  getMatchesByClientId(clientId: number): Promise<Match[]>;
+  deleteMatchesByClientId(clientId: number): Promise<boolean>;
+  
   // Scraping jobs methods
   getScrapingJob(id: number): Promise<ScrapingJob | undefined>;
   getAllScrapingJobs(): Promise<ScrapingJob[]>;
@@ -1511,6 +1516,36 @@ export class MemStorage implements IStorage {
     }
     
     return matchedClients;
+  }
+
+  // AI Match methods (for matches table with reasoning) - MemStorage implementation
+  private matchStore: Map<number, Match> = new Map();
+  private matchIdCounter = 1;
+
+  async createMatch(match: InsertMatch): Promise<Match> {
+    const id = this.matchIdCounter++;
+    const newMatch: Match = {
+      ...match,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    } as Match;
+    this.matchStore.set(id, newMatch);
+    return newMatch;
+  }
+
+  async getMatchesByClientId(clientId: number): Promise<Match[]> {
+    return Array.from(this.matchStore.values())
+      .filter(m => m.clientId === clientId)
+      .sort((a, b) => (b.score || 0) - (a.score || 0));
+  }
+
+  async deleteMatchesByClientId(clientId: number): Promise<boolean> {
+    const toDelete = Array.from(this.matchStore.entries())
+      .filter(([_, m]) => m.clientId === clientId)
+      .map(([id, _]) => id);
+    toDelete.forEach(id => this.matchStore.delete(id));
+    return true;
   }
 
   // Implementazione metodi per le proprietà condivise
@@ -3309,6 +3344,24 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`[matchBuyersForProperty] ${matchingClients.length} clienti corrispondono all'immobile ${propertyId} dopo tutti i controlli`);
     return matchingClients;
+  }
+
+  // AI Match methods (for matches table with reasoning)
+  async createMatch(match: InsertMatch): Promise<Match> {
+    const result = await db.insert(matches).values(match).returning();
+    return result[0];
+  }
+
+  async getMatchesByClientId(clientId: number): Promise<Match[]> {
+    return await db.select()
+      .from(matches)
+      .where(eq(matches.clientId, clientId))
+      .orderBy(desc(matches.score));
+  }
+
+  async deleteMatchesByClientId(clientId: number): Promise<boolean> {
+    await db.delete(matches).where(eq(matches.clientId, clientId));
+    return true;
   }
 
   // Shared property methods
