@@ -5,6 +5,24 @@ import axios from 'axios';
 const BASE_URL = 'https://www.casadaprivato.it';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
+// Helper function to extract address from text
+function extractAddressFromText(text: string): string | null {
+  if (!text) return null;
+  
+  const addressPatterns = [
+    /(?:via|viale|corso|piazza|largo|vicolo|piazzale)\s+[A-Za-zÀ-ÿ\s]+(?:\s+\d+)?(?:\/[A-Za-z])?/gi
+  ];
+  
+  for (const pattern of addressPatterns) {
+    const match = text.match(pattern);
+    if (match && match[0] && match[0].length > 8) {
+      return match[0].trim();
+    }
+  }
+  
+  return null;
+}
+
 export class CasaDaPrivatoAdapter {
   name = 'CasaDaPrivato.it';
   portalId = 'casadaprivato';
@@ -246,16 +264,44 @@ export class CasaDaPrivatoAdapter {
               ? prop.description.substring(0, 1000) // Limit description length
               : prop.title;
             
+            // Validate address - reject placeholder/garbage addresses
+            const invalidAddressPatterns = [
+              /^via un messaggio/i,
+              /^via\s*$/i,
+              /^contatta/i,
+              /^clicca/i,
+              /^scopri/i,
+              /^vedi/i,
+              /^dettagli/i,
+              /^info/i,
+            ];
+            
+            let cleanAddress = prop.address?.trim() || '';
+            const isInvalidAddress = invalidAddressPatterns.some(pattern => pattern.test(cleanAddress));
+            
+            if (isInvalidAddress || cleanAddress.length < 5) {
+              // Try to extract address from description or title
+              const addressFromDesc = extractAddressFromText(prop.description || prop.title || '');
+              if (addressFromDesc) {
+                cleanAddress = addressFromDesc;
+              } else {
+                // Use zone from title if available, otherwise city
+                const zoneMatch = prop.title?.match(/zona\s+([^,\-\/]+)/i);
+                cleanAddress = zoneMatch ? `Zona ${zoneMatch[1].trim()}` : 'milano';
+              }
+              console.log(`[CASADAPRIVATO] ⚠️ Fixed invalid address "${prop.address}" -> "${cleanAddress}"`);
+            }
+            
             const listing: PropertyListing = {
               externalId,
               title: prop.title,
-              address: prop.address,
+              address: cleanAddress,
               city: 'milano',
               price,
               size,
               url: fullUrl,
               description,
-              portal: 'casadaprivato',
+              type: 'apartment',
               ownerType: 'private',
               source: 'casadaprivato',
             };

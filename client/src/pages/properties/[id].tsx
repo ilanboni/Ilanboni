@@ -976,10 +976,10 @@ export default function PropertyDetailPage() {
                       <div className="text-sm text-gray-500 mb-1">Stato</div>
                       <div>{formatPropertyStatus(property?.status)}</div>
                     </div>
-                    {property?.externalLink && (
+                    {(property?.url || property?.externalLink) && (
                       <div>
                         <div className="text-sm text-gray-500 mb-1">Link esterno</div>
-                        <a href={property.externalLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <a href={property.url || property.externalLink || ''} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                           <i className="fas fa-external-link-alt mr-1"></i> Visualizza
                         </a>
                       </div>
@@ -1001,26 +1001,28 @@ export default function PropertyDetailPage() {
                   </div>
                   
                   {/* Dettagli Proprietario e Link Annuncio */}
-                  {(property?.ownerName || property?.ownerPhone || property?.ownerEmail || property?.externalLink) && (
+                  {(property?.ownerName || property?.ownerPhone || property?.ownerEmail || property?.externalLink || property?.url) && (
                     <div className="mt-6 pt-6 border-t">
                       <div className="text-sm text-gray-500 mb-3 font-semibold">Dettagli Proprietario e Annuncio</div>
                       
                       {/* Link Annuncio Esterno - in evidenza */}
-                      {property?.externalLink && (
+                      {(property?.url || property?.externalLink) && (
                         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                           <div className="flex items-center gap-3">
                             <i className="fas fa-external-link-alt text-blue-600 text-xl"></i>
                             <div className="flex-1">
                               <div className="text-xs text-blue-600 font-medium mb-1">Annuncio Originale</div>
                               <a 
-                                href={property.externalLink} 
+                                href={property.url || property.externalLink || ''} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
                                 className="text-blue-700 hover:text-blue-900 font-medium hover:underline break-all"
                                 data-testid="link-external-listing"
                               >
-                                {property.externalLink.includes('immobiliare.it') ? 'Visualizza su Immobiliare.it' : 
-                                 property.externalLink.includes('idealista.it') ? 'Visualizza su Idealista.it' : 
+                                {(property.url || property.externalLink || '').includes('immobiliare.it') ? 'Visualizza su Immobiliare.it' : 
+                                 (property.url || property.externalLink || '').includes('idealista.it') ? 'Visualizza su Idealista.it' : 
+                                 (property.url || property.externalLink || '').includes('casadaprivato') ? 'Visualizza su CasaDaPrivato' :
+                                 (property.url || property.externalLink || '').includes('clickcase') ? 'Visualizza su ClickCase' :
                                  'Visualizza annuncio esterno'}
                                 <i className="fas fa-arrow-right ml-2"></i>
                               </a>
