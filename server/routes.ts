@@ -84,6 +84,7 @@ import { clientPropertyScrapingService } from "./services/clientPropertyScraping
 import { createManualSharedProperty } from "./services/manualSharedPropertyService";
 import { googleCalendarService } from "./services/googleCalendar";
 import { enrichArrayWithClassification, enrichWithClassification } from "./utils/propertyClassification";
+import { triggerMatchingForProperty, triggerMatchingForBuyer, getMatchesForClient } from "./services/matchingOrchestrator";
 
 // Export Google Calendar service for external access
 export { googleCalendarService } from "./services/googleCalendar";
@@ -3267,6 +3268,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         result = { type: "shared_property", id: sharedProperty.id, data: sharedProperty };
         console.log(`[SMART-IMPORT-SAVE] ✅ Created private property: ${sharedProperty.id}`);
         
+        // Trigger AI matching in background
+        triggerMatchingForProperty(sharedProperty, 'shared')
+          .then(matchResult => console.log(`[SMART-IMPORT-SAVE] AI matching completed: ${matchResult.savedMatches} matches`))
+          .catch(err => console.error('[SMART-IMPORT-SAVE] AI matching error:', err));
+        
       } else {
         // Save as agency property in properties table
         // If there's an existing property cluster, add to it
@@ -3320,6 +3326,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           result = { type: "property", id: newProperty.id, data: newProperty };
           console.log(`[SMART-IMPORT-SAVE] ✅ Created agency property: ${newProperty.id}`);
+          
+          // Trigger AI matching for agency property in background
+          triggerMatchingForProperty(newProperty, 'private')
+            .then(matchResult => console.log(`[SMART-IMPORT-SAVE] AI matching for agency property completed: ${matchResult.savedMatches} matches`))
+            .catch(err => console.error('[SMART-IMPORT-SAVE] AI matching error for agency property:', err));
         }
       }
       
@@ -5149,6 +5160,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newSharedProperty = await storage.createSharedProperty(dataToInsert);
       console.log("Proprietà condivisa creata con successo:", newSharedProperty.id);
+      
+      // Trigger AI matching in background
+      triggerMatchingForProperty(newSharedProperty, 'shared')
+        .then(matchResult => console.log(`[POST /api/shared-properties] AI matching completed: ${matchResult.savedMatches} matches`))
+        .catch(err => console.error('[POST /api/shared-properties] AI matching error:', err));
+      
       res.status(201).json(newSharedProperty);
     } catch (error) {
       console.error("[POST /api/shared-properties] Errore completo:", error);
@@ -6603,6 +6620,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Recupera i match AI per un cliente (dal sistema di matching intelligente)
+  app.get("/api/matches/:clientId", async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: "ID cliente non valido" });
+      }
+      
+      // Usa il servizio di matching per ottenere i match con proprietà arricchite
+      const enrichedMatches = await getMatchesForClient(clientId);
+      
+      // Trasforma in formato più usabile per il frontend
+      const formattedMatches = enrichedMatches.map(({ match, property }) => ({
+        id: match.id,
+        score: match.score,
+        reasoning: match.reasoning,
+        isAiGenerated: match.isAiGenerated,
+        createdAt: match.createdAt,
+        property: property ? {
+          id: property.id,
+          address: property.address,
+          city: property.city,
+          price: property.price,
+          size: property.size,
+          bedrooms: property.bedrooms,
+          bathrooms: property.bathrooms,
+          floor: property.floor,
+          description: property.description?.substring(0, 200),
+          externalLink: property.externalLink,
+          type: match.sharedPropertyId ? 'shared' : 'private'
+        } : null
+      }));
+      
+      res.json({
+        clientId,
+        totalMatches: formattedMatches.length,
+        matches: formattedMatches
+      });
+    } catch (error) {
+      console.error(`[GET /api/matches/${req.params.clientId}]`, error);
+      res.status(500).json({ error: "Errore durante il recupero dei match AI" });
+    }
+  });
+
   // Recupera le interactions per un cliente
   app.get("/api/clients/:id/interactions", async (req: Request, res: Response) => {
     try {
@@ -6832,6 +6893,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               searchAreaGeocodingService.updateBuyerSearchArea(existingBuyer.id, buyerData.zones)
                 .catch(err => console.error(`[PATCH /api/clients/${clientId}] Errore geocodifica background:`, err));
             }
+            
+            // Re-trigger AI matching for updated buyer in background
+            triggerMatchingForBuyer(clientId)
+              .then(matchResult => console.log(`[PATCH /api/clients/${clientId}] AI matching completed: ${matchResult.savedMatches} matches`))
+              .catch(err => console.error(`[PATCH /api/clients/${clientId}] AI matching error:`, err));
           } else {
             // Crea un nuovo buyer
             const buyerInsertData = {
@@ -6848,6 +6914,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               searchAreaGeocodingService.updateBuyerSearchArea(newBuyer.id, buyerData.zones)
                 .catch(err => console.error(`[PATCH /api/clients/${clientId}] Errore geocodifica background:`, err));
             }
+            
+            // Trigger AI matching for new buyer in background
+            triggerMatchingForBuyer(clientId)
+              .then(matchResult => console.log(`[PATCH /api/clients/${clientId}] AI matching completed: ${matchResult.savedMatches} matches`))
+              .catch(err => console.error(`[PATCH /api/clients/${clientId}] AI matching error:`, err));
           }
         } catch (buyerError) {
           console.error(`[PATCH /api/clients/${clientId}] Error updating buyer preferences:`, buyerError);
@@ -6902,6 +6973,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const newBuyer = await storage.createBuyer(result.data);
+      
+      // Trigger AI matching for new buyer in background
+      if (newBuyer.clientId) {
+        triggerMatchingForBuyer(newBuyer.clientId)
+          .then(matchResult => console.log(`[POST /api/buyers] AI matching completed: ${matchResult.savedMatches} matches`))
+          .catch(err => console.error('[POST /api/buyers] AI matching error:', err));
+      }
+      
       res.status(201).json(newBuyer);
     } catch (error) {
       console.error("[POST /api/buyers]", error);
@@ -6923,6 +7002,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updatedBuyer = await storage.updateBuyer(buyerId, req.body);
+      
+      // Re-trigger AI matching for updated buyer in background
+      if (updatedBuyer.clientId) {
+        triggerMatchingForBuyer(updatedBuyer.clientId)
+          .then(matchResult => console.log(`[PATCH /api/buyers] AI matching completed: ${matchResult.savedMatches} matches`))
+          .catch(err => console.error('[PATCH /api/buyers] AI matching error:', err));
+      }
+      
       res.json(updatedBuyer);
     } catch (error) {
       console.error(`[PATCH /api/buyers/${req.params.id}]`, error);
