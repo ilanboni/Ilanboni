@@ -2995,9 +2995,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       else if (url.includes("casadaprivato.it")) portalSource = "CasaDaPrivato";
       else if (url.includes("clickcase.it")) portalSource = "ClickCase";
       
+      // For Immobiliare.it, try to find existing property by ID first
+      if (portalSource === "Immobiliare.it") {
+        const idMatch = url.match(/annunci\/(\d+)/);
+        if (idMatch) {
+          const externalId = idMatch[1];
+          console.log(`[SMART-IMPORT] Looking for existing property with ID: ${externalId}`);
+          
+          const existing = await db.select().from(properties)
+            .where(sql`${properties.externalId} = ${externalId} OR ${properties.url} LIKE ${'%' + externalId + '%'}`)
+            .limit(1);
+          
+          if (existing.length > 0) {
+            const prop = existing[0];
+            console.log(`[SMART-IMPORT] Found existing property: ${prop.address}`);
+            return res.json({
+              success: true,
+              data: {
+                address: prop.address,
+                city: prop.city || "Milano",
+                price: prop.price,
+                size: prop.size,
+                bedrooms: prop.bedrooms,
+                bathrooms: prop.bathrooms,
+                floor: prop.floor,
+                description: prop.description,
+                ownerPhone: prop.ownerPhone,
+                ownerName: prop.ownerName,
+                agencyName: prop.agencyName,
+                agencyPhone: prop.ownerPhone,
+                portalSource,
+                url,
+                classification: prop.isMultiagency ? "multi-agency" : (prop.agencyName ? "single-agency" : "private"),
+                classificationReason: "Immobile già presente nel database",
+                existingPropertyId: prop.id,
+                matchingAgencies: prop.agencyName ? [prop.agencyName] : []
+              }
+            });
+          }
+        }
+      }
+      
       // Extract data from URL
       const { extractPropertyFromUrl } = await import('./services/urlPropertyExtractor');
       const extracted = await extractPropertyFromUrl(url);
+      
+      // Validate extracted data - detect failed scraping
+      const isInvalidAddress = !extracted.address || 
+        extracted.address.toLowerCase().includes("prestito") ||
+        extracted.address.toLowerCase().includes("pubblicità") ||
+        extracted.address.length < 5;
+      
+      if (isInvalidAddress && portalSource === "Immobiliare.it") {
+        console.log(`[SMART-IMPORT] Scraping blocked by captcha, returning partial data`);
+        return res.json({
+          success: true,
+          data: {
+            address: "",
+            city: "Milano",
+            price: null,
+            size: null,
+            bedrooms: null,
+            bathrooms: null,
+            floor: null,
+            description: "",
+            ownerPhone: null,
+            ownerName: null,
+            agencyName: null,
+            agencyPhone: null,
+            portalSource,
+            url,
+            classification: "private",
+            classificationReason: "⚠️ Immobiliare.it ha bloccato lo scraping. Compila manualmente i dati.",
+            matchingAgencies: [],
+            requiresManualInput: true
+          }
+        });
+      }
       
       // Check if it's private portal (CasaDaPrivato, ClickCase)
       const isPrivatePortal = ["CasaDaPrivato", "ClickCase"].includes(portalSource);
@@ -3033,8 +3107,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check agency properties
         if (similarProps.length > 0) {
           matchingAgencies = similarProps
-            .filter(p => p.agency1Name)
-            .map(p => p.agency1Name!)
+            .filter(p => p.agencyName)
+            .map(p => p.agencyName!)
             .filter((v, i, a) => a.indexOf(v) === i);
           
           if (matchingAgencies.length > 0) {

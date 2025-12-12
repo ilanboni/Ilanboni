@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -41,6 +42,7 @@ interface ExtractedData {
   classificationReason: string;
   existingPropertyId?: number;
   matchingAgencies?: string[];
+  requiresManualInput?: boolean;
 }
 
 export default function ImportPage() {
@@ -250,60 +252,131 @@ export default function ImportPage() {
 
             <Card className="shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Dati Estratti</CardTitle>
+                <CardTitle className="text-lg">
+                  {extractedData.requiresManualInput ? "Inserisci Dati Manualmente" : "Dati Estratti"}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs text-gray-500">Indirizzo</p>
-                  <p className="font-medium">{extractedData.address || "Non trovato"}</p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Prezzo</p>
-                    <p className="font-medium">
-                      {extractedData.price 
-                        ? `€${extractedData.price.toLocaleString('it-IT')}` 
-                        : "—"}
-                    </p>
+                {extractedData.requiresManualInput ? (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs text-gray-500">Indirizzo *</Label>
+                      <Input 
+                        value={extractedData.address || ""}
+                        onChange={(e) => setExtractedData({...extractedData, address: e.target.value})}
+                        placeholder="Via Roma 1, Milano"
+                        data-testid="input-address"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-gray-500">Prezzo (€)</Label>
+                        <Input 
+                          type="number"
+                          value={extractedData.price || ""}
+                          onChange={(e) => setExtractedData({...extractedData, price: parseInt(e.target.value) || null})}
+                          placeholder="250000"
+                          data-testid="input-price"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Superficie (m²)</Label>
+                        <Input 
+                          type="number"
+                          value={extractedData.size || ""}
+                          onChange={(e) => setExtractedData({...extractedData, size: parseInt(e.target.value) || null})}
+                          placeholder="80"
+                          data-testid="input-size"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-gray-500">Camere</Label>
+                        <Input 
+                          type="number"
+                          value={extractedData.bedrooms || ""}
+                          onChange={(e) => setExtractedData({...extractedData, bedrooms: parseInt(e.target.value) || null})}
+                          placeholder="2"
+                          data-testid="input-bedrooms"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Bagni</Label>
+                        <Input 
+                          type="number"
+                          value={extractedData.bathrooms || ""}
+                          onChange={(e) => setExtractedData({...extractedData, bathrooms: parseInt(e.target.value) || null})}
+                          placeholder="1"
+                          data-testid="input-bathrooms"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500">Telefono</Label>
+                      <Input 
+                        value={extractedData.ownerPhone || ""}
+                        onChange={(e) => setExtractedData({...extractedData, ownerPhone: e.target.value})}
+                        placeholder="3331234567"
+                        data-testid="input-phone"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Superficie</p>
-                    <p className="font-medium">
-                      {extractedData.size ? `${extractedData.size} m²` : "—"}
-                    </p>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-xs text-gray-500">Indirizzo</p>
+                      <p className="font-medium">{extractedData.address || "Non trovato"}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Prezzo</p>
+                        <p className="font-medium">
+                          {extractedData.price 
+                            ? `€${extractedData.price.toLocaleString('it-IT')}` 
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Superficie</p>
+                        <p className="font-medium">
+                          {extractedData.size ? `${extractedData.size} m²` : "—"}
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Camere</p>
-                    <p className="font-medium">{extractedData.bedrooms || "—"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Bagni</p>
-                    <p className="font-medium">{extractedData.bathrooms || "—"}</p>
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Camere</p>
+                        <p className="font-medium">{extractedData.bedrooms || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Bagni</p>
+                        <p className="font-medium">{extractedData.bathrooms || "—"}</p>
+                      </div>
+                    </div>
 
-                {(extractedData.ownerName || extractedData.agencyName) && (
-                  <div>
-                    <p className="text-xs text-gray-500">
-                      {extractedData.classification === "private" ? "Proprietario" : "Agenzia"}
-                    </p>
-                    <p className="font-medium">
-                      {extractedData.ownerName || extractedData.agencyName}
-                    </p>
-                  </div>
-                )}
+                    {(extractedData.ownerName || extractedData.agencyName) && (
+                      <div>
+                        <p className="text-xs text-gray-500">
+                          {extractedData.classification === "private" ? "Proprietario" : "Agenzia"}
+                        </p>
+                        <p className="font-medium">
+                          {extractedData.ownerName || extractedData.agencyName}
+                        </p>
+                      </div>
+                    )}
 
-                {(extractedData.ownerPhone || extractedData.agencyPhone) && (
-                  <div>
-                    <p className="text-xs text-gray-500">Telefono</p>
-                    <p className="font-medium">
-                      {extractedData.ownerPhone || extractedData.agencyPhone}
-                    </p>
-                  </div>
+                    {(extractedData.ownerPhone || extractedData.agencyPhone) && (
+                      <div>
+                        <p className="text-xs text-gray-500">Telefono</p>
+                        <p className="font-medium">
+                          {extractedData.ownerPhone || extractedData.agencyPhone}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div>
