@@ -109,14 +109,18 @@ export const sellers = pgTable("sellers", {
   propertyId: integer("property_id"),
 });
 
-// Matches (property-client matching results)
+// Matches (property-client matching results with AI reasoning)
 export const matches = pgTable("matches", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").notNull().references(() => clients.id),
+  buyerId: integer("buyer_id").references(() => buyers.id),
   propertyId: integer("property_id").references(() => properties.id),
   sharedPropertyId: integer("shared_property_id").references(() => sharedProperties.id),
   score: integer("score").notNull(), // match score 0-100
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  reasoning: text("reasoning"), // AI-generated explanation of match quality
+  isAiGenerated: boolean("is_ai_generated").default(false), // true if score was computed by OpenAI
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow()
 });
 
 // Client requests (natural language property requests from clients)
@@ -441,7 +445,7 @@ export const propertyVisits = pgTable("property_visits", {
 // Create insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertContactSchema = createInsertSchema(contacts).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertMatchSchema = createInsertSchema(matches).omit({ id: true, createdAt: true });
+export const insertMatchSchema = createInsertSchema(matches).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertClientRequestSchema = createInsertSchema(clientRequests).omit({ id: true, createdAt: true, updatedAt: true });
 // Redefine client schema manually per avere maggiore controllo
 export const insertClientSchema = z.object({
