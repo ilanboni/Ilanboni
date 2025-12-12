@@ -3039,57 +3039,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Use Apify for Immobiliare.it and Idealista (more reliable than Playwright)
-      let extracted: any = null;
-      
+      // For Immobiliare.it and Idealista: show manual input form directly (scraping blocked by these portals)
       if (portalSource === "Immobiliare.it" || portalSource === "Idealista") {
-        console.log(`[SMART-IMPORT] Using Apify for ${portalSource}`);
-        try {
-          const { getApifySingleExtractor } = await import('./services/apifySinglePropertyExtractor');
-          const extractor = getApifySingleExtractor();
-          
-          const apifyData = portalSource === "Immobiliare.it"
-            ? await extractor.extractFromImmobiliare(url)
-            : await extractor.extractFromIdealista(url);
-          
-          if (apifyData) {
-            console.log(`[SMART-IMPORT] Apify extraction successful: ${apifyData.address}`);
-            extracted = {
-              address: apifyData.address,
-              city: apifyData.city,
-              price: apifyData.price,
-              size: apifyData.size,
-              bedrooms: apifyData.bedrooms,
-              bathrooms: apifyData.bathrooms,
-              floor: apifyData.floor,
-              description: apifyData.description,
-              ownerPhone: apifyData.ownerPhone || null,
-              ownerName: apifyData.ownerName || null,
-              externalLink: url,
-              portalSource,
-              hasWebContact: !apifyData.ownerPhone,
-              _apifyData: apifyData
-            };
+        console.log(`[SMART-IMPORT] ${portalSource} not in database, showing manual input form`);
+        return res.json({
+          success: true,
+          data: {
+            address: "",
+            city: "Milano",
+            price: null,
+            size: null,
+            bedrooms: null,
+            bathrooms: null,
+            floor: null,
+            description: "",
+            ownerPhone: null,
+            ownerName: null,
+            agencyName: null,
+            agencyPhone: null,
+            portalSource,
+            url,
+            classification: "private",
+            classificationReason: `Immobile non presente nel database. Inserisci i dati manualmente.`,
+            matchingAgencies: [],
+            requiresManualInput: true
           }
-        } catch (apifyError) {
-          console.error(`[SMART-IMPORT] Apify extraction failed:`, apifyError);
-        }
+        });
       }
       
-      // Fallback to Playwright for other portals or if Apify failed
-      if (!extracted) {
-        console.log(`[SMART-IMPORT] Using Playwright extraction`);
-        const { extractPropertyFromUrl } = await import('./services/urlPropertyExtractor');
-        extracted = await extractPropertyFromUrl(url);
-      }
+      // For CasaDaPrivato and ClickCase: use Playwright extraction (works well)
+      let extracted: any = null;
+      console.log(`[SMART-IMPORT] Using Playwright extraction for ${portalSource}`);
+      const { extractPropertyFromUrl } = await import('./services/urlPropertyExtractor');
+      extracted = await extractPropertyFromUrl(url);
       
-      // Validate extracted data - detect failed scraping
+      // Validate extracted data
       const isInvalidAddress = !extracted?.address || 
         extracted.address.toLowerCase().includes("prestito") ||
         extracted.address.toLowerCase().includes("pubblicità") ||
         extracted.address.length < 5;
       
-      if (isInvalidAddress && (portalSource === "Immobiliare.it" || portalSource === "Idealista")) {
+      if (isInvalidAddress) {
         console.log(`[SMART-IMPORT] Extraction failed, returning manual input form`);
         return res.json({
           success: true,
