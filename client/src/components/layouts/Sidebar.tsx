@@ -68,6 +68,7 @@ export default function Sidebar({ className }: SidebarProps) {
         <SidebarLink to="/properties" icon="fas fa-building">Immobili</SidebarLink>
         <SidebarLink to="/properties/shared" icon="fas fa-copy">Duplicati Multi-Agency</SidebarLink>
         <SidebarLink to="/properties/private" icon="fas fa-user">Privati</SidebarLink>
+        <SidebarLink to="/import" icon="fas fa-bolt">Import Rapido</SidebarLink>
         <SidebarLink to="/properties/ranking" icon="fas fa-trophy">Classifica Immobili</SidebarLink>
         <SidebarLink to="/appointments" icon="fas fa-calendar-alt">Appuntamenti</SidebarLink>
         <SidebarLink to="/appointment-confirmations" icon="fas fa-calendar-check">Conferme Appuntamenti</SidebarLink>

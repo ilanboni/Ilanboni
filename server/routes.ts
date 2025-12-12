@@ -2978,6 +2978,254 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart import: Extract, classify and prepare property from URL
+  app.post("/api/properties/smart-import", async (req: Request, res: Response) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ success: false, error: "URL non fornito" });
+      }
+
+      console.log(`[SMART-IMPORT] Analyzing: ${url}`);
+      
+      // Detect portal source
+      let portalSource = "Altro";
+      if (url.includes("idealista.it")) portalSource = "Idealista";
+      else if (url.includes("immobiliare.it")) portalSource = "Immobiliare.it";
+      else if (url.includes("casadaprivato.it")) portalSource = "CasaDaPrivato";
+      else if (url.includes("clickcase.it")) portalSource = "ClickCase";
+      
+      // Extract data from URL
+      const { extractPropertyFromUrl } = await import('./services/urlPropertyExtractor');
+      const extracted = await extractPropertyFromUrl(url);
+      
+      // Check if it's private portal (CasaDaPrivato, ClickCase)
+      const isPrivatePortal = ["CasaDaPrivato", "ClickCase"].includes(portalSource);
+      
+      // Check if phone is likely agency (landline)
+      const { isLikelyLandline } = await import('./services/phoneDeduplication');
+      const hasLandline = extracted.ownerPhone ? isLikelyLandline(extracted.ownerPhone) : false;
+      
+      // Check for existing properties with similar address to detect multi-agency
+      let classification: "private" | "single-agency" | "multi-agency" = "private";
+      let classificationReason = "";
+      let matchingAgencies: string[] = [];
+      let existingPropertyId: number | undefined;
+      
+      // Normalize address for comparison
+      const normalizedAddress = extracted.address?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+      
+      if (normalizedAddress.length > 5) {
+        const searchPattern = '%' + normalizedAddress.substring(0, 15) + '%';
+        
+        // Search for similar properties in both tables
+        const [similarProps, similarShared] = await Promise.all([
+          db.select()
+            .from(properties)
+            .where(sql`LOWER(REPLACE(${properties.address}, ' ', '')) LIKE ${searchPattern}`)
+            .limit(10),
+          db.select()
+            .from(sharedProperties)
+            .where(sql`LOWER(REPLACE(${sharedProperties.address}, ' ', '')) LIKE ${searchPattern}`)
+            .limit(10)
+        ]);
+        
+        // Check agency properties
+        if (similarProps.length > 0) {
+          matchingAgencies = similarProps
+            .filter(p => p.agency1Name)
+            .map(p => p.agency1Name!)
+            .filter((v, i, a) => a.indexOf(v) === i);
+          
+          if (matchingAgencies.length > 0) {
+            existingPropertyId = similarProps[0].id;
+            classification = matchingAgencies.length > 1 ? "multi-agency" : "single-agency";
+            classificationReason = `Trovato in ${matchingAgencies.length} agenzia/e: ${matchingAgencies.join(', ')}`;
+          }
+        }
+        
+        // Check shared properties (private listings)
+        if (similarShared.length > 0 && classification === "private") {
+          // If we found similar shared properties, check if this is a duplicate
+          const existingUrls = similarShared.map(p => p.externalLink).filter(Boolean);
+          if (existingUrls.includes(url)) {
+            classificationReason = "⚠️ Questa proprietà è già presente nel sistema";
+          } else {
+            classificationReason = "Simile a proprietà esistente nel database";
+          }
+        }
+      }
+      
+      // If private portal and no agencies found, it's private
+      if (classification === "private") {
+        if (isPrivatePortal) {
+          classificationReason = "Annuncio da portale di privati (CasaDaPrivato/ClickCase)";
+        } else if (hasLandline) {
+          classification = "single-agency";
+          classificationReason = "Numero fisso rilevato - probabile agenzia";
+        } else if (extracted.ownerPhone && extracted.ownerPhone.startsWith("3")) {
+          classificationReason = "Numero di cellulare - probabile privato";
+        } else {
+          classificationReason = "Classificazione automatica basata sui dati disponibili";
+        }
+      }
+      
+      console.log(`[SMART-IMPORT] Classification: ${classification} - ${classificationReason}`);
+      
+      res.json({
+        success: true,
+        data: {
+          address: extracted.address,
+          city: extracted.city || "Milano",
+          price: extracted.price,
+          size: extracted.size,
+          bedrooms: extracted.bedrooms,
+          bathrooms: extracted.bathrooms,
+          floor: extracted.floor,
+          description: extracted.description,
+          ownerPhone: extracted.ownerPhone,
+          ownerName: extracted.ownerName,
+          agencyName: classification !== "private" ? extracted.ownerName : null,
+          agencyPhone: classification !== "private" ? extracted.ownerPhone : null,
+          portalSource,
+          url,
+          classification,
+          classificationReason,
+          existingPropertyId,
+          matchingAgencies: matchingAgencies.length > 0 ? matchingAgencies : undefined
+        }
+      });
+    } catch (error) {
+      console.error("[POST /api/properties/smart-import]", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Errore durante l'analisi"
+      });
+    }
+  });
+
+  // Smart import save: Save property based on classification
+  app.post("/api/properties/smart-import/save", async (req: Request, res: Response) => {
+    try {
+      const data = req.body;
+      
+      if (!data.address) {
+        return res.status(400).json({ success: false, error: "Indirizzo mancante" });
+      }
+      
+      console.log(`[SMART-IMPORT-SAVE] Saving: ${data.address} as ${data.classification}`);
+      
+      // Check for duplicates
+      const existingByUrl = await db.select()
+        .from(sharedProperties)
+        .where(eq(sharedProperties.externalLink, data.url))
+        .limit(1);
+      
+      if (existingByUrl.length > 0) {
+        return res.status(409).json({ 
+          success: false,
+          error: "Questa proprietà è già presente nel sistema",
+          existingId: existingByUrl[0].id
+        });
+      }
+      
+      let result: any;
+      
+      if (data.classification === "private") {
+        // Save as shared property (private)
+        const sharedProperty = await storage.createSharedProperty({
+          address: data.address,
+          city: data.city || "Milano",
+          type: "apartment",
+          price: data.price || 0,
+          size: data.size || undefined,
+          floor: data.floor || undefined,
+          bedrooms: data.bedrooms || undefined,
+          bathrooms: data.bathrooms || undefined,
+          description: data.description,
+          ownerName: data.ownerName,
+          ownerPhone: data.ownerPhone,
+          externalLink: data.url,
+          ownerType: "private",
+          portalSource: data.portalSource,
+          externalId: `smart-${Date.now()}`,
+          classificationColor: "green",
+          matchBuyers: true,
+          hasWebContact: !data.ownerPhone
+        });
+        
+        result = { type: "shared_property", id: sharedProperty.id, data: sharedProperty };
+        console.log(`[SMART-IMPORT-SAVE] ✅ Created private property: ${sharedProperty.id}`);
+        
+      } else {
+        // Save as agency property in properties table
+        // If there's an existing property cluster, add to it
+        if (data.existingPropertyId) {
+          // Add as additional agency to existing property
+          const existing = await db.select()
+            .from(properties)
+            .where(eq(properties.id, data.existingPropertyId))
+            .limit(1);
+          
+          if (existing.length > 0) {
+            const prop = existing[0];
+            // Find the next available agency slot
+            let updateData: any = {};
+            if (!prop.agency2Name) {
+              updateData = { agency2Name: data.agencyName || "Agenzia", agency2Link: data.url };
+            } else if (!prop.agency3Name) {
+              updateData = { agency3Name: data.agencyName || "Agenzia", agency3Link: data.url };
+            }
+            
+            if (Object.keys(updateData).length > 0) {
+              await db.update(properties)
+                .set(updateData)
+                .where(eq(properties.id, data.existingPropertyId));
+              
+              result = { type: "property_updated", id: data.existingPropertyId, added: updateData };
+              console.log(`[SMART-IMPORT-SAVE] ✅ Added agency to existing property: ${data.existingPropertyId}`);
+            } else {
+              result = { type: "property_full", id: data.existingPropertyId, message: "Max 3 agenzie raggiunte" };
+            }
+          }
+        } else {
+          // Create new property
+          const [newProperty] = await db.insert(properties).values({
+            address: data.address,
+            city: data.city || "Milano",
+            type: "apartment",
+            price: data.price || 0,
+            size: data.size,
+            floor: data.floor,
+            bedrooms: data.bedrooms,
+            bathrooms: data.bathrooms,
+            description: data.description,
+            agency1Name: data.agencyName || "Agenzia",
+            agency1Link: data.url,
+            ownerPhone: data.agencyPhone,
+            externalLink: data.url,
+            stage: "new",
+            rating: 3
+          }).returning();
+          
+          result = { type: "property", id: newProperty.id, data: newProperty };
+          console.log(`[SMART-IMPORT-SAVE] ✅ Created agency property: ${newProperty.id}`);
+        }
+      }
+      
+      res.status(201).json({
+        success: true,
+        result
+      });
+    } catch (error) {
+      console.error("[POST /api/properties/smart-import/save]", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Errore durante il salvataggio"
+      });
+    }
+  });
+
   // Track web contact message sent (for properties without phone)
   app.post("/api/properties/:id/web-contact", async (req: Request, res: Response) => {
     try {
