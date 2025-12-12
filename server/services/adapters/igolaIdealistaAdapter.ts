@@ -1,5 +1,6 @@
 import { ApifyClient } from 'apify-client';
 import type { PropertyListing } from '../portalIngestionService';
+import { isLikelyLandline } from '../phoneDeduplication';
 
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN!;
 const ACTOR_ID = 'igolaizola/idealista-scraper'; // Professional actor with contactInfo
@@ -242,17 +243,31 @@ export class IgolaIdealistaAdapter {
         let agencyByNameCount = 0;
         
         if (params.privateOnly !== false) {
+          let landlineCount = 0;
+          
           realPrivateFiltered = userTypeFiltered.filter((item: any) => {
             const contact = item.contactInfo || {};
             const ownerName = contact.contactName || contact.commercialName || '';
+            const phone = contact.phone1?.formattedPhone || '';
+            
+            // Filter by agency name
             if (isAgencyByName(ownerName)) {
               agencyByNameCount++;
-              console.log(`[IGOLA-IDEALISTA] ⛔ Filtered agency disguised as private: "${ownerName}" (${item.propertyCode || 'N/A'})`);
+              console.log(`[IGOLA-IDEALISTA] ⛔ Filtered agency by name: "${ownerName}" (${item.propertyCode || 'N/A'})`);
               return false;
             }
+            
+            // Filter by landline phone (agencies typically use landlines)
+            if (phone && isLikelyLandline(phone)) {
+              landlineCount++;
+              console.log(`[IGOLA-IDEALISTA] ⛔ Filtered agency by landline: ${phone} (${item.propertyCode || 'N/A'})`);
+              return false;
+            }
+            
             return true;
           });
-          console.log(`[IGOLA-IDEALISTA] After agency-name filter: ${realPrivateFiltered.length} properties (detected ${agencyByNameCount} fake privates)`);
+          console.log(`[IGOLA-IDEALISTA] After agency filters: ${realPrivateFiltered.length} properties`);
+          console.log(`[IGOLA-IDEALISTA]   - Filtered by name: ${agencyByNameCount}, by landline: ${landlineCount}`);
         }
 
         // Filter by Milano location to prevent out-of-market listings

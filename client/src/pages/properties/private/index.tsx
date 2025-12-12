@@ -821,11 +821,29 @@ export default function PrivatePropertiesPage() {
                             📱 {property.ownerPhone}
                           </div>
                         )}
-                        {property.portalSource && (
-                          <div className="text-xs text-gray-500">
-                            Fonte: {property.portalSource}
+                        {property.description && (
+                          <div className="text-xs text-gray-600 line-clamp-2 mt-1">
+                            {property.description}
                           </div>
                         )}
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {property.portalSource && (
+                            <span className="text-xs text-gray-500">
+                              Fonte: {property.portalSource}
+                            </span>
+                          )}
+                          {(property.url || property.externalLink) && (
+                            <a
+                              href={property.url || property.externalLink || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              🔗 Vedi annuncio
+                            </a>
+                          )}
+                        </div>
                       </CardContent>
                       <CardFooter className="flex gap-2">
                         <Button

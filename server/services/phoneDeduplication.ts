@@ -38,6 +38,60 @@ export function normalizePhoneNumber(phone: string): string {
 }
 
 /**
+ * Verifica se un numero di telefono è probabilmente un numero fisso (agenzia)
+ * I numeri fissi italiani NON iniziano con 3 dopo il prefisso +39
+ * 
+ * Prefissi fissi italiani comuni:
+ * - 02 (Milano), 06 (Roma), 011 (Torino), 055 (Firenze)
+ * - Tutti i numeri che NON iniziano con 3 dopo +39
+ * 
+ * Numeri mobili italiani:
+ * - Iniziano sempre con 3 dopo +39 (es: +393xx...)
+ */
+export function isLikelyLandline(phone: string): boolean {
+  if (!phone) return false;
+  
+  // Rimuovi tutti i caratteri non numerici tranne +
+  let cleaned = phone.replace(/[^0-9+]/g, '');
+  
+  // Rimuovi + iniziale se presente
+  if (cleaned.startsWith('+')) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  // Rimuovi 00 prefisso internazionale
+  if (cleaned.startsWith('00')) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  // Rimuovi prefisso 39 se presente
+  if (cleaned.startsWith('39')) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  // Ora abbiamo il numero locale italiano (dovrebbe iniziare con 0 o 3)
+  // Se inizia con 3 -> cellulare
+  // Se inizia con 0 -> fisso (agenzia)
+  // Se inizia con altro (800, 199, etc.) -> probabilmente agenzia
+  
+  if (cleaned.startsWith('3') && cleaned.length === 10) {
+    return false; // Cellulare italiano (10 cifre, inizia con 3)
+  }
+  
+  if (cleaned.startsWith('0')) {
+    return true; // Numero fisso italiano
+  }
+  
+  // Numeri speciali (800, 199, etc.) o formati non riconosciuti
+  // Li consideriamo come potenziali agenzie
+  if (cleaned.length >= 6) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Verifica se un numero è già stato contattato
  */
 export async function isPhoneAlreadyContacted(phone: string): Promise<{
