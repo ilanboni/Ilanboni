@@ -3347,6 +3347,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import property from Apify Actor
+  app.post("/api/import-from-apify", async (req: Request, res: Response) => {
+    try {
+      const data = req.body;
+      console.log(`[APIFY-IMPORT] Received property import request:`, JSON.stringify(data, null, 2));
+      
+      // Validate required fields
+      if (!data.url) {
+        return res.status(400).json({ 
+          status: "error", 
+          message: "Campo 'url' obbligatorio mancante" 
+        });
+      }
+      
+      // Determine portal source from URL if not provided
+      let portalSource = data.portalSource || 'altro';
+      if (!data.portalSource) {
+        if (data.url.includes('immobiliare.it')) portalSource = 'immobiliare.it';
+        else if (data.url.includes('idealista.it')) portalSource = 'idealista.it';
+        else if (data.url.includes('casa.it')) portalSource = 'casa.it';
+      }
+      
+      // Classify property based on agencies and ownerPhone
+      let category = data.category;
+      if (!category) {
+        const hasAgencies = Array.isArray(data.agencies) && data.agencies.length > 0;
+        const hasPrivatePhone = !!data.ownerPhone;
+        const agencyCount = data.agencies?.length || 0;
+        
+        if (hasPrivatePhone && hasAgencies) {
+          category = 'privato+agenzia';
+        } else if (hasPrivatePhone && !hasAgencies) {
+          category = 'privato';
+        } else if (agencyCount === 1) {
+          category = 'monocondiviso';
+        } else if (agencyCount > 1) {
+          category = 'pluricondiviso';
+        } else {
+          category = 'privato'; // Default
+        }
+      }
+      
+      console.log(`[APIFY-IMPORT] Classification: ${category}, Portal: ${portalSource}`);
+      
+      // Check for existing property with same URL (url field has unique index)
+      const existingByUrl = await db.select()
+        .from(sharedProperties)
+        .where(or(
+          eq(sharedProperties.url, data.url),
+          eq(sharedProperties.externalLink, data.url)
+        ))
+        .limit(1);
+      
+      let propertyId: number;
+      let isUpdate = false;
+      
+      // Determine owner type based on category
+      const ownerType = category === 'privato' ? 'private' : 
+                        category === 'privato+agenzia' ? 'mixed' : 'agency';
+      
+      // Build property data aligned with sharedProperties schema
+      const propertyData = {
+        address: data.address || 'Indirizzo non specificato',
+        city: data.city || 'Milano',
+        type: data.type || 'apartment',
+        price: data.price || 0,
+        size: data.size || undefined,
+        bedrooms: data.bedrooms || undefined,
+        bathrooms: data.bathrooms || undefined,
+        floor: data.floor?.toString() || undefined,
+        description: data.description || data.title || `Categoria: ${category}. Importato da Apify.`,
+        externalLink: data.url,
+        url: data.url,
+        portalSource,
+        ownerPhone: data.ownerPhone || undefined,
+        ownerName: data.ownerName || undefined,
+        ownerType,
+        classificationColor: category === 'privato' ? 'green' : 
+                            category === 'privato+agenzia' ? 'yellow' : 'blue',
+        matchBuyers: true,
+        externalId: `apify-${Date.now()}`,
+        agencies: data.agencies ? data.agencies.map((link: string) => ({ link })) : null
+      };
+      
+      if (existingByUrl.length > 0) {
+        // Update existing property
+        propertyId = existingByUrl[0].id;
+        await db.update(sharedProperties)
+          .set({
+            ...propertyData,
+            updatedAt: new Date()
+          })
+          .where(eq(sharedProperties.id, propertyId));
+        isUpdate = true;
+        console.log(`[APIFY-IMPORT] Updated existing property: ${propertyId}`);
+      } else {
+        // Create new property
+        const [newProperty] = await db.insert(sharedProperties)
+          .values(propertyData)
+          .returning();
+        propertyId = newProperty.id;
+        console.log(`[APIFY-IMPORT] Created new property: ${propertyId}`);
+      }
+      
+      // Get the saved/updated property
+      const savedProperty = await storage.getSharedProperty(propertyId);
+      
+      // Trigger AI matching and await result
+      let matchCount = 0;
+      if (savedProperty) {
+        try {
+          const matchResult = await triggerMatchingForProperty(savedProperty, 'shared');
+          matchCount = matchResult.savedMatches;
+          console.log(`[APIFY-IMPORT] AI matching completed: ${matchResult.savedMatches} matches, ${matchResult.aiProcessed} AI processed`);
+        } catch (err) {
+          console.error('[APIFY-IMPORT] AI matching error:', err);
+        }
+      }
+      
+      res.status(isUpdate ? 200 : 201).json({
+        status: "ok",
+        message: isUpdate 
+          ? `Immobile aggiornato con successo e matchato con ${matchCount} clienti`
+          : `Immobile importato con successo e matchato con ${matchCount} clienti`,
+        propertyId,
+        category,
+        portalSource,
+        isUpdate,
+        matchCount
+      });
+    } catch (error) {
+      console.error("[POST /api/import-from-apify]", error);
+      res.status(500).json({ 
+        status: "error",
+        message: error instanceof Error ? error.message : "Errore durante l'importazione"
+      });
+    }
+  });
+
   // Track web contact message sent (for properties without phone)
   app.post("/api/properties/:id/web-contact", async (req: Request, res: Response) => {
     try {
