@@ -3039,39 +3039,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // For Immobiliare.it and Idealista: show manual input form directly (scraping blocked by these portals)
+      // Use Apify web-scraper for Immobiliare.it and Idealista (Puppeteer with residential proxies)
+      let extracted: any = null;
+      
       if (portalSource === "Immobiliare.it" || portalSource === "Idealista") {
-        console.log(`[SMART-IMPORT] ${portalSource} not in database, showing manual input form`);
-        return res.json({
-          success: true,
-          data: {
-            address: "",
-            city: "Milano",
-            price: null,
-            size: null,
-            bedrooms: null,
-            bathrooms: null,
-            floor: null,
-            description: "",
-            ownerPhone: null,
-            ownerName: null,
-            agencyName: null,
-            agencyPhone: null,
-            portalSource,
-            url,
-            classification: "private",
-            classificationReason: `Immobile non presente nel database. Inserisci i dati manualmente.`,
-            matchingAgencies: [],
-            requiresManualInput: true
+        console.log(`[SMART-IMPORT] Using Apify web-scraper for ${portalSource}`);
+        try {
+          const { getApifySingleExtractor } = await import('./services/apifySinglePropertyExtractor');
+          const extractor = getApifySingleExtractor();
+          
+          const apifyData = portalSource === "Immobiliare.it"
+            ? await extractor.extractFromImmobiliare(url)
+            : await extractor.extractFromIdealista(url);
+          
+          if (apifyData) {
+            console.log(`[SMART-IMPORT] Apify extraction successful: ${apifyData.address}`);
+            extracted = {
+              address: apifyData.address,
+              city: apifyData.city,
+              price: apifyData.price,
+              size: apifyData.size,
+              bedrooms: apifyData.bedrooms,
+              bathrooms: apifyData.bathrooms,
+              floor: apifyData.floor,
+              description: apifyData.description,
+              ownerPhone: apifyData.ownerPhone || null,
+              ownerName: apifyData.ownerName || null,
+              externalLink: url,
+              portalSource,
+              hasWebContact: !apifyData.ownerPhone,
+              _apifyData: apifyData
+            };
           }
-        });
+        } catch (apifyError) {
+          console.error(`[SMART-IMPORT] Apify extraction failed:`, apifyError);
+        }
       }
       
-      // For CasaDaPrivato and ClickCase: use Playwright extraction (works well)
-      let extracted: any = null;
-      console.log(`[SMART-IMPORT] Using Playwright extraction for ${portalSource}`);
-      const { extractPropertyFromUrl } = await import('./services/urlPropertyExtractor');
-      extracted = await extractPropertyFromUrl(url);
+      // For CasaDaPrivato and ClickCase or if Apify failed: use Playwright extraction
+      if (!extracted) {
+        console.log(`[SMART-IMPORT] Using Playwright extraction for ${portalSource}`);
+        const { extractPropertyFromUrl } = await import('./services/urlPropertyExtractor');
+        extracted = await extractPropertyFromUrl(url);
+      }
       
       // Validate extracted data
       const isInvalidAddress = !extracted?.address || 
@@ -3080,29 +3090,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extracted.address.length < 5;
       
       if (isInvalidAddress) {
-        console.log(`[SMART-IMPORT] Extraction failed, returning manual input form`);
-        return res.json({
-          success: true,
-          data: {
-            address: "",
-            city: "Milano",
-            price: null,
-            size: null,
-            bedrooms: null,
-            bathrooms: null,
-            floor: null,
-            description: "",
-            ownerPhone: null,
-            ownerName: null,
-            agencyName: null,
-            agencyPhone: null,
-            portalSource,
-            url,
-            classification: "private",
-            classificationReason: `⚠️ Estrazione fallita. Compila manualmente i dati.`,
-            matchingAgencies: [],
-            requiresManualInput: true
-          }
+        console.log(`[SMART-IMPORT] Extraction failed, returning error`);
+        return res.status(400).json({
+          success: false,
+          error: "Impossibile estrarre i dati dall'annuncio. Il portale potrebbe avere protezioni anti-scraping attive."
         });
       }
       
