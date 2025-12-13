@@ -3013,6 +3013,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (existing.length > 0) {
             const prop = existing[0];
             console.log(`[SMART-IMPORT] Found existing property: ${prop.address}`);
+            
+            // Run cross-portal search even for existing properties
+            let crossPortalResult = null;
+            let matchingAgencies = prop.agencyName ? [prop.agencyName] : [];
+            let classification = prop.isMultiagency ? "multi-agency" : (prop.agencyName ? "single-agency" : "private");
+            let classificationReason = "Immobile già presente nel database";
+            
+            try {
+              const { searchCrossPortalListings } = await import('./services/crossPortalSearchService');
+              crossPortalResult = await searchCrossPortalListings({
+                address: prop.address,
+                price: prop.price,
+                size: prop.size,
+                portalSource,
+                url
+              });
+              
+              if (crossPortalResult.matchingListings.length > 0) {
+                if (crossPortalResult.uniqueAgencies.length > 1) {
+                  classification = "multi-agency";
+                  classificationReason = `Trovato su ${crossPortalResult.matchingListings.length} annunci da ${crossPortalResult.uniqueAgencies.length} agenzie`;
+                } else if (crossPortalResult.uniqueAgencies.length === 1) {
+                  classification = "single-agency";
+                  classificationReason = `Trovato con agenzia: ${crossPortalResult.uniqueAgencies[0]}`;
+                }
+                matchingAgencies = crossPortalResult.uniqueAgencies;
+              }
+              console.log(`[SMART-IMPORT] Cross-portal for existing: ${crossPortalResult.matchingListings.length} matches`);
+            } catch (crossErr) {
+              console.error('[SMART-IMPORT] Cross-portal error:', crossErr);
+            }
+            
             return res.json({
               success: true,
               data: {
@@ -3030,10 +3062,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 agencyPhone: prop.ownerPhone,
                 portalSource,
                 url,
-                classification: prop.isMultiagency ? "multi-agency" : (prop.agencyName ? "single-agency" : "private"),
-                classificationReason: "Immobile già presente nel database",
+                classification,
+                classificationReason,
                 existingPropertyId: prop.id,
-                matchingAgencies: prop.agencyName ? [prop.agencyName] : []
+                matchingAgencies,
+                crossPortalMatches: crossPortalResult?.matchingListings || []
               }
             });
           }
@@ -3183,6 +3216,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[SMART-IMPORT] Classification: ${classification} - ${classificationReason}`);
       
+      // Cross-portal search: find same apartment on other portals
+      let crossPortalResult = null;
+      try {
+        const { searchCrossPortalListings } = await import('./services/crossPortalSearchService');
+        crossPortalResult = await searchCrossPortalListings({
+          address: extracted.address,
+          price: extracted.price,
+          size: extracted.size,
+          portalSource,
+          url
+        });
+        
+        // Update classification based on cross-portal results
+        if (crossPortalResult.matchingListings.length > 0) {
+          if (crossPortalResult.uniqueAgencies.length > 1) {
+            classification = "multi-agency";
+            classificationReason = `Trovato su ${crossPortalResult.matchingListings.length} annunci da ${crossPortalResult.uniqueAgencies.length} agenzie: ${crossPortalResult.uniqueAgencies.slice(0, 3).join(', ')}`;
+          } else if (crossPortalResult.uniqueAgencies.length === 1 && classification === "private") {
+            classification = "single-agency";
+            classificationReason = `Trovato anche con agenzia: ${crossPortalResult.uniqueAgencies[0]}`;
+          }
+          matchingAgencies = crossPortalResult.uniqueAgencies;
+        }
+        console.log(`[SMART-IMPORT] Cross-portal: ${crossPortalResult.matchingListings.length} matches found`);
+      } catch (crossErr) {
+        console.error('[SMART-IMPORT] Cross-portal search error:', crossErr);
+      }
+      
       res.json({
         success: true,
         data: {
@@ -3203,7 +3264,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           classification,
           classificationReason,
           existingPropertyId,
-          matchingAgencies: matchingAgencies.length > 0 ? matchingAgencies : undefined
+          matchingAgencies: matchingAgencies.length > 0 ? matchingAgencies : undefined,
+          crossPortalMatches: crossPortalResult?.matchingListings || []
         }
       });
     } catch (error) {
