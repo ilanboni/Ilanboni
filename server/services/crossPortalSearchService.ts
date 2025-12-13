@@ -107,20 +107,26 @@ export async function searchCrossPortalListings(
     url: string;
   }
 ): Promise<CrossPortalSearchResult> {
-  console.log(`[CROSS-PORTAL] Searching for: ${sourceData.address}`);
+  console.log(`[CROSS-PORTAL] Searching for: ${sourceData.address}, price: ${sourceData.price}, size: ${sourceData.size}`);
   
   const { street, number } = extractStreetAndNumber(sourceData.address);
-  const streetWords = street.split(' ').filter(w => w.length > 3);
+  const genericWords = ['viale', 'via', 'piazza', 'corso', 'largo', 'piazzale', 'vicolo'];
+  const streetWords = street.split(' ').filter(w => w.length > 3 && !genericWords.includes(w));
   
   const matchingListings: CrossPortalMatch[] = [];
+  const seenIds = new Set<string>();
   
-  if (streetWords.length > 0) {
-    const searchPattern = `%${streetWords[0]}%`;
+  const priceMin = sourceData.price ? Math.floor(sourceData.price * 0.95) : 0;
+  const priceMax = sourceData.price ? Math.ceil(sourceData.price * 1.05) : 999999999;
+  const sizeMin = sourceData.size ? sourceData.size - 5 : 0;
+  const sizeMax = sourceData.size ? sourceData.size + 5 : 999999;
+  
+  // STRATEGY 1: Search by PRICE + SIZE (primary criteria for cross-portal matching)
+  // This catches same property even when addresses differ across portals
+  if (sourceData.price && sourceData.size) {
+    console.log(`[CROSS-PORTAL] Strategy 1: Searching by price (${priceMin}-${priceMax}) + size (${sizeMin}-${sizeMax})`);
     
-    const priceMin = sourceData.price ? Math.floor(sourceData.price * 0.85) : 0;
-    const priceMax = sourceData.price ? Math.ceil(sourceData.price * 1.15) : 999999999;
-    
-    const [propsResults, sharedResults] = await Promise.all([
+    const [propsResultsByPriceSize, sharedResultsByPriceSize] = await Promise.all([
       db.select({
         id: properties.id,
         address: properties.address,
@@ -133,14 +139,13 @@ export async function searchCrossPortalListings(
       .from(properties)
       .where(
         and(
-          sql`LOWER(${properties.address}) LIKE ${searchPattern.toLowerCase()}`,
-          sourceData.price ? and(
-            gte(properties.price, priceMin),
-            lte(properties.price, priceMax)
-          ) : sql`1=1`
+          gte(properties.price, priceMin),
+          lte(properties.price, priceMax),
+          gte(properties.size, sizeMin),
+          lte(properties.size, sizeMax)
         )
       )
-      .limit(50),
+      .limit(100),
       
       db.select({
         id: sharedProperties.id,
@@ -154,18 +159,127 @@ export async function searchCrossPortalListings(
       .from(sharedProperties)
       .where(
         and(
-          sql`LOWER(${sharedProperties.address}) LIKE ${searchPattern.toLowerCase()}`,
-          sourceData.price ? and(
-            gte(sharedProperties.price, priceMin),
-            lte(sharedProperties.price, priceMax)
-          ) : sql`1=1`
+          gte(sharedProperties.price, priceMin),
+          lte(sharedProperties.price, priceMax),
+          gte(sharedProperties.size, sizeMin),
+          lte(sharedProperties.size, sizeMax)
         )
       )
+      .limit(100)
+    ]);
+    
+    console.log(`[CROSS-PORTAL] Strategy 1 found: ${propsResultsByPriceSize.length} properties, ${sharedResultsByPriceSize.length} shared`);
+    
+    for (const prop of propsResultsByPriceSize) {
+      if (prop.externalLink === sourceData.url) continue;
+      const key = `prop-${prop.id}`;
+      if (seenIds.has(key)) continue;
+      seenIds.add(key);
+      
+      const { score, reason } = calculateMatchScore(sourceData, {
+        address: prop.address,
+        price: prop.price,
+        size: prop.size
+      });
+      
+      // Lower threshold for price+size matches (25 instead of 40)
+      if (score >= 25) {
+        let portalSource = 'Altro';
+        if (prop.externalLink?.includes('immobiliare.it')) portalSource = 'Immobiliare.it';
+        else if (prop.externalLink?.includes('idealista.it')) portalSource = 'Idealista';
+        else if (prop.externalLink?.includes('casa.it')) portalSource = 'Casa.it';
+        
+        matchingListings.push({
+          id: prop.id,
+          address: prop.address,
+          price: prop.price,
+          size: prop.size,
+          portalSource,
+          externalLink: prop.externalLink,
+          agencyName: prop.agencyName,
+          ownerPhone: prop.ownerPhone,
+          matchScore: score,
+          matchReason: reason
+        });
+      }
+    }
+    
+    for (const prop of sharedResultsByPriceSize) {
+      if (prop.externalLink === sourceData.url) continue;
+      const key = `shared-${prop.id}`;
+      if (seenIds.has(key)) continue;
+      seenIds.add(key);
+      
+      const { score, reason } = calculateMatchScore(sourceData, {
+        address: prop.address,
+        price: prop.price,
+        size: prop.size
+      });
+      
+      if (score >= 25) {
+        matchingListings.push({
+          id: prop.id,
+          address: prop.address,
+          price: prop.price,
+          size: prop.size,
+          portalSource: prop.portalSource || 'Altro',
+          externalLink: prop.externalLink,
+          ownerPhone: prop.ownerPhone,
+          matchScore: score,
+          matchReason: reason
+        });
+      }
+    }
+  }
+  
+  // STRATEGY 2: Search by street name (for additional matches)
+  if (streetWords.length > 0) {
+    // Use multiple street words for better matching
+    const searchPatterns = streetWords.slice(0, 3).map(w => `%${w}%`);
+    console.log(`[CROSS-PORTAL] Strategy 2: Searching by street patterns: ${searchPatterns.join(', ')}`);
+    
+    const streetConditions = searchPatterns.map(pattern => 
+      sql`LOWER(${properties.address}) LIKE ${pattern.toLowerCase()}`
+    );
+    const sharedStreetConditions = searchPatterns.map(pattern => 
+      sql`LOWER(${sharedProperties.address}) LIKE ${pattern.toLowerCase()}`
+    );
+    
+    const [propsResults, sharedResults] = await Promise.all([
+      db.select({
+        id: properties.id,
+        address: properties.address,
+        price: properties.price,
+        size: properties.size,
+        externalLink: properties.externalLink,
+        agencyName: properties.agencyName,
+        ownerPhone: properties.ownerPhone
+      })
+      .from(properties)
+      .where(or(...streetConditions))
+      .limit(50),
+      
+      db.select({
+        id: sharedProperties.id,
+        address: sharedProperties.address,
+        price: sharedProperties.price,
+        size: sharedProperties.size,
+        externalLink: sharedProperties.externalLink,
+        portalSource: sharedProperties.portalSource,
+        ownerPhone: sharedProperties.ownerPhone
+      })
+      .from(sharedProperties)
+      .where(or(...sharedStreetConditions))
       .limit(50)
     ]);
     
+    console.log(`[CROSS-PORTAL] Strategy 2 found: ${propsResults.length} properties, ${sharedResults.length} shared`);
+    
     for (const prop of propsResults) {
       if (prop.externalLink === sourceData.url) continue;
+      const key = `prop-${prop.id}`;
+      if (seenIds.has(key)) continue;
+      seenIds.add(key);
       
       const { score, reason } = calculateMatchScore(sourceData, {
         address: prop.address,
@@ -196,6 +310,9 @@ export async function searchCrossPortalListings(
     
     for (const prop of sharedResults) {
       if (prop.externalLink === sourceData.url) continue;
+      const key = `shared-${prop.id}`;
+      if (seenIds.has(key)) continue;
+      seenIds.add(key);
       
       const { score, reason } = calculateMatchScore(sourceData, {
         address: prop.address,
