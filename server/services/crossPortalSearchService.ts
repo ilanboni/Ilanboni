@@ -116,15 +116,116 @@ export async function searchCrossPortalListings(
   const matchingListings: CrossPortalMatch[] = [];
   const seenIds = new Set<string>();
   
-  const priceMin = sourceData.price ? Math.floor(sourceData.price * 0.95) : 0;
-  const priceMax = sourceData.price ? Math.ceil(sourceData.price * 1.05) : 999999999;
-  const sizeMin = sourceData.size ? sourceData.size - 5 : 0;
-  const sizeMax = sourceData.size ? sourceData.size + 5 : 999999;
-  
-  // STRATEGY 1: Search by PRICE + SIZE (primary criteria for cross-portal matching)
-  // This catches same property even when addresses differ across portals
+  // STRATEGY 0: IDENTICAL price+size (no tolerance) - these are definitely the same property on different portals
+  // This is the highest priority search with NO LIMIT to ensure we find all duplicates
   if (sourceData.price && sourceData.size) {
-    console.log(`[CROSS-PORTAL] Strategy 1: Searching by price (${priceMin}-${priceMax}) + size (${sizeMin}-${sizeMax})`);
+    console.log(`[CROSS-PORTAL] Strategy 0: Identical price (${sourceData.price}) + size (${sourceData.size})`);
+    
+    const [propsIdentical, sharedIdentical] = await Promise.all([
+      db.select({
+        id: properties.id,
+        address: properties.address,
+        price: properties.price,
+        size: properties.size,
+        externalLink: properties.externalLink,
+        agencyName: properties.agencyName,
+        ownerPhone: properties.ownerPhone
+      })
+      .from(properties)
+      .where(
+        and(
+          sql`${properties.price} = ${sourceData.price}`,
+          sql`${properties.size} = ${sourceData.size}`
+        )
+      ),
+      
+      db.select({
+        id: sharedProperties.id,
+        address: sharedProperties.address,
+        price: sharedProperties.price,
+        size: sharedProperties.size,
+        externalLink: sharedProperties.externalLink,
+        portalSource: sharedProperties.portalSource,
+        ownerPhone: sharedProperties.ownerPhone
+      })
+      .from(sharedProperties)
+      .where(
+        and(
+          sql`${sharedProperties.price} = ${sourceData.price}`,
+          sql`${sharedProperties.size} = ${sourceData.size}`
+        )
+      )
+    ]);
+    
+    console.log(`[CROSS-PORTAL] Strategy 0 found: ${propsIdentical.length} properties, ${sharedIdentical.length} shared`);
+    
+    // No score threshold for identical price+size - always include them
+    for (const prop of propsIdentical) {
+      if (prop.externalLink === sourceData.url) continue;
+      const key = `prop-${prop.id}`;
+      if (seenIds.has(key)) continue;
+      seenIds.add(key);
+      
+      const { score, reason } = calculateMatchScore(sourceData, {
+        address: prop.address,
+        price: prop.price,
+        size: prop.size
+      });
+      
+      let portalSource = 'Altro';
+      if (prop.externalLink?.includes('immobiliare.it')) portalSource = 'Immobiliare.it';
+      else if (prop.externalLink?.includes('idealista.it')) portalSource = 'Idealista';
+      else if (prop.externalLink?.includes('casa.it')) portalSource = 'Casa.it';
+      
+      matchingListings.push({
+        id: prop.id,
+        address: prop.address,
+        price: prop.price,
+        size: prop.size,
+        portalSource,
+        externalLink: prop.externalLink,
+        agencyName: prop.agencyName,
+        ownerPhone: prop.ownerPhone,
+        matchScore: score + 30, // Bonus for identical price+size
+        matchReason: reason + ', Prezzo e mq identici'
+      });
+    }
+    
+    for (const prop of sharedIdentical) {
+      if (prop.externalLink === sourceData.url) continue;
+      const key = `shared-${prop.id}`;
+      if (seenIds.has(key)) continue;
+      seenIds.add(key);
+      
+      const { score, reason } = calculateMatchScore(sourceData, {
+        address: prop.address,
+        price: prop.price,
+        size: prop.size
+      });
+      
+      matchingListings.push({
+        id: prop.id,
+        address: prop.address,
+        price: prop.price,
+        size: prop.size,
+        portalSource: prop.portalSource || 'Altro',
+        externalLink: prop.externalLink,
+        ownerPhone: prop.ownerPhone,
+        matchScore: score + 30,
+        matchReason: reason + ', Prezzo e mq identici'
+      });
+    }
+  }
+  
+  // Use wider range for similar properties (strategy 1B)
+  const priceSimilarMin = sourceData.price ? Math.floor(sourceData.price * 0.90) : 0;
+  const priceSimilarMax = sourceData.price ? Math.ceil(sourceData.price * 1.10) : 999999999;
+  const sizeSimilarMin = sourceData.size ? sourceData.size - 5 : 0;
+  const sizeSimilarMax = sourceData.size ? sourceData.size + 5 : 999999;
+  
+  // STRATEGY 1B: Search by SIMILAR PRICE + SIZE (wider net)
+  if (sourceData.price && sourceData.size) {
+    console.log(`[CROSS-PORTAL] Strategy 1B: Similar match - price (${priceSimilarMin}-${priceSimilarMax}) + size (${sizeSimilarMin}-${sizeSimilarMax})`);
     
     const [propsResultsByPriceSize, sharedResultsByPriceSize] = await Promise.all([
       db.select({
@@ -139,10 +240,10 @@ export async function searchCrossPortalListings(
       .from(properties)
       .where(
         and(
-          gte(properties.price, priceMin),
-          lte(properties.price, priceMax),
-          gte(properties.size, sizeMin),
-          lte(properties.size, sizeMax)
+          gte(properties.price, priceSimilarMin),
+          lte(properties.price, priceSimilarMax),
+          gte(properties.size, sizeSimilarMin),
+          lte(properties.size, sizeSimilarMax)
         )
       )
       .limit(100),
@@ -159,10 +260,10 @@ export async function searchCrossPortalListings(
       .from(sharedProperties)
       .where(
         and(
-          gte(sharedProperties.price, priceMin),
-          lte(sharedProperties.price, priceMax),
-          gte(sharedProperties.size, sizeMin),
-          lte(sharedProperties.size, sizeMax)
+          gte(sharedProperties.price, priceSimilarMin),
+          lte(sharedProperties.price, priceSimilarMax),
+          gte(sharedProperties.size, sizeSimilarMin),
+          lte(sharedProperties.size, sizeSimilarMax)
         )
       )
       .limit(100)
@@ -338,13 +439,24 @@ export async function searchCrossPortalListings(
   
   matchingListings.sort((a, b) => b.matchScore - a.matchScore);
   
+  // Deduplicate by externalLink - keep only highest scoring entry for each unique URL
+  const seenLinks = new Set<string>();
+  const deduplicatedListings = matchingListings.filter(listing => {
+    if (!listing.externalLink) return true; // Keep entries without links
+    if (seenLinks.has(listing.externalLink)) return false;
+    seenLinks.add(listing.externalLink);
+    return true;
+  });
+  
+  console.log(`[CROSS-PORTAL] Deduplicated from ${matchingListings.length} to ${deduplicatedListings.length} listings by externalLink`);
+  
   const uniqueAgencies = Array.from(new Set(
-    matchingListings
+    deduplicatedListings
       .map(l => l.agencyName)
       .filter((name): name is string => !!name && name.length > 0)
   ));
   
-  const hasPrivatePhone = matchingListings.some(l => 
+  const hasPrivatePhone = deduplicatedListings.some(l => 
     l.ownerPhone && l.ownerPhone.startsWith('3') && !l.agencyName
   );
   
@@ -359,7 +471,7 @@ export async function searchCrossPortalListings(
     classification = 'pluricondiviso';
   }
   
-  console.log(`[CROSS-PORTAL] Found ${matchingListings.length} matches, ${uniqueAgencies.length} agencies, classification: ${classification}`);
+  console.log(`[CROSS-PORTAL] Found ${deduplicatedListings.length} unique matches, ${uniqueAgencies.length} agencies, classification: ${classification}`);
   
   return {
     sourceProperty: {
@@ -368,7 +480,7 @@ export async function searchCrossPortalListings(
       size: sourceData.size,
       portalSource: sourceData.portalSource
     },
-    matchingListings: matchingListings.slice(0, 20),
+    matchingListings: deduplicatedListings.slice(0, 50),
     totalAgencies: uniqueAgencies.length,
     uniqueAgencies,
     classification
