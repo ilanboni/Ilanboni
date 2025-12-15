@@ -42,7 +42,12 @@ interface ImmobiliareSearchParams {
   maxRooms?: number;
 }
 
-function parseImmobiliareUrl(url: string): ImmobiliareSearchParams {
+interface ParsedUrlResult {
+  params: ImmobiliareSearchParams;
+  zoneIds: number[]; // idMZona values for post-filtering
+}
+
+function parseImmobiliareUrl(url: string): ParsedUrlResult {
   try {
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/').filter(Boolean);
@@ -55,7 +60,6 @@ function parseImmobiliareUrl(url: string): ImmobiliareSearchParams {
     if (pathFirst.includes('aste') || pathFirst.includes('auction')) operation = 'auction';
     
     // Extract property type from path
-    // vendita-case, vendita-appartamenti, vendita-uffici, vendita-terreni
     let propertyType: '' | 'apartment' | 'house' | 'commercialProperty' | 'land' = 'apartment';
     if (pathFirst.includes('case') || pathFirst.includes('ville') || pathFirst.includes('villette')) {
       propertyType = 'house';
@@ -65,56 +69,85 @@ function parseImmobiliareUrl(url: string): ImmobiliareSearchParams {
       propertyType = 'land';
     }
     
-    // Extract municipality from path (second part, remove province suffix)
-    // e.g., "milano" from "milano-mi" or just "milano"
+    // Extract municipality from path
     let municipality = pathParts[1]?.split('-')[0] || 'milano';
-    // Capitalize first letter
     municipality = municipality.charAt(0).toUpperCase() + municipality.slice(1).toLowerCase();
     
     // Parse query parameters for filters
-    const result: ImmobiliareSearchParams = {
+    const searchParams: ImmobiliareSearchParams = {
       country: 'it',
       municipality,
       operation,
       propertyType,
-      maxItems: 100,
+      maxItems: 200, // Increased to get more results for zone filtering
       fetchDetails: true
     };
     
     // Price filters
     const minPrice = params.get('prezzoMinimo');
     const maxPrice = params.get('prezzoMassimo');
-    if (minPrice) result.minPrice = parseInt(minPrice);
-    if (maxPrice) result.maxPrice = parseInt(maxPrice);
+    if (minPrice) searchParams.minPrice = parseInt(minPrice);
+    if (maxPrice) searchParams.maxPrice = parseInt(maxPrice);
     
     // Size filters
     const minSurface = params.get('superficieMinima');
     const maxSurface = params.get('superficieMassima');
-    if (minSurface) result.minSurface = parseInt(minSurface);
-    if (maxSurface) result.maxSurface = parseInt(maxSurface);
+    if (minSurface) searchParams.minSurface = parseInt(minSurface);
+    if (maxSurface) searchParams.maxSurface = parseInt(maxSurface);
     
     // Room filters
     const minRooms = params.get('localiMinimo');
     const maxRooms = params.get('localiMassimo');
-    if (minRooms) result.minRooms = parseInt(minRooms);
-    if (maxRooms) result.maxRooms = parseInt(maxRooms);
+    if (minRooms) searchParams.minRooms = parseInt(minRooms);
+    if (maxRooms) searchParams.maxRooms = parseInt(maxRooms);
     
-    console.log(`[SEARCH-LINK-SCRAPER] Parsed URL params:`, JSON.stringify(result));
+    // Extract zone IDs (idMZona[0], idMZona[1], etc.)
+    const zoneIds: number[] = [];
+    Array.from(params.entries()).forEach(([key, value]) => {
+      // Match idMZona[0], idMZona[1], idMZona, idQuartiere, etc.
+      if (key.startsWith('idMZona') || key.startsWith('idQuartiere') || key.startsWith('idZona')) {
+        const zoneId = parseInt(value);
+        if (!isNaN(zoneId)) {
+          zoneIds.push(zoneId);
+        }
+      }
+    });
     
-    return result;
+    console.log(`[SEARCH-LINK-SCRAPER] Parsed URL params:`, JSON.stringify(searchParams));
+    if (zoneIds.length > 0) {
+      console.log(`[SEARCH-LINK-SCRAPER] Zone filter IDs: ${zoneIds.join(', ')}`);
+    }
+    
+    return { params: searchParams, zoneIds };
     
   } catch (error) {
     console.error(`[SEARCH-LINK-SCRAPER] Error parsing URL:`, error);
-    // Return default Milano apartment search
     return {
-      country: 'it',
-      municipality: 'Milano',
-      operation: 'buy',
-      propertyType: 'apartment',
-      maxItems: 100,
-      fetchDetails: true
+      params: {
+        country: 'it',
+        municipality: 'Milano',
+        operation: 'buy',
+        propertyType: 'apartment',
+        maxItems: 200,
+        fetchDetails: true
+      },
+      zoneIds: []
     };
   }
+}
+
+function matchesZoneFilter(item: any, zoneIds: number[]): boolean {
+  if (zoneIds.length === 0) return true; // No filter, include all
+  
+  const geography = item.geography as any || {};
+  const macrozoneId = geography.macrozone?.id;
+  const microzoneId = geography.microzone?.id;
+  
+  // Check if property's zone matches any of the requested zones
+  if (macrozoneId && zoneIds.includes(macrozoneId)) return true;
+  if (microzoneId && zoneIds.includes(microzoneId)) return true;
+  
+  return false;
 }
 
 function categorizeProperty(agencies: string[], hasPrivate: boolean): OwnerCategory {
@@ -184,8 +217,8 @@ export async function scrapePropertiesFromSearchLink(client: Client): Promise<Se
       return result;
     }
 
-    // Parse URL into structured parameters
-    const searchParams = parseImmobiliareUrl(client.searchLink);
+    // Parse URL into structured parameters and zone IDs
+    const { params: searchParams, zoneIds } = parseImmobiliareUrl(client.searchLink);
     
     console.log(`[SEARCH-LINK-SCRAPER] 📋 Calling Apify with params: ${JSON.stringify(searchParams)}`);
 
@@ -195,8 +228,17 @@ export async function scrapePropertiesFromSearchLink(client: Client): Promise<Se
 
     console.log(`[SEARCH-LINK-SCRAPER] Apify run ${run.id} completed with status: ${run.status}`);
 
-    const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
-    console.log(`[SEARCH-LINK-SCRAPER] Found ${items.length} properties from Apify`);
+    const { items: allItems } = await apifyClient.dataset(run.defaultDatasetId).listItems();
+    console.log(`[SEARCH-LINK-SCRAPER] Found ${allItems.length} properties from Apify`);
+
+    // Apply zone filter if specified in the URL
+    const items = zoneIds.length > 0 
+      ? allItems.filter(item => matchesZoneFilter(item, zoneIds))
+      : allItems;
+    
+    if (zoneIds.length > 0) {
+      console.log(`[SEARCH-LINK-SCRAPER] 🎯 Zone filter applied: ${items.length}/${allItems.length} properties match zones [${zoneIds.join(', ')}]`);
+    }
 
     result.totalFound = items.length;
 
