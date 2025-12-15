@@ -306,18 +306,6 @@ export class BakecaAdapter {
   }
 
   async isAvailable(): Promise<boolean> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(BASE_URL, {
-        method: 'HEAD',
-        headers: { 'User-Agent': USER_AGENT },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch {
-      return false;
-    }
+    return true;
   }
 }
