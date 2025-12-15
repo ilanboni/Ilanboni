@@ -9,22 +9,17 @@ function parseImmobiliareUrl(url: string) {
   const urlObj = new URL(url);
   const pathParts = urlObj.pathname.split('/').filter(Boolean);
   
-  let operation = 'buy';
-  if (pathParts[0]?.includes('affitto')) operation = 'rent';
+  let operation: 'buy' | 'rent' | 'auction' = 'buy';
+  const pathFirst = pathParts[0]?.toLowerCase() || '';
+  if (pathFirst.includes('affitto')) operation = 'rent';
   
-  // Map to allowed values: apartment, house, commercialProperty, land
-  let propertyType = 'apartment';
-  if (pathParts[0]?.includes('uffici') || pathParts[0]?.includes('commercial') || pathParts[0]?.includes('locali')) {
-    propertyType = 'commercialProperty';
-  }
-  if (pathParts[0]?.includes('case') || pathParts[0]?.includes('ville')) {
-    propertyType = 'house';
-  }
-  if (pathParts[0]?.includes('terreni')) {
-    propertyType = 'land';
-  }
+  let propertyType: '' | 'apartment' | 'house' | 'commercialProperty' | 'land' = 'apartment';
+  if (pathFirst.includes('case') || pathFirst.includes('ville')) propertyType = 'house';
+  else if (pathFirst.includes('uffici') || pathFirst.includes('negozi') || pathFirst.includes('locali')) propertyType = 'commercialProperty';
+  else if (pathFirst.includes('terreni')) propertyType = 'land';
   
-  const municipality = pathParts[1]?.replace(/-.*$/, '') || 'milano';
+  let municipality = pathParts[1]?.split('-')[0] || 'milano';
+  municipality = municipality.charAt(0).toUpperCase() + municipality.slice(1).toLowerCase();
   
   return { country: 'it', municipality, operation, propertyType, maxItems: 50, fetchDetails: true };
 }
@@ -43,31 +38,49 @@ async function testSearchLink() {
     console.log('✅ Status:', run.status);
 
     const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
-    console.log('📊 Found:', items.length, 'properties');
     
     let existingCount = 0;
+    const parsedItems: any[] = [];
+    
     for (const item of items) {
-      const url = item.url as string || '';
-      if (url) {
-        const existing = await storage.getSharedPropertyBySourceUrl(url);
+      // Parse nested structure
+      const geography = item.geography as any || {};
+      const priceObj = item.price as any || {};
+      const topology = item.topology as any || {};
+      const analytics = item.analytics as any || {};
+      
+      const address = geography.street || 
+                     `${geography.microzone?.name || ''}, ${geography.macrozone?.name || ''}`.trim() ||
+                     'Milano';
+      const price = priceObj.raw || 0;
+      const size = topology.surface?.size || 0;
+      const agencyName = analytics.agencyName || 'privato';
+      const itemId = item.id;
+      
+      parsedItems.push({ address, price, size, agencyName, id: itemId });
+      
+      if (address && price > 0) {
+        const existing = await storage.getSharedPropertyByAddressAndPrice(address, price);
         if (existing) existingCount++;
       }
     }
     
     console.log('');
-    console.log('═══════════════════════════════════');
+    console.log('═══════════════════════════════════════════════');
     console.log('📈 RISULTATI:');
     console.log('   Totale scrapati:', items.length);
     console.log('   Già in DB:', existingCount);
     console.log('   Nuovi:', items.length - existingCount);
-    console.log('═══════════════════════════════════');
+    console.log('═══════════════════════════════════════════════');
     console.log('');
     
-    console.log('📋 Primi 5:');
-    items.slice(0, 5).forEach((p: any, i: number) => {
-      console.log(`${i+1}. ${(p.title || 'N/A').substring(0, 50)}`);
-      const price = parseInt(String(p.price || '0').replace(/\D/g, ''));
-      console.log(`   €${price.toLocaleString()} | ${p.surface || 'N/A'} | ${p.agency || 'privato'}`);
+    console.log('📋 Immobili trovati:');
+    parsedItems.forEach((p, i) => {
+      console.log(`${i+1}. ${p.address}`);
+      console.log(`   €${p.price.toLocaleString()} | ${p.size} mq`);
+      console.log(`   Agenzia: ${p.agencyName}`);
+      console.log(`   ID: ${p.id}`);
+      console.log('');
     });
     
     process.exit(0);

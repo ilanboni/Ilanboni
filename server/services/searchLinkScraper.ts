@@ -27,6 +27,96 @@ export interface SearchLinkScrapingResult {
   errors: string[];
 }
 
+interface ImmobiliareSearchParams {
+  country: string;
+  municipality: string;
+  operation: 'buy' | 'rent' | 'auction';
+  propertyType: '' | 'apartment' | 'house' | 'commercialProperty' | 'land';
+  maxItems: number;
+  fetchDetails: boolean;
+  minPrice?: number;
+  maxPrice?: number;
+  minSurface?: number;
+  maxSurface?: number;
+  minRooms?: number;
+  maxRooms?: number;
+}
+
+function parseImmobiliareUrl(url: string): ImmobiliareSearchParams {
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/').filter(Boolean);
+    const params = urlObj.searchParams;
+    
+    // Extract operation from path (vendita/affitto/aste)
+    let operation: 'buy' | 'rent' | 'auction' = 'buy';
+    const pathFirst = pathParts[0]?.toLowerCase() || '';
+    if (pathFirst.includes('affitto')) operation = 'rent';
+    if (pathFirst.includes('aste') || pathFirst.includes('auction')) operation = 'auction';
+    
+    // Extract property type from path
+    // vendita-case, vendita-appartamenti, vendita-uffici, vendita-terreni
+    let propertyType: '' | 'apartment' | 'house' | 'commercialProperty' | 'land' = 'apartment';
+    if (pathFirst.includes('case') || pathFirst.includes('ville') || pathFirst.includes('villette')) {
+      propertyType = 'house';
+    } else if (pathFirst.includes('uffici') || pathFirst.includes('negozi') || pathFirst.includes('locali') || pathFirst.includes('commercial')) {
+      propertyType = 'commercialProperty';
+    } else if (pathFirst.includes('terreni')) {
+      propertyType = 'land';
+    }
+    
+    // Extract municipality from path (second part, remove province suffix)
+    // e.g., "milano" from "milano-mi" or just "milano"
+    let municipality = pathParts[1]?.split('-')[0] || 'milano';
+    // Capitalize first letter
+    municipality = municipality.charAt(0).toUpperCase() + municipality.slice(1).toLowerCase();
+    
+    // Parse query parameters for filters
+    const result: ImmobiliareSearchParams = {
+      country: 'it',
+      municipality,
+      operation,
+      propertyType,
+      maxItems: 100,
+      fetchDetails: true
+    };
+    
+    // Price filters
+    const minPrice = params.get('prezzoMinimo');
+    const maxPrice = params.get('prezzoMassimo');
+    if (minPrice) result.minPrice = parseInt(minPrice);
+    if (maxPrice) result.maxPrice = parseInt(maxPrice);
+    
+    // Size filters
+    const minSurface = params.get('superficieMinima');
+    const maxSurface = params.get('superficieMassima');
+    if (minSurface) result.minSurface = parseInt(minSurface);
+    if (maxSurface) result.maxSurface = parseInt(maxSurface);
+    
+    // Room filters
+    const minRooms = params.get('localiMinimo');
+    const maxRooms = params.get('localiMassimo');
+    if (minRooms) result.minRooms = parseInt(minRooms);
+    if (maxRooms) result.maxRooms = parseInt(maxRooms);
+    
+    console.log(`[SEARCH-LINK-SCRAPER] Parsed URL params:`, JSON.stringify(result));
+    
+    return result;
+    
+  } catch (error) {
+    console.error(`[SEARCH-LINK-SCRAPER] Error parsing URL:`, error);
+    // Return default Milano apartment search
+    return {
+      country: 'it',
+      municipality: 'Milano',
+      operation: 'buy',
+      propertyType: 'apartment',
+      maxItems: 100,
+      fetchDetails: true
+    };
+  }
+}
+
 function categorizeProperty(agencies: string[], hasPrivate: boolean): OwnerCategory {
   const agencySet = new Set(agencies.filter(a => a && a.trim()));
   const uniqueAgencies = Array.from(agencySet);
@@ -94,13 +184,13 @@ export async function scrapePropertiesFromSearchLink(client: Client): Promise<Se
       return result;
     }
 
-    const run = await apifyClient.actor('igolaizola/immobiliare-it-scraper').call({
-      startUrls: [{ url: client.searchLink }],
-      maxItems: 100,
-      proxyConfiguration: {
-        useApifyProxy: true,
-        apifyProxyGroups: ['RESIDENTIAL']
-      }
+    // Parse URL into structured parameters
+    const searchParams = parseImmobiliareUrl(client.searchLink);
+    
+    console.log(`[SEARCH-LINK-SCRAPER] 📋 Calling Apify with params: ${JSON.stringify(searchParams)}`);
+
+    const run = await apifyClient.actor('igolaizola/immobiliare-it-scraper').call(searchParams, {
+      timeout: 180 // 3 minutes timeout
     });
 
     console.log(`[SEARCH-LINK-SCRAPER] Apify run ${run.id} completed with status: ${run.status}`);
@@ -115,42 +205,81 @@ export async function scrapePropertiesFromSearchLink(client: Client): Promise<Se
 
     for (const item of items) {
       try {
-        const url = item.url as string || '';
+        // Parse nested Apify response structure
+        const itemId = item.id as number;
         const title = item.title as string || '';
-        const address = item.address as string || item.location as string || 'Milano';
-        const price = parseInt(String(item.price || '0').replace(/\D/g, '')) || 0;
-        const size = parseInt(String(item.surface || item.size || '0').replace(/\D/g, '')) || 0;
-        const description = item.description as string || '';
         
+        // Geography data
+        const geography = item.geography as any || {};
+        const address = geography.street || 
+                       `${geography.microzone?.name || ''}, ${geography.macrozone?.name || ''}`.trim() ||
+                       geography.municipality?.name ||
+                       searchParams.municipality;
+        const city = geography.municipality?.name || searchParams.municipality;
+        const lat = geography.geolocation?.latitude;
+        const lng = geography.geolocation?.longitude;
+        
+        // Price data
+        const priceObj = item.price as any || {};
+        const price = priceObj.raw || parseInt(String(priceObj.value || '0').replace(/\D/g, '')) || 0;
+        
+        // Topology data
+        const topology = item.topology as any || {};
+        const size = topology.surface?.size || 0;
+        const rooms = parseInt(topology.rooms || '0') || undefined;
+        const bathrooms = parseInt(topology.bathrooms || '0') || undefined;
+        const floor = topology.floor;
+        
+        // Analytics data
+        const analytics = item.analytics as any || {};
+        const agencyName = analytics.agencyName;
+        const advertiserType = analytics.advertiser; // 'agenzia' or 'privato'
+        
+        // Contacts data
+        const contacts = item.contacts as any || {};
+        const phones = contacts.phones as any[] || [];
+        const phone = phones.length > 0 ? phones[0].num : null;
+        
+        // Build URL
+        const url = `https://www.immobiliare.it/annunci/${itemId}/`;
+        
+        // Description from media or title
+        const description = item.description as string || title || '';
+        
+        // Agency classification
         const agencies: string[] = [];
-        if (item.agency) agencies.push(item.agency as string);
-        if (item.agencies && Array.isArray(item.agencies)) {
-          agencies.push(...(item.agencies as string[]));
-        }
+        if (agencyName) agencies.push(agencyName);
         
-        const hasPrivate = /privato|da privato|proprietario|no agenzie/i.test(description + title);
-        const category = categorizeProperty(agencies, hasPrivate);
+        const isPrivate = advertiserType === 'privato' || 
+                         /privato|da privato|proprietario|no agenzie/i.test(description + title);
+        const category = categorizeProperty(agencies, isPrivate);
         
         let ownerPhone: string | null = null;
         if (category === 'privato' || category === 'privato+agenzia') {
-          ownerPhone = extractPhoneFromText(description) || 
-                       item.phone as string || 
-                       item.ownerPhone as string || 
-                       null;
+          ownerPhone = phone || extractPhoneFromText(description) || null;
         }
 
-        const existingProperty = await storage.getSharedPropertyByAddressAndPrice(address, price);
+        // Check for existing property by address+price
+        const existingProperty = (address && price > 0) 
+          ? await storage.getSharedPropertyByAddressAndPrice(address, price)
+          : undefined;
         
         const propertyData = {
           address,
-          city: 'Milano',
+          city,
           price,
           size: size || undefined,
-          url,
+          rooms,
+          bathrooms,
+          floor,
+          latitude: lat,
+          longitude: lng,
+          sourceUrl: url,
           description: description.substring(0, 2000),
-          type: 'apartment',
+          type: searchParams.propertyType === 'commercialProperty' ? 'commercial' : 
+                searchParams.propertyType === 'house' ? 'house' : 'apartment',
           portalSource: 'Immobiliare.it',
-          externalId: `imm-${url.match(/(\d+)(?:\.html)?$/)?.[1] || Date.now()}`,
+          externalId: `imm-${itemId}`,
           ownerType: category === 'privato' ? 'private' : 'agency',
           ownerPhone,
           agencies: agencies.length > 0 ? agencies.map(a => ({ name: a, link: '' })) : undefined,
@@ -170,7 +299,7 @@ export async function scrapePropertiesFromSearchLink(client: Client): Promise<Se
             continue;
           }
         } else {
-          savedProperty = await storage.createSharedProperty(propertyData);
+          savedProperty = await storage.createSharedProperty(propertyData as any);
           result.newProperties++;
           isNew = true;
         }
