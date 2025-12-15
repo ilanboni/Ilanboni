@@ -5,6 +5,36 @@ import axios from 'axios';
 const BASE_URL = 'https://www.clickcase.it';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
+// Common Italian adjectives that indicate descriptive text, not real addresses
+const DESCRIPTIVE_WORDS = [
+  'tranquilla', 'tranquillo', 'comoda', 'comodo', 'luminosa', 'luminoso',
+  'centrale', 'residenziale', 'signorile', 'elegante', 'esclusiva', 'esclusivo',
+  'ottima', 'ottimo', 'bella', 'bello', 'nuova', 'nuovo', 'moderna', 'moderno',
+  'silenziosa', 'silenzioso', 'riservata', 'riservato', 'privata', 'privato',
+  'verde', 'pedonale', 'principale', 'secondaria', 'secondario', 'laterale',
+  'stretta', 'stretto', 'larga', 'largo', 'breve', 'lunga', 'lungo', 'corta', 'corto'
+];
+
+// Check if an extracted "address" is actually a descriptive phrase
+function isDescriptivePhrase(address: string): boolean {
+  if (!address) return true;
+  const lowerAddress = address.toLowerCase();
+  
+  // Check if address contains descriptive words
+  for (const word of DESCRIPTIVE_WORDS) {
+    if (lowerAddress.includes(word)) {
+      return true;
+    }
+  }
+  
+  // Real addresses usually have a proper noun (capitalized) after Via/Viale/etc.
+  // Check if address is too short to be real (e.g., "Via Roma" = 8 chars minimum)
+  const parts = address.trim().split(/\s+/);
+  if (parts.length < 2) return true;
+  
+  return false;
+}
+
 // Helper function to extract address from text
 function extractAddressFromText(text: string): string | null {
   if (!text) return null;
@@ -16,7 +46,11 @@ function extractAddressFromText(text: string): string | null {
   for (const pattern of addressPatterns) {
     const match = text.match(pattern);
     if (match && match[0] && match[0].length > 8) {
-      return match[0].trim();
+      const candidate = match[0].trim();
+      // Validate it's not a descriptive phrase
+      if (!isDescriptivePhrase(candidate)) {
+        return candidate;
+      }
     }
   }
   

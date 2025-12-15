@@ -4,6 +4,32 @@ import type { PropertyListing } from '../portalIngestionService';
 const BASE_URL = 'https://www.trovacasa.it';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// Common Italian adjectives that indicate descriptive text, not real addresses
+const DESCRIPTIVE_WORDS = [
+  'tranquilla', 'tranquillo', 'comoda', 'comodo', 'luminosa', 'luminoso',
+  'centrale', 'residenziale', 'signorile', 'elegante', 'esclusiva', 'esclusivo',
+  'ottima', 'ottimo', 'bella', 'bello', 'nuova', 'nuovo', 'moderna', 'moderno',
+  'silenziosa', 'silenzioso', 'riservata', 'riservato', 'privata', 'privato',
+  'verde', 'pedonale', 'principale', 'secondaria', 'secondario', 'laterale',
+  'stretta', 'stretto', 'larga', 'largo', 'breve', 'lunga', 'lungo', 'corta', 'corto'
+];
+
+function isDescriptivePhrase(address: string): boolean {
+  if (!address) return true;
+  const lowerAddress = address.toLowerCase();
+  
+  for (const word of DESCRIPTIVE_WORDS) {
+    if (lowerAddress.includes(word)) {
+      return true;
+    }
+  }
+  
+  const parts = address.trim().split(/\s+/);
+  if (parts.length < 2) return true;
+  
+  return false;
+}
+
 function extractAddressFromText(text: string): string | null {
   if (!text) return null;
   
@@ -14,7 +40,10 @@ function extractAddressFromText(text: string): string | null {
   for (const pattern of addressPatterns) {
     const match = text.match(pattern);
     if (match && match[0] && match[0].length > 8) {
-      return match[0].trim();
+      const candidate = match[0].trim();
+      if (!isDescriptivePhrase(candidate)) {
+        return candidate;
+      }
     }
   }
   
