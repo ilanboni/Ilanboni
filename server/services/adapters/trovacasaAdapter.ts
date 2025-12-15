@@ -193,14 +193,32 @@ export class TrovaCasaAdapter {
               : prop.title;
             
             let cleanAddress = prop.address?.trim() || '';
-            if (cleanAddress.length < 5) {
-              const addressFromDesc = extractAddressFromText(prop.description || prop.title || '');
+            if (cleanAddress.length < 5 || cleanAddress.toLowerCase() === 'milano') {
+              const addressFromDesc = extractAddressFromText(prop.description || '');
+              const addressFromTitle = extractAddressFromText(prop.title || '');
+              
               if (addressFromDesc) {
                 cleanAddress = addressFromDesc;
-              } else if (prop.zone) {
+              } else if (addressFromTitle) {
+                cleanAddress = addressFromTitle;
+              } else if (prop.zone && prop.zone.toLowerCase() !== 'milano') {
                 cleanAddress = prop.zone;
               } else {
-                cleanAddress = 'milano';
+                // Try to extract neighborhood from description/title
+                const neighborhoods = ['Porta Romana', 'Brera', 'Navigli', 'Isola', 'Città Studi', 'Lambrate', 'Loreto', 'Centrale', 'Garibaldi', 'Sempione', 'Fiera', 'San Siro', 'Bicocca', 'Bovisa', 'Niguarda', 'Affori', 'Nolo', 'NoLo', 'Porta Venezia', 'Porta Genova', 'Porta Ticinese', 'Porta Nuova', 'Duomo', 'Cordusio', 'Moscova', 'Repubblica', 'Palestro', 'Tirana', 'Valtellina', 'Sarpi', 'Paolo Sarpi', 'Chinatown'];
+                const combinedText = (prop.description + ' ' + prop.title).toLowerCase();
+                
+                for (const hood of neighborhoods) {
+                  if (combinedText.includes(hood.toLowerCase())) {
+                    cleanAddress = `Zona ${hood}`;
+                    break;
+                  }
+                }
+                
+                // Last resort: use title if it contains useful info
+                if (!cleanAddress || cleanAddress.length < 5 || cleanAddress.toLowerCase() === 'milano') {
+                  cleanAddress = prop.title?.substring(0, 60) || 'Milano';
+                }
               }
             }
             

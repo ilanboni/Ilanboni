@@ -37,6 +37,45 @@ function extractAddressFromText(text: string): string | null {
   return null;
 }
 
+function extractZoneFromText(text: string): string | null {
+  if (!text) return null;
+  
+  const zonePatterns = [
+    /zona\s+([A-Za-zÀ-ÿ\s]+)/i,
+    /quartiere\s+([A-Za-zÀ-ÿ\s]+)/i
+  ];
+  
+  for (const pattern of zonePatterns) {
+    const match = text.match(pattern);
+    if (match && match[1] && match[1].length > 3) {
+      return match[1].trim();
+    }
+  }
+  
+  return null;
+}
+
+function extractNeighborhoodFromText(text: string): string | null {
+  if (!text) return null;
+  
+  const neighborhoods = [
+    'Porta Romana', 'Brera', 'Navigli', 'Isola', 'Città Studi', 'Lambrate',
+    'Loreto', 'Centrale', 'Garibaldi', 'Sempione', 'Fiera', 'San Siro',
+    'Bicocca', 'Bovisa', 'Niguarda', 'Affori', 'Nolo', 'NoLo', 'Porta Venezia',
+    'Porta Genova', 'Porta Ticinese', 'Porta Nuova', 'Duomo', 'Cordusio',
+    'Moscova', 'Repubblica', 'Palestro', 'Tirana', 'Valtellina', 'Sarpi'
+  ];
+  
+  const lowerText = text.toLowerCase();
+  for (const neighborhood of neighborhoods) {
+    if (lowerText.includes(neighborhood.toLowerCase())) {
+      return neighborhood + ', Milano';
+    }
+  }
+  
+  return null;
+}
+
 async function geocodeAddress(address: string): Promise<{ lat: number; lon: number } | null> {
   if (!address) return null;
   try {
@@ -241,14 +280,27 @@ export class BakecaAdapter {
           }
           
           let cleanAddress = prop.address?.trim() || '';
-          if (cleanAddress.length < 5) {
-            const addressFromDesc = extractAddressFromText(prop.description || prop.title || '');
+          if (cleanAddress.length < 5 || cleanAddress.toLowerCase() === 'milano') {
+            const combinedText = `${prop.description || ''} ${prop.title || ''}`;
+            const addressFromDesc = extractAddressFromText(prop.description || '');
+            const addressFromTitle = extractAddressFromText(prop.title || '');
+            const zoneFromText = extractZoneFromText(combinedText);
+            const neighborhoodFromText = extractNeighborhoodFromText(combinedText);
+            
             if (addressFromDesc) {
               cleanAddress = addressFromDesc;
-            } else if (prop.zone) {
+            } else if (addressFromTitle) {
+              cleanAddress = addressFromTitle;
+            } else if (zoneFromText) {
+              cleanAddress = zoneFromText + ', Milano';
+            } else if (neighborhoodFromText) {
+              cleanAddress = neighborhoodFromText;
+            } else if (prop.zone && prop.zone.length > 5) {
               cleanAddress = prop.zone;
+            } else if (prop.title && prop.title.length > 10) {
+              cleanAddress = prop.title.substring(0, 50).trim();
             } else {
-              cleanAddress = 'milano';
+              cleanAddress = 'Milano';
             }
           }
           

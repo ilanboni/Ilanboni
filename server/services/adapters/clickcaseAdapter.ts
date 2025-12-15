@@ -250,15 +250,48 @@ export class ClickCaseAdapter {
             let cleanAddress = prop.address?.trim() || '';
             const isInvalidAddress = invalidAddressPatterns.some(pattern => pattern.test(cleanAddress));
             
-            if (isInvalidAddress || cleanAddress.length < 5) {
+            if (isInvalidAddress || cleanAddress.length < 5 || cleanAddress.toLowerCase() === 'milano') {
               // Try to extract address from description or title
-              const addressFromDesc = extractAddressFromText(prop.description || prop.title || '');
+              const addressFromDesc = extractAddressFromText(prop.description || '');
+              const addressFromTitle = extractAddressFromText(prop.title || '');
+              
               if (addressFromDesc) {
                 cleanAddress = addressFromDesc;
+              } else if (addressFromTitle) {
+                cleanAddress = addressFromTitle;
               } else {
-                // Use zone from title if available, otherwise city
-                const zoneMatch = prop.title?.match(/zona\s+([^,\-\/]+)/i);
-                cleanAddress = zoneMatch ? `Zona ${zoneMatch[1].trim()}` : city;
+                // Try to extract neighborhood/zone from description or title
+                const zonePatterns = [
+                  /zona\s+([A-Za-zÀ-ÿ\s]+?)(?:\s*[,\-\/\|]|$)/i,
+                  /quartiere\s+([A-Za-zÀ-ÿ\s]+?)(?:\s*[,\-\/\|]|$)/i,
+                  /(?:a|in)\s+((?:Porta|Brera|Navigli|Isola|Città Studi|Lambrate|Loreto|Centrale|Garibaldi|Sempione|Fiera|San Siro|Bicocca|Bovisa|Niguarda|Affori|Greco|Turro|Precotto|Gorla|Crescenzago|Cimiano|Udine|Piola|Buenos Aires|Corvetto|Rogoredo|Lodi|Ripamonti|Abbiategrasso|Bande Nere|Lorenteggio|Giambellino|Baggio|Quarto Oggiaro|Villapizzone|Dergano|Maciachini|Zara|Sondrio|Pasteur|Nolo|NoLo)[A-Za-zÀ-ÿ\s]*)/i
+                ];
+                
+                for (const pattern of zonePatterns) {
+                  const match = (prop.description + ' ' + prop.title).match(pattern);
+                  if (match && match[1] && match[1].trim().length > 3) {
+                    cleanAddress = `Zona ${match[1].trim()}`;
+                    break;
+                  }
+                }
+                
+                // If still nothing, check for recognizable Milan neighborhoods in text
+                if (!cleanAddress || cleanAddress.length < 5) {
+                  const neighborhoods = ['Porta Romana', 'Brera', 'Navigli', 'Isola', 'Città Studi', 'Lambrate', 'Loreto', 'Centrale', 'Garibaldi', 'Sempione', 'Fiera', 'San Siro', 'Bicocca', 'Bovisa', 'Niguarda', 'Affori', 'Nolo', 'NoLo', 'Porta Venezia', 'Porta Genova', 'Porta Ticinese', 'Porta Nuova', 'Duomo', 'Cordusio', 'Moscova', 'Repubblica', 'Palestro'];
+                  const combinedText = (prop.description + ' ' + prop.title).toLowerCase();
+                  
+                  for (const hood of neighborhoods) {
+                    if (combinedText.includes(hood.toLowerCase())) {
+                      cleanAddress = `Zona ${hood}`;
+                      break;
+                    }
+                  }
+                }
+                
+                // Last resort: use title if it contains location info
+                if (!cleanAddress || cleanAddress.length < 5) {
+                  cleanAddress = prop.title?.substring(0, 60) || city;
+                }
               }
               console.log(`[CLICKCASE] ⚠️ Fixed invalid address "${prop.address}" -> "${cleanAddress}"`);
             }
