@@ -2,6 +2,10 @@ import { CasaDaPrivatoAdapter } from './adapters/casadaprivatoAdapter';
 import { ClickCaseAdapter } from './adapters/clickcaseAdapter';
 import { IgolaIdealistaAdapter } from './adapters/igolaIdealistaAdapter';
 import { ImmobiliareApifyAdapter } from './adapters/immobiliareApifyAdapter';
+import { CaseTraPrivatiAdapter } from './adapters/casetraprivatiAdapter';
+import { TrovaCasaAdapter } from './adapters/trovacasaAdapter';
+import { BakecaAdapter } from './adapters/bakecaAdapter';
+import { SubitoAdapter } from './adapters/subitoAdapter';
 import { storage } from '../storage';
 
 // Geographic constants - Milano center coordinates used ONLY as fallback for geocoding
@@ -86,8 +90,30 @@ export class DailyPrivatePropertiesScheduler {
       
       // Scrapa Immobiliare agenzie
       const immobiliareListings = await this.scrapeImmobiliareAgencies();
+      
+      // Scrapa CaseTraPrivati.it (new)
+      const casetraprivatiListings = await this.scrapeCaseTraPrivati();
+      
+      // Scrapa TrovaCasa.it (new)
+      const trovacasaListings = await this.scrapeTrovaCasa();
+      
+      // Scrapa Bakeca.it (new - filtered: >€250k, 4km from Duomo)
+      const bakecaListings = await this.scrapeBakeca();
+      
+      // Scrapa Subito.it (new)
+      const subitoListings = await this.scrapeSubito();
 
-      const allListings = [...casaListings, ...clickListings, ...idealistaPrivateListings, ...idealistaAgenciesListings, ...immobiliareListings];
+      const allListings = [
+        ...casaListings, 
+        ...clickListings, 
+        ...idealistaPrivateListings, 
+        ...idealistaAgenciesListings, 
+        ...immobiliareListings,
+        ...casetraprivatiListings,
+        ...trovacasaListings,
+        ...bakecaListings,
+        ...subitoListings
+      ];
       
       console.log(`\n[DAILY-SCHEDULER] 📊 Processing all Milano properties: ${allListings.length} total`);
 
@@ -184,6 +210,58 @@ export class DailyPrivatePropertiesScheduler {
       return listings;
     } catch (error) {
       console.error('[DAILY-SCHEDULER] ❌ Immobiliare error:', error);
+      return [];
+    }
+  }
+
+  private async scrapeCaseTraPrivati() {
+    console.log('\n[DAILY-SCHEDULER] 🔍 Scraping CaseTraPrivati.it...');
+    const adapter = new CaseTraPrivatiAdapter();
+    try {
+      const listings = await adapter.search({ city: 'milano', maxItems: 500 });
+      console.log(`[DAILY-SCHEDULER] ✅ CaseTraPrivati: ${listings.length} PRIVATE properties`);
+      return listings;
+    } catch (error) {
+      console.error('[DAILY-SCHEDULER] ❌ CaseTraPrivati error:', error);
+      return [];
+    }
+  }
+
+  private async scrapeTrovaCasa() {
+    console.log('\n[DAILY-SCHEDULER] 🔍 Scraping TrovaCasa.it (private section)...');
+    const adapter = new TrovaCasaAdapter();
+    try {
+      const listings = await adapter.search({ city: 'milano', maxItems: 500 });
+      console.log(`[DAILY-SCHEDULER] ✅ TrovaCasa: ${listings.length} PRIVATE properties`);
+      return listings;
+    } catch (error) {
+      console.error('[DAILY-SCHEDULER] ❌ TrovaCasa error:', error);
+      return [];
+    }
+  }
+
+  private async scrapeBakeca() {
+    console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Bakeca.it (filtered: >€250k, 4km from Duomo)...');
+    const adapter = new BakecaAdapter();
+    try {
+      const listings = await adapter.search({ city: 'milano', maxItems: 100 });
+      console.log(`[DAILY-SCHEDULER] ✅ Bakeca: ${listings.length} properties (filtered)`);
+      return listings;
+    } catch (error) {
+      console.error('[DAILY-SCHEDULER] ❌ Bakeca error:', error);
+      return [];
+    }
+  }
+
+  private async scrapeSubito() {
+    console.log('\n[DAILY-SCHEDULER] 🔍 Scraping Subito.it...');
+    const adapter = new SubitoAdapter();
+    try {
+      const listings = await adapter.search({ city: 'milano', maxItems: 500 });
+      console.log(`[DAILY-SCHEDULER] ✅ Subito: ${listings.length} properties`);
+      return listings;
+    } catch (error) {
+      console.error('[DAILY-SCHEDULER] ❌ Subito error:', error);
       return [];
     }
   }
