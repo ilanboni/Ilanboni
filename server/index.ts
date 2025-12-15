@@ -32,6 +32,8 @@ import { getScrapingJobWorker } from "./services/scrapingJobWorker";
 import { storage } from "./storage";
 // Importa lo scheduler per lo scraping giornaliero di proprietà private (CasaDaPrivato, ClickCase, Idealista)
 import { dailyPrivatePropertiesScheduler } from "./services/dailyPrivatePropertiesScheduler";
+// Importa lo scheduler per lo scraping notturno dei link di ricerca clienti
+import { startSearchLinkScheduler } from "./services/searchLinkScheduler";
 
 // Configura l'agente virtuale (impostazione di default, può essere cambiato tramite API)
 if (process.env.ENABLE_VIRTUAL_AGENT === undefined) {
@@ -334,6 +336,9 @@ async function pollWhatsAppMessages() {
     // Scrapa una volta al giorno e filtra a 4km dal Duomo
     dailyPrivatePropertiesScheduler.start();
     console.log('[DAILY-SCHEDULER] ✅ Avviato - scraping automatico ogni 24 ore');
+    
+    // Avvia lo scheduler notturno per scraping link di ricerca clienti (2:00 AM)
+    startSearchLinkScheduler();
     
     // Avvia il worker per l'esecuzione persistente dei job di scraping
     // Questo worker controlla periodicamente i job in coda e li esegue
