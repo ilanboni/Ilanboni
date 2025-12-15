@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import type { PropertyListing } from '../portalIngestionService';
 
 const BASE_URL = 'https://www.trovacasa.it';
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 function extractAddressFromText(text: string): string | null {
   if (!text) return null;
@@ -32,148 +32,139 @@ export class TrovaCasaAdapter {
 
     try {
       const city = params.city || 'milano';
-      const urls = [
-        `${BASE_URL}/vendita/appartamenti/${city}/privati`,
-        `${BASE_URL}/vendita-appartamenti-${city}-privati.html`,
-        `${BASE_URL}/annunci/vendita/appartamenti/${city}?proprietario=privato`,
-        `${BASE_URL}/annunci-vendita/${city}/privati`,
-      ];
+      const url = `${BASE_URL}/appartamenti-in-vendita/${city}/da-privati`;
       
-      let allProperties: any[] = [];
+      console.log(`[TROVACASA] 🌐 Loading: ${url}`);
       
-      for (const url of urls) {
-        console.log(`[TROVACASA] 🌐 Trying: ${url}`);
+      browser = await chromium.launch({ headless: true });
+      const context = await browser.newContext({ userAgent: USER_AGENT });
+      const page = await context.newPage();
+      
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      
+      await page.waitForSelector('.card, .js_card_immobile, .immobileListing__card', { timeout: 10000 }).catch(() => {});
+      
+      const propertyUrls = await page.evaluate(() => {
+        const urls: string[] = [];
+        const links = document.querySelectorAll('a[href*="/annunci/"]');
+        
+        links.forEach((link: any) => {
+          const href = link.getAttribute('href');
+          if (href && href.includes('/annunci/') && !urls.includes(href)) {
+            urls.push(href);
+          }
+        });
+        
+        return urls;
+      });
+      
+      console.log(`[TROVACASA] 📋 Found ${propertyUrls.length} property URLs`);
+      
+      const allProperties: any[] = [];
+      const maxToScrape = Math.min(propertyUrls.length, params.maxItems || 30);
+      
+      for (let i = 0; i < maxToScrape; i++) {
+        let propUrl = propertyUrls[i];
+        if (!propUrl.startsWith('http')) {
+          propUrl = BASE_URL + propUrl;
+        }
         
         try {
-          browser = await chromium.launch({ headless: true });
-          const context = await browser.newContext({ userAgent: USER_AGENT });
-          const page = await context.newPage();
+          console.log(`[TROVACASA] 🔍 Scraping detail ${i + 1}/${maxToScrape}: ${propUrl}`);
+          const detailPage = await context.newPage();
+          await detailPage.goto(propUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
           
-          try {
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          const details = await detailPage.evaluate(() => {
+            let address = '';
+            let title = '';
+            let price = '';
+            let size = '';
+            let description = '';
+            let phone = '';
+            let email = '';
+            let zone = '';
+            let isPrivate = false;
             
-            await page.waitForSelector('.listing, .annuncio, [class*="property"], [class*="immobile"]', { timeout: 10000 }).catch(() => {});
+            const h1 = document.querySelector('h1');
+            if (h1) title = h1.textContent?.trim() || '';
             
-            const propertyUrls = await page.evaluate(() => {
-              const urls: string[] = [];
-              const links = document.querySelectorAll('a[href*="/annuncio/"], a[href*="/immobile/"], a[href*="/appartamento/"], .listing a, .annuncio a');
-              
-              links.forEach((link: any) => {
-                const href = link.getAttribute('href');
-                if (href && !urls.includes(href)) {
-                  urls.push(href);
-                }
-              });
-              
-              return urls;
-            });
+            const zoneEl = document.querySelector('.card__quartiere, [class*="quartiere"], [class*="zona"]');
+            if (zoneEl) zone = zoneEl.textContent?.trim() || '';
             
-            console.log(`[TROVACASA] 📋 Found ${propertyUrls.length} property URLs`);
-            
-            const properties: any[] = [];
-            const maxToScrape = Math.min(propertyUrls.length, params.maxItems || 50);
-            
-            for (let i = 0; i < maxToScrape; i++) {
-              let propUrl = propertyUrls[i];
-              if (!propUrl.startsWith('http')) {
-                propUrl = BASE_URL + propUrl;
-              }
-              
-              try {
-                console.log(`[TROVACASA] 🔍 Scraping detail ${i + 1}/${maxToScrape}: ${propUrl}`);
-                const detailPage = await context.newPage();
-                await detailPage.goto(propUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-                
-                const details = await detailPage.evaluate(() => {
-                  let address = '';
-                  let title = '';
-                  let price = '';
-                  let size = '';
-                  let description = '';
-                  let phone = '';
-                  let email = '';
-                  let isPrivate = false;
-                  
-                  const h1 = document.querySelector('h1');
-                  if (h1) title = h1.textContent?.trim() || '';
-                  
-                  const descriptionSelectors = ['.description', '.descrizione', '[class*="description"]', '.annuncio-text', 'article p', '.detail-description'];
-                  for (const sel of descriptionSelectors) {
-                    const descEl = document.querySelector(sel);
-                    if (descEl && descEl.textContent && descEl.textContent.length > 50) {
-                      description = descEl.textContent.trim();
-                      break;
-                    }
-                  }
-                  
-                  const allText = document.body?.textContent || '';
-                  
-                  isPrivate = /privato|da privato|proprietario/i.test(allText);
-                  
-                  const addressPatterns = ['Via ', 'Viale ', 'Corso ', 'Piazza ', 'Largo ', 'Vicolo '];
-                  for (const pattern of addressPatterns) {
-                    const regex = new RegExp(`(${pattern}[A-Za-zÀ-ÿ\\s]+(?:\\d+)?(?:\\/[A-Za-z])?)[,\\s\\n]`, 'i');
-                    const match = allText.match(regex);
-                    if (match && match[1]) {
-                      address = match[1].trim();
-                      break;
-                    }
-                  }
-                  
-                  if (!address) {
-                    const locationEl = document.querySelector('[class*="location"], [class*="address"], [class*="zona"], [class*="indirizzo"]');
-                    if (locationEl) address = locationEl.textContent?.trim() || '';
-                  }
-                  
-                  const priceSelectors = ['.price', '.prezzo', '[class*="price"]', '[class*="prezzo"]'];
-                  for (const sel of priceSelectors) {
-                    const priceEl = document.querySelector(sel);
-                    if (priceEl && priceEl.textContent?.includes('€')) {
-                      price = priceEl.textContent.trim();
-                      break;
-                    }
-                  }
-                  
-                  const sizeMatch = allText.match(/(\d+)\s*m[²q]/i);
-                  if (sizeMatch) size = sizeMatch[1];
-                  
-                  const phoneMatch = allText.match(/(?:tel|telefono|cell)[:\s]*([+\d\s\-()]{8,})/i);
-                  if (phoneMatch) phone = phoneMatch[1].trim();
-                  
-                  const emailMatch = allText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-                  if (emailMatch) email = emailMatch[1];
-                  
-                  return { title, address, price, size, description, phone, email, isPrivate };
-                });
-                
-                await detailPage.close();
-                
-                if ((details.title || details.price) && details.isPrivate) {
-                  properties.push({ ...details, url: propUrl });
-                }
-                
-                await new Promise(r => setTimeout(r, 500));
-              } catch (detailError) {
-                console.log(`[TROVACASA] ⚠️ Failed to scrape detail: ${propUrl}`);
+            const descriptionSelectors = [
+              '.description', '.descrizione', 
+              '[class*="description"]', '[class*="Description"]',
+              '.annuncio-text', '.detail-description',
+              '.immobile__description', 'article p'
+            ];
+            for (const sel of descriptionSelectors) {
+              const descEl = document.querySelector(sel);
+              if (descEl && descEl.textContent && descEl.textContent.length > 50) {
+                description = descEl.textContent.trim();
+                break;
               }
             }
             
-            if (properties.length > 0) {
-              console.log(`[TROVACASA] 📊 Found ${properties.length} private properties`);
-              allProperties = properties;
-              await page.close();
-              break;
+            const allText = document.body?.textContent || '';
+            
+            isPrivate = /privato|da privato|proprietario|no agenzi/i.test(allText) &&
+                        !/agenzia immobiliare|immobiliare\s+\w+|real estate|studio\s+immobiliare/i.test(allText);
+            
+            const addressPatterns = ['Via ', 'Viale ', 'Corso ', 'Piazza ', 'Largo ', 'Vicolo '];
+            for (const pattern of addressPatterns) {
+              const regex = new RegExp(`(${pattern}[A-Za-zÀ-ÿ\\s]+(?:\\d+)?(?:\\/[A-Za-z])?)[,\\s\\n]`, 'i');
+              const match = allText.match(regex);
+              if (match && match[1]) {
+                address = match[1].trim();
+                break;
+              }
             }
             
-            await page.close();
-          } finally {
-            if (browser) await browser.close().catch(() => {});
+            if (!address) {
+              const locationEl = document.querySelector('[class*="location"], [class*="address"], [class*="indirizzo"]');
+              if (locationEl) address = locationEl.textContent?.trim() || '';
+            }
+            
+            if (!address && zone) {
+              address = zone;
+            }
+            
+            const priceSelectors = ['.card__price', '.price', '.prezzo', '[class*="price"]', '[class*="prezzo"]'];
+            for (const sel of priceSelectors) {
+              const priceEl = document.querySelector(sel);
+              if (priceEl && priceEl.textContent && (priceEl.textContent.includes('€') || /\d/.test(priceEl.textContent))) {
+                price = priceEl.textContent.trim();
+                break;
+              }
+            }
+            
+            const sizeMatch = allText.match(/(\d+)\s*m[²q]/i);
+            if (sizeMatch) size = sizeMatch[1];
+            
+            const phoneMatch = allText.match(/(?:tel|telefono|cell)[:\s]*([+\d\s\-()]{8,})/i);
+            if (phoneMatch) phone = phoneMatch[1].trim();
+            
+            const emailMatch = allText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+            if (emailMatch) email = emailMatch[1];
+            
+            return { title, address, price, size, description, phone, email, zone, isPrivate };
+          });
+          
+          await detailPage.close();
+          
+          if ((details.title || details.price) && details.isPrivate) {
+            allProperties.push({ ...details, url: propUrl });
+          } else if (details.title && !details.isPrivate) {
+            console.log(`[TROVACASA] ⏭️ Skipping agency listing: ${details.title.substring(0, 50)}`);
           }
-        } catch (urlError) {
-          console.log(`[TROVACASA] ⚠️ URL ${url} failed, trying next...`);
-          if (browser) await browser.close().catch(() => {});
+          
+          await new Promise(r => setTimeout(r, 400));
+        } catch (detailError) {
+          console.log(`[TROVACASA] ⚠️ Failed to scrape detail: ${propUrl}`);
         }
       }
+      
+      await page.close();
       
       console.log(`[TROVACASA] 📊 Found ${allProperties.length} property items`);
       
@@ -206,6 +197,8 @@ export class TrovaCasaAdapter {
               const addressFromDesc = extractAddressFromText(prop.description || prop.title || '');
               if (addressFromDesc) {
                 cleanAddress = addressFromDesc;
+              } else if (prop.zone) {
+                cleanAddress = prop.zone;
               } else {
                 cleanAddress = 'milano';
               }

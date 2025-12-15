@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import type { PropertyListing } from '../portalIngestionService';
 
 const BASE_URL = 'https://www.bakeca.it';
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 const MIN_PRICE = 250000;
 const MAX_DISTANCE_KM = 4;
@@ -64,158 +64,166 @@ export class BakecaAdapter {
 
     try {
       const city = params.city || 'milano';
-      const urls = [
-        `${BASE_URL}/annunci/vendita-appartamenti/${city}/`,
-        `${BASE_URL}/annunci-immobiliari/vendita/appartamenti/${city}/`,
-        `${BASE_URL}/immobili/vendita/appartamenti/${city}/`,
-      ];
+      const url = `${BASE_URL}/annunci/vendita-appartamenti/${city}/`;
       
-      let allProperties: any[] = [];
+      console.log(`[BAKECA] 🌐 Loading: ${url}`);
       
-      for (const url of urls) {
-        console.log(`[BAKECA] 🌐 Trying: ${url}`);
+      browser = await chromium.launch({ 
+        headless: true,
+        args: ['--disable-blink-features=AutomationControlled']
+      });
+      const context = await browser.newContext({ 
+        userAgent: USER_AGENT,
+        viewport: { width: 1920, height: 1080 },
+        javaScriptEnabled: true
+      });
+      const page = await context.newPage();
+      
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      
+      await page.waitForTimeout(5000);
+      
+      const pageContent = await page.content();
+      if (pageContent.includes('Just a moment') || pageContent.includes('challenge')) {
+        console.log('[BAKECA] ⏳ Cloudflare challenge detected, waiting...');
+        await page.waitForTimeout(10000);
+      }
+      
+      await page.waitForSelector('a[href*="/annunci/"]', { timeout: 30000 }).catch(() => {});
+      
+      const propertyUrls = await page.evaluate(() => {
+        const urls: string[] = [];
+        const links = document.querySelectorAll('a[href*="/annunci/"][href*="vendita"]');
+        
+        links.forEach((link: any) => {
+          const href = link.getAttribute('href');
+          if (href && !urls.includes(href) && !href.endsWith('/vendita-appartamenti/milano/')) {
+            urls.push(href);
+          }
+        });
+        
+        return urls.slice(0, 50);
+      });
+      
+      console.log(`[BAKECA] 📋 Found ${propertyUrls.length} property URLs`);
+      
+      const allProperties: any[] = [];
+      const maxToScrape = Math.min(propertyUrls.length, params.maxItems || 30);
+      
+      for (let i = 0; i < maxToScrape; i++) {
+        let propUrl = propertyUrls[i];
+        if (!propUrl.startsWith('http')) {
+          propUrl = BASE_URL + propUrl;
+        }
         
         try {
-          browser = await chromium.launch({ headless: true });
-          const context = await browser.newContext({ userAgent: USER_AGENT });
-          const page = await context.newPage();
+          console.log(`[BAKECA] 🔍 Scraping detail ${i + 1}/${maxToScrape}: ${propUrl}`);
+          const detailPage = await context.newPage();
+          await detailPage.goto(propUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await detailPage.waitForTimeout(2000);
           
-          try {
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          const details = await detailPage.evaluate(() => {
+            let address = '';
+            let title = '';
+            let price = '';
+            let size = '';
+            let description = '';
+            let phone = '';
+            let email = '';
+            let isPrivate = false;
+            let zone = '';
             
-            await page.waitForSelector('.annuncio, .listing, [class*="annuncio"], [class*="listing"]', { timeout: 10000 }).catch(() => {});
+            const h1 = document.querySelector('h1');
+            if (h1) title = h1.textContent?.trim() || '';
             
-            const propertyUrls = await page.evaluate(() => {
-              const urls: string[] = [];
-              const links = document.querySelectorAll('a[href*="/annuncio/"], a[href*="/dettaglio/"], .annuncio a, .listing a');
-              
-              links.forEach((link: any) => {
-                const href = link.getAttribute('href');
-                if (href && !urls.includes(href)) {
-                  urls.push(href);
-                }
-              });
-              
-              return urls;
-            });
-            
-            console.log(`[BAKECA] 📋 Found ${propertyUrls.length} property URLs to check`);
-            
-            const properties: any[] = [];
-            const maxToScrape = Math.min(propertyUrls.length, params.maxItems || 100);
-            
-            for (let i = 0; i < maxToScrape; i++) {
-              let propUrl = propertyUrls[i];
-              if (!propUrl.startsWith('http')) {
-                propUrl = BASE_URL + propUrl;
-              }
-              
-              try {
-                console.log(`[BAKECA] 🔍 Scraping detail ${i + 1}/${maxToScrape}: ${propUrl}`);
-                const detailPage = await context.newPage();
-                await detailPage.goto(propUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-                
-                const details = await detailPage.evaluate(() => {
-                  let address = '';
-                  let title = '';
-                  let price = '';
-                  let size = '';
-                  let description = '';
-                  let phone = '';
-                  let email = '';
-                  let isPrivate = false;
-                  
-                  const h1 = document.querySelector('h1');
-                  if (h1) title = h1.textContent?.trim() || '';
-                  
-                  const descriptionSelectors = ['.description', '.descrizione', '[class*="description"]', '.annuncio-text', 'article p', '.detail-text'];
-                  for (const sel of descriptionSelectors) {
-                    const descEl = document.querySelector(sel);
-                    if (descEl && descEl.textContent && descEl.textContent.length > 50) {
-                      description = descEl.textContent.trim();
-                      break;
-                    }
-                  }
-                  
-                  const allText = document.body?.textContent || '';
-                  
-                  isPrivate = /privato|da privato|proprietario|no agenzie/i.test(allText) && 
-                              !/agenzia|immobiliare|agency/i.test(allText);
-                  
-                  const addressPatterns = ['Via ', 'Viale ', 'Corso ', 'Piazza ', 'Largo ', 'Vicolo '];
-                  for (const pattern of addressPatterns) {
-                    const regex = new RegExp(`(${pattern}[A-Za-zÀ-ÿ\\s]+(?:\\d+)?(?:\\/[A-Za-z])?)[,\\s\\n]`, 'i');
-                    const match = allText.match(regex);
-                    if (match && match[1]) {
-                      address = match[1].trim();
-                      break;
-                    }
-                  }
-                  
-                  if (!address) {
-                    const locationEl = document.querySelector('[class*="location"], [class*="address"], [class*="zona"]');
-                    if (locationEl) address = locationEl.textContent?.trim() || '';
-                  }
-                  
-                  const priceSelectors = ['.price', '.prezzo', '[class*="price"]', '[class*="prezzo"]'];
-                  for (const sel of priceSelectors) {
-                    const priceEl = document.querySelector(sel);
-                    if (priceEl && priceEl.textContent?.includes('€')) {
-                      price = priceEl.textContent.trim();
-                      break;
-                    }
-                  }
-                  
-                  if (!price) {
-                    const priceMatch = allText.match(/€\s*([\d.,]+)/);
-                    if (priceMatch) price = priceMatch[0];
-                  }
-                  
-                  const sizeMatch = allText.match(/(\d+)\s*m[²q]/i);
-                  if (sizeMatch) size = sizeMatch[1];
-                  
-                  const phoneMatch = allText.match(/(?:tel|telefono|cell)[:\s]*([+\d\s\-()]{8,})/i);
-                  if (phoneMatch) phone = phoneMatch[1].trim();
-                  
-                  const emailMatch = allText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-                  if (emailMatch) email = emailMatch[1];
-                  
-                  return { title, address, price, size, description, phone, email, isPrivate };
-                });
-                
-                await detailPage.close();
-                
-                const priceStr = details.price?.match(/[\d.,]+/)?.[0] || '0';
-                const priceNum = parseInt(priceStr.replace(/\D/g, '')) || 0;
-                
-                if ((details.title || details.price) && priceNum >= MIN_PRICE) {
-                  properties.push({ ...details, url: propUrl, priceNum });
-                }
-                
-                await new Promise(r => setTimeout(r, 500));
-              } catch (detailError) {
-                console.log(`[BAKECA] ⚠️ Failed to scrape detail: ${propUrl}`);
+            const descriptionSelectors = [
+              '.description', '.descrizione',
+              '[class*="description"]', '[class*="Description"]',
+              '.annuncio-text', '.detail-text',
+              'article p', '[data-testid="description"]'
+            ];
+            for (const sel of descriptionSelectors) {
+              const descEl = document.querySelector(sel);
+              if (descEl && descEl.textContent && descEl.textContent.length > 50) {
+                description = descEl.textContent.trim();
+                break;
               }
             }
             
-            if (properties.length > 0) {
-              console.log(`[BAKECA] 📊 Found ${properties.length} properties with price >= €${MIN_PRICE}`);
-              allProperties = properties;
-              await page.close();
-              break;
+            const allText = document.body?.textContent || '';
+            
+            isPrivate = /privato|da privato|proprietario|no agenzie/i.test(allText) && 
+                        !/agenzia|immobiliare|agency/i.test(allText);
+            
+            const zoneSelectors = ['[class*="location"]', '[class*="zona"]', '[class*="city"]'];
+            for (const sel of zoneSelectors) {
+              const zoneEl = document.querySelector(sel);
+              if (zoneEl && zoneEl.textContent) {
+                zone = zoneEl.textContent.trim();
+                break;
+              }
             }
             
-            await page.close();
-          } finally {
-            if (browser) await browser.close().catch(() => {});
+            const addressPatterns = ['Via ', 'Viale ', 'Corso ', 'Piazza ', 'Largo ', 'Vicolo '];
+            for (const pattern of addressPatterns) {
+              const regex = new RegExp(`(${pattern}[A-Za-zÀ-ÿ\\s]+(?:\\d+)?(?:\\/[A-Za-z])?)[,\\s\\n]`, 'i');
+              const match = allText.match(regex);
+              if (match && match[1]) {
+                address = match[1].trim();
+                break;
+              }
+            }
+            
+            if (!address && zone) {
+              address = zone;
+            }
+            
+            const priceSelectors = ['.price', '.prezzo', '[class*="price"]', '[class*="prezzo"]'];
+            for (const sel of priceSelectors) {
+              const priceEl = document.querySelector(sel);
+              if (priceEl && priceEl.textContent && (priceEl.textContent.includes('€') || /\d/.test(priceEl.textContent))) {
+                price = priceEl.textContent.trim();
+                break;
+              }
+            }
+            
+            if (!price) {
+              const priceMatch = allText.match(/€\s*([\d.,]+)/);
+              if (priceMatch) price = priceMatch[0];
+            }
+            
+            const sizeMatch = allText.match(/(\d+)\s*m[²q]/i);
+            if (sizeMatch) size = sizeMatch[1];
+            
+            const phoneMatch = allText.match(/(?:tel|telefono|cell)[:\s]*([+\d\s\-()]{8,})/i);
+            if (phoneMatch) phone = phoneMatch[1].trim();
+            
+            const emailMatch = allText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+            if (emailMatch) email = emailMatch[1];
+            
+            return { title, address, price, size, description, phone, email, isPrivate, zone };
+          });
+          
+          await detailPage.close();
+          
+          const priceStr = details.price?.match(/[\d.,]+/)?.[0] || '0';
+          const priceNum = parseInt(priceStr.replace(/\D/g, '')) || 0;
+          
+          if ((details.title || details.price) && priceNum >= MIN_PRICE) {
+            allProperties.push({ ...details, url: propUrl, priceNum });
+          } else if (priceNum > 0) {
+            console.log(`[BAKECA] ⏭️ Skipping: price €${priceNum} < €${MIN_PRICE}`);
           }
-        } catch (urlError) {
-          console.log(`[BAKECA] ⚠️ URL ${url} failed, trying next...`);
-          if (browser) await browser.close().catch(() => {});
+          
+          await new Promise(r => setTimeout(r, 800));
+        } catch (detailError) {
+          console.log(`[BAKECA] ⚠️ Failed to scrape detail: ${propUrl}`);
         }
       }
       
-      console.log(`[BAKECA] 📊 Pre-filter: ${allProperties.length} properties`);
+      await page.close();
+      
+      console.log(`[BAKECA] 📊 Pre-filter: ${allProperties.length} properties with price >= €${MIN_PRICE}`);
       
       let count = 0;
       for (const prop of allProperties) {
@@ -223,11 +231,6 @@ export class BakecaAdapter {
         
         try {
           const price = prop.priceNum || 0;
-          
-          if (price < MIN_PRICE) {
-            console.log(`[BAKECA] ⏭️ Skipping: price €${price} < €${MIN_PRICE}`);
-            continue;
-          }
           
           const sizeMatch = prop.size?.match(/(\d+)/);
           const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
@@ -242,6 +245,8 @@ export class BakecaAdapter {
             const addressFromDesc = extractAddressFromText(prop.description || prop.title || '');
             if (addressFromDesc) {
               cleanAddress = addressFromDesc;
+            } else if (prop.zone) {
+              cleanAddress = prop.zone;
             } else {
               cleanAddress = 'milano';
             }
