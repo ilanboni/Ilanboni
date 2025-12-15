@@ -6,6 +6,24 @@ import axios from "axios";
 const NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org";
 const RATE_LIMIT_MS = 1100; // 1.1 seconds between requests (Nominatim limit: 1 req/sec)
 
+// Duomo di Milano coordinates
+const DUOMO_LAT = 45.464204;
+const DUOMO_LNG = 9.191383;
+const MAX_DISTANCE_KM = 15; // Max distance from Duomo to consider valid for Milan
+
+// Calculate distance using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 class GeocodingService {
   private lastRequestTime = 0;
   private requestQueue: Array<() => Promise<void>> = [];
@@ -126,8 +144,47 @@ class GeocodingService {
 
       if (response.data && response.data.length > 0) {
         const result = response.data[0];
-        const lat = result.lat;
-        const lng = result.lon;
+        let lat = result.lat;
+        let lng = result.lon;
+
+        // Validate that coordinates are within Milan area (15km from Duomo)
+        const distance = calculateDistance(DUOMO_LAT, DUOMO_LNG, parseFloat(lat), parseFloat(lng));
+        
+        if (distance > MAX_DISTANCE_KM && city.toLowerCase().includes('milano')) {
+          console.log(`[GEOCODING] Result ${lat}, ${lng} is ${distance.toFixed(1)}km from Duomo - retrying with explicit Milano`);
+          
+          // Wait for rate limit before retry
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_MS));
+          
+          // Retry with more specific query
+          const retryResponse = await axios.get(`${NOMINATIM_BASE_URL}/search`, {
+            params: {
+              q: `${address}, Milano, Lombardia, Italy`,
+              format: 'json',
+              limit: 1,
+              addressdetails: 1
+            },
+            headers: {
+              'User-Agent': 'RealEstateCRM/1.0'
+            },
+            timeout: 10000
+          });
+          
+          if (retryResponse.data && retryResponse.data.length > 0) {
+            const retryResult = retryResponse.data[0];
+            const retryLat = retryResult.lat;
+            const retryLng = retryResult.lon;
+            const retryDistance = calculateDistance(DUOMO_LAT, DUOMO_LNG, parseFloat(retryLat), parseFloat(retryLng));
+            
+            if (retryDistance <= MAX_DISTANCE_KM) {
+              console.log(`[GEOCODING] Retry success: ${retryLat}, ${retryLng} (${retryDistance.toFixed(1)}km from Duomo)`);
+              lat = retryLat;
+              lng = retryLng;
+            } else {
+              console.log(`[GEOCODING] Retry still outside Milan: ${retryDistance.toFixed(1)}km - using original result`);
+            }
+          }
+        }
 
         // Cache success
         await db.insert(geocodeCache)
