@@ -5,14 +5,16 @@ import axios from 'axios';
 const BASE_URL = 'https://www.clickcase.it';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
-// Common Italian adjectives that indicate descriptive text, not real addresses
+// Common Italian adjectives and words that indicate descriptive text, not real addresses
 const DESCRIPTIVE_WORDS = [
   'tranquilla', 'tranquillo', 'comoda', 'comodo', 'luminosa', 'luminoso',
   'centrale', 'residenziale', 'signorile', 'elegante', 'esclusiva', 'esclusivo',
   'ottima', 'ottimo', 'bella', 'bello', 'nuova', 'nuovo', 'moderna', 'moderno',
   'silenziosa', 'silenzioso', 'riservata', 'riservato', 'privata', 'privato',
   'verde', 'pedonale', 'principale', 'secondaria', 'secondario', 'laterale',
-  'stretta', 'stretto', 'larga', 'largo', 'breve', 'lunga', 'lungo', 'corta', 'corto'
+  'stretta', 'stretto', 'larga', 'largo', 'breve', 'lunga', 'lungo', 'corta', 'corto',
+  'email', 'mail', 'telefono', 'whatsapp', 'messaggio', 'sms', 'contatto',
+  'descrizione', 'vendita', 'affitto', 'vendesi', 'affittasi'
 ];
 
 // Check if an extracted "address" is actually a descriptive phrase
