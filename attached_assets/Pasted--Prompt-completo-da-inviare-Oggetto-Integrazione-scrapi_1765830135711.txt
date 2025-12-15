@@ -1,0 +1,59 @@
+✅ Prompt completo da inviare
+
+Oggetto: Integrazione scraping immobili da link ricerca Immobiliare.it per matching automatico
+
+Ciao team,
+ho bisogno di una nuova funzione che si occupi di:
+
+⸻
+
+✅ Obiettivo
+
+Quando un cliente ha salvato un link di ricerca da Immobiliare.it (es. "https://www.immobiliare.it/..."), voglio:
+	1.	Effettuare lo scraping degli immobili mostrati da quella ricerca
+	2.	Per ogni immobile:
+	•	Uniformare alla nostra struttura (address, price, description, url, agencies, ecc.)
+	•	Verificare se esiste già in DB (tramite url)
+	•	se esiste, sovrascrivere
+	•	se nuovo, aggiungere
+	•	Categorizzare come:
+	•	privato → se venduto solo da privati
+	•	monocondiviso → se venduto da una sola agenzia (anche con + link)
+	•	pluricondiviso → se ci sono più agenzie diverse
+	•	privato+agenzia → se sia privato che almeno un’agenzia
+	•	Se presente un numero privato, salvarlo in ownerPhone
+	•	Associare l’immobile al cliente come “matching da link”
+	3.	Salvare i risultati per ogni cliente sotto client.matchingProperties
+
+⸻
+
+📥 Dati già disponibili
+	•	Campo clients.searchLink (stringa) → contiene link personalizzato della ricerca
+	•	Il client ha già rating (valutazione)
+	•	È già presente storage.saveProperty e storage.getMatchingPropertiesForClient
+
+⸻
+
+✅ Cosa serve implementare
+	1.	Nuova funzione scrapePropertiesFromSearchLink(client: Client)
+→ prende il link dal cliente, fa scraping, elabora gli immobili, li salva e aggiorna i matching
+	2.	All’interno:
+	•	Chiamata a scraping con Playwright (o Cheerio se è sufficiente)
+	•	Matching automatico solo se il client ha rating 4 o 5
+	•	Salvataggio nei matching con score (via calculateMatchScore() già presente)
+	3.	Notifiche aggiornamenti:
+	•	Dopo l’import, se ci sono nuovi matching, evidenziare nel backend
+	•	Mostrare in dashboard immobili associati tramite questo processo
+
+⸻
+
+🧠 Bonus (già fatto o utile da avere)
+	•	✅ Sovrascrittura automatica se url esiste
+	•	✅ Salvataggio ownerPhone per privato / privato+agenzia
+	•	✅ Categorizzazione (privato, pluricondiviso, ecc.) già gestita
+
+⸻
+
+⚙️ Esempio funzione (semplificato)
+
+// server/services/searchLinkScraper.ts

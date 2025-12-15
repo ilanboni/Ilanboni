@@ -16690,6 +16690,134 @@ ${clientId ? `Cliente collegato nel sistema` : 'Cliente non presente nel sistema
     }
   });
 
+  // ============================================
+  // Quick Matcher & Search Link Scraper Routes
+  // ============================================
+
+  // Run quick matching for high-rating clients (4-5) on a specific property
+  app.post('/api/matching/quick/:propertyId', async (req: Request, res: Response) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { propertyType = 'shared' } = req.body;
+      
+      if (isNaN(propertyId)) {
+        return res.status(400).json({ error: 'ID proprietà non valido' });
+      }
+
+      const { runQuickMatchingForHighRatingClients } = await import('./services/quickMatcher');
+      
+      let property;
+      if (propertyType === 'shared') {
+        property = await storage.getSharedProperty(propertyId);
+      } else {
+        property = await storage.getProperty(propertyId);
+      }
+      
+      if (!property) {
+        return res.status(404).json({ error: 'Proprietà non trovata' });
+      }
+
+      const result = await runQuickMatchingForHighRatingClients(property, propertyType);
+      
+      res.json({
+        ok: true,
+        message: `Quick matching completato: ${result.matchesSaved} match trovati su ${result.totalHighRatingBuyers} clienti rating 4-5`,
+        result
+      });
+    } catch (error) {
+      console.error('[QUICK-MATCHER-API] Error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore nel quick matching',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Scrape properties from a client's search link
+  app.post('/api/clients/:id/scrape-search-link', async (req: Request, res: Response) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      
+      if (isNaN(clientId)) {
+        return res.status(400).json({ error: 'ID cliente non valido' });
+      }
+
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Cliente non trovato' });
+      }
+
+      if (!client.searchLink) {
+        return res.status(400).json({ error: 'Cliente non ha un link di ricerca configurato' });
+      }
+
+      const { scrapePropertiesFromSearchLink } = await import('./services/searchLinkScraper');
+      const result = await scrapePropertiesFromSearchLink(client);
+      
+      res.json({
+        ok: true,
+        message: `Scraping completato: ${result.newProperties} nuovi, ${result.updatedProperties} aggiornati, ${result.matchesCreated} match`,
+        result
+      });
+    } catch (error) {
+      console.error('[SEARCH-LINK-SCRAPER-API] Error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore nello scraping del link di ricerca',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Scrape all client search links
+  app.post('/api/admin/scrape-all-search-links', async (req: Request, res: Response) => {
+    try {
+      const { scrapeAllClientSearchLinks } = await import('./services/searchLinkScraper');
+      const result = await scrapeAllClientSearchLinks();
+      
+      const totalNew = result.results.reduce((sum, r) => sum + r.newProperties, 0);
+      const totalMatches = result.results.reduce((sum, r) => sum + r.matchesCreated, 0);
+      
+      res.json({
+        ok: true,
+        message: `Batch scraping completato: ${result.processed} clienti, ${totalNew} nuovi immobili, ${totalMatches} match`,
+        result
+      });
+    } catch (error) {
+      console.error('[BATCH-SEARCH-LINK-SCRAPER-API] Error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore nel batch scraping',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Scrape only high-rating clients' search links
+  app.post('/api/admin/scrape-high-rating-search-links', async (req: Request, res: Response) => {
+    try {
+      const { scrapeSearchLinkForHighRatingClients } = await import('./services/searchLinkScraper');
+      const result = await scrapeSearchLinkForHighRatingClients();
+      
+      const totalNew = result.results.reduce((sum, r) => sum + r.newProperties, 0);
+      const totalMatches = result.results.reduce((sum, r) => sum + r.matchesCreated, 0);
+      
+      res.json({
+        ok: true,
+        message: `High-rating scraping completato: ${result.processed} clienti, ${totalNew} nuovi immobili, ${totalMatches} match`,
+        result
+      });
+    } catch (error) {
+      console.error('[HIGH-RATING-SEARCH-LINK-SCRAPER-API] Error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Errore nel high-rating scraping',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   return httpServer;
 }
 
