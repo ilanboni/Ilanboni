@@ -9847,7 +9847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // UltraMsg può inviare i dati in formato diverso a seconda della configurazione
       if (webhookData) {
-        // Nuovo formato esatto ricevuto da webhook.site (1)
+        // Formato message_received (messaggi in ENTRATA)
         if (webhookData.event_type === "message_received" && webhookData.data) {
           const messageData = webhookData.data;
           normalizedWebhook.event_type = "message";
@@ -9858,7 +9858,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           normalizedWebhook.media_url = messageData.media || '';
           normalizedWebhook.mime_type = messageData.type === 'chat' ? 'text/plain' : messageData.type || 'text/plain';
           
-          console.log("[WEBHOOK] Elaborazione formato webhook message_received con data object");
+          console.log("[WEBHOOK] Elaborazione formato webhook message_received (inbound) con data object");
+        }
+        // Formato message_create (messaggi in USCITA dal cellulare)
+        else if (webhookData.event_type === "message_create" && webhookData.data) {
+          const messageData = webhookData.data;
+          normalizedWebhook.event_type = "message";
+          normalizedWebhook.from_me = true; // message_create è sempre un messaggio in uscita
+          normalizedWebhook.from = messageData.from ? messageData.from.replace(/@c\.us$/, '') : '';
+          normalizedWebhook.to = messageData.to ? messageData.to.replace(/@c\.us$/, '') : '';
+          normalizedWebhook.body = messageData.body || '';
+          normalizedWebhook.media_url = messageData.media || '';
+          normalizedWebhook.mime_type = messageData.type === 'chat' ? 'text/plain' : messageData.type || 'text/plain';
+          normalizedWebhook.external_id = messageData.id || webhookData.id;
+          
+          console.log("[WEBHOOK] ✅ Elaborazione formato webhook message_create (outbound dal cellulare) con data object");
+          console.log("[WEBHOOK] Destinatario:", normalizedWebhook.to, "Contenuto:", normalizedWebhook.body?.substring(0, 50));
         } 
         // Formato test simulato (2)
         else if (webhookData.event_type === "message" || webhookData.from || webhookData.to) {
@@ -10398,6 +10413,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Errore durante la simulazione del messaggio WhatsApp", 
         details: error.message || "Errore sconosciuto" 
       });
+    }
+  });
+
+  // Endpoint per configurare UltraMsg webhook (abilita messaggi in uscita)
+  app.get("/api/whatsapp/webhook-config", async (req: Request, res: Response) => {
+    try {
+      const { verifyAndConfigureUltraMsgWebhook, getUltraMsgSettings } = await import('./lib/ultramsg-webhook-check');
+      const result = await verifyAndConfigureUltraMsgWebhook();
+      res.json(result);
+    } catch (error: any) {
+      console.error("[GET /api/whatsapp/webhook-config]", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/whatsapp/webhook-config/enable-outbound", async (req: Request, res: Response) => {
+    try {
+      const { enableOutboundWebhooks } = await import('./lib/ultramsg-webhook-check');
+      const result = await enableOutboundWebhooks();
+      res.json(result);
+    } catch (error: any) {
+      console.error("[POST /api/whatsapp/webhook-config/enable-outbound]", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
