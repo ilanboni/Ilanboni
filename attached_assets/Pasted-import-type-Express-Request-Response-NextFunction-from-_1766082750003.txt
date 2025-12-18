@@ -1,0 +1,69 @@
+import type { Express, Request, Response, NextFunction } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { insertPropertySchema, insertNewsSchema, insertOpenHouseSchema, insertOpenHouseBookingSchema, insertBlogPostSchema } from "@shared/schema";
+import { z } from "zod";
+import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
+import { Resend } from "resend";
+import path from "path";
+import fs from "fs";
+
+// Helper function to parse object storage paths
+function parseObjectPathHelper(objectPath: string): { bucketName: string; objectName: string } {
+  if (!objectPath.startsWith("/")) {
+    objectPath = `/${objectPath}`;
+  }
+  const pathParts = objectPath.split("/");
+  if (pathParts.length < 3) {
+    throw new Error("Invalid path: must contain at least a bucket name");
+  }
+  const bucketName = pathParts[1];
+  const objectName = pathParts.slice(2).join("/");
+  return { bucketName, objectName };
+}
+
+// Extend session type
+declare module "express-session" {
+  interface SessionData {
+    isAdmin?: boolean;
+  }
+}
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  req.session.isAdmin = true;
+  next();
+}
+
+export async function registerRoutes(
+  httpServer: Server,
+  app: Express
+): Promise<Server> {
+
+  // ============== AUTH (senza password) ==============
+  app.post("/api/auth/login", async (req, res) => {
+    req.session.isAdmin = true;
+    res.json({ success: true });
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/check", (req, res) => {
+    res.json({ isAdmin: true });
+  });
+
+  // ============== PUBLIC API (per il display) ==============
+  app.get("/api/public/properties", async (req, res) => {
+    try {
+      const active = await storage.getActiveProperties();
+      const sold = await storage.getSoldProperties();
+      res.json({ active, sold });
+    } catch (error) {
+      res.status(500).json({ error: "Errore nel caricamento immobili" });
+    }
+  });
+
+  // ... [continua - il file è molto lungo]
