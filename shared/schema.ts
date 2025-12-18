@@ -173,6 +173,19 @@ export const properties = pgTable("properties", {
   lastSeenAt: timestamp("last_seen_at"), // ultimo aggiornamento
   url: text("url"), // URL completo dell'annuncio
   isFavorite: boolean("is_favorite").default(false), // properties marked as favorites for follow-up
+  // Campi per sito web e digital signage
+  zone: text("zone"), // zona/quartiere per display sito
+  subtitle: text("subtitle"), // sottotitolo per sito
+  images: text("images").array(), // array immagini per sito/signage
+  rooms: integer("rooms"), // numero locali
+  videoUrl: text("video_url"), // URL video tour
+  floorPlanImage: text("floor_plan_image"), // planimetria
+  qrCodeUrl: text("qr_code_url"), // QR code per schermo
+  position: text("position").default("left"), // posizione su schermo signage (left, right)
+  detailActive: boolean("detail_active").default(true), // se mostrare dettaglio sul sito
+  soldDays: integer("sold_days"), // giorni per vendita (per statistiche)
+  soldAt: timestamp("sold_at"), // data vendita
+  sortOrder: integer("sort_order").default(0), // ordine visualizzazione
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
@@ -926,3 +939,127 @@ export const sendPropertyToClientSchema = z.object({
 });
 
 export type SendPropertyToClientRequest = z.infer<typeof sendPropertyToClientSchema>;
+
+// ============================================================================
+// WEBSITE & DIGITAL SIGNAGE TABLES
+// ============================================================================
+
+// News per schermo digital signage
+export const news = pgTable("news", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull().default(""),
+  text: text("text").notNull(),
+  sortOrder: integer("sort_order").default(0),
+  active: integer("active").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNewsSchema = createInsertSchema(news).omit({ id: true, createdAt: true });
+export type News = typeof news.$inferSelect;
+export type InsertNews = z.infer<typeof insertNewsSchema>;
+
+// Blog posts per sito web
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  excerpt: text("excerpt"),
+  content: text("content").notNull(),
+  coverImage: text("cover_image"),
+  publishedAt: timestamp("published_at"),
+  status: text("status").notNull().default("draft"), // draft, published
+  categories: text("categories").array(),
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
+  author: text("author"),
+  featured: boolean("featured").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ id: true, createdAt: true });
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+
+// Newsletter subscriptions
+export const newsletterSubscriptions = pgTable("newsletter_subscriptions", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNewsletterSubscriptionSchema = createInsertSchema(newsletterSubscriptions).omit({ id: true, createdAt: true });
+export type NewsletterSubscription = typeof newsletterSubscriptions.$inferSelect;
+export type InsertNewsletterSubscription = z.infer<typeof insertNewsletterSubscriptionSchema>;
+
+// Richieste interesse da QR code (schermo digital signage)
+export const interestLeads = pgTable("interest_leads", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  nome: text("nome").notNull(),
+  cognome: text("cognome").notNull(),
+  telefono: text("telefono").notNull(),
+  indirizzo: text("indirizzo"),
+  emailSent: integer("email_sent").default(0),
+  importedToClients: boolean("imported_to_clients").default(false), // flag per sapere se è stato importato come cliente
+  clientId: integer("client_id"), // riferimento al cliente creato
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertInterestLeadSchema = createInsertSchema(interestLeads).omit({ id: true, createdAt: true });
+export type InterestLead = typeof interestLeads.$inferSelect;
+export type InsertInterestLead = z.infer<typeof insertInterestLeadSchema>;
+
+// Richieste contatto dal sito web
+export const websiteContactRequests = pgTable("website_contact_requests", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  cognome: text("cognome").notNull(),
+  email: text("email").notNull(),
+  telefono: text("telefono"),
+  messaggio: text("messaggio").notNull(),
+  tipo: text("tipo").notNull().default("informazioni"), // informazioni, valutazione, vendita
+  emailSent: integer("email_sent").default(0),
+  importedToClients: boolean("imported_to_clients").default(false),
+  clientId: integer("client_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWebsiteContactRequestSchema = createInsertSchema(websiteContactRequests).omit({ id: true, createdAt: true });
+export type WebsiteContactRequest = typeof websiteContactRequests.$inferSelect;
+export type InsertWebsiteContactRequest = z.infer<typeof insertWebsiteContactRequestSchema>;
+
+// Analytics visite immobili (per tracking QR code e sito)
+export const propertyVisitSessions = pgTable("property_visit_sessions", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  sessionToken: text("session_token").notNull(),
+  source: text("source").default("direct"), // qr_code, website, signage
+  deviceType: text("device_type").default("unknown"),
+  country: text("country"),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow(),
+  heartbeatCount: integer("heartbeat_count").default(1),
+});
+
+export const insertPropertyVisitSessionSchema = createInsertSchema(propertyVisitSessions).omit({ id: true, createdAt: true });
+export type PropertyVisitSession = typeof propertyVisitSessions.$inferSelect;
+export type InsertPropertyVisitSession = z.infer<typeof insertPropertyVisitSessionSchema>;
+
+// Open houses (visite libere)
+export const openHouses = pgTable("open_houses", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  title: text("title").notNull(),
+  date: timestamp("date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  maxSlots: integer("max_slots").default(10),
+  bookedSlots: integer("booked_slots").default(0),
+  notes: text("notes"),
+  active: integer("active").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertOpenHouseSchema = createInsertSchema(openHouses).omit({ id: true, createdAt: true });
+export type OpenHouse = typeof openHouses.$inferSelect;
+export type InsertOpenHouse = z.infer<typeof insertOpenHouseSchema>;

@@ -1,0 +1,142 @@
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, integer, serial, timestamp, boolean } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// ============================================================================
+// ANALYTICS - Property Visit Sessions
+// ============================================================================
+export const propertyVisitSessions = pgTable("property_visit_sessions", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  sessionToken: text("session_token").notNull(),
+  source: text("source").default("direct"),
+  deviceType: text("device_type").default("unknown"),
+  country: text("country"),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow(),
+  heartbeatCount: integer("heartbeat_count").default(1),
+});
+
+// ============================================================================
+// USERS (Admin authentication)
+// ============================================================================
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+});
+
+// ============================================================================
+// PROPERTIES (Immobili in vendita/venduti)
+// ============================================================================
+export const properties = pgTable("properties", {
+  id: serial("id").primaryKey(),
+  zone: text("zone").notNull(),
+  address: text("address"),
+  subtitle: text("subtitle"),
+  description: text("description"),
+  mq: integer("mq").default(0),
+  rooms: integer("rooms").default(0),
+  bathrooms: integer("bathrooms").default(0),
+  energyClass: text("energy_class").default("G"),
+  price: text("price"),
+  images: text("images").array().notNull(),
+  videoUrl: text("video_url"),
+  floorPlanImage: text("floor_plan_image"),
+  qrCodeUrl: text("qr_code_url"),
+  position: text("position").notNull(),
+  status: text("status").notNull().default("active"),
+  detailActive: boolean("detail_active").default(true),
+  soldDays: integer("sold_days"),
+  soldAt: timestamp("sold_at"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// NEWS (Slider news)
+// ============================================================================
+export const news = pgTable("news", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull().default(""),
+  text: text("text").notNull(),
+  sortOrder: integer("sort_order").default(0),
+  active: integer("active").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// INTEREST LEADS (Richieste da QR code)
+// ============================================================================
+export const interestLeads = pgTable("interest_leads", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  nome: text("nome").notNull(),
+  cognome: text("cognome").notNull(),
+  telefono: text("telefono").notNull(),
+  indirizzo: text("indirizzo").notNull(),
+  emailSent: integer("email_sent").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// OPEN HOUSES (Visite)
+// ============================================================================
+export const openHouses = pgTable("open_houses", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  title: text("title").notNull(),
+  date: timestamp("date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  maxSlots: integer("max_slots").default(10),
+  bookedSlots: integer("booked_slots").default(0),
+  notes: text("notes"),
+  active: integer("active").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// CONTACT REQUESTS (Richieste contatto dal sito)
+// ============================================================================
+export const contactRequests = pgTable("contact_requests", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  cognome: text("cognome").notNull(),
+  email: text("email").notNull(),
+  telefono: text("telefono"),
+  messaggio: text("messaggio").notNull(),
+  tipo: text("tipo").notNull().default("informazioni"),
+  emailSent: integer("email_sent").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// BLOG POSTS
+// ============================================================================
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  excerpt: text("excerpt"),
+  content: text("content").notNull(),
+  coverImage: text("cover_image"),
+  publishedAt: timestamp("published_at"),
+  status: text("status").notNull().default("draft"),
+  categories: text("categories").array(),
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
+  author: text("author"),
+  featured: boolean("featured").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================================================
+// NEWSLETTER SUBSCRIPTIONS
+// ============================================================================
+export const newsletterSubscriptions = pgTable("newsletter_subscriptions", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
